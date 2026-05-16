@@ -5,8 +5,11 @@ namespace EmulationServer.RealmServer.Realms;
 
 public sealed class ConfiguredRealm
 {
-    private int _online;
-    private float _population;
+    private readonly object _syncRoot = new();
+
+    private bool _online;
+    private int _activeConnections;
+    private int _maxConnections;
 
     public ConfiguredRealm(ConfiguredRealmSettings settings)
     {
@@ -23,8 +26,9 @@ public sealed class ConfiguredRealm
         AllowedSecurityLevel = settings.AllowedSecurityLevel;
         Builds = settings.Builds;
 
-        _online = settings.Online ? 1 : 0;
-        _population = settings.Population;
+        _online = settings.Online;
+        _activeConnections = settings.ActiveConnections;
+        _maxConnections = settings.MaxConnections;
     }
 
     public uint Id { get; }
@@ -45,19 +49,59 @@ public sealed class ConfiguredRealm
 
     public IReadOnlySet<ushort> Builds { get; }
 
-    public bool IsOnline => Volatile.Read(ref _online) == 1;
+    public bool IsOnline
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _online;
+            }
+        }
+    }
 
-    public float Population => _population;
+    public int ActiveConnections
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _activeConnections;
+            }
+        }
+    }
+
+    public int MaxConnections
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _maxConnections;
+            }
+        }
+    }
+
+    public float Population
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return RealmPopulationCalculator.Calculate(_activeConnections, _maxConnections);
+            }
+        }
+    }
 
     public string ClientAddress => $"{Address}:{Port}";
 
-    public void SetStatus(bool online, float? population = null)
+    public void SetStatus(bool online, int activeConnections, int maxConnections)
     {
-        Volatile.Write(ref _online, online ? 1 : 0);
-
-        if (population.HasValue)
+        lock (_syncRoot)
         {
-            _population = Math.Max(0.0f, population.Value);
+            _online = online;
+            _activeConnections = Math.Max(0, activeConnections);
+            _maxConnections = Math.Max(1, maxConnections);
         }
     }
 }

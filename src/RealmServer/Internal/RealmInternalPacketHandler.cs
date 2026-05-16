@@ -1,6 +1,5 @@
 
 using System.Globalization;
-
 using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.RealmServer.Realms;
@@ -46,6 +45,7 @@ public sealed class RealmInternalPacketHandler
         CancellationToken cancellationToken)
     {
         string[] parts = packet.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
         if (parts.Length == 0)
         {
             return Task.CompletedTask;
@@ -71,9 +71,9 @@ public sealed class RealmInternalPacketHandler
 
     private void HandleRealmStatusPacket(string remoteServerName, string[] parts)
     {
-        if (parts.Length < 3)
+        if (parts.Length < 5)
         {
-            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS packet from '{remoteServerName}'. Expected: REALM_STATUS <RealmId> <online|offline> [population].", nameof(RealmInternalPacketHandler));
+            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS packet from '{remoteServerName}'. Expected: REALM_STATUS <realmId> <online|offline> <activeConnections> <maxConnections>.", nameof(RealmInternalPacketHandler));
             return;
         }
 
@@ -83,39 +83,56 @@ public sealed class RealmInternalPacketHandler
             return;
         }
 
-        bool online = parts[2].ToLowerInvariant() switch
+        if (!TryParseOnlineState(parts[2], out bool online))
         {
-            "online" => true,
-            "up" => true,
-            "1" => true,
-            "true" => true,
-
-            "offline" => false,
-            "down" => false,
-            "0" => false,
-            "false" => false,
-
-            _ => false,
-        };
-
-        float? population = null;
-        if (parts.Length >= 4)
-        {
-            if (!float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float parsedPopulation))
-            {
-                Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS population from '{remoteServerName}': '{parts[3]}'.", nameof(RealmInternalPacketHandler));
-                return;
-            }
-
-            population = parsedPopulation;
+            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS state from '{remoteServerName}': '{parts[2]}'.", nameof(RealmInternalPacketHandler));
+            return;
         }
 
-        if (!_realmStore.TrySetRealmStatus(realmId, online, population))
+        if (!int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int activeConnections))
+        {
+            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS active connection count from '{remoteServerName}': '{parts[3]}'.", nameof(RealmInternalPacketHandler));
+            return;
+        }
+
+        if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int maxConnections))
+        {
+            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS max connection count from '{remoteServerName}': '{parts[4]}'.", nameof(RealmInternalPacketHandler));
+            return;
+        }
+
+        if (!_realmStore.TrySetRealmStatus(realmId, online, activeConnections, maxConnections))
         {
             Logger.Write(LogType.WARNING, $"REALM_STATUS packet from '{remoteServerName}' referenced unknown realm id {realmId}.", nameof(RealmInternalPacketHandler));
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}{(population.HasValue ? $", population {population.Value:0.00}" : string.Empty)}.", nameof(RealmInternalPacketHandler));
+        float population = RealmPopulationCalculator.Calculate(activeConnections, maxConnections);
+
+        Logger.Write(LogType.NETWORK, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, maxConnections)}, population {population:0.00}.", nameof(RealmInternalPacketHandler));
+    }
+
+    private static bool TryParseOnlineState(string value, out bool online)
+    {
+        switch (value.ToLowerInvariant())
+        {
+            case "online":
+            case "up":
+            case "1":
+            case "true":
+                online = true;
+                return true;
+
+            case "offline":
+            case "down":
+            case "0":
+            case "false":
+                online = false;
+                return true;
+
+            default:
+                online = false;
+                return false;
+        }
     }
 }

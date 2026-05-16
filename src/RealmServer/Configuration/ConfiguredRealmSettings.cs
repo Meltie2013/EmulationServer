@@ -1,4 +1,5 @@
 
+
 namespace EmulationServer.RealmServer.Configuration;
 
 public sealed class ConfiguredRealmSettings
@@ -19,11 +20,21 @@ public sealed class ConfiguredRealmSettings
 
     public byte AllowedSecurityLevel { get; init; }
 
-    public float Population { get; init; }
-
     public bool Online { get; init; }
 
-    public IReadOnlySet<ushort> Builds { get; init; } = new HashSet<ushort> { 5875, 6005, 6141 };
+    public int ActiveConnections { get; init; }
+
+    public int MaxConnections { get; init; } = 1000;
+
+    public IReadOnlySet<ushort> Builds { get; init; } = new HashSet<ushort>
+    {
+        5875,
+        6005,
+        6141,
+        8086,
+        12340,
+        15595
+    };
 
     public void Validate()
     {
@@ -45,6 +56,16 @@ public sealed class ConfiguredRealmSettings
         if (Port == 0)
         {
             throw new InvalidOperationException($"Realm {Id} port is required.");
+        }
+
+        if (ActiveConnections < 0)
+        {
+            throw new InvalidOperationException($"Realm {Id} active connections cannot be negative.");
+        }
+
+        if (MaxConnections <= 0)
+        {
+            throw new InvalidOperationException($"Realm {Id} max connections must be greater than zero.");
         }
 
         if (Builds.Count == 0)

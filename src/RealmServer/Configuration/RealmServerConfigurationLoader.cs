@@ -159,8 +159,9 @@ public static class RealmServerConfigurationLoader
                 RealmFlags = (byte)configuration.GetInt(section, "RealmFlags", 0, minimum: 0, maximum: byte.MaxValue),
                 Timezone = (byte)configuration.GetInt(section, "Timezone", 1, minimum: 0, maximum: byte.MaxValue),
                 AllowedSecurityLevel = (byte)configuration.GetInt(section, "AllowedSecurityLevel", 0, minimum: 0, maximum: byte.MaxValue),
-                Population = GetFloat(configuration, section, "Population", 0.0f),
                 Online = configuration.GetBool(section, "Online", false),
+                ActiveConnections = configuration.GetInt(section, "ActiveConnections", 0, minimum: 0),
+                MaxConnections = configuration.GetInt(section, "MaxConnections", 1000, minimum: 1),
                 Builds = ParseBuilds(builds, section),
             });
         }
@@ -183,21 +184,6 @@ public static class RealmServerConfigurationLoader
         }
 
         return builds;
-    }
-
-    private static float GetFloat(IniConfiguration configuration, string section, string key, float defaultValue)
-    {
-        if (!configuration.TryGetString(section, key, out string value))
-        {
-            return defaultValue;
-        }
-
-        if (!float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
-        {
-            throw new ConfigurationException($"Invalid float value for [{section}] {key}: '{value}'.");
-        }
-
-        return parsed;
     }
 
     private static IEnumerable<string> SplitList(string value)

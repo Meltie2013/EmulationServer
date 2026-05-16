@@ -29,14 +29,14 @@ public sealed class ConfiguredRealmStore
             .ToArray();
     }
 
-    public bool TrySetRealmStatus(uint realmId, bool online, float? population = null)
+    public bool TrySetRealmStatus(uint realmId, bool online, int activeConnections, int maxConnections)
     {
         if (!_realms.TryGetValue(realmId, out ConfiguredRealm? realm))
         {
             return false;
         }
 
-        realm.SetStatus(online, population);
+        realm.SetStatus(online, activeConnections, maxConnections);
         return true;
     }
 }
