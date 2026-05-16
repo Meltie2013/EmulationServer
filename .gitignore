@@ -1,0 +1,11 @@
+#
+# Project Ignore File List
+#
+
+# ignore obj and bin folders
+obj/
+bin/
+
+# ignore cache files
+*.cache
+*.lscache

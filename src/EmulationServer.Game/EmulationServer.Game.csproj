@@ -1,0 +1,17 @@
+﻿
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmulationServer.Core\EmulationServer.Core.csproj" />
+    <ProjectReference Include="..\EmulationServer.Network\EmulationServer.Network.csproj" />
+    <ProjectReference Include="..\EmulationServer.Shared\EmulationServer.Shared.csproj" />
+    <ProjectReference Include="..\EmulationServer.Database\EmulationServer.Database.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
