@@ -19,6 +19,10 @@ public sealed class InternalNetworkSettings
 
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
 
+    public TimeSpan LatencyReportInterval { get; init; } = TimeSpan.FromSeconds(15);
+
+    public TimeSpan PingTimeout { get; init; } = TimeSpan.FromSeconds(5);
+
     public IReadOnlyList<InternalPeerSettings> Peers { get; init; } = [];
 
     public IPAddress GetBindAddress()
@@ -73,6 +77,21 @@ public sealed class InternalNetworkSettings
         if (ShutdownGracePeriod < TimeSpan.Zero)
         {
             throw new InvalidOperationException("Internal network shutdown grace period cannot be negative.");
+        }
+
+        if (LatencyReportInterval <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Internal network latency report interval must be greater than zero.");
+        }
+
+        if (PingTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Internal network ping timeout must be greater than zero.");
+        }
+
+        if (PingTimeout >= LatencyReportInterval)
+        {
+            throw new InvalidOperationException("Internal network ping timeout must be less than the latency report interval.");
         }
 
         HashSet<string> peerNames = new(StringComparer.OrdinalIgnoreCase);

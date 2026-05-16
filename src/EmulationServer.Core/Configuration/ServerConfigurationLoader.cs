@@ -126,6 +126,16 @@ public static class ServerConfigurationLoader
                 "ShutdownGracePeriod",
                 TimeSpan.FromSeconds(15)),
 
+            LatencyReportInterval = configuration.GetTimeSpan(
+                sectionName,
+                "LatencyReportInterval",
+                TimeSpan.FromSeconds(15)),
+
+            PingTimeout = configuration.GetTimeSpan(
+                sectionName,
+                "PingTimeout",
+                TimeSpan.FromSeconds(5)),
+
             Peers = LoadInternalPeers(configuration, sectionName),
         };
     }

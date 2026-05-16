@@ -1,10 +1,9 @@
 
-using System.Buffers;
 using System.Net.Sockets;
-using System.Security.Cryptography;
-using System.Text;
 
 using EmulationServer.Network.Configuration;
+using EmulationServer.Network.Networking.Health;
+using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
@@ -12,11 +11,9 @@ namespace EmulationServer.Network.Networking.Sessions;
 
 public sealed class InternalServerSession
 {
-    private const int ReceiveBufferSize = 4096;
-    private const int MaximumRegistrationLineLength = 512;
-
     private readonly TcpClient _client;
     private readonly NetworkStream _stream;
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
     private readonly CancellationTokenSource _disconnectCancellation = new();
     private readonly InternalNetworkSettings _settings;
     private readonly string _remoteEndPoint;
@@ -38,44 +35,68 @@ public sealed class InternalServerSession
 
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal session from {_remoteEndPoint}. Awaiting server registration...", nameof(InternalServerSession));
+        Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal session from {_remoteEndPoint}. Requesting server pass-key...", nameof(InternalServerSession));
 
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
             _disconnectCancellation.Token);
 
         string? remoteServerName = null;
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
+        InternalLatencyMonitor? latencyMonitor = null;
 
         try
         {
-            remoteServerName = await ReadAndValidateRegistrationAsync(linkedCancellation.Token);
-            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} registered internal server '{remoteServerName}' from {_remoteEndPoint}.", nameof(InternalServerSession));
+            remoteServerName = await RequestAndValidateAuthenticationAsync(linkedCancellation.Token);
+            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} authenticated internal server '{remoteServerName}' from {_remoteEndPoint}.", nameof(InternalServerSession));
 
-            byte[] accepted = Encoding.UTF8.GetBytes($"REGISTERED {_settings.ServerName}\n");
-            await _stream.WriteAsync(accepted.AsMemory(0, accepted.Length), linkedCancellation.Token);
+            await InternalProtocol.WriteLineAsync(
+                _stream,
+                _sendLock,
+                $"{InternalProtocol.AuthenticationAccepted} {_settings.ServerName}",
+                linkedCancellation.Token);
+
+            latencyMonitor = new InternalLatencyMonitor(
+                _settings.ServerName,
+                remoteServerName,
+                _stream,
+                _sendLock,
+                _settings.LatencyReportInterval,
+                _settings.PingTimeout);
+
+            latencyMonitor.Start(linkedCancellation.Token);
 
             while (!linkedCancellation.Token.IsCancellationRequested)
             {
-                int received = await _stream.ReadAsync(buffer.AsMemory(0, ReceiveBufferSize), linkedCancellation.Token);
-                if (received == 0)
+                string? line = await InternalProtocol.ReadLineAsync(
+                    _stream,
+                    InternalProtocol.MaximumPacketLineLength,
+                    linkedCancellation.Token);
+
+                if (line is null)
                 {
                     Logger.Write(LogType.NETWORK, $"Internal server '{remoteServerName}' disconnected from {_remoteEndPoint}.", nameof(InternalServerSession));
                     break;
                 }
 
-                string preview = Encoding.UTF8.GetString(buffer, 0, received).Trim();
-                Logger.Write(LogType.DEBUG, $"{_settings.ServerName} received {received} internal byte(s) from {remoteServerName}: {preview}", nameof(InternalServerSession));
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                await ProcessPacketAsync(remoteServerName, line, latencyMonitor, linkedCancellation.Token);
             }
         }
         catch (UnauthorizedAccessException exception)
         {
-            Logger.Write(LogType.WARNING, $"Rejected internal registration from {_remoteEndPoint}: {exception.Message}", nameof(InternalServerSession));
+            Logger.Write(LogType.WARNING, $"Rejected internal authentication from {_remoteEndPoint}: {exception.Message}", nameof(InternalServerSession));
 
             try
             {
-                byte[] rejected = Encoding.UTF8.GetBytes("REJECTED AuthenticationFailed\n");
-                await _stream.WriteAsync(rejected.AsMemory(0, rejected.Length), CancellationToken.None);
+                await InternalProtocol.WriteLineAsync(
+                    _stream,
+                    _sendLock,
+                    $"{InternalProtocol.AuthenticationRejected} AuthenticationFailed",
+                    CancellationToken.None);
             }
             catch (Exception writeException) when (writeException is IOException or SocketException or ObjectDisposedException)
             {
@@ -104,7 +125,11 @@ public sealed class InternalServerSession
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            if (latencyMonitor is not null)
+            {
+                await latencyMonitor.DisposeAsync();
+            }
+
             await DisconnectAsync();
         }
     }
@@ -142,19 +167,35 @@ public sealed class InternalServerSession
 
         _stream.Dispose();
         _client.Dispose();
+        _sendLock.Dispose();
         _disconnectCancellation.Dispose();
 
         return Task.CompletedTask;
     }
 
-    private async Task<string> ReadAndValidateRegistrationAsync(CancellationToken cancellationToken)
+    private async Task<string> RequestAndValidateAuthenticationAsync(CancellationToken cancellationToken)
     {
-        string line = await ReadLineAsync(_stream, MaximumRegistrationLineLength, cancellationToken);
+        await InternalProtocol.WriteLineAsync(
+            _stream,
+            _sendLock,
+            $"{InternalProtocol.AuthenticationChallenge} {_settings.ServerName}",
+            cancellationToken);
+
+        string? line = await InternalProtocol.ReadLineAsync(
+            _stream,
+            InternalProtocol.MaximumAuthenticationLineLength,
+            cancellationToken);
+
+        if (line is null)
+        {
+            throw new UnauthorizedAccessException("Remote server disconnected before sending authentication response.");
+        }
+
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length != 3 || !string.Equals(parts[0], "REGISTER", StringComparison.OrdinalIgnoreCase))
+        if (parts.Length != 3 || !string.Equals(parts[0], InternalProtocol.AuthenticationResponse, StringComparison.OrdinalIgnoreCase))
         {
-            throw new UnauthorizedAccessException("Missing or invalid registration command.");
+            throw new UnauthorizedAccessException("Missing or invalid authentication response packet.");
         }
 
         string remoteServerName = parts[1];
@@ -165,7 +206,7 @@ public sealed class InternalServerSession
             throw new UnauthorizedAccessException("Missing remote server name.");
         }
 
-        if (!RegistrationKeysMatch(_settings.RegistrationKey, registrationKey))
+        if (!InternalProtocol.RegistrationKeysMatch(_settings.RegistrationKey, registrationKey))
         {
             throw new UnauthorizedAccessException($"Invalid registration key for server '{remoteServerName}'.");
         }
@@ -173,46 +214,31 @@ public sealed class InternalServerSession
         return remoteServerName;
     }
 
-    private static async Task<string> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
+    private async Task ProcessPacketAsync(
+        string remoteServerName,
+        string line,
+        InternalLatencyMonitor latencyMonitor,
+        CancellationToken cancellationToken)
     {
-        byte[] singleByteBuffer = new byte[1];
-        using MemoryStream lineBuffer = new();
-
-        while (lineBuffer.Length < maximumLength)
+        string[] parts = line.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
         {
-            int received = await stream.ReadAsync(singleByteBuffer.AsMemory(0, 1), cancellationToken);
-            if (received == 0)
-            {
-                break;
-            }
-
-            byte value = singleByteBuffer[0];
-            if (value == '\n')
-            {
-                break;
-            }
-
-            if (value != '\r')
-            {
-                lineBuffer.WriteByte(value);
-            }
+            return;
         }
 
-        if (lineBuffer.Length >= maximumLength)
+        if (parts.Length == 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
-            throw new UnauthorizedAccessException("Registration command is too long.");
+            await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
+            return;
         }
 
-        return Encoding.UTF8.GetString(lineBuffer.ToArray()).Trim();
-    }
+        if (parts.Length == 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
+        {
+            latencyMonitor.RecordPong(parts[1]);
+            return;
+        }
 
-    private static bool RegistrationKeysMatch(string expected, string actual)
-    {
-        byte[] expectedBytes = Encoding.UTF8.GetBytes(expected);
-        byte[] actualBytes = Encoding.UTF8.GetBytes(actual);
-
-        return expectedBytes.Length == actualBytes.Length &&
-            CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
+        Logger.Write(LogType.DEBUG, $"{_settings.ServerName} received internal packet from {remoteServerName}: {line}", nameof(InternalServerSession));
     }
 
     private bool IsDisconnectRequested => Volatile.Read(ref _disconnectRequested) == 1;

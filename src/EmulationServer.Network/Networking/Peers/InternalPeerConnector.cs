@@ -1,8 +1,9 @@
 
 using System.Net.Sockets;
-using System.Text;
 
 using EmulationServer.Network.Configuration;
+using EmulationServer.Network.Networking.Health;
+using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
@@ -10,11 +11,11 @@ namespace EmulationServer.Network.Networking.Peers;
 
 public sealed class InternalPeerConnector : IAsyncDisposable
 {
-    private const int MaximumRegistrationResponseLength = 512;
-
     private readonly string _serverName;
     private readonly IReadOnlyList<InternalPeerSettings> _peers;
     private readonly string _registrationKey;
+    private readonly TimeSpan _latencyReportInterval;
+    private readonly TimeSpan _pingTimeout;
     private readonly List<Task> _connectionTasks = [];
     private readonly object _syncRoot = new();
 
@@ -22,7 +23,12 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     private int _started;
     private int _stopping;
 
-    public InternalPeerConnector(string serverName, IReadOnlyList<InternalPeerSettings> peers, string registrationKey)
+    public InternalPeerConnector(
+        string serverName,
+        IReadOnlyList<InternalPeerSettings> peers,
+        string registrationKey,
+        TimeSpan latencyReportInterval,
+        TimeSpan pingTimeout)
     {
         if (string.IsNullOrWhiteSpace(serverName))
         {
@@ -34,9 +40,21 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             throw new ArgumentException("Registration key is required.", nameof(registrationKey));
         }
 
+        if (latencyReportInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(latencyReportInterval), "Latency report interval must be greater than zero.");
+        }
+
+        if (pingTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pingTimeout), "Ping timeout must be greater than zero.");
+        }
+
         _serverName = serverName;
         _peers = peers ?? throw new ArgumentNullException(nameof(peers));
         _registrationKey = registrationKey;
+        _latencyReportInterval = latencyReportInterval;
+        _pingTimeout = pingTimeout;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -118,7 +136,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
     private async Task RunPeerLoopAsync(InternalPeerSettings peer, CancellationToken cancellationToken)
     {
-        bool everRegistered = false;
+        bool everAuthenticated = false;
         bool loggedInitialWait = false;
 
         while (!cancellationToken.IsCancellationRequested)
@@ -130,7 +148,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 client.ReceiveBufferSize = 8192;
                 client.SendBufferSize = 8192;
 
-                if (everRegistered)
+                if (everAuthenticated)
                 {
                     Logger.Write(LogType.NETWORK, $"{_serverName} reconnecting to internal peer {peer.Name} at {peer.Host}:{peer.Port}...", nameof(InternalPeerConnector));
                 }
@@ -143,23 +161,14 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 await client.ConnectAsync(peer.Host, peer.Port, cancellationToken);
 
                 await using NetworkStream stream = client.GetStream();
-                await RegisterWithPeerAsync(peer, stream, cancellationToken);
+                using SemaphoreSlim sendLock = new(1, 1);
 
-                everRegistered = true;
-                Logger.Write(LogType.NETWORK, $"{_serverName} registered with internal peer {peer.Name}.", nameof(InternalPeerConnector));
+                await AuthenticateWithPeerAsync(peer, stream, sendLock, cancellationToken);
 
-                byte[] buffer = new byte[4096];
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    int received = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
-                    if (received == 0)
-                    {
-                        break;
-                    }
+                everAuthenticated = true;
+                Logger.Write(LogType.NETWORK, $"{_serverName} authenticated with internal peer {peer.Name}.", nameof(InternalPeerConnector));
 
-                    string preview = Encoding.UTF8.GetString(buffer, 0, received).Trim();
-                    Logger.Write(LogType.DEBUG, $"{_serverName} received {received} internal byte(s) from peer {peer.Name}: {preview}", nameof(InternalPeerConnector));
-                }
+                await ProcessAuthenticatedPeerAsync(peer, stream, sendLock, cancellationToken);
 
                 Logger.Write(LogType.NETWORK, $"{_serverName} disconnected from internal peer {peer.Name}.", nameof(InternalPeerConnector));
             }
@@ -169,13 +178,13 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                if (everRegistered)
+                if (everAuthenticated)
                 {
                     Logger.Write(LogType.WARNING, $"{_serverName} lost or could not reconnect to internal peer {peer.Name} at {peer.Host}:{peer.Port}: {exception.Message}", nameof(InternalPeerConnector));
                 }
                 else
                 {
-                    // Keep startup clean: before the first successful registration, the peer may simply not be online yet.
+                    // Keep startup clean: before the first successful authentication, the peer may simply not be online yet.
                 }
             }
 
@@ -190,48 +199,111 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-    private async Task RegisterWithPeerAsync(InternalPeerSettings peer, NetworkStream stream, CancellationToken cancellationToken)
+    private async Task AuthenticateWithPeerAsync(
+        InternalPeerSettings peer,
+        NetworkStream stream,
+        SemaphoreSlim sendLock,
+        CancellationToken cancellationToken)
     {
-        byte[] registration = Encoding.UTF8.GetBytes($"REGISTER {_serverName} {_registrationKey}\n");
-        await stream.WriteAsync(registration.AsMemory(0, registration.Length), cancellationToken);
+        string? challenge = await InternalProtocol.ReadLineAsync(
+            stream,
+            InternalProtocol.MaximumAuthenticationLineLength,
+            cancellationToken);
 
-        string response = await ReadLineAsync(stream, MaximumRegistrationResponseLength, cancellationToken);
-        if (!response.StartsWith("REGISTERED ", StringComparison.OrdinalIgnoreCase))
+        if (challenge is null)
         {
-            throw new InvalidOperationException($"Internal peer {peer.Name} rejected registration.");
+            throw new InvalidOperationException($"Internal peer {peer.Name} disconnected before requesting authentication.");
+        }
+
+        string[] challengeParts = challenge.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (challengeParts.Length != 2 || !string.Equals(challengeParts[0], InternalProtocol.AuthenticationChallenge, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Internal peer {peer.Name} sent an invalid authentication challenge.");
+        }
+
+        await InternalProtocol.WriteLineAsync(
+            stream,
+            sendLock,
+            $"{InternalProtocol.AuthenticationResponse} {_serverName} {_registrationKey}",
+            cancellationToken);
+
+        string? response = await InternalProtocol.ReadLineAsync(
+            stream,
+            InternalProtocol.MaximumAuthenticationLineLength,
+            cancellationToken);
+
+        if (response is null)
+        {
+            throw new InvalidOperationException($"Internal peer {peer.Name} disconnected before accepting authentication.");
+        }
+
+        if (!response.StartsWith($"{InternalProtocol.AuthenticationAccepted} ", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Internal peer {peer.Name} rejected authentication.");
         }
     }
 
-    private static async Task<string> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
+    private async Task ProcessAuthenticatedPeerAsync(
+        InternalPeerSettings peer,
+        NetworkStream stream,
+        SemaphoreSlim sendLock,
+        CancellationToken cancellationToken)
     {
-        byte[] singleByteBuffer = new byte[1];
-        using MemoryStream lineBuffer = new();
+        await using InternalLatencyMonitor latencyMonitor = new(
+            _serverName,
+            peer.Name,
+            stream,
+            sendLock,
+            _latencyReportInterval,
+            _pingTimeout);
 
-        while (lineBuffer.Length < maximumLength)
+        latencyMonitor.Start(cancellationToken);
+
+        while (!cancellationToken.IsCancellationRequested)
         {
-            int received = await stream.ReadAsync(singleByteBuffer.AsMemory(0, 1), cancellationToken);
-            if (received == 0)
+            string? line = await InternalProtocol.ReadLineAsync(
+                stream,
+                InternalProtocol.MaximumPacketLineLength,
+                cancellationToken);
+
+            if (line is null)
             {
                 break;
             }
 
-            byte value = singleByteBuffer[0];
-            if (value == '\n')
+            if (string.IsNullOrWhiteSpace(line))
             {
-                break;
+                continue;
             }
 
-            if (value != '\r')
-            {
-                lineBuffer.WriteByte(value);
-            }
+            await ProcessPeerPacketAsync(peer, line, latencyMonitor, cancellationToken);
         }
+    }
 
-        if (lineBuffer.Length >= maximumLength)
+    private async Task ProcessPeerPacketAsync(
+        InternalPeerSettings peer,
+        string line,
+        InternalLatencyMonitor latencyMonitor,
+        CancellationToken cancellationToken)
+    {
+        string[] parts = line.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
         {
-            throw new InvalidOperationException("Registration response is too long.");
+            return;
         }
 
-        return Encoding.UTF8.GetString(lineBuffer.ToArray()).Trim();
+        if (parts.Length == 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
+        {
+            await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
+            return;
+        }
+
+        if (parts.Length == 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
+        {
+            latencyMonitor.RecordPong(parts[1]);
+            return;
+        }
+
+        Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {peer.Name}: {line}", nameof(InternalPeerConnector));
     }
 }

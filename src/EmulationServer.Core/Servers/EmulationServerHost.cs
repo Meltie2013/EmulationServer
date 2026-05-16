@@ -49,7 +49,9 @@ public sealed class EmulationServerHost : IAsyncDisposable
         _internalPeerConnector = new InternalPeerConnector(
             serverName,
             internalNetworkSettings.Peers,
-            internalNetworkSettings.RegistrationKey);
+            internalNetworkSettings.RegistrationKey,
+            internalNetworkSettings.LatencyReportInterval,
+            internalNetworkSettings.PingTimeout);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
