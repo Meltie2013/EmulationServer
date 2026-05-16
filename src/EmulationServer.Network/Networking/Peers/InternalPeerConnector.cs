@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 
 using EmulationServer.Network.Configuration;
+using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Health;
 using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
@@ -16,6 +17,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     private readonly string _registrationKey;
     private readonly TimeSpan _latencyReportInterval;
     private readonly TimeSpan _pingTimeout;
+    private readonly InternalNetworkCallbacks _callbacks;
     private readonly List<Task> _connectionTasks = [];
     private readonly object _syncRoot = new();
 
@@ -28,7 +30,8 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         IReadOnlyList<InternalPeerSettings> peers,
         string registrationKey,
         TimeSpan latencyReportInterval,
-        TimeSpan pingTimeout)
+        TimeSpan pingTimeout,
+        InternalNetworkCallbacks? callbacks = null)
     {
         if (string.IsNullOrWhiteSpace(serverName))
         {
@@ -55,6 +58,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         _registrationKey = registrationKey;
         _latencyReportInterval = latencyReportInterval;
         _pingTimeout = pingTimeout;
+        _callbacks = callbacks ?? InternalNetworkCallbacks.Empty;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -286,21 +290,28 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         InternalLatencyMonitor latencyMonitor,
         CancellationToken cancellationToken)
     {
-        string[] parts = line.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
             return;
         }
 
-        if (parts.Length == 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
+        if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
-        if (parts.Length == 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
+        if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
             latencyMonitor.RecordPong(parts[1]);
+            return;
+        }
+
+        if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.ShutdownRequest, StringComparison.OrdinalIgnoreCase))
+        {
+            string reason = parts.Length == 3 ? parts[2] : "No reason provided.";
+            await _callbacks.NotifyShutdownRequestedAsync(parts[1], reason, cancellationToken);
             return;
         }
 

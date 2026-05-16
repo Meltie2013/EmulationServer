@@ -3,6 +3,7 @@ using EmulationServer.Database.Configuration;
 using EmulationServer.Database.Interfaces;
 using EmulationServer.Database.Services;
 using EmulationServer.Network.Configuration;
+using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Peers;
 using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
@@ -18,18 +19,23 @@ public sealed class EmulationServerHost : IAsyncDisposable
     private readonly IDatabaseService? _databaseService;
     private readonly InternalSocketListener _internalSocketListener;
     private readonly InternalPeerConnector _internalPeerConnector;
+    private readonly CancellationTokenSource _shutdownCancellation = new();
+
+    private int _shutdownRequested;
 
     public EmulationServerHost(
         string serverName,
-        InternalNetworkSettings internalNetworkSettings)
-        : this(serverName, null, internalNetworkSettings)
+        InternalNetworkSettings internalNetworkSettings,
+        InternalNetworkCallbacks? callbacks = null)
+        : this(serverName, null, internalNetworkSettings, callbacks)
     {
     }
 
     public EmulationServerHost(
         string serverName,
         DatabaseSettings? databaseSettings,
-        InternalNetworkSettings internalNetworkSettings)
+        InternalNetworkSettings internalNetworkSettings,
+        InternalNetworkCallbacks? callbacks = null)
     {
         if (string.IsNullOrWhiteSpace(serverName))
         {
@@ -45,21 +51,29 @@ public sealed class EmulationServerHost : IAsyncDisposable
         _databaseSettings = databaseSettings;
         _internalNetworkSettings = internalNetworkSettings;
         _databaseService = databaseSettings is null ? null : new MySqlDatabaseService(databaseSettings);
-        _internalSocketListener = new InternalSocketListener(internalNetworkSettings);
+
+        InternalNetworkCallbacks hostCallbacks = CreateHostCallbacks(callbacks ?? InternalNetworkCallbacks.Empty);
+
+        _internalSocketListener = new InternalSocketListener(internalNetworkSettings, hostCallbacks);
         _internalPeerConnector = new InternalPeerConnector(
             serverName,
             internalNetworkSettings.Peers,
             internalNetworkSettings.RegistrationKey,
             internalNetworkSettings.LatencyReportInterval,
-            internalNetworkSettings.PingTimeout);
+            internalNetworkSettings.PingTimeout,
+            hostCallbacks);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NOTICE, $"Starting {_serverName}...", nameof(EmulationServerHost));
-        await ValidateStartupAsync(cancellationToken);
+        using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            _shutdownCancellation.Token);
 
-        await _internalPeerConnector.StartAsync(cancellationToken);
+        Logger.Write(LogType.NOTICE, $"Starting {_serverName}...", nameof(EmulationServerHost));
+        await ValidateStartupAsync(linkedCancellation.Token);
+
+        await _internalPeerConnector.StartAsync(linkedCancellation.Token);
 
         if (_internalNetworkSettings.Peers.Count == 0)
         {
@@ -67,7 +81,7 @@ public sealed class EmulationServerHost : IAsyncDisposable
         }
 
         Logger.Write(LogType.NETWORK, $"{_serverName} started successfully. Listening for internal server connections...", nameof(EmulationServerHost));
-        await _internalSocketListener.StartAsync(cancellationToken);
+        await _internalSocketListener.StartAsync(linkedCancellation.Token);
 
         Logger.Write(LogType.TRACE, $"{_serverName} stopped.", nameof(EmulationServerHost));
     }
@@ -81,11 +95,38 @@ public sealed class EmulationServerHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
+        _shutdownCancellation.Dispose();
 
         if (_databaseService is not null)
         {
             await _databaseService.DisposeAsync();
         }
+    }
+
+    private InternalNetworkCallbacks CreateHostCallbacks(InternalNetworkCallbacks callbacks)
+    {
+        return new InternalNetworkCallbacks
+        {
+            ServerAuthenticatedAsync = callbacks.ServerAuthenticatedAsync,
+            PacketReceivedAsync = callbacks.PacketReceivedAsync,
+            ServerDisconnectedAsync = callbacks.ServerDisconnectedAsync,
+            ShutdownRequestedAsync = async (sourceServerName, reason, cancellationToken) =>
+            {
+                await callbacks.NotifyShutdownRequestedAsync(sourceServerName, reason, cancellationToken);
+                await RequestShutdownAsync(sourceServerName, reason);
+            },
+        };
+    }
+
+    private async Task RequestShutdownAsync(string sourceServerName, string reason)
+    {
+        if (Interlocked.Exchange(ref _shutdownRequested, 1) == 1)
+        {
+            return;
+        }
+
+        Logger.Write(LogType.WARNING, $"{_serverName} received internal shutdown request from {sourceServerName}: {reason}. Stopping server...", nameof(EmulationServerHost));
+        await _shutdownCancellation.CancelAsync();
     }
 
     private async Task ValidateStartupAsync(CancellationToken cancellationToken)

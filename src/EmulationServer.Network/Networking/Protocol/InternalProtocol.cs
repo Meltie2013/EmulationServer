@@ -16,6 +16,7 @@ public static class InternalProtocol
     public const string AuthenticationRejected = "AUTH_REJECTED";
     public const string Ping = "PING";
     public const string Pong = "PONG";
+    public const string ShutdownRequest = "SHUTDOWN_REQUEST";
 
     public static async Task<string?> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
     {

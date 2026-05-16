@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 
 using EmulationServer.Network.Configuration;
+using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
@@ -14,16 +15,20 @@ public sealed class InternalSocketListener
     private readonly TcpListener _tcpListener;
     private readonly InternalSessionManager _sessionManager = new();
     private readonly InternalNetworkSettings _settings;
+    private readonly InternalNetworkCallbacks _callbacks;
 
     private int _started;
     private int _stopping;
 
-    public InternalSocketListener(InternalNetworkSettings settings)
+    public InternalSocketListener(
+        InternalNetworkSettings settings,
+        InternalNetworkCallbacks? callbacks = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
         _settings = settings;
+        _callbacks = callbacks ?? InternalNetworkCallbacks.Empty;
         _tcpListener = new TcpListener(settings.GetBindAddress(), settings.Port);
     }
 
@@ -110,7 +115,7 @@ public sealed class InternalSocketListener
 
             Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal connection from {client.Client.RemoteEndPoint}", nameof(InternalSocketListener));
 
-            InternalServerSession session = new(_settings, client);
+            InternalServerSession session = new(_settings, client, _callbacks);
 
             if (!_sessionManager.TryAddSession(session))
             {

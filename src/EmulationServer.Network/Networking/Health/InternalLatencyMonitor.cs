@@ -148,10 +148,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(_reportInterval, cancellationToken);
-
                 RemoveTimedOutPings();
                 await SendPingAsync(cancellationToken);
+
+                await Task.Delay(_reportInterval, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
