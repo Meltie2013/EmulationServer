@@ -5,7 +5,6 @@ public sealed class ProxyDependencySettings
 {
     public IReadOnlySet<string> CriticalServers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        "CharacterServer",
         "WorldServer",
     };
 

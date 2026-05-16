@@ -37,7 +37,7 @@ public static class ProxyServerConfigurationLoader
             CriticalServers = LoadServerNameSet(
                 configuration,
                 "CriticalServers",
-                new[] { "CharacterServer", "WorldServer" }),
+                new[] { "WorldServer" }),
 
             NonCriticalServers = LoadServerNameSet(
                 configuration,
