@@ -267,10 +267,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             return;
         }
 
+        string packet = $"{InternalProtocol.ShutdownRequest} ProxyServer {reason}";
+
         foreach (ServerSnapshot server in connectedServers)
         {
-            string packet = $"{InternalProtocol.ShutdownRequest} ProxyServer {reason}";
-
             try
             {
                 await server.Session!.SendPacketAsync(packet, cancellationToken);

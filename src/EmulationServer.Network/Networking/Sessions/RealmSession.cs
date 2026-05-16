@@ -13,6 +13,7 @@ public sealed class RealmSession
 
     private readonly TcpClient _client;
     private readonly NetworkStream _stream;
+    private readonly IRealmSessionProcessor? _sessionProcessor;
     private readonly CancellationTokenSource _disconnectCancellation = new();
     private readonly string _remoteEndPoint;
 
@@ -20,10 +21,11 @@ public sealed class RealmSession
 
     public Guid Id { get; } = Guid.NewGuid();
 
-    public RealmSession(TcpClient client)
+    public RealmSession(TcpClient client, IRealmSessionProcessor? sessionProcessor = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _stream = _client.GetStream();
+        _sessionProcessor = sessionProcessor;
         _remoteEndPoint = _client.Client.RemoteEndPoint?.ToString() ?? "unknown endpoint";
     }
 
@@ -35,25 +37,24 @@ public sealed class RealmSession
             cancellationToken,
             _disconnectCancellation.Token);
 
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
-
         try
         {
-            while (!linkedCancellation.Token.IsCancellationRequested)
+            if (_sessionProcessor is not null)
             {
-                int received = await _stream.ReadAsync(buffer.AsMemory(0, ReceiveBufferSize), linkedCancellation.Token);
-                if (received == 0)
-                {
-                    Logger.Write(LogType.NETWORK, $"Client disconnected from {_remoteEndPoint}", nameof(RealmSession));
-                    break;
-                }
-
-                Logger.Write(LogType.DEBUG, $"Received {received} byte(s) from {_remoteEndPoint}", nameof(RealmSession));
+                RealmSessionContext context = new(Id, _client, _stream);
+                await _sessionProcessor.ProcessAsync(context, linkedCancellation.Token);
+                return;
             }
+
+            await ProcessRawDebugSessionAsync(linkedCancellation.Token);
         }
         catch (OperationCanceledException) when (linkedCancellation.Token.IsCancellationRequested)
         {
             // Expected during server shutdown or explicit session disconnect.
+        }
+        catch (EndOfStreamException exception)
+        {
+            Logger.Write(LogType.NETWORK, exception.Message, nameof(RealmSession));
         }
         catch (IOException exception)
         {
@@ -73,7 +74,6 @@ public sealed class RealmSession
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
             await DisconnectAsync();
         }
     }
@@ -114,6 +114,30 @@ public sealed class RealmSession
         _disconnectCancellation.Dispose();
 
         return Task.CompletedTask;
+    }
+
+    private async Task ProcessRawDebugSessionAsync(CancellationToken cancellationToken)
+    {
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                int received = await _stream.ReadAsync(buffer.AsMemory(0, ReceiveBufferSize), cancellationToken);
+                if (received == 0)
+                {
+                    Logger.Write(LogType.NETWORK, $"Client disconnected from {_remoteEndPoint}", nameof(RealmSession));
+                    break;
+                }
+
+                Logger.Write(LogType.DEBUG, $"Received {received} byte(s) from {_remoteEndPoint}", nameof(RealmSession));
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     private bool IsDisconnectRequested => Volatile.Read(ref _disconnectRequested) == 1;

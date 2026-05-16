@@ -15,16 +15,18 @@ public sealed class RealmSocketListener
     private readonly TcpListener _tcpListener;
     private readonly SessionManager _sessionManager = new();
     private readonly RealmSocketListenerSettings _settings;
+    private readonly Func<IRealmSessionProcessor>? _sessionProcessorFactory;
 
     private int _started;
     private int _stopping;
 
-    public RealmSocketListener(RealmSocketListenerSettings settings)
+    public RealmSocketListener(RealmSocketListenerSettings settings, Func<IRealmSessionProcessor>? sessionProcessorFactory = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
         _settings = settings;
+        _sessionProcessorFactory = sessionProcessorFactory;
         _tcpListener = new TcpListener(settings.GetBindAddress(), settings.Port);
     }
 
@@ -111,7 +113,7 @@ public sealed class RealmSocketListener
 
             Logger.Write(LogType.NETWORK, $"Accepted connection from {client.Client.RemoteEndPoint}", nameof(RealmSocketListener));
 
-            RealmSession session = new(client);
+            RealmSession session = new(client, _sessionProcessorFactory?.Invoke());
 
             if (!_sessionManager.TryAddSession(session))
             {
