@@ -29,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\EmulationServer.Database\EmulationServer.Database.csproj" />
     <ProjectReference Include="..\..\src\EmulationServer.Shared\EmulationServer.Shared.csproj" />
+    <ProjectReference Include="..\..\src\RealmServer\RealmServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

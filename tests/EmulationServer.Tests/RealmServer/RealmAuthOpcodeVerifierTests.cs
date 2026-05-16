@@ -1,0 +1,35 @@
+
+using EmulationServer.RealmServer.Auth;
+
+namespace EmulationServer.Tests.RealmServer;
+
+public sealed class RealmAuthOpcodeVerifierTests
+{
+    [Fact]
+    public void VerifyCriticalOpCodes_ShouldPass_WhenRealmAuthOpCodesMatchExpectedClientProtocolValues()
+    {
+        RealmAuthOpcodeVerifier.VerifyCriticalOpCodes();
+    }
+
+    [Fact]
+    public void CriticalRealmAuthOpCodes_ShouldUseExpectedClientProtocolValues()
+    {
+        Assert.Equal((byte)0x00, (byte)RealmAuthOpCode.AuthLogonChallenge);
+        Assert.Equal((byte)0x01, (byte)RealmAuthOpCode.AuthLogonProof);
+        Assert.Equal((byte)0x02, (byte)RealmAuthOpCode.AuthReconnectChallenge);
+        Assert.Equal((byte)0x03, (byte)RealmAuthOpCode.AuthReconnectProof);
+        Assert.Equal((byte)0x10, (byte)RealmAuthOpCode.RealmList);
+    }
+
+    [Fact]
+    public void GetVerificationSummary_ShouldIncludeCriticalRealmAuthOpCodes()
+    {
+        string summary = RealmAuthOpcodeVerifier.GetVerificationSummary();
+
+        Assert.Contains("AUTH_LOGON_CHALLENGE=0x00", summary);
+        Assert.Contains("AUTH_LOGON_PROOF=0x01", summary);
+        Assert.Contains("AUTH_RECONNECT_CHALLENGE=0x02", summary);
+        Assert.Contains("AUTH_RECONNECT_PROOF=0x03", summary);
+        Assert.Contains("REALM_LIST=0x10", summary);
+    }
+}

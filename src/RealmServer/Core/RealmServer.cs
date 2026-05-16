@@ -93,10 +93,14 @@ public sealed class RealmServer : IAsyncDisposable
         Logger.Write(LogType.TRACE, "Validating RealmServer settings...", nameof(RealmServer));
         _settings.Validate();
 
+        Logger.Write(LogType.TRACE, "Validating RealmServer critical authentication opcodes...", nameof(RealmServer));
+        RealmAuthOpcodeVerifier.VerifyCriticalOpCodes();
+        Logger.Write(LogType.TRACE, $"Validated RealmServer critical authentication opcodes...", nameof(RealmServer));
+
         Logger.Write(LogType.NETWORK, "Validating database connection...", nameof(RealmServer));
         await _databaseService.ValidateConnectionAsync(cancellationToken);
 
         Logger.Write(LogType.NETWORK, $"Loaded {_settings.Realms.Count} configured realm(s).", nameof(RealmServer));
-        Logger.Write(LogType.NETWORK, "RealmServer settings, database connection, and internal networking validated successfully.", nameof(RealmServer));
+        Logger.Write(LogType.NETWORK, "RealmServer settings, authentication opcodes, database connection, and internal networking validated successfully.", nameof(RealmServer));
     }
 }
