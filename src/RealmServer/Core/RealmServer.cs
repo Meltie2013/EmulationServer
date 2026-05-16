@@ -2,7 +2,7 @@
 using EmulationServer.Database.Interfaces;
 using EmulationServer.Database.Services;
 using EmulationServer.RealmServer.Configuration;
-using EmulationServer.RealmServer.Networking.Socket;
+using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 

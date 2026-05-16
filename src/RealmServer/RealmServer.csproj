@@ -1,9 +1,10 @@
-﻿
+
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\EmulationServer.Shared\EmulationServer.Shared.csproj" />
     <ProjectReference Include="..\EmulationServer.Database\EmulationServer.Database.csproj" />
+    <ProjectReference Include="..\EmulationServer.Network\EmulationServer.Network.csproj" />
   </ItemGroup>
 
   <ItemGroup>

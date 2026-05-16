@@ -1,5 +1,6 @@
 
 using EmulationServer.Database.Configuration;
+using EmulationServer.Network.Configuration;
 
 namespace EmulationServer.RealmServer.Configuration;
 

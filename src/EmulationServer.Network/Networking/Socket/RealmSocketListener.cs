@@ -3,12 +3,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-using EmulationServer.RealmServer.Configuration;
-using EmulationServer.RealmServer.Networking.Sessions;
+using EmulationServer.Network.Configuration;
+using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-namespace EmulationServer.RealmServer.Networking.Socket;
+namespace EmulationServer.Network.Networking.Socket;
 
 public sealed class RealmSocketListener
 {

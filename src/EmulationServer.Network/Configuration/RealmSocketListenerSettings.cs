@@ -1,7 +1,7 @@
 
 using System.Net;
 
-namespace EmulationServer.RealmServer.Configuration;
+namespace EmulationServer.Network.Configuration;
 
 public sealed class RealmSocketListenerSettings
 {

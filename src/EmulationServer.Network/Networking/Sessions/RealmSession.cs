@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-namespace EmulationServer.RealmServer.Networking.Sessions;
+namespace EmulationServer.Network.Networking.Sessions;
 
 public sealed class RealmSession
 {
