@@ -62,6 +62,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         _monitorTask = Task.Run(() => RunAsync(_stopCancellation.Token), CancellationToken.None);
 
         Logger.Write(LogType.NETWORK, $"Proxy dependency monitor started. Critical servers: {string.Join(", ", _settings.CriticalServers)}.", nameof(ProxyDependencyMonitor));
+
+        if (_settings.NonCriticalServers.Count > 0)
+        {
+            Logger.Write(LogType.NETWORK, "No non-critical servers available. Waiting for first connection.", nameof(ProxyDependencyMonitor));
+        }
+
         return Task.CompletedTask;
     }
 
@@ -209,6 +215,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
 
             if (!snapshot.IsConnected)
             {
+                if (!snapshot.HasEverConnected)
+                {
+                    continue;
+                }
+
                 ReportNonCriticalServerDownIfNeeded(state, now);
             }
         }
