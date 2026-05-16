@@ -14,6 +14,10 @@ public sealed class RealmInternalPacketHandler
 
     private readonly ConfiguredRealmStore _realmStore;
 
+    private readonly object _syncRoot = new();
+
+    private readonly Dictionary<string, HashSet<uint>> _realmsByServerName = new(StringComparer.OrdinalIgnoreCase);
+
     public RealmInternalPacketHandler(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException(nameof(realmStore));
@@ -65,7 +69,27 @@ public sealed class RealmInternalPacketHandler
         string remoteServerName,
         CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.WARNING, $"RealmServer internal server '{remoteServerName}' disconnected. Realm status will stay unchanged until another status packet is received.", nameof(RealmInternalPacketHandler));
+        List<uint> realmIds;
+
+        lock (_syncRoot)
+        {
+            if (!_realmsByServerName.Remove(remoteServerName, out HashSet<uint>? mappedRealmIds))
+            {
+                Logger.Write(LogType.WARNING, $"RealmServer internal server '{remoteServerName}' disconnected. No realm status mapping was registered.", nameof(RealmInternalPacketHandler));
+                return Task.CompletedTask;
+            }
+
+            realmIds = mappedRealmIds.ToList();
+        }
+
+        foreach (uint realmId in realmIds)
+        {
+            if (_realmStore.TrySetRealmStatus(realmId, false, 0, 1))
+            {
+                Logger.Write(LogType.WARNING, $"Realm {realmId} marked offline because internal server '{remoteServerName}' disconnected.", nameof(RealmInternalPacketHandler));
+            }
+        }
+
         return Task.CompletedTask;
     }
 
@@ -105,6 +129,17 @@ public sealed class RealmInternalPacketHandler
         {
             Logger.Write(LogType.WARNING, $"REALM_STATUS packet from '{remoteServerName}' referenced unknown realm id {realmId}.", nameof(RealmInternalPacketHandler));
             return;
+        }
+
+        lock (_syncRoot)
+        {
+            if (!_realmsByServerName.TryGetValue(remoteServerName, out HashSet<uint>? realmIds))
+            {
+                realmIds = [];
+                _realmsByServerName[remoteServerName] = realmIds;
+            }
+
+            realmIds.Add(realmId);
         }
 
         float population = RealmPopulationCalculator.Calculate(activeConnections, maxConnections);

@@ -291,8 +291,6 @@ public sealed class InternalServerSession
             await _callbacks.NotifyShutdownRequestedAsync(parts[1], reason, cancellationToken);
             return;
         }
-
-        Logger.Write(LogType.DEBUG, $"{_settings.ServerName} received internal packet from {remoteServerName}: {line}", nameof(InternalServerSession));
     }
 
     private void MarkPacketReceived()

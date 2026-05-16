@@ -20,6 +20,7 @@ public sealed class EmulationServerHost : IAsyncDisposable
     private readonly InternalSocketListener _internalSocketListener;
     private readonly InternalPeerConnector _internalPeerConnector;
     private readonly CancellationTokenSource _shutdownCancellation = new();
+    private readonly TaskCompletionSource<bool> _startupCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private int _shutdownRequested;
 
@@ -64,26 +65,38 @@ public sealed class EmulationServerHost : IAsyncDisposable
             hostCallbacks);
     }
 
+    public Task StartupCompleted => _startupCompleted.Task;
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken,
-            _shutdownCancellation.Token);
+            cancellationToken, _shutdownCancellation.Token);
 
-        Logger.Write(LogType.NOTICE, $"Starting {_serverName}...", nameof(EmulationServerHost));
-        await ValidateStartupAsync(linkedCancellation.Token);
-
-        await _internalPeerConnector.StartAsync(linkedCancellation.Token);
-
-        if (_internalNetworkSettings.Peers.Count == 0)
+        try
         {
-            Logger.Write(LogType.NETWORK, $"{_serverName} has no outgoing internal peers configured. Waiting for incoming internal server registrations...", nameof(EmulationServerHost));
+            Logger.Write(LogType.NOTICE, $"Starting {_serverName}...", nameof(EmulationServerHost));
+            await ValidateStartupAsync(linkedCancellation.Token);
+
+            await _internalPeerConnector.StartAsync(linkedCancellation.Token);
+
+            if (_internalNetworkSettings.Peers.Count == 0)
+            {
+                Logger.Write(LogType.NETWORK, $"{_serverName} has no outgoing internal peers configured. Waiting for incoming internal server registrations...", nameof(EmulationServerHost));
+            }
+
+            Logger.Write(LogType.NETWORK, $"{_serverName} started successfully. Listening for internal server connections...", nameof(EmulationServerHost));
+
+            _startupCompleted.TrySetResult(true);
+
+            await _internalSocketListener.StartAsync(linkedCancellation.Token);
+
+            Logger.Write(LogType.TRACE, $"{_serverName} stopped.", nameof(EmulationServerHost));
         }
-
-        Logger.Write(LogType.NETWORK, $"{_serverName} started successfully. Listening for internal server connections...", nameof(EmulationServerHost));
-        await _internalSocketListener.StartAsync(linkedCancellation.Token);
-
-        Logger.Write(LogType.TRACE, $"{_serverName} stopped.", nameof(EmulationServerHost));
+        catch (Exception exception)
+        {
+            _startupCompleted.TrySetException(exception);
+            throw;
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)

@@ -10,9 +10,12 @@ public sealed class WorldServerSettings
 
     public DatabaseSettings Database { get; init; } = new();
 
+    public RealmStatusSettings RealmStatus { get; init; } = new();
+
     public void Validate()
     {
         InternalNetwork.Validate();
         Database.Validate();
+        RealmStatus.Validate();
     }
 }
