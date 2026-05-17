@@ -1,4 +1,4 @@
-
+﻿
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\src\EmulationServer.Database\EmulationServer.Database.csproj" />
     <ProjectReference Include="..\..\src\EmulationServer.Shared\EmulationServer.Shared.csproj" />
     <ProjectReference Include="..\..\src\RealmServer\RealmServer.csproj" />
+    <ProjectReference Include="..\..\tools\EmulationServer.Tools.Extraction\EmulationServer.Tools.Extraction.csproj" />
   </ItemGroup>
 
   <ItemGroup>

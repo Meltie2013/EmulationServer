@@ -1,0 +1,71 @@
+
+using System.Buffers.Binary;
+using System.Text;
+
+namespace EmulationServer.Tools.Extraction.Formats.Dbc;
+
+public readonly struct DbcRecord
+{
+    private readonly ReadOnlyMemory<byte> _recordData;
+    private readonly ReadOnlyMemory<byte> _stringBlock;
+
+    internal DbcRecord(ReadOnlyMemory<byte> recordData, ReadOnlyMemory<byte> stringBlock, int fieldCount)
+    {
+        _recordData = recordData;
+        _stringBlock = stringBlock;
+        FieldCount = fieldCount;
+    }
+
+    public int FieldCount { get; }
+
+    public uint GetUInt32(int fieldIndex)
+    {
+        ValidateFieldIndex(fieldIndex);
+        ReadOnlySpan<byte> field = _recordData.Span.Slice(fieldIndex * sizeof(uint), sizeof(uint));
+        return BinaryPrimitives.ReadUInt32LittleEndian(field);
+    }
+
+    public int GetInt32(int fieldIndex)
+    {
+        return unchecked((int)GetUInt32(fieldIndex));
+    }
+
+    public float GetSingle(int fieldIndex)
+    {
+        return BitConverter.Int32BitsToSingle(GetInt32(fieldIndex));
+    }
+
+    public string GetString(int fieldIndex)
+    {
+        uint offset = GetUInt32(fieldIndex);
+        return GetStringAtOffset(offset);
+    }
+
+    public string GetStringAtOffset(uint offset)
+    {
+        ReadOnlySpan<byte> strings = _stringBlock.Span;
+
+        if (offset >= strings.Length)
+        {
+            throw new DbcFormatException($"DBC string offset {offset} is outside the string block length {strings.Length}.");
+        }
+
+        ReadOnlySpan<byte> text = strings[(int)offset..];
+        int terminator = text.IndexOf((byte)0);
+
+        if (terminator < 0)
+        {
+            throw new DbcFormatException($"DBC string offset {offset} does not contain a null-terminated string.");
+        }
+
+        return Encoding.UTF8.GetString(text[..terminator]);
+    }
+
+    private void ValidateFieldIndex(int fieldIndex)
+    {
+        if (fieldIndex < 0 || fieldIndex >= FieldCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fieldIndex), fieldIndex, $"Field index must be between 0 and {FieldCount - 1}.");
+        }
+    }
+}
