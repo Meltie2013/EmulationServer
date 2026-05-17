@@ -1,4 +1,3 @@
-
 using System.Net.Sockets;
 
 using EmulationServer.Network.Configuration;
@@ -145,6 +144,8 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            InternalPeerConnection? connection = null;
+
             try
             {
                 using TcpClient client = new();
@@ -169,10 +170,13 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
                 await AuthenticateWithPeerAsync(peer, stream, sendLock, cancellationToken);
 
+                connection = new InternalPeerConnection(_serverName, peer, stream, sendLock);
                 everAuthenticated = true;
-                Logger.Write(LogType.NETWORK, $"{_serverName} authenticated with internal peer {peer.Name}.", nameof(InternalPeerConnector));
 
-                await ProcessAuthenticatedPeerAsync(peer, stream, sendLock, cancellationToken);
+                Logger.Write(LogType.NETWORK, $"{_serverName} authenticated with internal peer {peer.Name}.", nameof(InternalPeerConnector));
+                await _callbacks.NotifyPeerAuthenticatedAsync(connection, peer.Name, cancellationToken);
+
+                await ProcessAuthenticatedPeerAsync(connection, stream, sendLock, cancellationToken);
 
                 Logger.Write(LogType.NETWORK, $"{_serverName} disconnected from internal peer {peer.Name}.", nameof(InternalPeerConnector));
             }
@@ -189,6 +193,20 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 else
                 {
                     // Keep startup clean: before the first successful authentication, the peer may simply not be online yet.
+                }
+            }
+            finally
+            {
+                if (connection is not null)
+                {
+                    try
+                    {
+                        await _callbacks.NotifyPeerDisconnectedAsync(connection, peer.Name, CancellationToken.None);
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalPeerConnector));
+                    }
                 }
             }
 
@@ -248,14 +266,14 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     }
 
     private async Task ProcessAuthenticatedPeerAsync(
-        InternalPeerSettings peer,
+        InternalPeerConnection connection,
         NetworkStream stream,
         SemaphoreSlim sendLock,
         CancellationToken cancellationToken)
     {
         await using InternalLatencyMonitor latencyMonitor = new(
             _serverName,
-            peer.Name,
+            connection.RemoteServerName,
             stream,
             sendLock,
             _latencyReportInterval,
@@ -280,12 +298,12 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 continue;
             }
 
-            await ProcessPeerPacketAsync(peer, line, latencyMonitor, cancellationToken);
+            await ProcessPeerPacketAsync(connection, line, latencyMonitor, cancellationToken);
         }
     }
 
     private async Task ProcessPeerPacketAsync(
-        InternalPeerSettings peer,
+        InternalPeerConnection connection,
         string line,
         InternalLatencyMonitor latencyMonitor,
         CancellationToken cancellationToken)
@@ -298,12 +316,14 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
+            Logger.Write(LogType.TRACE, $"{_serverName} received PING packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
+            Logger.Write(LogType.TRACE, $"{_serverName} received PONG packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
             latencyMonitor.RecordPong(parts[1]);
             return;
         }
@@ -315,6 +335,15 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             return;
         }
 
-        Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {peer.Name}: {line}", nameof(InternalPeerConnector));
+        if (string.Equals(parts[0], InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.NETWORK, $"{_serverName} received world capacity packet from {connection.RemoteServerName}: {line}", nameof(InternalPeerConnector));
+        }
+        else
+        {
+            Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {connection.RemoteServerName}: {line}", nameof(InternalPeerConnector));
+        }
+
+        await _callbacks.NotifyPeerPacketReceivedAsync(connection, connection.RemoteServerName, line, cancellationToken);
     }
 }

@@ -13,7 +13,6 @@ public sealed class RealmStatusSettings
 
     public TimeSpan UpdateInterval { get; init; } = TimeSpan.FromSeconds(15);
 
-    public int MaxConnections { get; init; } = 1000;
 
     public void Validate()
     {
@@ -42,9 +41,5 @@ public sealed class RealmStatusSettings
             throw new InvalidOperationException("Realm status update interval must be greater than zero.");
         }
 
-        if (MaxConnections <= 0)
-        {
-            throw new InvalidOperationException("Realm status max connections must be greater than zero.");
-        }
     }
 }

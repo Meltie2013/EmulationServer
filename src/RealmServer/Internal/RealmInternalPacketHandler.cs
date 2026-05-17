@@ -97,7 +97,7 @@ public sealed class RealmInternalPacketHandler
     {
         if (parts.Length < 5)
         {
-            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS packet from '{remoteServerName}'. Expected: REALM_STATUS <realmId> <online|offline> <activeConnections> <maxConnections>.", nameof(RealmInternalPacketHandler));
+            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS packet from '{remoteServerName}'. Expected: REALM_STATUS <realmId> <online|offline> <activeConnections> <capacityLimit>.", nameof(RealmInternalPacketHandler));
             return;
         }
 
@@ -119,13 +119,13 @@ public sealed class RealmInternalPacketHandler
             return;
         }
 
-        if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int maxConnections))
+        if (!int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int capacityLimit))
         {
-            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS max connection count from '{remoteServerName}': '{parts[4]}'.", nameof(RealmInternalPacketHandler));
+            Logger.Write(LogType.WARNING, $"Invalid REALM_STATUS capacity limit from '{remoteServerName}': '{parts[4]}'.", nameof(RealmInternalPacketHandler));
             return;
         }
 
-        if (!_realmStore.TrySetRealmStatus(realmId, online, activeConnections, maxConnections))
+        if (!_realmStore.TrySetRealmStatus(realmId, online, activeConnections, capacityLimit))
         {
             Logger.Write(LogType.WARNING, $"REALM_STATUS packet from '{remoteServerName}' referenced unknown realm id {realmId}.", nameof(RealmInternalPacketHandler));
             return;
@@ -142,9 +142,9 @@ public sealed class RealmInternalPacketHandler
             realmIds.Add(realmId);
         }
 
-        float population = RealmPopulationCalculator.Calculate(activeConnections, maxConnections);
+        float population = RealmPopulationCalculator.Calculate(activeConnections, capacityLimit);
 
-        Logger.Write(LogType.NETWORK, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, maxConnections)}, population {population:0.00}.", nameof(RealmInternalPacketHandler));
+        Logger.Write(LogType.NETWORK, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.00}.", nameof(RealmInternalPacketHandler));
     }
 
     private static bool TryParseOnlineState(string value, out bool online)

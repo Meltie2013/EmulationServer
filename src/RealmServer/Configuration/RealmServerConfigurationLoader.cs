@@ -60,11 +60,6 @@ public static class RealmServerConfigurationLoader
                 128,
                 minimum: 1),
 
-            MaxConnections = configuration.GetInt(
-                RealmServerSection,
-                "MaxConnections",
-                1024,
-                minimum: 1),
 
             ShutdownGracePeriod = configuration.GetTimeSpan(
                 RealmServerSection,
@@ -161,7 +156,6 @@ public static class RealmServerConfigurationLoader
                 AllowedSecurityLevel = (byte)configuration.GetInt(section, "AllowedSecurityLevel", 0, minimum: 0, maximum: byte.MaxValue),
                 Online = configuration.GetBool(section, "Online", false),
                 ActiveConnections = configuration.GetInt(section, "ActiveConnections", 0, minimum: 0),
-                MaxConnections = configuration.GetInt(section, "MaxConnections", 1000, minimum: 1),
                 Builds = ParseBuilds(builds, section),
             });
         }

@@ -101,13 +101,6 @@ public sealed class RealmSocketListener
                 break;
             }
 
-            if (_sessionManager.Count >= _settings.MaxConnections)
-            {
-                Logger.Write(LogType.WARNING, $"Rejected connection from {client.Client.RemoteEndPoint}, server at maximum capacity.", nameof(RealmSocketListener));
-
-                client.Dispose();
-                continue;
-            }
 
             ConfigureClient(client);
 

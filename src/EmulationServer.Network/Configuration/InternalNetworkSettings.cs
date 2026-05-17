@@ -15,7 +15,6 @@ public sealed class InternalNetworkSettings
 
     public int Backlog { get; init; } = 128;
 
-    public int MaxConnections { get; init; } = 1024;
 
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
 
@@ -69,10 +68,6 @@ public sealed class InternalNetworkSettings
             throw new InvalidOperationException("Internal network listener backlog must be greater than zero.");
         }
 
-        if (MaxConnections <= 0)
-        {
-            throw new InvalidOperationException("Internal network max connections must be greater than zero.");
-        }
 
         if (ShutdownGracePeriod < TimeSpan.Zero)
         {

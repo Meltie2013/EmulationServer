@@ -24,14 +24,13 @@ public sealed class ConfiguredRealmSettings
 
     public int ActiveConnections { get; init; }
 
-    public int MaxConnections { get; init; } = 1000;
 
     public IReadOnlySet<ushort> Builds { get; init; } = new HashSet<ushort>
     {
         5875,
         6005,
         6141,
-        8086,
+        8606,
         12340,
         15595
     };
@@ -63,10 +62,6 @@ public sealed class ConfiguredRealmSettings
             throw new InvalidOperationException($"Realm {Id} active connections cannot be negative.");
         }
 
-        if (MaxConnections <= 0)
-        {
-            throw new InvalidOperationException($"Realm {Id} max connections must be greater than zero.");
-        }
 
         if (Builds.Count == 0)
         {

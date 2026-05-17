@@ -103,13 +103,6 @@ public sealed class InternalSocketListener
                 break;
             }
 
-            if (_sessionManager.Count >= _settings.MaxConnections)
-            {
-                Logger.Write(LogType.WARNING, $"Rejected internal connection from {client.Client.RemoteEndPoint}, {_settings.ServerName} internal listener is at maximum capacity.", nameof(InternalSocketListener));
-
-                client.Dispose();
-                continue;
-            }
 
             ConfigureClient(client);
 

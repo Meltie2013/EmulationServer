@@ -9,7 +9,7 @@ public sealed class ConfiguredRealm
 
     private bool _online;
     private int _activeConnections;
-    private int _maxConnections;
+    private int _capacityLimit;
 
     public ConfiguredRealm(ConfiguredRealmSettings settings)
     {
@@ -28,7 +28,7 @@ public sealed class ConfiguredRealm
 
         _online = settings.Online;
         _activeConnections = settings.ActiveConnections;
-        _maxConnections = settings.MaxConnections;
+        _capacityLimit = 1;
     }
 
     public uint Id { get; }
@@ -71,13 +71,13 @@ public sealed class ConfiguredRealm
         }
     }
 
-    public int MaxConnections
+    public int CapacityLimit
     {
         get
         {
             lock (_syncRoot)
             {
-                return _maxConnections;
+                return _capacityLimit;
             }
         }
     }
@@ -88,20 +88,20 @@ public sealed class ConfiguredRealm
         {
             lock (_syncRoot)
             {
-                return RealmPopulationCalculator.Calculate(_activeConnections, _maxConnections);
+                return RealmPopulationCalculator.Calculate(_activeConnections, _capacityLimit);
             }
         }
     }
 
     public string ClientAddress => $"{Address}:{Port}";
 
-    public void SetStatus(bool online, int activeConnections, int maxConnections)
+    public void SetStatus(bool online, int activeConnections, int capacityLimit)
     {
         lock (_syncRoot)
         {
             _online = online;
             _activeConnections = Math.Max(0, activeConnections);
-            _maxConnections = Math.Max(1, maxConnections);
+            _capacityLimit = Math.Max(1, capacityLimit);
         }
     }
 }

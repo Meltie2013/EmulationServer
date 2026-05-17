@@ -1,5 +1,6 @@
 
 using System.Net.Sockets;
+using EmulationServer.Network.Networking.Health;
 using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
@@ -12,6 +13,9 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     private readonly RealmStatusSettings _settings;
     private readonly string _registrationKey;
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly int _maxConnections;
+    private readonly TimeSpan _latencyReportInterval;
+    private readonly TimeSpan _pingTimeout;
 
     private CancellationTokenSource? _stopCancellation;
     private Task? _reportTask;
@@ -20,7 +24,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     private int _started;
     private int _activeConnections;
 
-    public WorldRealmStatusReporter(RealmStatusSettings settings, string registrationKey)
+    public WorldRealmStatusReporter(
+        RealmStatusSettings settings,
+        string registrationKey,
+        int maxConnections,
+        TimeSpan latencyReportInterval,
+        TimeSpan pingTimeout)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
@@ -29,8 +38,26 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             throw new ArgumentException("Registration key is required.", nameof(registrationKey));
         }
 
+        if (maxConnections <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxConnections), "WorldServer max connections must be greater than zero.");
+        }
+
+        if (latencyReportInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(latencyReportInterval), "Latency report interval must be greater than zero.");
+        }
+
+        if (pingTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pingTimeout), "Ping timeout must be greater than zero.");
+        }
+
         _settings.Validate();
         _registrationKey = registrationKey;
+        _maxConnections = maxConnections;
+        _latencyReportInterval = latencyReportInterval;
+        _pingTimeout = pingTimeout;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -113,7 +140,18 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             {
                 await ConnectAndAuthenticateAsync(cancellationToken);
 
-                Task receiveTask = ProcessRealmServerPacketsAsync(cancellationToken);
+                NetworkStream stream = _stream ?? throw new IOException("RealmServer connection is not available.");
+                await using InternalLatencyMonitor latencyMonitor = new(
+                    "WorldServer",
+                    "RealmServer",
+                    stream,
+                    _sendLock,
+                    _latencyReportInterval,
+                    _pingTimeout);
+
+                latencyMonitor.Start(cancellationToken);
+
+                Task receiveTask = ProcessRealmServerPacketsAsync(latencyMonitor, cancellationToken);
                 Task statusTask = SendRealmStatusLoopAsync(cancellationToken);
 
                 Task completedTask = await Task.WhenAny(receiveTask, statusTask);
@@ -151,7 +189,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
-    private async Task ProcessRealmServerPacketsAsync(CancellationToken cancellationToken)
+    private async Task ProcessRealmServerPacketsAsync(InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -172,11 +210,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
                 continue;
             }
 
-            await ProcessRealmServerPacketAsync(line, cancellationToken);
+            await ProcessRealmServerPacketAsync(line, latencyMonitor, cancellationToken);
         }
     }
 
-    private async Task ProcessRealmServerPacketAsync(string line, CancellationToken cancellationToken)
+    private async Task ProcessRealmServerPacketAsync(string line, InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
@@ -187,13 +225,15 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
-            await SendPongAsync(parts[1], cancellationToken);
+            Logger.Write(LogType.TRACE, "WorldServer received PING packet from RealmServer.", nameof(WorldRealmStatusReporter));
+            await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.DEBUG, $"WorldServer received latency pong {parts[1]} from RealmServer.", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.TRACE, "WorldServer received PONG packet from RealmServer.", nameof(WorldRealmStatusReporter));
+            latencyMonitor.RecordPong(parts[1]);
             return;
         }
 
@@ -205,20 +245,6 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
 
         Logger.Write(LogType.DEBUG, $"WorldServer received RealmServer internal packet: {line}", nameof(WorldRealmStatusReporter));
-    }
-
-    private async Task SendPongAsync(string pingId, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(pingId) || _stream is null)
-        {
-            return;
-        }
-
-        await InternalProtocol.WriteLineAsync(
-            _stream,
-            _sendLock,
-            $"{InternalProtocol.Pong} {pingId}",
-            cancellationToken);
     }
 
     private async Task ConnectAndAuthenticateAsync(CancellationToken cancellationToken)
@@ -286,7 +312,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
 
         int safeActiveConnections = Math.Max(0, activeConnections);
-        int safeMaxConnections = Math.Max(1, _settings.MaxConnections);
+        int safeMaxConnections = Math.Max(1, _maxConnections);
         string state = online ? "online" : "offline";
 
         string packet = $"REALM_STATUS {_settings.RealmId} {state} {safeActiveConnections} {safeMaxConnections}";

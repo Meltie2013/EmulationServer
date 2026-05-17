@@ -11,7 +11,6 @@ public sealed class RealmSocketListenerSettings
 
     public int Backlog { get; init; } = 128;
 
-    public int MaxConnections { get; init; } = 1024;
 
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
 
@@ -39,10 +38,6 @@ public sealed class RealmSocketListenerSettings
             throw new InvalidOperationException("Realm listener backlog must be greater than zero.");
         }
 
-        if (MaxConnections <= 0)
-        {
-            throw new InvalidOperationException("Realm max connections must be greater than zero.");
-        }
 
         if (ShutdownGracePeriod < TimeSpan.Zero)
         {

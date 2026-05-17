@@ -123,6 +123,9 @@ public sealed class EmulationServerHost : IAsyncDisposable
             ServerAuthenticatedAsync = callbacks.ServerAuthenticatedAsync,
             PacketReceivedAsync = callbacks.PacketReceivedAsync,
             ServerDisconnectedAsync = callbacks.ServerDisconnectedAsync,
+            PeerAuthenticatedAsync = callbacks.PeerAuthenticatedAsync,
+            PeerPacketReceivedAsync = callbacks.PeerPacketReceivedAsync,
+            PeerDisconnectedAsync = callbacks.PeerDisconnectedAsync,
             ShutdownRequestedAsync = async (sourceServerName, reason, cancellationToken) =>
             {
                 await callbacks.NotifyShutdownRequestedAsync(sourceServerName, reason, cancellationToken);

@@ -115,11 +115,6 @@ public static class ServerConfigurationLoader
                 128,
                 minimum: 1),
 
-            MaxConnections = configuration.GetInt(
-                sectionName,
-                "MaxConnections",
-                1024,
-                minimum: 1),
 
             ShutdownGracePeriod = configuration.GetTimeSpan(
                 sectionName,

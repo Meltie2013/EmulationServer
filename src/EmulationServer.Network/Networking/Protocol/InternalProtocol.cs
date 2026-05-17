@@ -17,6 +17,7 @@ public static class InternalProtocol
     public const string Ping = "PING";
     public const string Pong = "PONG";
     public const string ShutdownRequest = "SHUTDOWN_REQUEST";
+    public const string WorldCapacity = "WORLD_CAPACITY";
 
     public static async Task<string?> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
     {

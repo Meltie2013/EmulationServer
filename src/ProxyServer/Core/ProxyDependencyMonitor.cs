@@ -1,5 +1,6 @@
 
 using System.Collections.Concurrent;
+using System.Globalization;
 
 using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Protocol;
@@ -13,12 +14,14 @@ namespace EmulationServer.ProxyServer.Core;
 public sealed class ProxyDependencyMonitor : IAsyncDisposable
 {
     private static readonly TimeSpan MonitorTickInterval = TimeSpan.FromSeconds(1);
+    private const string WorldServerName = "WorldServer";
 
     private readonly ProxyDependencySettings _settings;
     private readonly ConcurrentDictionary<string, ServerState> _servers;
 
     private CancellationTokenSource? _stopCancellation;
     private Task? _monitorTask;
+    private int _worldCapacityLimit;
     private int _started;
     private int _stopping;
 
@@ -104,7 +107,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await StopAsync(CancellationToken.None);
     }
 
-    private Task OnServerAuthenticatedAsync(
+    private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
         CancellationToken cancellationToken)
@@ -124,10 +127,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         string role = state.IsCritical ? "critical" : "non-critical";
         Logger.Write(LogType.NETWORK, $"Proxy registered {role} internal server '{remoteServerName}'.", nameof(ProxyDependencyMonitor));
 
-        return Task.CompletedTask;
+        await AnnounceWorldCapacityToServerAsync(state, cancellationToken);
     }
 
-    private Task OnPacketReceivedAsync(
+    private async Task OnPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
         string packet,
@@ -142,7 +145,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             state.IsConnected = true;
         }
 
-        return Task.CompletedTask;
+        if (packet.StartsWith(InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleWorldCapacityPacketAsync(remoteServerName, packet, cancellationToken);
+        }
     }
 
     private Task OnServerDisconnectedAsync(
@@ -191,6 +197,86 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         catch (Exception exception)
         {
             Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(ProxyDependencyMonitor));
+        }
+    }
+
+
+    private async Task HandleWorldCapacityPacketAsync(
+        string remoteServerName,
+        string packet,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(remoteServerName, WorldServerName, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.WARNING, $"Proxy ignored WORLD_CAPACITY packet from unexpected server '{remoteServerName}'.", nameof(ProxyDependencyMonitor));
+            return;
+        }
+
+        string[] parts = packet.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int capacityLimit) || capacityLimit <= 0)
+        {
+            Logger.Write(LogType.WARNING, $"Proxy received invalid WORLD_CAPACITY packet from '{remoteServerName}': {packet}", nameof(ProxyDependencyMonitor));
+            return;
+        }
+
+        Volatile.Write(ref _worldCapacityLimit, capacityLimit);
+        Logger.Write(LogType.NETWORK, $"Proxy received WorldServer capacity limit: {capacityLimit}.", nameof(ProxyDependencyMonitor));
+
+        await BroadcastWorldCapacityAsync(remoteServerName, capacityLimit, cancellationToken);
+    }
+
+    private async Task BroadcastWorldCapacityAsync(
+        string sourceServerName,
+        int capacityLimit,
+        CancellationToken cancellationToken)
+    {
+        List<ServerSnapshot> connectedNonCriticalServers = _servers.Values
+            .Select(server => server.GetSnapshot())
+            .Where(server => !server.IsCritical && server.IsConnected && server.Session is not null)
+            .ToList();
+
+        if (connectedNonCriticalServers.Count == 0)
+        {
+            Logger.Write(LogType.NETWORK, "Proxy has no connected MapServer/InstanceServer sessions to announce WorldServer capacity to yet.", nameof(ProxyDependencyMonitor));
+            return;
+        }
+
+        string packet = $"{InternalProtocol.WorldCapacity} {sourceServerName} {capacityLimit}";
+
+        foreach (ServerSnapshot server in connectedNonCriticalServers)
+        {
+            try
+            {
+                await server.Session!.SendPacketAsync(packet, cancellationToken);
+                Logger.Write(LogType.NETWORK, $"Proxy announced WorldServer capacity limit ({capacityLimit}) to '{server.Name}'.", nameof(ProxyDependencyMonitor));
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                Logger.Write(LogType.WARNING, $"Proxy could not announce WorldServer capacity to '{server.Name}': {exception.Message}", nameof(ProxyDependencyMonitor));
+            }
+        }
+    }
+
+    private async Task AnnounceWorldCapacityToServerAsync(ServerState state, CancellationToken cancellationToken)
+    {
+        ServerSnapshot snapshot = state.GetSnapshot();
+        int capacityLimit = Volatile.Read(ref _worldCapacityLimit);
+
+        if (snapshot.IsCritical || capacityLimit <= 0 || snapshot.Session is null || !snapshot.IsConnected)
+        {
+            return;
+        }
+
+        string packet = $"{InternalProtocol.WorldCapacity} {WorldServerName} {capacityLimit}";
+
+        try
+        {
+            await snapshot.Session.SendPacketAsync(packet, cancellationToken);
+            Logger.Write(LogType.NETWORK, $"Proxy announced cached WorldServer capacity limit ({capacityLimit}) to '{snapshot.Name}'.", nameof(ProxyDependencyMonitor));
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.WARNING, $"Proxy could not announce cached WorldServer capacity to '{snapshot.Name}': {exception.Message}", nameof(ProxyDependencyMonitor));
         }
     }
 

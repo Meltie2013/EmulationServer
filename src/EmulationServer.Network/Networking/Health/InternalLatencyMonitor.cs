@@ -122,6 +122,8 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
             _sendLock,
             $"{InternalProtocol.Pong} {pingId}",
             cancellationToken);
+
+        Logger.Write(LogType.TRACE, $"{_localServerName} sent PONG packet to {_remoteServerName}.", nameof(InternalLatencyMonitor));
     }
 
     public void RecordPong(string pingId)
@@ -139,7 +141,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
 
         TimeSpan latency = GetElapsedTime(pendingPing.StartTimestamp);
-        Logger.Write(LogType.NETWORK, $"{_localServerName} latency to {_remoteServerName}: {latency.TotalMilliseconds:0.##} ms.", nameof(InternalLatencyMonitor));
+        Logger.Write(LogType.TRACE, $"{_localServerName} latency to {_remoteServerName}: {latency.TotalMilliseconds:0.##} ms.", nameof(InternalLatencyMonitor));
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -188,6 +190,8 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
             _sendLock,
             $"{InternalProtocol.Ping} {id}",
             cancellationToken);
+
+        Logger.Write(LogType.TRACE, $"{_localServerName} sent PING packet to {_remoteServerName}.", nameof(InternalLatencyMonitor));
     }
 
     private void RemoveTimedOutPings()

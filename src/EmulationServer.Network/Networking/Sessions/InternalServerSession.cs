@@ -66,13 +66,13 @@ public sealed class InternalServerSession
 
             Logger.Write(LogType.NETWORK, $"{_settings.ServerName} authenticated internal server '{remoteServerName}' from {_remoteEndPoint}.", nameof(InternalServerSession));
 
-            await _callbacks.NotifyServerAuthenticatedAsync(this, remoteServerName, linkedCancellation.Token);
-
             await InternalProtocol.WriteLineAsync(
                 _stream,
                 _sendLock,
                 $"{InternalProtocol.AuthenticationAccepted} {_settings.ServerName}",
                 linkedCancellation.Token);
+
+            await _callbacks.NotifyServerAuthenticatedAsync(this, remoteServerName, linkedCancellation.Token);
 
             latencyMonitor = new InternalLatencyMonitor(
                 _settings.ServerName,
@@ -275,12 +275,14 @@ public sealed class InternalServerSession
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
+            Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PING packet from {remoteServerName}.", nameof(InternalServerSession));
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
+            Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PONG packet from {remoteServerName}.", nameof(InternalServerSession));
             latencyMonitor.RecordPong(parts[1]);
             return;
         }
