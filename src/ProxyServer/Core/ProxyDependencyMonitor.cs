@@ -148,6 +148,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         if (packet.StartsWith(InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
         {
             await HandleWorldCapacityPacketAsync(remoteServerName, packet, cancellationToken);
+            return;
+        }
+
+        if (packet.StartsWith(InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            HandleMapServiceStatusPacket(remoteServerName, packet);
         }
     }
 
@@ -200,6 +206,25 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+
+    private void HandleMapServiceStatusPacket(string remoteServerName, string packet)
+    {
+        if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
+        {
+            Logger.Write(LogType.WARNING, $"Proxy received invalid MAP_SERVICE_STATUS packet from '{remoteServerName}': {packet}", nameof(ProxyDependencyMonitor));
+            return;
+        }
+
+        string message = $"Proxy received {status.OwnerServerName} {status.Kind} map service status: map={status.MapId}, instance={status.InstanceId}, state={status.State}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.";
+
+        if (status.LoadPercent >= 85d)
+        {
+            Logger.Write(LogType.WARNING, message, nameof(ProxyDependencyMonitor));
+            return;
+        }
+
+        Logger.Write(LogType.TRACE, message, nameof(ProxyDependencyMonitor));
+    }
 
     private async Task HandleWorldCapacityPacketAsync(
         string remoteServerName,

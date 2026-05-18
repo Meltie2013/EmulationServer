@@ -58,8 +58,6 @@ public static class WorldServerConfigurationLoader
             Enabled = configuration.GetBool(GameDataSection, "Enabled", false),
             DataDirectory = configuration.GetString(GameDataSection, "DataDirectory", "Data"),
             DbcDirectory = configuration.GetString(GameDataSection, "DbcDirectory", "dbc"),
-            MapsDirectory = configuration.GetString(GameDataSection, "MapsDirectory", "maps"),
-            LoadMaps = configuration.GetBool(GameDataSection, "LoadMaps", true),
             RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
         };
     }

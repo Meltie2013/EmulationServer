@@ -339,6 +339,18 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         {
             Logger.Write(LogType.NETWORK, $"{_serverName} received world capacity packet from {connection.RemoteServerName}: {line}", nameof(InternalPeerConnector));
         }
+        else if (string.Equals(parts[0], InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.TRACE, $"{_serverName} received map service status packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+        }
+        else if (string.Equals(parts[0], InternalProtocol.MapServiceCommand, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.TRACE, $"{_serverName} received map service command packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+        }
+        else if (string.Equals(parts[0], InternalProtocol.MapServiceCommandResult, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.TRACE, $"{_serverName} received map service command result packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+        }
         else
         {
             Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {connection.RemoteServerName}: {line}", nameof(InternalPeerConnector));

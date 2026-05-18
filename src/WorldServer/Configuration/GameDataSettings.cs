@@ -8,10 +8,6 @@ public sealed class GameDataSettings
 
     public string DbcDirectory { get; init; } = "dbc";
 
-    public string MapsDirectory { get; init; } = "maps";
-
-    public bool LoadMaps { get; init; } = true;
-
     public IReadOnlyList<string> RequiredDbcFiles { get; init; } = DefaultRequiredDbcFiles;
 
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
@@ -25,23 +21,16 @@ public sealed class GameDataSettings
         "ChrClasses.dbc",
         "ChrRaces.dbc",
         "CinematicSequences.dbc",
-        "CreatureDisplayInfo.dbc",
-        "CreatureDisplayInfoExtra.dbc",
-        "CreatureFamily.dbc",
-        "CreatureSpellData.dbc",
-        "CreatureType.dbc",
         "DurabilityCosts.dbc",
         "DurabilityQuality.dbc",
         "Emotes.dbc",
         "EmotesText.dbc",
         "Faction.dbc",
         "FactionTemplate.dbc",
-        "GameObjectDisplayInfo.dbc",
         "ItemBagFamily.dbc",
         "ItemClass.dbc",
         "ItemRandomProperties.dbc",
         "ItemSet.dbc",
-        "LiquidType.dbc",
         "Lock.dbc",
         "MailTemplate.dbc",
         "Map.dbc",
@@ -84,11 +73,6 @@ public sealed class GameDataSettings
         if (string.IsNullOrWhiteSpace(DbcDirectory))
         {
             throw new InvalidOperationException("WorldServer DBC directory is required when game data loading is enabled.");
-        }
-
-        if (string.IsNullOrWhiteSpace(MapsDirectory))
-        {
-            throw new InvalidOperationException("WorldServer maps directory is required when game data loading is enabled.");
         }
 
         if (RequiredDbcFiles.Count == 0)

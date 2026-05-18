@@ -8,7 +8,7 @@ namespace EmulationServer.Network.Networking.Protocol;
 public static class InternalProtocol
 {
     public const int MaximumAuthenticationLineLength = 512;
-    public const int MaximumPacketLineLength = 1024;
+    public const int MaximumPacketLineLength = 2048;
 
     public const string AuthenticationChallenge = "AUTH_CHALLENGE";
     public const string AuthenticationResponse = "AUTH_RESPONSE";
@@ -18,6 +18,9 @@ public static class InternalProtocol
     public const string Pong = "PONG";
     public const string ShutdownRequest = "SHUTDOWN_REQUEST";
     public const string WorldCapacity = "WORLD_CAPACITY";
+    public const string MapServiceStatus = "MAP_SERVICE_STATUS";
+    public const string MapServiceCommand = "MAP_SERVICE_COMMAND";
+    public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
 
     public static async Task<string?> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
     {

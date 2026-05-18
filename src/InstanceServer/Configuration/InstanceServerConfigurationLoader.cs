@@ -1,5 +1,6 @@
-
 using EmulationServer.Core.Configuration;
+using EmulationServer.Game.Data.Maps;
+using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
 namespace EmulationServer.InstanceServer.Configuration;
@@ -7,6 +8,21 @@ namespace EmulationServer.InstanceServer.Configuration;
 public static class InstanceServerConfigurationLoader
 {
     private const string InstanceServerSection = "InstanceServer";
+    private const string InstanceServicesSection = "InstanceServices";
+
+    public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
+    [
+        "AreaTable.dbc",
+        "AreaTrigger.dbc",
+        "Faction.dbc",
+        "FactionTemplate.dbc",
+        "GameObjectDisplayInfo.dbc",
+        "LiquidType.dbc",
+        "Map.dbc",
+        "WMOAreaTable.dbc",
+        "WorldMapArea.dbc",
+        "WorldSafeLocs.dbc",
+    ];
 
     public static InstanceServerSettings Load(string path)
     {
@@ -21,10 +37,159 @@ public static class InstanceServerConfigurationLoader
                 InstanceServerSection,
                 "InstanceServer",
                 5004),
+
+            InstanceServices = LoadInstanceServices(configuration),
         };
 
         settings.Validate();
 
         return settings;
+    }
+
+    private static MapRuntimeSettings LoadInstanceServices(IniConfiguration configuration)
+    {
+        TimeSpan tickInterval = configuration.GetTimeSpan(
+            InstanceServicesSection,
+            "TickInterval",
+            TimeSpan.FromMilliseconds(100));
+
+        bool logTicks = configuration.GetBool(
+            InstanceServicesSection,
+            "LogTicks",
+            false);
+
+        string instances = configuration.GetString(
+            InstanceServicesSection,
+            "Instances",
+            "36:Deadmines;33:Shadowfang Keep");
+
+        string requiredDbcFiles = configuration.GetString(
+            InstanceServicesSection,
+            "RequiredDbcFiles",
+            string.Join(';', DefaultRequiredDbcFiles));
+
+        string startupGrids = configuration.GetString(
+            InstanceServicesSection,
+            "StartupGrids",
+            string.Empty);
+
+        return new MapRuntimeSettings
+        {
+            Enabled = configuration.GetBool(InstanceServicesSection, "Enabled", true),
+            TickInterval = tickInterval,
+            StatusReportInterval = configuration.GetTimeSpan(InstanceServicesSection, "StatusReportInterval", TimeSpan.FromSeconds(15)),
+            LogTicks = logTicks,
+            DataDirectory = configuration.GetString(InstanceServicesSection, "DataDirectory", "Data"),
+            DbcDirectory = configuration.GetString(InstanceServicesSection, "DbcDirectory", "dbc"),
+            MapsDirectory = configuration.GetString(InstanceServicesSection, "MapsDirectory", "maps"),
+            LoadDbcStores = configuration.GetBool(InstanceServicesSection, "LoadDbcStores", true),
+            LoadMapTiles = configuration.GetBool(InstanceServicesSection, "LoadMapTiles", true),
+            GridLoadingMode = ParseGridLoadingMode(configuration.GetString(InstanceServicesSection, "GridLoadingMode", "OnDemand")),
+            KeepLoadedGrids = configuration.GetBool(InstanceServicesSection, "KeepLoadedGrids", false),
+            GridIdleUnloadDelay = configuration.GetTimeSpan(InstanceServicesSection, "GridIdleUnloadDelay", TimeSpan.FromMinutes(5)),
+            StartupGrids = ParseStartupGrids(startupGrids),
+            RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
+            Services = ParseInstanceServices(instances, tickInterval, logTicks),
+        };
+    }
+
+    private static MapGridLoadingMode ParseGridLoadingMode(string value)
+    {
+        if (Enum.TryParse(value, ignoreCase: true, out MapGridLoadingMode mode))
+        {
+            return mode;
+        }
+
+        throw new ConfigurationException($"Invalid GridLoadingMode '{value}'. Expected OnDemand or Preload.");
+    }
+
+    private static IReadOnlyList<MapTileKey> ParseStartupGrids(string value)
+    {
+        List<MapTileKey> grids = [];
+        foreach (string entry in SplitList(value))
+        {
+            string[] parts = entry.Split(':', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 3 ||
+                !uint.TryParse(parts[0], out uint mapId) ||
+                !byte.TryParse(parts[1], out byte tileX) ||
+                !byte.TryParse(parts[2], out byte tileY))
+            {
+                throw new ConfigurationException($"Invalid StartupGrids entry '{entry}'. Expected MapId:TileX:TileY, for example 36:48:48.");
+            }
+
+            grids.Add(new MapTileKey(mapId, tileX, tileY));
+        }
+
+        return grids;
+    }
+
+    private static IReadOnlyList<MapServiceDefinition> ParseInstanceServices(
+        string value,
+        TimeSpan tickInterval,
+        bool logTicks)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        List<MapServiceDefinition> services = [];
+        string[] entries = value.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (string entry in entries)
+        {
+            services.Add(ParseInstanceService(entry, tickInterval, logTicks));
+        }
+
+        return services;
+    }
+
+    private static MapServiceDefinition ParseInstanceService(
+        string entry,
+        TimeSpan tickInterval,
+        bool logTicks)
+    {
+        string[] parts = entry.Split(':', 2, StringSplitOptions.TrimEntries);
+
+        string idPart = parts[0];
+        long instanceId = 0;
+
+        int instanceSeparator = idPart.IndexOf('@');
+        if (instanceSeparator >= 0)
+        {
+            string mapIdPart = idPart[..instanceSeparator];
+            string instanceIdPart = idPart[(instanceSeparator + 1)..];
+
+            if (!long.TryParse(instanceIdPart, out instanceId) || instanceId < 0)
+            {
+                throw new ConfigurationException($"Invalid instance service entry '{entry}'. Expected MapId or MapId@InstanceId optionally followed by :Name.");
+            }
+
+            idPart = mapIdPart;
+        }
+
+        if (!int.TryParse(idPart, out int mapId) || mapId < 0)
+        {
+            throw new ConfigurationException($"Invalid instance service entry '{entry}'. Expected MapId or MapId@InstanceId optionally followed by :Name.");
+        }
+
+        string name = parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[1])
+            ? parts[1]
+            : $"Instance Map {mapId}";
+
+        return new MapServiceDefinition
+        {
+            MapId = mapId,
+            InstanceId = instanceId,
+            Name = name,
+            Kind = MapServiceKind.Instance,
+            TickInterval = tickInterval,
+            LogTicks = logTicks,
+        };
+    }
+
+    private static IEnumerable<string> SplitList(string value)
+    {
+        return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
 }
