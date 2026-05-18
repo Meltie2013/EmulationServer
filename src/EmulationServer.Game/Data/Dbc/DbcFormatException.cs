@@ -16,15 +16,33 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcFormatException.cs
+  * This file belongs to the DBC file loading, validation, and raw record access portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Dbc;
 
+/**
+  * Represents the dbc format exception component in the DBC file loading, validation, and raw record access area.
+  * It identifies a project-specific failure mode so callers can distinguish expected validation errors from unexpected crashes.
+  */
 public sealed class DbcFormatException : IOException
 {
+    /**
+      * Creates a new DbcFormatException instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public DbcFormatException(string message)
         : base(message)
     {
     }
 
+    /**
+      * Creates a new DbcFormatException instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public DbcFormatException(string message, Exception innerException)
         : base(message, innerException)
     {

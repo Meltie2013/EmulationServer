@@ -19,10 +19,24 @@
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 using EmulationServer.Tools.Extraction.Mpq;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Extraction/GameDataExtractor.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Extraction;
 
+/**
+  * Represents the game data extractor component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class GameDataExtractor
 {
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of GameDataExtractor and keeps this workflow isolated from the caller.
+      */
     public IReadOnlyList<AssetExtractionResult> ExtractAll(AssetExtractionOptions options)
     {
         return
@@ -34,6 +48,10 @@ public sealed class GameDataExtractor
         ];
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of GameDataExtractor and keeps this workflow isolated from the caller.
+      */
     public AssetExtractionResult ExtractDbc(AssetExtractionOptions options)
     {
         options.Validate();
@@ -50,6 +68,10 @@ public sealed class GameDataExtractor
         return ToResult(AssetExtractionKind.Dbc, report, outputDirectory, archives);
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of GameDataExtractor and keeps this workflow isolated from the caller.
+      */
     public AssetExtractionResult ExtractMaps(AssetExtractionOptions options)
     {
         options.Validate();
@@ -103,6 +125,10 @@ public sealed class GameDataExtractor
         return result;
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of GameDataExtractor and keeps this workflow isolated from the caller.
+      */
     public AssetExtractionResult ExtractVmaps(AssetExtractionOptions options)
     {
         options.Validate();
@@ -121,6 +147,10 @@ public sealed class GameDataExtractor
         return result;
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of GameDataExtractor and keeps this workflow isolated from the caller.
+      */
     public AssetExtractionResult ExtractMmaps(AssetExtractionOptions options)
     {
         options.Validate();
@@ -138,6 +168,10 @@ public sealed class GameDataExtractor
         return result;
     }
 
+    /**
+      * Performs the ensure map conversion dbc files operation for GameDataExtractor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static void EnsureMapConversionDbcFiles(WowMpqArchiveSet archives, string dbcOutputDirectory, bool overwrite, Action<string>? progressMessage)
     {
         string mapDbcPath = Path.Combine(dbcOutputDirectory, "Map.dbc");
@@ -161,12 +195,20 @@ public sealed class GameDataExtractor
             progressMessage: progressMessage);
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of GameDataExtractor and keeps this workflow isolated from the caller.
+      */
     private static void AddMessage(AssetExtractionResult result, Action<string>? progressMessage, string message)
     {
         result.AddMessage(message);
         progressMessage?.Invoke(message);
     }
 
+    /**
+      * Performs the to result operation for GameDataExtractor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static AssetExtractionResult ToResult(
         AssetExtractionKind kind,
         AssetCopyReport report,
@@ -212,12 +254,22 @@ public sealed class GameDataExtractor
         return result;
     }
 
+    /**
+      * Performs the is dbc file operation for GameDataExtractor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsDbcFile(string normalizedName)
     {
         return normalizedName.StartsWith("DBFilesClient/", StringComparison.OrdinalIgnoreCase) &&
                normalizedName.EndsWith(".dbc", StringComparison.OrdinalIgnoreCase);
     }
 
+    /**
+      * Performs the is map source file operation for GameDataExtractor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsMapSourceFile(string normalizedName)
     {
         if (!normalizedName.StartsWith("World/Maps/", StringComparison.OrdinalIgnoreCase))
@@ -230,6 +282,11 @@ public sealed class GameDataExtractor
                normalizedName.EndsWith(".adt", StringComparison.OrdinalIgnoreCase);
     }
 
+    /**
+      * Performs the is vmap source file operation for GameDataExtractor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsVmapSourceFile(string normalizedName)
     {
         return normalizedName.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase) ||

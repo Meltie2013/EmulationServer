@@ -18,8 +18,18 @@
 
 using MySqlConnector;
 
+/**
+  * File overview: src/EmulationServer.Database/Interface/IDatabaseService.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Database.Interfaces;
 
+/**
+  * Defines the contract for idatabase service so implementations can be swapped without changing callers.
+  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
+  */
 public interface IDatabaseService : IAsyncDisposable
 {
     ValueTask<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken = default);

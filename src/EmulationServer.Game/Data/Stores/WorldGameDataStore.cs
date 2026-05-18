@@ -20,26 +20,53 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Stores/WorldGameDataStore.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Stores;
 
+/**
+  * Owns WorldServer DBC data that is needed for global validation and character flow.
+  * It owns loaded data in memory and provides lookup access to other systems.
+  */
 public sealed class WorldGameDataStore
 {
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
 
+    /**
+      * Creates a new WorldGameDataStore instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private WorldGameDataStore(Dictionary<string, DbcDataStore> dbcStores)
     {
         _dbcStores = dbcStores;
     }
 
+    /**
+      * Gets or stores the empty value used by WorldGameDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public static WorldGameDataStore Empty { get; } = new([]);
 
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of WorldGameDataStore and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryGetDbcStore(string fileName, out DbcDataStore store)
     {
         return _dbcStores.TryGetValue(fileName, out store!);
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of WorldGameDataStore and keeps this workflow isolated from the caller.
+      */
     public static WorldGameDataStore Load(
         string dataDirectory,
         string dbcDirectory,

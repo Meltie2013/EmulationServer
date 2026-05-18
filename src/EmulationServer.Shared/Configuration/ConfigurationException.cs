@@ -16,15 +16,33 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Shared/Configuration/ConfigurationException.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Configuration;
 
+/**
+  * Represents the configuration exception component in the server configuration loading and strongly typed settings area.
+  * It identifies a project-specific failure mode so callers can distinguish expected validation errors from unexpected crashes.
+  */
 public sealed class ConfigurationException : Exception
 {
+    /**
+      * Creates a new ConfigurationException instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public ConfigurationException(string message) : base(message)
     {
 
     }
 
+    /**
+      * Creates a new ConfigurationException instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public ConfigurationException(string message, Exception innerException) : base(message, innerException)
     {
 

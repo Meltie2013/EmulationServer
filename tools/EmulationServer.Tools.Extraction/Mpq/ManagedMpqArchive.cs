@@ -20,15 +20,45 @@ using System.Buffers.Binary;
 using ICSharpCode.SharpZipLib.BZip2;
 using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/ManagedMpqArchive.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Mpq;
 
+/**
+  * Represents the managed mpq archive component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 internal sealed class ManagedMpqArchive : IDisposable
 {
+    /**
+      * Stores the stream dependency or runtime value for ManagedMpqArchive.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly FileStream _stream;
+    /**
+      * Stores the header dependency or runtime value for ManagedMpqArchive.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly MpqArchiveHeader _header;
+    /**
+      * Stores the hash table dependency or runtime value for ManagedMpqArchive.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly MpqHashTableEntry[] _hashTable;
+    /**
+      * Stores the block table dependency or runtime value for ManagedMpqArchive.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly MpqBlockTableEntry[] _blockTable;
 
+    /**
+      * Creates a new ManagedMpqArchive instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private ManagedMpqArchive(
         FileStream stream,
         MpqArchiveHeader header,
@@ -41,6 +71,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         _blockTable = blockTable;
     }
 
+    /**
+      * Performs the open operation for ManagedMpqArchive.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static ManagedMpqArchive Open(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -62,6 +96,11 @@ internal sealed class ManagedMpqArchive : IDisposable
         }
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryReadFile(string fileName, out byte[] data)
     {
         data = [];
@@ -75,11 +114,19 @@ internal sealed class ManagedMpqArchive : IDisposable
         return true;
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     public void Dispose()
     {
         _stream.Dispose();
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private static MpqHashTableEntry[] ReadHashTable(Stream stream, MpqArchiveHeader header)
     {
         int tableBytesLength = checked((int)header.HashTableEntries * 16);
@@ -96,6 +143,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return table;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private static MpqBlockTableEntry[] ReadBlockTable(Stream stream, MpqArchiveHeader header)
     {
         int tableBytesLength = checked((int)header.BlockTableEntries * 16);
@@ -112,6 +163,11 @@ internal sealed class ManagedMpqArchive : IDisposable
         return table;
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private bool TryFindBlock(string fileName, out MpqBlockTableEntry block)
     {
         block = default;
@@ -160,6 +216,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return false;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private byte[] ReadBlockFile(string fileName, MpqBlockTableEntry block)
     {
         if (block.FileSize > int.MaxValue || block.CompressedSize > int.MaxValue)
@@ -191,6 +251,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return ReadSectorFile(fileName, block, dataOffset);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private byte[] ReadSectorFile(string fileName, MpqBlockTableEntry block, long dataOffset)
     {
         int fileSize = checked((int)block.FileSize);
@@ -248,6 +312,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return output;
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private static void ValidateSectorOffsets(string fileName, int compressedSize, IReadOnlyList<int> sectorOffsets)
     {
         if (sectorOffsets.Count < 2)
@@ -268,6 +336,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private static uint GetFileKey(string fileName, MpqBlockTableEntry block)
     {
         string normalizedName = MpqHash.NormalizeFileName(fileName);
@@ -283,6 +355,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return key;
     }
 
+    /**
+      * Performs the decompress operation for ManagedMpqArchive.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static byte[] Decompress(byte[] data, int expectedSize)
     {
         if (data.Length == expectedSize)
@@ -321,6 +397,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         throw new NotSupportedException($"Unsupported MPQ compression mask 0x{compressionMask:X2}.");
     }
 
+    /**
+      * Performs the decompress deflate operation for ManagedMpqArchive.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static byte[] DecompressDeflate(byte[] data, int expectedSize)
     {
         using MemoryStream input = new(data);
@@ -330,6 +410,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return ResizeToFileSize(output.ToArray(), expectedSize);
     }
 
+    /**
+      * Performs the decompress bzip2 operation for ManagedMpqArchive.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static byte[] DecompressBZip2(byte[] data, int expectedSize)
     {
         using MemoryStream input = new(data);
@@ -339,6 +423,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return ResizeToFileSize(output.ToArray(), expectedSize);
     }
 
+    /**
+      * Performs the resize to file size operation for ManagedMpqArchive.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static byte[] ResizeToFileSize(byte[] data, int fileSize)
     {
         if (data.Length == fileSize)
@@ -356,6 +444,10 @@ internal sealed class ManagedMpqArchive : IDisposable
         return resized;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ManagedMpqArchive and keeps this workflow isolated from the caller.
+      */
     private static byte[] ReadBytesAt(Stream stream, long offset, int count)
     {
         if (count < 0)

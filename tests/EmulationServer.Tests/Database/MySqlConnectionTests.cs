@@ -22,10 +22,24 @@ using EmulationServer.Database.Services;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
 
+/**
+  * File overview: tests/EmulationServer.Tests/Database/MySqlConnectionTests.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tests.Database;
 
+/**
+  * Represents the my sql connection tests component in the project runtime logic and supporting data models area.
+  * It documents expected behavior with automated assertions so regressions are easier to detect.
+  */
 public sealed class MySqlConnectionTests
 {
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
+      */
     private static DatabaseSettings LoadSettings()
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -56,6 +70,11 @@ public sealed class MySqlConnectionTests
     }
 
     [DatabaseIntegrationFact]
+    /**
+      * Performs the database connection should succeed operation for MySqlConnectionTests.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async Task DatabaseConnection_ShouldSucceed()
     {
         DatabaseSettings settings = LoadSettings();
@@ -68,6 +87,11 @@ public sealed class MySqlConnectionTests
     }
 
     [DatabaseIntegrationFact]
+    /**
+      * Performs the database query should execute operation for MySqlConnectionTests.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async Task DatabaseQuery_ShouldExecute()
     {
         DatabaseSettings settings = LoadSettings();
@@ -88,6 +112,10 @@ public sealed class MySqlConnectionTests
         Assert.Equal(1, value);
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
+      */
     private static string GetString(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string? environmentValue = Environment.GetEnvironmentVariable(environmentVariableName);
@@ -100,18 +128,31 @@ public sealed class MySqlConnectionTests
             ?? throw new InvalidOperationException($"Missing required test setting '{configurationKey}'.");
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
+      */
     private static int GetInt(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string value = GetString(configuration, configurationKey, environmentVariableName);
         return int.Parse(value);
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
+      */
     private static uint GetUInt(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string value = GetString(configuration, configurationKey, environmentVariableName);
         return uint.Parse(value);
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool GetBool(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string value = GetString(configuration, configurationKey, environmentVariableName);

@@ -18,12 +18,26 @@
 
 using System.Buffers.Binary;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqArchiveHeader.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Mpq;
 
+/**
+  * Represents the mpq archive header component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 internal sealed class MpqArchiveHeader
 {
     private const uint MpqMagic = 0x1A51504D;
 
+    /**
+      * Creates a new MpqArchiveHeader instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private MpqArchiveHeader(
         long headerOffset,
         uint headerSize,
@@ -46,26 +60,70 @@ internal sealed class MpqArchiveHeader
         BlockTableEntries = blockTableEntries;
     }
 
+    /**
+      * Gets or stores the header offset value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public long HeaderOffset { get; }
 
+    /**
+      * Gets or stores the header size value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint HeaderSize { get; }
 
+    /**
+      * Gets or stores the format version value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public ushort FormatVersion { get; }
 
+    /**
+      * Gets or stores the block size power value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public ushort BlockSizePower { get; }
 
+    /**
+      * Gets or stores the sector size value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int SectorSize => 512 << BlockSizePower;
 
+    /**
+      * Gets or stores the archive size value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public long ArchiveSize { get; }
 
+    /**
+      * Gets or stores the hash table offset value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public long HashTableOffset { get; }
 
+    /**
+      * Gets or stores the block table offset value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public long BlockTableOffset { get; }
 
+    /**
+      * Gets or stores the hash table entries value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint HashTableEntries { get; }
 
+    /**
+      * Gets or stores the block table entries value used by MpqArchiveHeader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint BlockTableEntries { get; }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of MpqArchiveHeader and keeps this workflow isolated from the caller.
+      */
     public static MpqArchiveHeader Read(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -140,6 +198,10 @@ internal sealed class MpqArchiveHeader
             blockTableEntries);
     }
 
+    /**
+      * Finds a matching item in the managed collection and returns the safest available result.
+      * The method is part of MpqArchiveHeader and keeps this workflow isolated from the caller.
+      */
     private static long FindHeaderOffset(Stream stream)
     {
         const int searchStep = 0x200;

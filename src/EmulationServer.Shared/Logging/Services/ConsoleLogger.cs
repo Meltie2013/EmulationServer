@@ -20,12 +20,26 @@ using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Logging.Formatting;
 using EmulationServer.Shared.Logging.Interfaces;
 
+/**
+  * File overview: src/EmulationServer.Shared/Logging/Services/ConsoleLogger.cs
+  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Logging.Services;
 
+/**
+  * Represents the console logger component in the logging configuration, formatting, filtering, and output routing area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class ConsoleLogger : ILogger
 {
     private static readonly object SyncRoot = new();
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of ConsoleLogger and keeps this workflow isolated from the caller.
+      */
     public void Write(LogType type, string message, string? category = null)
     {
         lock (SyncRoot)
@@ -36,6 +50,10 @@ public sealed class ConsoleLogger : ILogger
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of ConsoleLogger and keeps this workflow isolated from the caller.
+      */
     private static ConsoleColor GetColor(LogType type)
     {
         return type switch

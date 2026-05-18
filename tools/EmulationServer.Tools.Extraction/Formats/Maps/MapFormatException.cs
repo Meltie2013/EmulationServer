@@ -16,10 +16,24 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/MapFormatException.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps;
 
+/**
+  * Represents the map format exception component in the developer tooling for data extraction, validation, and diagnostics area.
+  * It identifies a project-specific failure mode so callers can distinguish expected validation errors from unexpected crashes.
+  */
 public sealed class MapFormatException : Exception
 {
+    /**
+      * Creates a new MapFormatException instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public MapFormatException(string message)
         : base(message)
     {

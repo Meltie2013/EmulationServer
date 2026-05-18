@@ -18,8 +18,18 @@
 
 using System.Globalization;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceStatusPacket.cs
+  * This file belongs to the internal server-to-server protocol packet parsing and formatting portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Protocol;
 
+/**
+  * Represents immutable internal map service status packet data passed between parts of the server.
+  * It represents an internal protocol payload exchanged between server processes.
+  */
 public sealed record InternalMapServiceStatusPacket(
     string OwnerServerName,
     string Kind,
@@ -33,6 +43,10 @@ public sealed record InternalMapServiceStatusPacket(
     double AverageTickMilliseconds,
     double LoadPercent)
 {
+    /**
+      * Performs the to packet line operation for InternalMapServiceStatusPacket.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public string ToPacketLine()
     {
         return string.Create(
@@ -40,6 +54,11 @@ public sealed record InternalMapServiceStatusPacket(
             $"{InternalProtocol.MapServiceStatus} {OwnerServerName} {Kind} {MapId} {InstanceId} {State} {Tick} {ActivePlayers} {ActiveGrids} {LastTickMilliseconds:0.###} {AverageTickMilliseconds:0.###} {LoadPercent:0.##}");
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of InternalMapServiceStatusPacket and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool TryParse(string packet, out InternalMapServiceStatusPacket status)
     {
         status = Empty;
@@ -111,6 +130,10 @@ public sealed record InternalMapServiceStatusPacket(
         return true;
     }
 
+    /**
+      * Gets or stores the empty value used by InternalMapServiceStatusPacket.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     private static InternalMapServiceStatusPacket Empty { get; } = new(
         string.Empty,
         string.Empty,

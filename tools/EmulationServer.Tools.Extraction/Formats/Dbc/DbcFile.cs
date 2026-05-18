@@ -18,13 +18,35 @@
 
 using System.Text;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Dbc/DbcFile.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Dbc;
 
+/**
+  * Represents the dbc file component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class DbcFile
 {
+    /**
+      * Stores the record data dependency or runtime value for DbcFile.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly byte[] _recordData;
+    /**
+      * Stores the string block dependency or runtime value for DbcFile.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly byte[] _stringBlock;
 
+    /**
+      * Creates a new DbcFile instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private DbcFile(DbcHeader header, byte[] recordData, byte[] stringBlock)
     {
         Header = header;
@@ -32,12 +54,28 @@ public sealed class DbcFile
         _stringBlock = stringBlock;
     }
 
+    /**
+      * Gets or stores the header value used by DbcFile.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public DbcHeader Header { get; }
 
+    /**
+      * Gets or stores the record count value used by DbcFile.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int RecordCount => Header.RecordCount;
 
+    /**
+      * Gets or stores the field count value used by DbcFile.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int FieldCount => Header.FieldCount;
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcFile and keeps this workflow isolated from the caller.
+      */
     public DbcRecord GetRecord(int index)
     {
         if (index < 0 || index >= Header.RecordCount)
@@ -49,6 +87,10 @@ public sealed class DbcFile
         return new DbcRecord(_recordData.AsMemory(offset, Header.RecordSize), _stringBlock, Header.FieldCount);
     }
 
+    /**
+      * Performs the enumerate records operation for DbcFile.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public IEnumerable<DbcRecord> EnumerateRecords()
     {
         for (int index = 0; index < Header.RecordCount; index++)
@@ -57,6 +99,10 @@ public sealed class DbcFile
         }
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of DbcFile and keeps this workflow isolated from the caller.
+      */
     public static DbcFile Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -65,6 +111,10 @@ public sealed class DbcFile
         return Load(stream, path);
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of DbcFile and keeps this workflow isolated from the caller.
+      */
     public static DbcFile Load(Stream stream, string sourceName = "DBC stream")
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -98,6 +148,10 @@ public sealed class DbcFile
         return new DbcFile(header, records, stringBlock);
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of DbcFile and keeps this workflow isolated from the caller.
+      */
     private static void ValidateHeader(DbcHeader header, string sourceName)
     {
         if (!string.Equals(header.Magic, DbcHeader.ExpectedMagic, StringComparison.Ordinal))

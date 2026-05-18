@@ -23,17 +23,51 @@ using EmulationServer.Game.Data.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapGridManager.cs
+  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Maps.Runtime;
 
+/**
+  * Owns loaded map grid tiles for a service and controls whether tiles stay resident or unload when idle.
+  * It coordinates a collection of related runtime objects and keeps ownership rules in one place.
+  */
 public sealed class MapGridManager
 {
+    /**
+      * Stores the definition dependency or runtime value for MapGridManager.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly MapServiceDefinition _definition;
+    /**
+      * Stores the maps directory dependency or runtime value for MapGridManager.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _mapsDirectory;
+    /**
+      * Stores the loading mode dependency or runtime value for MapGridManager.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly MapGridLoadingMode _loadingMode;
+    /**
+      * Stores the keep loaded dependency or runtime value for MapGridManager.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly bool _keepLoaded;
+    /**
+      * Stores the idle unload delay dependency or runtime value for MapGridManager.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _idleUnloadDelay;
     private readonly ConcurrentDictionary<MapTileKey, LoadedMapGrid> _loadedGrids = new();
 
+    /**
+      * Creates a new MapGridManager instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public MapGridManager(
         MapServiceDefinition definition,
         string mapsDirectory,
@@ -50,10 +84,24 @@ public sealed class MapGridManager
         _idleUnloadDelay = idleUnloadDelay;
     }
 
+    /**
+      * Gets or stores the loaded grid count value used by MapGridManager.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int LoadedGridCount => _loadedGrids.Count;
 
+    /**
+      * Gets or stores the loaded grid keys value used by MapGridManager.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyCollection<MapTileKey> LoadedGridKeys => _loadedGrids.Keys.ToArray();
 
+    /**
+      * Initializes dependent resources before the service begins normal operation.
+      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task InitializeAsync(IEnumerable<MapTileKey> startupGrids, CancellationToken cancellationToken)
     {
         if (!Directory.Exists(_mapsDirectory))
@@ -74,6 +122,11 @@ public sealed class MapGridManager
         }
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryGetGrid(byte tileX, byte tileY, out LoadedMapGrid grid)
     {
         MapTileKey key = new((uint)_definition.MapId, tileX, tileY);
@@ -96,6 +149,10 @@ public sealed class MapGridManager
     }
 
 
+    /**
+      * Performs the unload all grids operation for MapGridManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public int UnloadAllGrids(string reason)
     {
         int unloaded = 0;
@@ -111,6 +168,10 @@ public sealed class MapGridManager
         return unloaded;
     }
 
+    /**
+      * Performs the unload idle grids operation for MapGridManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void UnloadIdleGrids()
     {
         if (_keepLoaded || _idleUnloadDelay <= TimeSpan.Zero)
@@ -133,6 +194,12 @@ public sealed class MapGridManager
         }
     }
 
+    /**
+      * Performs the preload all tiles for map async operation for MapGridManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task PreloadAllTilesForMapAsync(CancellationToken cancellationToken)
     {
         int loaded = 0;
@@ -152,6 +219,10 @@ public sealed class MapGridManager
         Logger.Write(LogType.SUCCESS, $"Preloaded {loaded} map grid(s) for '{_definition.Name}' from '{_mapsDirectory}'.", nameof(MapGridManager));
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
+      */
     private LoadedMapGrid LoadGrid(MapTileKey key, bool markUsed)
     {
         LoadedMapGrid grid = _loadedGrids.GetOrAdd(key, static (tileKey, state) =>
@@ -170,6 +241,10 @@ public sealed class MapGridManager
         return grid;
     }
 
+    /**
+      * Performs the resolve tile path operation for MapGridManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private string ResolveTilePath(MapTileKey key)
     {
         string fileName = string.Create(CultureInfo.InvariantCulture, $"{key.MapId:000}{key.TileX:00}{key.TileY:00}.map");
@@ -188,6 +263,10 @@ public sealed class MapGridManager
         throw new FileNotFoundException($"Map grid file was not found for {FormatKey(key)}. Checked '{directPath}' and '{nestedPath}'.", fileName);
     }
 
+    /**
+      * Performs the enumerate map tile files for map operation for MapGridManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private IEnumerable<string> EnumerateMapTileFilesForMap()
     {
         string prefix = _definition.MapId.ToString("000", CultureInfo.InvariantCulture);
@@ -195,6 +274,10 @@ public sealed class MapGridManager
             .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
     }
 
+    /**
+      * Formats runtime values into a stable human-readable message for logging or diagnostics.
+      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
+      */
     private static string FormatKey(MapTileKey key)
     {
         return $"MapId={key.MapId}, TileX={key.TileX}, TileY={key.TileY}";

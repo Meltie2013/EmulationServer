@@ -21,14 +21,33 @@ using System.Collections.Concurrent;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Sessions/SessionManager.cs
+  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Sessions;
 
+/**
+  * Represents the session manager component in the network session lifecycle and packet dispatch area.
+  * It coordinates a collection of related runtime objects and keeps ownership rules in one place.
+  */
 public sealed class SessionManager
 {
     private readonly ConcurrentDictionary<Guid, SessionEntry> _sessions = new();
 
+    /**
+      * Gets or stores the count value used by SessionManager.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int Count => _sessions.Count;
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of SessionManager and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryAddSession(RealmSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -38,6 +57,10 @@ public sealed class SessionManager
         return _sessions.TryAdd(session.Id, entry);
     }
 
+    /**
+      * Performs the complete session operation for SessionManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void CompleteSession(RealmSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -48,6 +71,11 @@ public sealed class SessionManager
         }
     }
 
+    /**
+      * Performs the disconnect all async operation for SessionManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task DisconnectAllAsync()
     {
         Task[] disconnectTasks = _sessions.Values
@@ -57,6 +85,12 @@ public sealed class SessionManager
         return Task.WhenAll(disconnectTasks);
     }
 
+    /**
+      * Performs the wait for all sessions async operation for SessionManager.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task WaitForAllSessionsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         Task[] completionTasks = _sessions.Values
@@ -89,19 +123,43 @@ public sealed class SessionManager
             nameof(SessionManager));
     }
 
+    /**
+      * Represents the session entry component in the network session lifecycle and packet dispatch area.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private sealed class SessionEntry
     {
+        /**
+          * Stores the completion dependency or runtime value for SessionEntry.
+          * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+          */
         private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        /**
+          * Creates a new SessionEntry instance and stores the dependencies required by the component.
+          * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+          */
         public SessionEntry(RealmSession session)
         {
             Session = session;
         }
 
+        /**
+          * Gets or stores the session value used by SessionEntry.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public RealmSession Session { get; }
 
+        /**
+          * Gets or stores the completion value used by SessionEntry.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public Task Completion => _completion.Task;
 
+        /**
+          * Performs the mark completed operation for SessionEntry.
+          * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+          */
         public void MarkCompleted()
         {
             _completion.TrySetResult();

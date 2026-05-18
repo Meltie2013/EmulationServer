@@ -19,12 +19,26 @@
 using EmulationServer.Core.Configuration;
 using EmulationServer.Shared.Configuration;
 
+/**
+  * File overview: src/ProxyServer/Configuration/ProxyServerConfigurationLoader.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.ProxyServer.Configuration;
 
+/**
+  * Represents the proxy server configuration loader component in the server configuration loading and strongly typed settings area.
+  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
+  */
 public static class ProxyServerConfigurationLoader
 {
     private const string ProxyServerSection = "ProxyServer";
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ProxyServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static ProxyServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -49,6 +63,10 @@ public static class ProxyServerConfigurationLoader
         return settings;
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ProxyServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static ProxyDependencySettings LoadDependencyPolicy(IniConfiguration configuration)
     {
         return new ProxyDependencySettings
@@ -75,6 +93,10 @@ public static class ProxyServerConfigurationLoader
         };
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ProxyServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlySet<string> LoadServerNameSet(
         IniConfiguration configuration,
         string key,

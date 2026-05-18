@@ -19,18 +19,42 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/WorldServer/Commands/WorldConsoleCommandService.cs
+  * This file belongs to the console command parsing and dispatch portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.WorldServer.Commands;
 
+/**
+  * Reads WorldServer console commands and forwards validated map service commands to the internal control layer.
+  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
+  */
 public sealed class WorldConsoleCommandService
 {
     private readonly Func<string, int, CancellationToken, Task> _executeMapCommandAsync;
+    /**
+      * Stores the command task dependency or runtime value for WorldConsoleCommandService.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private Task? _commandTask;
 
+    /**
+      * Creates a new WorldConsoleCommandService instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public WorldConsoleCommandService(Func<string, int, CancellationToken, Task> executeMapCommandAsync)
     {
         _executeMapCommandAsync = executeMapCommandAsync ?? throw new ArgumentNullException(nameof(executeMapCommandAsync));
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -41,6 +65,12 @@ public sealed class WorldConsoleCommandService
         _commandTask = Task.Run(() => RunAsync(cancellationToken), CancellationToken.None);
     }
 
+    /**
+      * Runs the main loop for this component until cancellation or shutdown is requested.
+      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.TRACE, "WorldServer console commands are available. Type 'map help' for map commands.", nameof(WorldConsoleCommandService));
@@ -73,6 +103,12 @@ public sealed class WorldConsoleCommandService
         }
     }
 
+    /**
+      * Executes the requested command after parsing and validation are complete.
+      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ExecuteAsync(string line, CancellationToken cancellationToken)
     {
         string[] parts = SplitCommandLine(line);
@@ -117,6 +153,10 @@ public sealed class WorldConsoleCommandService
         await _executeMapCommandAsync(action, mapId, cancellationToken);
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
+      */
     private static void WriteMapHelp()
     {
         Logger.Write(LogType.TRACE, "Map commands:", nameof(WorldConsoleCommandService));
@@ -126,6 +166,10 @@ public sealed class WorldConsoleCommandService
         Logger.Write(LogType.TRACE, "  map info #mapid", nameof(WorldConsoleCommandService));
     }
 
+    /**
+      * Splits the supplied text into command parts while preserving quoted values.
+      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
+      */
     private static string[] SplitCommandLine(string commandLine)
     {
         List<string> parts = [];
@@ -153,6 +197,10 @@ public sealed class WorldConsoleCommandService
         return [.. parts];
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
+      */
     private static void AddPart(List<string> parts, List<char> current)
     {
         if (current.Count == 0)

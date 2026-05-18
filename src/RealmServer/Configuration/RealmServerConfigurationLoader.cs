@@ -23,8 +23,18 @@ using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 using EmulationServer.Shared.Configuration;
 
+/**
+  * File overview: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Configuration;
 
+/**
+  * Represents the realm server configuration loader component in the server configuration loading and strongly typed settings area.
+  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
+  */
 public static class RealmServerConfigurationLoader
 {
     private const string RealmServerSection = "RealmServer";
@@ -32,6 +42,10 @@ public static class RealmServerConfigurationLoader
     private const string RealmsSection = "Realms";
     private const string InternalNetworkSection = "InternalNetwork";
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static RealmServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -57,6 +71,10 @@ public static class RealmServerConfigurationLoader
         return settings;
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static RealmSocketListenerSettings LoadSocketSettings(IniConfiguration configuration)
     {
         return new RealmSocketListenerSettings
@@ -87,6 +105,10 @@ public static class RealmServerConfigurationLoader
         };
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static DatabaseSettings LoadDatabaseSettings(IniConfiguration configuration)
     {
         return new DatabaseSettings
@@ -148,6 +170,10 @@ public static class RealmServerConfigurationLoader
         };
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlyList<ConfiguredRealmSettings> LoadRealmSettings(IniConfiguration configuration)
     {
         string ids = configuration.GetString(RealmsSection, "RealmIds", "1");
@@ -182,6 +208,10 @@ public static class RealmServerConfigurationLoader
         return realms;
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlySet<ushort> ParseBuilds(string value, string section)
     {
         HashSet<ushort> builds = [];
@@ -199,6 +229,10 @@ public static class RealmServerConfigurationLoader
         return builds;
     }
 
+    /**
+      * Splits the supplied text into command parts while preserving quoted values.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

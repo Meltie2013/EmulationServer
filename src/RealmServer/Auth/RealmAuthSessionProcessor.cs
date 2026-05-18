@@ -25,32 +25,108 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
+  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Auth;
 
+/**
+  * Represents the realm auth session processor component in the realm authentication, build validation, and realm list packet creation area.
+  * It receives input from a session and drives the next step in the protocol state machine.
+  */
 public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 {
+    /**
+      * Stores the account repository dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly AccountRepository _accountRepository;
+    /**
+      * Stores the realm list packet builder dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly RealmListPacketBuilder _realmListPacketBuilder;
 
+    /**
+      * Stores the status dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private RealmAuthStatus _status = RealmAuthStatus.Challenge;
+    /**
+      * Stores the account dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private AccountLogonRecord? _account;
+    /**
+      * Stores the login dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private string _login = string.Empty;
+    /**
+      * Stores the os dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private string _os = string.Empty;
+    /**
+      * Stores the locale name dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private string _localeName = "enUS";
+    /**
+      * Stores the locale dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private byte _locale;
+    /**
+      * Stores the build dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private ushort _build;
+    /**
+      * Stores the salt dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private BigInteger _salt;
+    /**
+      * Stores the verifier dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private BigInteger _verifier;
+    /**
+      * Stores the host private ephemeral dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private BigInteger _hostPrivateEphemeral;
+    /**
+      * Stores the host public ephemeral dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private BigInteger _hostPublicEphemeral;
+    /**
+      * Stores the session key dependency or runtime value for RealmAuthSessionProcessor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private byte[] _sessionKey = [];
 
+    /**
+      * Creates a new RealmAuthSessionProcessor instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmAuthSessionProcessor(AccountRepository accountRepository, RealmListPacketBuilder realmListPacketBuilder)
     {
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
         _realmListPacketBuilder = realmListPacketBuilder ?? throw new ArgumentNullException(nameof(realmListPacketBuilder));
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task ProcessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         Logger.Write(LogType.NETWORK, $"Realm auth session started for {context.RemoteEndPoint}.", nameof(RealmAuthSessionProcessor));
@@ -81,6 +157,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         }
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task HandleLogonChallengeAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         byte protocolVersion = await context.ReadByteAsync(cancellationToken);
@@ -159,6 +241,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.LogonProof;
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task HandleLogonProofAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         if (_account is null)
@@ -205,6 +293,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Authenticated;
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task HandleRealmListAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         _ = await context.ReadBytesAsync(4, cancellationToken);
@@ -221,6 +315,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         Logger.Write(LogType.TRACE, $"Sent realm list to account '{_login}'.", nameof(RealmAuthSessionProcessor));
     }
 
+    /**
+      * Performs the prepare srp challenge async operation for RealmAuthSessionProcessor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task PrepareSrpChallengeAsync(AccountLogonRecord account, CancellationToken cancellationToken)
     {
         if (Srp6Utilities.IsValidStoredSrpValue(account.Verifier) && Srp6Utilities.IsValidStoredSrpValue(account.Salt))
@@ -243,6 +343,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _hostPublicEphemeral = Srp6Utilities.CalculateHostPublicEphemeral(_verifier, _hostPrivateEphemeral);
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendChallengeFailureAsync(RealmSessionContext context, RealmAuthResult result, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -253,6 +359,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendChallengeSuccessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -271,6 +383,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendProofSuccessAsync(RealmSessionContext context, byte[] hostProof, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -292,6 +410,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendProofFailureAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -307,6 +431,11 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryParseLogonChallenge(byte[] payload, out LogonChallenge challenge)
     {
         challenge = default;
@@ -336,6 +465,10 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         return true;
     }
 
+    /**
+      * Performs the reverse four character string operation for RealmAuthSessionProcessor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static string ReverseFourCharacterString(ReadOnlySpan<byte> value)
     {
         Span<byte> copy = stackalloc byte[4];
@@ -344,6 +477,10 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         return Encoding.ASCII.GetString(copy).TrimEnd('\0');
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
+      */
     private static byte GetLocaleIndex(string localeName)
     {
         return localeName switch
@@ -361,5 +498,9 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         };
     }
 
+    /**
+      * Represents immutable struct data passed between parts of the server.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private readonly record struct LogonChallenge(ushort Build, string OperatingSystem, string LocaleName, string Username);
 }

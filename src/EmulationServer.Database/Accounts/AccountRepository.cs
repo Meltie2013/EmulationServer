@@ -20,17 +20,41 @@ using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
+/**
+  * File overview: src/EmulationServer.Database/Accounts/AccountRepository.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Database.Accounts;
 
+/**
+  * Represents the account repository component in the project runtime logic and supporting data models area.
+  * It isolates database access from the rest of the server and returns domain results to callers.
+  */
 public sealed class AccountRepository
 {
+    /**
+      * Stores the database service dependency or runtime value for AccountRepository.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly IDatabaseService _databaseService;
 
+    /**
+      * Creates a new AccountRepository instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public AccountRepository(IDatabaseService databaseService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task<AccountLogonRecord?> GetForLogonAsync(string username, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -61,6 +85,12 @@ public sealed class AccountRepository
             reader.IsDBNull(7) ? null : reader.GetString(7));
     }
 
+    /**
+      * Performs the is ip banned async operation for AccountRepository.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -79,6 +109,12 @@ public sealed class AccountRepository
         return result is not null;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task<AccountBanStatus> GetAccountBanStatusAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -106,6 +142,12 @@ public sealed class AccountRepository
         return new AccountBanStatus(true, banDate == unbanDate);
     }
 
+    /**
+      * Performs the update verifier async operation for AccountRepository.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task UpdateVerifierAsync(string username, string verifier, string salt, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -124,6 +166,11 @@ public sealed class AccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+      * Performs the update successful login async operation for AccountRepository.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async Task UpdateSuccessfulLoginAsync(
         string username,
         string sessionKey,
@@ -154,6 +201,12 @@ public sealed class AccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+      * Performs the increment failed logins async operation for AccountRepository.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task IncrementFailedLoginsAsync(string username, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -169,6 +222,11 @@ public sealed class AccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
+      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async Task<AccountCommandResult> CreateAccountAsync(
         string username,
         string password,
@@ -215,6 +273,12 @@ public sealed class AccountRepository
         }
     }
 
+    /**
+      * Removes an item from the managed collection and cleans up related state.
+      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task<AccountCommandResult> RemoveAccountAsync(string username, CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
@@ -244,6 +308,10 @@ public sealed class AccountRepository
         return new AccountCommandResult(true, $"Account '{username}' was removed.");
     }
 
+    /**
+      * Performs the normalize username operation for AccountRepository.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static string NormalizeUsername(string username)
     {
         if (string.IsNullOrWhiteSpace(username))

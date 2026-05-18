@@ -19,14 +19,28 @@
 using System.Globalization;
 using System.Text;
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Maps/MapTileDataStore.cs
+  * This file belongs to the extracted map tile file reading and validation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Maps;
 
+/**
+  * Loads extracted map tile files and validates the map tile header before runtime use.
+  * It owns loaded data in memory and provides lookup access to other systems.
+  */
 public sealed class MapTileDataStore
 {
     private const int MapFileHeaderSize = 44;
     private const string ExpectedMapMagic = "MAPS";
     private const string ExpectedVersionMagic = "0000";
 
+    /**
+      * Creates a new MapTileDataStore instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private MapTileDataStore(string path, MapTileKey key, MapFileHeader header, byte[] data)
     {
         Path = path;
@@ -36,16 +50,40 @@ public sealed class MapTileDataStore
         Data = data;
     }
 
+    /**
+      * Gets or stores the path value used by MapTileDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Path { get; }
 
+    /**
+      * Gets or stores the name value used by MapTileDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Name { get; }
 
+    /**
+      * Gets or stores the key value used by MapTileDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public MapTileKey Key { get; }
 
+    /**
+      * Gets or stores the header value used by MapTileDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public MapFileHeader Header { get; }
 
+    /**
+      * Gets or stores the data value used by MapTileDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public byte[] Data { get; }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      */
     public static MapTileDataStore Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -61,6 +99,10 @@ public sealed class MapTileDataStore
         return new MapTileDataStore(path, key, header, data);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      */
     private static MapFileHeader ReadHeader(BinaryReader reader, string path)
     {
         if (reader.BaseStream.Length < MapFileHeaderSize)
@@ -82,6 +124,10 @@ public sealed class MapTileDataStore
             reader.ReadUInt32());
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      */
     private static void ValidateHeader(MapFileHeader header, long length, string path)
     {
         if (!string.Equals(header.MapMagic, ExpectedMapMagic, StringComparison.Ordinal))
@@ -100,6 +146,10 @@ public sealed class MapTileDataStore
         ValidateRange(header.HolesOffset, header.HolesSize, length, path, "holes");
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      */
     private static void ValidateRange(uint offset, uint size, long fileLength, string path, string sectionName)
     {
         if (offset == 0 && size == 0)
@@ -114,6 +164,10 @@ public sealed class MapTileDataStore
         }
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      */
     private static MapTileKey ParseTileKey(string path)
     {
         string name = System.IO.Path.GetFileNameWithoutExtension(path);
@@ -128,6 +182,10 @@ public sealed class MapTileDataStore
         return new MapTileKey(mapId, tileX, tileY);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      */
     private static string ReadFourCC(BinaryReader reader)
     {
         byte[] bytes = reader.ReadBytes(4);

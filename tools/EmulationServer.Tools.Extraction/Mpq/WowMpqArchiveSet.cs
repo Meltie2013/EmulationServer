@@ -16,19 +16,45 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/WowMpqArchiveSet.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Mpq;
 
+/**
+  * Represents the wow mpq archive set component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class WowMpqArchiveSet
 {
+    /**
+      * Stores the archives dependency or runtime value for WowMpqArchiveSet.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly IReadOnlyList<WowMpqArchiveEntry> _archives;
 
+    /**
+      * Creates a new WowMpqArchiveSet instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private WowMpqArchiveSet(IReadOnlyList<WowMpqArchiveEntry> archives)
     {
         _archives = archives;
     }
 
+    /**
+      * Gets or stores the archives value used by WowMpqArchiveSet.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<WowMpqArchiveEntry> Archives => _archives;
 
+    /**
+      * Performs the discover operation for WowMpqArchiveSet.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static WowMpqArchiveSet Discover(string clientRootDirectory, string locale)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(clientRootDirectory);
@@ -59,6 +85,10 @@ public sealed class WowMpqArchiveSet
         return new WowMpqArchiveSet(archives.OrderBy(archive => archive.Priority).ThenBy(archive => archive.Path, StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     public AssetCopyReport ExtractKnownFiles(
         Func<string, bool> shouldExtract,
         Func<string, string> getRelativeOutputPath,
@@ -110,6 +140,10 @@ public sealed class WowMpqArchiveSet
         return report;
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     public AssetCopyReport ExtractKnownFileNames(
         IEnumerable<string> archiveRelativePaths,
         Func<string, string> getRelativeOutputPath,
@@ -176,11 +210,19 @@ public sealed class WowMpqArchiveSet
         return report;
     }
 
+    /**
+      * Performs the normalize archive path operation for WowMpqArchiveSet.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static string NormalizeArchivePath(string archivePath)
     {
         return archivePath.Replace('\\', '/').TrimStart('/');
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static void AddCandidate(Dictionary<string, List<ExtractedArchiveFile>> candidates, string normalizedName, ExtractedArchiveFile file)
     {
         if (!candidates.TryGetValue(normalizedName, out List<ExtractedArchiveFile>? fileCandidates))
@@ -192,6 +234,10 @@ public sealed class WowMpqArchiveSet
         fileCandidates.Add(file);
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static void ExtractCandidateFile(
         List<ExtractedArchiveFile> candidates,
         string normalizedName,
@@ -243,12 +289,20 @@ public sealed class WowMpqArchiveSet
         AddMessage(report, progressMessage, $"Failed to extract '{normalizedName}'. Tried {candidates.Count} candidate archive(s): {string.Join("; ", failures)}.");
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static void AddMessage(AssetCopyReport report, Action<string>? progressMessage, string message)
     {
         report.Messages.Add(message);
         progressMessage?.Invoke(message);
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static void AddArchives(List<WowMpqArchiveEntry> archives, string directory, int basePriority)
     {
         foreach (string path in Directory.EnumerateFiles(directory, "*.MPQ", SearchOption.TopDirectoryOnly)
@@ -260,6 +314,10 @@ public sealed class WowMpqArchiveSet
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static int GetArchivePriority(string fileName)
     {
         string lower = fileName.ToLowerInvariant();
@@ -280,6 +338,10 @@ public sealed class WowMpqArchiveSet
         };
     }
 
+    /**
+      * Extracts data from source files and writes the normalized server format.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static int ExtractTrailingNumber(string value)
     {
         int end = value.LastIndexOf('.');
@@ -304,6 +366,10 @@ public sealed class WowMpqArchiveSet
         return int.TryParse(value[(start + 1)..end], out int number) ? number : 1;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of WowMpqArchiveSet and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlyCollection<string> ReadArchiveListFile(ManagedMpqArchive archive)
     {
         if (!archive.TryReadFile("(listfile)", out byte[] data) || data.Length == 0)
@@ -319,15 +385,29 @@ public sealed class WowMpqArchiveSet
             .ToArray();
     }
 
+    /**
+      * Performs the is recoverable mpq archive exception operation for WowMpqArchiveSet.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsRecoverableMpqArchiveException(Exception exception)
     {
         return exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or NotSupportedException;
     }
 
+    /**
+      * Performs the is recoverable mpq file exception operation for WowMpqArchiveSet.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsRecoverableMpqFileException(Exception exception)
     {
         return exception is IOException or InvalidDataException or ArgumentException or KeyNotFoundException or FileNotFoundException or NotSupportedException;
     }
 
+    /**
+      * Represents immutable extracted archive file data passed between parts of the server.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private sealed record ExtractedArchiveFile(string ArchivePath, int ArchivePriority, string OriginalName, string NormalizedName);
 }

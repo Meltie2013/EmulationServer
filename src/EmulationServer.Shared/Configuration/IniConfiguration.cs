@@ -18,17 +18,35 @@
 
 using System.Globalization;
 
+/**
+  * File overview: src/EmulationServer.Shared/Configuration/IniConfiguration.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Configuration;
 
+/**
+  * Represents the ini configuration component in the server configuration loading and strongly typed settings area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class IniConfiguration
 {
     private readonly Dictionary<string, Dictionary<string, string>> _sections;
 
+    /**
+      * Creates a new IniConfiguration instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private IniConfiguration(Dictionary<string, Dictionary<string, string>> sections)
     {
         _sections = sections;
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
     public static IniConfiguration Load(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -132,6 +150,11 @@ public sealed class IniConfiguration
         return new IniConfiguration(sections);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryGetString(string section, string key, out string value)
     {
         if (_sections.TryGetValue(section, out Dictionary<string, string>? values) &&
@@ -145,6 +168,10 @@ public sealed class IniConfiguration
         return false;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
     public string GetString(string section, string key, string defaultValue)
     {
         return TryGetString(section, key, out string value)
@@ -152,6 +179,10 @@ public sealed class IniConfiguration
             : defaultValue;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
     public string GetRequiredString(string section, string key)
     {
         if (!TryGetString(section, key, out string value))
@@ -167,6 +198,10 @@ public sealed class IniConfiguration
         return value;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
     public int GetInt(
         string section,
         string key,
@@ -200,6 +235,10 @@ public sealed class IniConfiguration
         return parsed;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
     public uint GetUInt(
         string section,
         string key,
@@ -233,6 +272,11 @@ public sealed class IniConfiguration
         return parsed;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool GetBool(string section, string key, bool defaultValue)
     {
         if (!TryGetString(section, key, out string value))
@@ -257,6 +301,10 @@ public sealed class IniConfiguration
         };
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
     public TimeSpan GetTimeSpan(string section, string key, TimeSpan defaultValue)
     {
         if (!TryGetString(section, key, out string value))
@@ -278,6 +326,11 @@ public sealed class IniConfiguration
             $"Invalid time span value for [{section}] {key}: '{value}'. Examples: 15s, 5m, 1h, 00:00:15.");
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryParseDuration(string value, out TimeSpan duration)
     {
         duration = TimeSpan.Zero;

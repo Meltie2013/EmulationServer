@@ -20,22 +20,60 @@ using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 
 using EmulationServer.Shared.Logging.Configuration;
+/**
+  * File overview: src/WorldServer/Configuration/WorldServerSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.WorldServer.Configuration;
 
+/**
+  * Represents the world server settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class WorldServerSettings
 {
+    /**
+      * Gets or stores the logging value used by WorldServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public LoggingSettings Logging { get; init; } = new();
 
+    /**
+      * Gets or stores the internal network value used by WorldServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public InternalNetworkSettings InternalNetwork { get; init; } = new();
 
+    /**
+      * Gets or stores the max connections value used by WorldServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int MaxConnections { get; init; } = 1000;
 
+    /**
+      * Gets or stores the database value used by WorldServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public DatabaseSettings Database { get; init; } = new();
 
+    /**
+      * Gets or stores the realm status value used by WorldServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public RealmStatusSettings RealmStatus { get; init; } = new();
 
+    /**
+      * Gets or stores the game data value used by WorldServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public GameDataSettings GameData { get; init; } = new();
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of WorldServerSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         Logging.Validate();

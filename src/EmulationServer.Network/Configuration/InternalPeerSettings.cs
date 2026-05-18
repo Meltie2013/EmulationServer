@@ -16,20 +16,54 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Network/Configuration/InternalPeerSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Configuration;
 
+/**
+  * Represents the internal peer settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class InternalPeerSettings
 {
+    /**
+      * Gets or stores the name value used by InternalPeerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Name { get; init; } = string.Empty;
 
+    /**
+      * Gets or stores the host value used by InternalPeerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Host { get; init; } = "127.0.0.1";
 
+    /**
+      * Gets or stores the port value used by InternalPeerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int Port { get; init; }
 
+    /**
+      * Gets or stores the enabled value used by InternalPeerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool Enabled { get; init; } = true;
 
+    /**
+      * Gets or stores the reconnect delay value used by InternalPeerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan ReconnectDelay { get; init; } = TimeSpan.FromSeconds(5);
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of InternalPeerSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Name))

@@ -29,16 +29,42 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/InstanceServer/Core/InstanceServer.cs
+  * This file belongs to the server startup, shutdown, and dependency orchestration portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.InstanceServer.Core;
 
+/**
+  * Represents the instance server component in the server startup, shutdown, and dependency orchestration area.
+  * It owns the server startup, shutdown, and dependency wiring for this process.
+  */
 public sealed class InstanceServer : IAsyncDisposable
 {
+    /**
+      * Stores the host dependency or runtime value for InstanceServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly EmulationServerHost _host;
+    /**
+      * Stores the instance services dependency or runtime value for InstanceServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly MapServiceManager _instanceServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
+    /**
+      * Stores the world capacity limit dependency or runtime value for InstanceServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _worldCapacityLimit;
 
+    /**
+      * Creates a new InstanceServer instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public InstanceServer(InstanceServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -52,6 +78,12 @@ public sealed class InstanceServer : IAsyncDisposable
         _host = new EmulationServerHost(nameof(InstanceServer), settings.InternalNetwork, CreateCallbacks());
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await _instanceServices.StartAsync(cancellationToken);
@@ -66,12 +98,23 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _instanceServices.StopAsync(cancellationToken);
         await _host.StopAsync(cancellationToken);
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -79,6 +122,10 @@ public sealed class InstanceServer : IAsyncDisposable
         await _host.DisposeAsync();
     }
 
+    /**
+      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      */
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -92,6 +139,11 @@ public sealed class InstanceServer : IAsyncDisposable
         };
     }
 
+    /**
+      * Performs the on server authenticated async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -103,6 +155,11 @@ public sealed class InstanceServer : IAsyncDisposable
         await _instanceServices.ReportAllServicesAsync(cancellationToken);
     }
 
+    /**
+      * Performs the on server disconnected async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -114,6 +171,11 @@ public sealed class InstanceServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /**
+      * Performs the on peer authenticated async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -125,6 +187,11 @@ public sealed class InstanceServer : IAsyncDisposable
         await _instanceServices.ReportAllServicesAsync(cancellationToken);
     }
 
+    /**
+      * Performs the on peer disconnected async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -136,6 +203,11 @@ public sealed class InstanceServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /**
+      * Performs the on peer packet received async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -149,6 +221,11 @@ public sealed class InstanceServer : IAsyncDisposable
             cancellationToken);
     }
 
+    /**
+      * Performs the on session packet received async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -162,6 +239,11 @@ public sealed class InstanceServer : IAsyncDisposable
             cancellationToken);
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task HandleInternalPacketAsync(
         string remoteServerName,
         string packet,
@@ -193,6 +275,11 @@ public sealed class InstanceServer : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"InstanceServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", nameof(InstanceServer));
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task HandleMapServiceCommandAsync(
         string remoteServerName,
         InternalMapServiceCommandPacket command,
@@ -240,6 +327,11 @@ public sealed class InstanceServer : IAsyncDisposable
         await _instanceServices.ReportServicesAsync(command.MapId, cancellationToken);
     }
 
+    /**
+      * Performs the report instance service status async operation for InstanceServer.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task ReportInstanceServiceStatusAsync(
         MapServiceSnapshot snapshot,
         CancellationToken cancellationToken)
@@ -294,6 +386,11 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryParseMapServiceControlAction(string action, out MapServiceControlAction controlAction)
     {
         switch (action.ToLowerInvariant())

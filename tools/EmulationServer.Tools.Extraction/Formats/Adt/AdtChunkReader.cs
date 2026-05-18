@@ -19,10 +19,24 @@
 using System.Buffers.Binary;
 using System.Text;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunkReader.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
+/**
+  * Represents the adt chunk reader component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class AdtChunkReader
 {
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtChunkReader and keeps this workflow isolated from the caller.
+      */
     public static IReadOnlyList<AdtChunk> ReadTopLevelChunks(ReadOnlySpan<byte> data)
     {
         List<AdtChunk> chunks = [];
@@ -47,6 +61,10 @@ public static class AdtChunkReader
         return chunks;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtChunkReader and keeps this workflow isolated from the caller.
+      */
     public static IReadOnlyList<AdtChunk> ReadNestedChunks(ReadOnlySpan<byte> data, int offset, int size)
     {
         if (offset < 0 || size < 0 || offset + size > data.Length)
@@ -77,6 +95,10 @@ public static class AdtChunkReader
         return chunks;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtChunkReader and keeps this workflow isolated from the caller.
+      */
     public static string ReadAdtFourCC(ReadOnlySpan<byte> data, int offset)
     {
         if (offset < 0 || offset + 4 > data.Length)

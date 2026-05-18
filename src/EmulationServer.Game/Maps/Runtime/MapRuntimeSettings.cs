@@ -18,40 +18,114 @@
 
 using EmulationServer.Game.Data.Maps;
 
+/**
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapRuntimeSettings.cs
+  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Maps.Runtime;
 
+/**
+  * Represents the map runtime settings component in the map service runtime, grid ownership, service state transitions, and health reporting area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class MapRuntimeSettings
 {
+    /**
+      * Gets or stores the enabled value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool Enabled { get; init; } = true;
 
+    /**
+      * Gets or stores the tick interval value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan TickInterval { get; init; } = TimeSpan.FromMilliseconds(100);
 
+    /**
+      * Gets or stores the status report interval value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan StatusReportInterval { get; init; } = TimeSpan.FromSeconds(15);
 
+    /**
+      * Gets or stores the log ticks value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool LogTicks { get; init; }
 
+    /**
+      * Gets or stores the data directory value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string DataDirectory { get; init; } = "Data";
 
+    /**
+      * Gets or stores the dbc directory value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string DbcDirectory { get; init; } = "dbc";
 
+    /**
+      * Gets or stores the maps directory value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string MapsDirectory { get; init; } = "maps";
 
+    /**
+      * Gets or stores the load dbc stores value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool LoadDbcStores { get; init; } = true;
 
+    /**
+      * Gets or stores the load map tiles value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool LoadMapTiles { get; init; } = true;
 
+    /**
+      * Gets or stores the grid loading mode value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public MapGridLoadingMode GridLoadingMode { get; init; } = MapGridLoadingMode.OnDemand;
 
+    /**
+      * Gets or stores the keep loaded grids value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool KeepLoadedGrids { get; init; }
 
+    /**
+      * Gets or stores the grid idle unload delay value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan GridIdleUnloadDelay { get; init; } = TimeSpan.FromMinutes(5);
 
+    /**
+      * Gets or stores the startup grids value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<MapTileKey> StartupGrids { get; init; } = [];
 
+    /**
+      * Gets or stores the required dbc files value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<string> RequiredDbcFiles { get; init; } = [];
 
+    /**
+      * Gets or stores the services value used by MapRuntimeSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<MapServiceDefinition> Services { get; init; } = [];
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of MapRuntimeSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (TickInterval <= TimeSpan.Zero)

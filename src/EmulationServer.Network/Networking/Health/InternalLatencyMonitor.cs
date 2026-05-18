@@ -24,24 +24,82 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Health/InternalLatencyMonitor.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Health;
 
+/**
+  * Sends ping packets, tracks matching pong responses, and reports server-to-server latency.
+  * It watches ongoing runtime state and reports changes or health information to the logs.
+  */
 public sealed class InternalLatencyMonitor : IAsyncDisposable
 {
+    /**
+      * Stores the local server name dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _localServerName;
+    /**
+      * Stores the remote server name dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _remoteServerName;
+    /**
+      * Stores the stream dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly NetworkStream _stream;
+    /**
+      * Stores the send lock dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly SemaphoreSlim _sendLock;
+    /**
+      * Stores the report interval dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _reportInterval;
+    /**
+      * Stores the ping timeout dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _pingTimeout;
     private readonly ConcurrentDictionary<long, PendingPing> _pendingPings = new();
 
+    /**
+      * Stores the stop cancellation dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
+    /**
+      * Stores the monitor task dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private Task? _monitorTask;
+    /**
+      * Stores the next ping id dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private long _nextPingId;
+    /**
+      * Stores the started dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _started;
+    /**
+      * Stores the stopping dependency or runtime value for InternalLatencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _stopping;
 
+    /**
+      * Creates a new InternalLatencyMonitor instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public InternalLatencyMonitor(
         string localServerName,
         string remoteServerName,
@@ -78,6 +136,11 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _pingTimeout = pingTimeout;
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public void Start(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -89,6 +152,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _monitorTask = Task.Run(() => RunAsync(_stopCancellation.Token), CancellationToken.None);
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -122,11 +191,22 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _stopCancellation = null;
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
+    /**
+      * Performs the respond to ping async operation for InternalLatencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task RespondToPingAsync(string pingId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(pingId))
@@ -143,6 +223,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"{_localServerName} sent PONG packet to {_remoteServerName}.", nameof(InternalLatencyMonitor));
     }
 
+    /**
+      * Performs the record pong operation for InternalLatencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void RecordPong(string pingId)
     {
         if (!long.TryParse(pingId, out long id))
@@ -161,6 +245,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"{_localServerName} latency to {_remoteServerName}: {latency.TotalMilliseconds:0.##} ms.", nameof(InternalLatencyMonitor));
     }
 
+    /**
+      * Runs the main loop for this component until cancellation or shutdown is requested.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -195,6 +285,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendPingAsync(CancellationToken cancellationToken)
     {
         long id = Interlocked.Increment(ref _nextPingId);
@@ -211,6 +307,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"{_localServerName} sent PING packet to {_remoteServerName}.", nameof(InternalLatencyMonitor));
     }
 
+    /**
+      * Removes an item from the managed collection and cleans up related state.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      */
     private void RemoveTimedOutPings()
     {
         foreach (KeyValuePair<long, PendingPing> pendingPing in _pendingPings)
@@ -228,6 +328,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
+      */
     private static TimeSpan GetElapsedTime(long startTimestamp)
     {
         long elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
@@ -236,5 +340,9 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         return TimeSpan.FromSeconds(elapsedSeconds);
     }
 
+    /**
+      * Represents immutable pending ping data passed between parts of the server.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private sealed record PendingPing(long StartTimestamp);
 }

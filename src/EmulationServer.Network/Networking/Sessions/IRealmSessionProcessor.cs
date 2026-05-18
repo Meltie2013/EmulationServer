@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Sessions/IRealmSessionProcessor.cs
+  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Sessions;
 
+/**
+  * Defines the contract for irealm session processor so implementations can be swapped without changing callers.
+  * It receives input from a session and drives the next step in the protocol state machine.
+  */
 public interface IRealmSessionProcessor
 {
     Task ProcessAsync(RealmSessionContext context, CancellationToken cancellationToken);

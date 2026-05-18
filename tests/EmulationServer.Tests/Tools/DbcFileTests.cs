@@ -19,11 +19,25 @@
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Dbc;
 
+/**
+  * File overview: tests/EmulationServer.Tests/Tools/DbcFileTests.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tests.Tools;
 
+/**
+  * Represents the dbc file tests component in the project runtime logic and supporting data models area.
+  * It documents expected behavior with automated assertions so regressions are easier to detect.
+  */
 public sealed class DbcFileTests
 {
     [Fact]
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of DbcFileTests and keeps this workflow isolated from the caller.
+      */
     public void Load_ReadsHeaderRecordsAndStrings()
     {
         using MemoryStream stream = new();

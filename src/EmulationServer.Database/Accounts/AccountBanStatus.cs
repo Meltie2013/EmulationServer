@@ -16,9 +16,23 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Database/Accounts/AccountBanStatus.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Database.Accounts;
 
+/**
+  * Represents immutable account ban status data passed between parts of the server.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record AccountBanStatus(bool IsBanned, bool IsPermanent)
 {
+    /**
+      * Gets or stores the not banned value used by AccountBanStatus.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public static AccountBanStatus NotBanned { get; } = new(false, false);
 }

@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapTileConversionReport.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
+/**
+  * Represents immutable map tile conversion report data passed between parts of the server.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record MapTileConversionReport(
     bool HasLiquidData,
     int MclqCells,
@@ -26,6 +36,10 @@ public sealed record MapTileConversionReport(
     int VisibleLiquidTiles,
     int LiquidSectionBytes)
 {
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of MapTileConversionReport and keeps this workflow isolated from the caller.
+      */
     public string GetLiquidStatus()
     {
         return $"{(HasLiquidData ? "yes" : "no")} " +

@@ -19,11 +19,25 @@
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
+/**
+  * File overview: tests/EmulationServer.Tests/Tools/AdtChunkReaderTests.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tests.Tools;
 
+/**
+  * Represents the adt chunk reader tests component in the project runtime logic and supporting data models area.
+  * It documents expected behavior with automated assertions so regressions are easier to detect.
+  */
 public sealed class AdtChunkReaderTests
 {
     [Fact]
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtChunkReaderTests and keeps this workflow isolated from the caller.
+      */
     public void ReadAdtFourCC_NormalizesReversedAdtChunkMagic()
     {
         byte[] bytes = Encoding.ASCII.GetBytes("KNCM");
@@ -34,6 +48,10 @@ public sealed class AdtChunkReaderTests
     }
 
     [Fact]
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtChunkReaderTests and keeps this workflow isolated from the caller.
+      */
     public void ReadTopLevelChunks_ReturnsNormalizedFourCC()
     {
         byte[] data =

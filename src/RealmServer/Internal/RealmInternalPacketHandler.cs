@@ -23,23 +23,49 @@ using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/RealmServer/Internal/RealmInternalPacketHandler.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Internal;
 
+/**
+  * Represents the realm internal packet handler component in the project runtime logic and supporting data models area.
+  * It handles a specific protocol or command path and keeps higher-level server flow readable.
+  */
 public sealed class RealmInternalPacketHandler
 {
     private const string RealmStatusPacket = "REALM_STATUS";
 
+    /**
+      * Stores the realm store dependency or runtime value for RealmInternalPacketHandler.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly ConfiguredRealmStore _realmStore;
 
+    /**
+      * Stores the sync root dependency or runtime value for RealmInternalPacketHandler.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly object _syncRoot = new();
 
     private readonly Dictionary<string, HashSet<uint>> _realmsByServerName = new(StringComparer.OrdinalIgnoreCase);
 
+    /**
+      * Creates a new RealmInternalPacketHandler instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmInternalPacketHandler(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException(nameof(realmStore));
     }
 
+    /**
+      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
+      * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
+      */
     public InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -50,6 +76,11 @@ public sealed class RealmInternalPacketHandler
         };
     }
 
+    /**
+      * Performs the on server authenticated async operation for RealmInternalPacketHandler.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -59,6 +90,11 @@ public sealed class RealmInternalPacketHandler
         return Task.CompletedTask;
     }
 
+    /**
+      * Performs the on packet received async operation for RealmInternalPacketHandler.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -81,6 +117,11 @@ public sealed class RealmInternalPacketHandler
         return Task.CompletedTask;
     }
 
+    /**
+      * Performs the on server disconnected async operation for RealmInternalPacketHandler.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -110,6 +151,10 @@ public sealed class RealmInternalPacketHandler
         return Task.CompletedTask;
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
+      */
     private void HandleRealmStatusPacket(string remoteServerName, string[] parts)
     {
         if (parts.Length < 5)
@@ -164,6 +209,11 @@ public sealed class RealmInternalPacketHandler
         Logger.Write(LogType.NETWORK, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.00}.", nameof(RealmInternalPacketHandler));
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryParseOnlineState(string value, out bool online)
     {
         switch (value.ToLowerInvariant())

@@ -25,18 +25,56 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Socket/InternalSocketListener.cs
+  * This file belongs to the socket listening and connection acceptance portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Socket;
 
+/**
+  * Represents the internal socket listener component in the socket listening and connection acceptance area.
+  * It owns socket listening and converts accepted connections into managed sessions.
+  */
 public sealed class InternalSocketListener
 {
+    /**
+      * Stores the tcp listener dependency or runtime value for InternalSocketListener.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TcpListener _tcpListener;
+    /**
+      * Stores the session manager dependency or runtime value for InternalSocketListener.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly InternalSessionManager _sessionManager = new();
+    /**
+      * Stores the settings dependency or runtime value for InternalSocketListener.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly InternalNetworkSettings _settings;
+    /**
+      * Stores the callbacks dependency or runtime value for InternalSocketListener.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly InternalNetworkCallbacks _callbacks;
 
+    /**
+      * Stores the started dependency or runtime value for InternalSocketListener.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _started;
+    /**
+      * Stores the stopping dependency or runtime value for InternalSocketListener.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _stopping;
 
+    /**
+      * Creates a new InternalSocketListener instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public InternalSocketListener(
         InternalNetworkSettings settings,
         InternalNetworkCallbacks? callbacks = null)
@@ -49,6 +87,12 @@ public sealed class InternalSocketListener
         _tcpListener = new TcpListener(settings.GetBindAddress(), settings.Port);
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -71,6 +115,12 @@ public sealed class InternalSocketListener
         }
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -91,6 +141,12 @@ public sealed class InternalSocketListener
         Logger.Write(LogType.NETWORK, $"{_settings.ServerName} internal network listener stopped.", nameof(InternalSocketListener));
     }
 
+    /**
+      * Accepts an incoming connection or request and transfers it into managed server state.
+      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task AcceptLoopAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested && !IsStopping)
@@ -137,6 +193,12 @@ public sealed class InternalSocketListener
         }
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ProcessSessionAsync(InternalServerSession session, CancellationToken cancellationToken)
     {
         try
@@ -153,6 +215,10 @@ public sealed class InternalSocketListener
         }
     }
 
+    /**
+      * Applies configuration to shared runtime services before they are used by the server.
+      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
+      */
     private static void ConfigureClient(TcpClient client)
     {
         client.NoDelay = true;
@@ -160,5 +226,9 @@ public sealed class InternalSocketListener
         client.SendBufferSize = 8192;
     }
 
+    /**
+      * Gets or stores the is stopping value used by InternalSocketListener.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     private bool IsStopping => Volatile.Read(ref _stopping) == 1;
 }

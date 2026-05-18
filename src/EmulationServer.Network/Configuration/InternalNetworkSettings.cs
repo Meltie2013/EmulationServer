@@ -18,29 +18,79 @@
 
 using System.Net;
 
+/**
+  * File overview: src/EmulationServer.Network/Configuration/InternalNetworkSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Configuration;
 
+/**
+  * Represents the internal network settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class InternalNetworkSettings
 {
+    /**
+      * Gets or stores the server name value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string ServerName { get; init; } = "Server";
 
+    /**
+      * Gets or stores the bind address value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string BindAddress { get; init; } = "127.0.0.1";
 
+    /**
+      * Gets or stores the port value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int Port { get; init; } = 0;
 
+    /**
+      * Gets or stores the registration key value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string RegistrationKey { get; init; } = string.Empty;
 
+    /**
+      * Gets or stores the backlog value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int Backlog { get; init; } = 128;
 
 
+    /**
+      * Gets or stores the shutdown grace period value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
 
+    /**
+      * Gets or stores the latency report interval value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan LatencyReportInterval { get; init; } = TimeSpan.FromSeconds(15);
 
+    /**
+      * Gets or stores the ping timeout value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan PingTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
+    /**
+      * Gets or stores the peers value used by InternalNetworkSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<InternalPeerSettings> Peers { get; init; } = [];
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of InternalNetworkSettings and keeps this workflow isolated from the caller.
+      */
     public IPAddress GetBindAddress()
     {
         if (!IPAddress.TryParse(BindAddress, out IPAddress? ipAddress))
@@ -51,6 +101,10 @@ public sealed class InternalNetworkSettings
         return ipAddress;
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of InternalNetworkSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ServerName))

@@ -18,10 +18,24 @@
 
 using System.Buffers.Binary;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHashTableEntry.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Mpq;
 
+/**
+  * Represents the mpq hash table entry component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 internal readonly struct MpqHashTableEntry
 {
+    /**
+      * Creates a new MpqHashTableEntry instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public MpqHashTableEntry(uint nameHashA, uint nameHashB, ushort locale, ushort platform, uint blockIndex)
     {
         NameHashA = nameHashA;
@@ -31,20 +45,52 @@ internal readonly struct MpqHashTableEntry
         BlockIndex = blockIndex;
     }
 
+    /**
+      * Gets or stores the name hash a value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint NameHashA { get; }
 
+    /**
+      * Gets or stores the name hash b value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint NameHashB { get; }
 
+    /**
+      * Gets or stores the locale value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public ushort Locale { get; }
 
+    /**
+      * Gets or stores the platform value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public ushort Platform { get; }
 
+    /**
+      * Gets or stores the block index value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint BlockIndex { get; }
 
+    /**
+      * Gets or stores the is empty value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool IsEmpty => BlockIndex == 0xFFFFFFFF;
 
+    /**
+      * Gets or stores the is deleted value used by MpqHashTableEntry.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool IsDeleted => BlockIndex == 0xFFFFFFFE;
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of MpqHashTableEntry and keeps this workflow isolated from the caller.
+      */
     public static MpqHashTableEntry Read(ReadOnlySpan<byte> data)
     {
         return new MpqHashTableEntry(

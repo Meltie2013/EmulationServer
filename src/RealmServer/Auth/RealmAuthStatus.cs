@@ -16,12 +16,34 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/RealmServer/Auth/RealmAuthStatus.cs
+  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Auth;
 
+/**
+  * Defines the allowed realm auth status values used to keep state and protocol decisions explicit.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public enum RealmAuthStatus
 {
+    /**
+      * Represents the challenge value for RealmAuthStatus.
+      */
     Challenge,
+    /**
+      * Represents the logon proof value for RealmAuthStatus.
+      */
     LogonProof,
+    /**
+      * Represents the authenticated value for RealmAuthStatus.
+      */
     Authenticated,
+    /**
+      * Represents the closed value for RealmAuthStatus.
+      */
     Closed,
 }

@@ -20,8 +20,18 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalProtocol.cs
+  * This file belongs to the internal server-to-server protocol packet parsing and formatting portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Protocol;
 
+/**
+  * Represents the internal protocol component in the internal server-to-server protocol packet parsing and formatting area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class InternalProtocol
 {
     public const int MaximumAuthenticationLineLength = 512;
@@ -39,6 +49,12 @@ public static class InternalProtocol
     public const string MapServiceCommand = "MAP_SERVICE_COMMAND";
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of InternalProtocol and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public static async Task<string?> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -76,6 +92,12 @@ public static class InternalProtocol
         return Encoding.UTF8.GetString(lineBuffer.ToArray()).Trim();
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of InternalProtocol and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public static async Task WriteLineAsync(NetworkStream stream, SemaphoreSlim sendLock, string line, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -95,6 +117,11 @@ public static class InternalProtocol
         }
     }
 
+    /**
+      * Performs the registration keys match operation for InternalProtocol.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool RegistrationKeysMatch(string expected, string actual)
     {
         byte[] expectedBytes = Encoding.UTF8.GetBytes(expected);

@@ -16,12 +16,34 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlAction.cs
+  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Maps.Runtime;
 
+/**
+  * Defines the allowed map service control action values used to keep state and protocol decisions explicit.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public enum MapServiceControlAction
 {
+    /**
+      * Represents the start value for MapServiceControlAction.
+      */
     Start,
+    /**
+      * Represents the shutdown value for MapServiceControlAction.
+      */
     Shutdown,
+    /**
+      * Represents the restart value for MapServiceControlAction.
+      */
     Restart,
+    /**
+      * Represents the info value for MapServiceControlAction.
+      */
     Info,
 }

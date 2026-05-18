@@ -18,15 +18,41 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Shared/Logging/Models/LogMessage.cs
+  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Logging.Models;
 
+/**
+  * Represents the log message component in the logging configuration, formatting, filtering, and output routing area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class LogMessage
 {
+    /**
+      * Gets or stores the timestamp value used by LogMessage.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
+    /**
+      * Gets or stores the type value used by LogMessage.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public LogType Type { get; init; }
 
+    /**
+      * Gets or stores the message value used by LogMessage.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Message { get; init; } = string.Empty;
 
+    /**
+      * Gets or stores the category value used by LogMessage.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string? Category { get; init; }
 }

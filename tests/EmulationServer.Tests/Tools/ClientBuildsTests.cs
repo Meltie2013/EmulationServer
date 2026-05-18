@@ -18,8 +18,18 @@
 
 using EmulationServer.Tools.Extraction.Client;
 
+/**
+  * File overview: tests/EmulationServer.Tests/Tools/ClientBuildsTests.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tests.Tools;
 
+/**
+  * Represents the client builds tests component in the project runtime logic and supporting data models area.
+  * It documents expected behavior with automated assertions so regressions are easier to detect.
+  */
 public sealed class ClientBuildsTests
 {
     [Theory]
@@ -28,12 +38,20 @@ public sealed class ClientBuildsTests
     [InlineData(6141)]
     [InlineData(8606)]
     [InlineData(12340)]
+    /**
+      * Performs the is supported returns true for expected extractor builds operation for ClientBuildsTests.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void IsSupported_ReturnsTrue_ForExpectedExtractorBuilds(ushort build)
     {
         Assert.True(ClientBuilds.IsSupported(build));
     }
 
     [Fact]
+    /**
+      * Performs the require throws for unsupported build operation for ClientBuildsTests.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void Require_Throws_ForUnsupportedBuild()
     {
         Assert.Throws<NotSupportedException>(() => ClientBuilds.Require(15595));

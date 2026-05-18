@@ -20,8 +20,18 @@ using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MangosMapTileConverter.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
+/**
+  * Represents the mangos map tile converter component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class MangosMapTileConverter
 {
     private const int CellsPerGrid = MapFormatConstants.AdtCellsPerGrid;
@@ -30,15 +40,31 @@ public sealed class MangosMapTileConverter
     private const int HeaderSize = MapFormatConstants.MapFileHeaderSize;
     private const float MinimumStoredHeight = -500.0f;
 
+    /**
+      * Stores the area table dependency or runtime value for MangosMapTileConverter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly AreaTableIndex _areaTable;
+    /**
+      * Stores the liquid types dependency or runtime value for MangosMapTileConverter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly LiquidTypeIndex _liquidTypes;
 
+    /**
+      * Creates a new MangosMapTileConverter instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public MangosMapTileConverter(AreaTableIndex areaTable, LiquidTypeIndex liquidTypes)
     {
         _areaTable = areaTable ?? throw new ArgumentNullException(nameof(areaTable));
         _liquidTypes = liquidTypes ?? throw new ArgumentNullException(nameof(liquidTypes));
     }
 
+    /**
+      * Performs the convert operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public MapTileConversionReport Convert(string adtPath, string outputPath, uint build)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(adtPath);
@@ -116,6 +142,10 @@ public sealed class MangosMapTileConverter
             liquidSection.Length);
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private TileData BuildTileData(AdtTile tile)
     {
         ushort[,] areaFlags = new ushort[CellsPerGrid, CellsPerGrid];
@@ -201,6 +231,10 @@ public sealed class MangosMapTileConverter
             tile.Liquid.Heights);
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildAreaSection(ushort[,] areaFlags)
     {
         ushort firstArea = areaFlags[0, 0];
@@ -246,6 +280,10 @@ public sealed class MangosMapTileConverter
         return stream.ToArray();
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildHeightSection(float[,] v9, float[,] v8)
     {
         float minimum = float.PositiveInfinity;
@@ -299,6 +337,10 @@ public sealed class MangosMapTileConverter
         return stream.ToArray();
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildLiquidSection(TileData tileData)
     {
         ushort firstLiquidEntry = tileData.LiquidEntry[0, 0];
@@ -431,6 +473,10 @@ public sealed class MangosMapTileConverter
         writer.Flush();
         return stream.ToArray();
     }
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildHolesSection(ushort[,] holes)
     {
         bool hasHoles = false;
@@ -464,6 +510,10 @@ public sealed class MangosMapTileConverter
         return stream.ToArray();
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private static void WriteFloatGrid(BinaryWriter writer, float[,] values, int height, int width)
     {
         for (int y = 0; y < height; y++)
@@ -475,6 +525,10 @@ public sealed class MangosMapTileConverter
         }
     }
 
+    /**
+      * Performs the fill operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static void Fill(float[,] values, float value)
     {
         for (int y = 0; y < values.GetLength(0); y++)
@@ -486,6 +540,10 @@ public sealed class MangosMapTileConverter
         }
     }
 
+    /**
+      * Performs the fill operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static void Fill(ushort[,] values, ushort value)
     {
         for (int y = 0; y < values.GetLength(0); y++)
@@ -497,6 +555,10 @@ public sealed class MangosMapTileConverter
         }
     }
 
+    /**
+      * Performs the clamp minimum operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static void ClampMinimum(float[,] values, float minimum)
     {
         for (int y = 0; y < values.GetLength(0); y++)
@@ -511,11 +573,20 @@ public sealed class MangosMapTileConverter
         }
     }
 
+    /**
+      * Performs the is valid cell index operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsValidCellIndex(int value)
     {
         return value >= 0 && value < CellsPerGrid;
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of MangosMapTileConverter and keeps this workflow isolated from the caller.
+      */
     private static void WriteFourCC(BinaryWriter writer, string value)
     {
         byte[] bytes = Encoding.ASCII.GetBytes(value);
@@ -528,6 +599,10 @@ public sealed class MangosMapTileConverter
         writer.Write(bytes);
     }
 
+    /**
+      * Performs the count visible liquid tiles operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static int CountVisibleLiquidTiles(bool[,] values)
     {
         int count = 0;
@@ -543,6 +618,10 @@ public sealed class MangosMapTileConverter
         return count;
     }
 
+    /**
+      * Performs the count liquid cells operation for MangosMapTileConverter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static int CountLiquidCells(byte[,] flags)
     {
         int count = 0;
@@ -558,6 +637,10 @@ public sealed class MangosMapTileConverter
         return count;
     }
 
+    /**
+      * Represents immutable tile data data passed between parts of the server.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private sealed record TileData(
         ushort[,] AreaFlags,
         ushort[,] Holes,

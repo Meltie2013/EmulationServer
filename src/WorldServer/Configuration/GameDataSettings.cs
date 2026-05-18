@@ -16,18 +16,48 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/WorldServer/Configuration/GameDataSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.WorldServer.Configuration;
 
+/**
+  * Represents the game data settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class GameDataSettings
 {
+    /**
+      * Gets or stores the enabled value used by GameDataSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool Enabled { get; init; }
 
+    /**
+      * Gets or stores the data directory value used by GameDataSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string DataDirectory { get; init; } = "Data";
 
+    /**
+      * Gets or stores the dbc directory value used by GameDataSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string DbcDirectory { get; init; } = "dbc";
 
+    /**
+      * Gets or stores the required dbc files value used by GameDataSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<string> RequiredDbcFiles { get; init; } = DefaultRequiredDbcFiles;
 
+    /**
+      * Gets or stores the default required dbc files value used by GameDataSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
         "AreaTable.dbc",
@@ -76,6 +106,10 @@ public sealed class GameDataSettings
         "WorldSafeLocs.dbc",
     ];
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of GameDataSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (!Enabled)

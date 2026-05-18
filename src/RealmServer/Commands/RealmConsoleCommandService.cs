@@ -20,18 +20,45 @@ using EmulationServer.Database.Accounts;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/RealmServer/Commands/RealmConsoleCommandService.cs
+  * This file belongs to the console command parsing and dispatch portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Commands;
 
+/**
+  * Represents the realm console command service component in the console command parsing and dispatch area.
+  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
+  */
 public sealed class RealmConsoleCommandService
 {
+    /**
+      * Stores the account repository dependency or runtime value for RealmConsoleCommandService.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly AccountRepository _accountRepository;
+    /**
+      * Stores the command task dependency or runtime value for RealmConsoleCommandService.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private Task? _commandTask;
 
+    /**
+      * Creates a new RealmConsoleCommandService instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmConsoleCommandService(AccountRepository accountRepository)
     {
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -42,6 +69,12 @@ public sealed class RealmConsoleCommandService
         _commandTask = Task.Run(() => RunAsync(cancellationToken), CancellationToken.None);
     }
 
+    /**
+      * Runs the main loop for this component until cancellation or shutdown is requested.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.TRACE, "RealmServer console commands are available. Type 'account help' for account commands.", nameof(RealmConsoleCommandService));
@@ -74,6 +107,12 @@ public sealed class RealmConsoleCommandService
         }
     }
 
+    /**
+      * Executes the requested command after parsing and validation are complete.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ExecuteAsync(string line, CancellationToken cancellationToken)
     {
         string[] parts = SplitCommandLine(line);
@@ -112,6 +151,12 @@ public sealed class RealmConsoleCommandService
         }
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task AddAccountAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 4)
@@ -135,6 +180,12 @@ public sealed class RealmConsoleCommandService
         Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, nameof(RealmConsoleCommandService));
     }
 
+    /**
+      * Removes an item from the managed collection and cleans up related state.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RemoveAccountAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 3)
@@ -147,6 +198,10 @@ public sealed class RealmConsoleCommandService
         Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, nameof(RealmConsoleCommandService));
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      */
     private static void WriteAccountHelp()
     {
         Logger.Write(LogType.TRACE, "Account commands:", nameof(RealmConsoleCommandService));
@@ -154,6 +209,10 @@ public sealed class RealmConsoleCommandService
         Logger.Write(LogType.TRACE, "  account remove <username>", nameof(RealmConsoleCommandService));
     }
 
+    /**
+      * Splits the supplied text into command parts while preserving quoted values.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      */
     private static string[] SplitCommandLine(string commandLine)
     {
         List<string> parts = [];
@@ -181,6 +240,10 @@ public sealed class RealmConsoleCommandService
         return [.. parts];
     }
 
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
+      */
     private static void AddPart(List<string> parts, List<char> current)
     {
         if (current.Count == 0)

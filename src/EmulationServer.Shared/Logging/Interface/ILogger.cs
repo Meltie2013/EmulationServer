@@ -18,8 +18,18 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Shared/Logging/Interface/ILogger.cs
+  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Logging.Interfaces;
 
+/**
+  * Defines the contract for ilogger so implementations can be swapped without changing callers.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public interface ILogger
 {
     void Write(LogType type, string message, string? category = null);

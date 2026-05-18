@@ -18,8 +18,18 @@
 
 using System.Text;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHash.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Mpq;
 
+/**
+  * Represents the mpq hash component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 internal static class MpqHash
 {
     private const uint Seed1Initial = 0x7FED7FED;
@@ -27,6 +37,10 @@ internal static class MpqHash
 
     private static readonly uint[] CryptTable = BuildCryptTable();
 
+    /**
+      * Performs the hash string operation for MpqHash.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static uint HashString(string value, MpqHashType hashType)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -45,18 +59,30 @@ internal static class MpqHash
         return seed1;
     }
 
+    /**
+      * Performs the normalize file name operation for MpqHash.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static string NormalizeFileName(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
         return fileName.Replace('/', '\\').TrimStart('\\');
     }
 
+    /**
+      * Performs the normalize display name operation for MpqHash.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static string NormalizeDisplayName(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
         return fileName.Replace('\\', '/').TrimStart('/');
     }
 
+    /**
+      * Performs the to upper ascii operation for MpqHash.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static byte ToUpperAscii(byte value)
     {
         return value is >= (byte)'a' and <= (byte)'z'
@@ -64,6 +90,10 @@ internal static class MpqHash
             : value;
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of MpqHash and keeps this workflow isolated from the caller.
+      */
     private static uint[] BuildCryptTable()
     {
         uint seed = 0x00100001;
@@ -88,6 +118,10 @@ internal static class MpqHash
         return table;
     }
 
+    /**
+      * Performs the decrypt block operation for MpqHash.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static void DecryptBlock(Span<byte> data, uint key)
     {
         uint seed = Seed2Initial;

@@ -18,19 +18,41 @@
 
 using EmulationServer.RealmServer.Realms;
 
+/**
+  * File overview: src/RealmServer/Auth/RealmListPacketBuilder.cs
+  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Auth;
 
+/**
+  * Represents the realm list packet builder component in the realm authentication, build validation, and realm list packet creation area.
+  * It builds structured payloads while keeping binary or text protocol formatting out of the caller.
+  */
 public sealed class RealmListPacketBuilder
 {
     private const byte OfflineFlag = 0x02;
 
+    /**
+      * Stores the realm store dependency or runtime value for RealmListPacketBuilder.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly ConfiguredRealmStore _realmStore;
 
+    /**
+      * Creates a new RealmListPacketBuilder instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmListPacketBuilder(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException(nameof(realmStore));
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
+      */
     public byte[] BuildRealmList(ushort build, byte accountSecurityLevel)
     {
         ConfiguredRealm[] realms = _realmStore.GetRealmsForBuild(build)
@@ -42,6 +64,10 @@ public sealed class RealmListPacketBuilder
             : BuildVanillaRealmList(realms, accountSecurityLevel);
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildVanillaRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel)
     {
         ByteWriter body = new();
@@ -67,6 +93,10 @@ public sealed class RealmListPacketBuilder
         return BuildRealmListPacket(body);
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildModernRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel)
     {
         ByteWriter body = new();
@@ -94,6 +124,10 @@ public sealed class RealmListPacketBuilder
         return BuildRealmListPacket(body);
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
+      */
     private static byte GetRealmFlags(ConfiguredRealm realm, byte accountSecurityLevel)
     {
         byte realmFlags = realm.BaseRealmFlags;
@@ -106,6 +140,10 @@ public sealed class RealmListPacketBuilder
         return realmFlags;
     }
 
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
+      */
     private static byte[] BuildRealmListPacket(ByteWriter body)
     {
         byte[] bodyBytes = body.ToArray();

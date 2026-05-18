@@ -19,10 +19,24 @@
 using EmulationServer.Tools.Extraction.Client;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Validation/MapDataVerifier.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Validation;
 
+/**
+  * Represents the map data verifier component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class MapDataVerifier
 {
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of MapDataVerifier and keeps this workflow isolated from the caller.
+      */
     public MapValidationResult VerifyFile(string path)
     {
         MapValidationResult result = new();
@@ -40,6 +54,10 @@ public sealed class MapDataVerifier
         return result;
     }
 
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of MapDataVerifier and keeps this workflow isolated from the caller.
+      */
     public MapValidationResult Verify(ExtractedMapFile map)
     {
         MapValidationResult result = new();
@@ -47,6 +65,10 @@ public sealed class MapDataVerifier
         return result;
     }
 
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of MapDataVerifier and keeps this workflow isolated from the caller.
+      */
     private static void Verify(ExtractedMapFile map, MapValidationResult result)
     {
         result.AddInfo($"{Path.GetFileName(map.Path)}: build={map.Header.Build}, area={(map.Area is null ? "no" : "yes")}, height={(map.Height is null ? "no" : "yes")}, liquid={(map.Liquid is null ? "no" : "yes")}");
@@ -76,6 +98,10 @@ public sealed class MapDataVerifier
         }
     }
 
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of MapDataVerifier and keeps this workflow isolated from the caller.
+      */
     private static void VerifyHeightSection(string path, MapHeightSection height, MapValidationResult result)
     {
         if (!height.HasHeight)
@@ -117,6 +143,10 @@ public sealed class MapDataVerifier
         }
     }
 
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of MapDataVerifier and keeps this workflow isolated from the caller.
+      */
     private static void VerifyLiquidSection(string path, MapLiquidSection liquid, uint liquidMapSize, MapValidationResult result)
     {
         result.AddInfo(

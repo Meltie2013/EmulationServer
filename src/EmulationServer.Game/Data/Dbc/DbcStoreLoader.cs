@@ -19,8 +19,18 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcStoreLoader.cs
+  * This file belongs to the DBC file loading, validation, and raw record access portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Dbc;
 
+/**
+  * Represents the dbc store loader component in the DBC file loading, validation, and raw record access area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class DbcStoreLoader
 {
     public static Dictionary<string, DbcDataStore> LoadRequiredStores(string dbcDirectory, IEnumerable<string> requiredDbcFiles, string ownerName)
@@ -54,6 +64,10 @@ public static class DbcStoreLoader
         return stores;
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of DbcStoreLoader and keeps this workflow isolated from the caller.
+      */
     private static void ValidateRequiredDbcFiles(string dbcDirectory, IEnumerable<string> requiredDbcFiles)
     {
         List<string> missingFiles = [];

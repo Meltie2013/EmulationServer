@@ -21,15 +21,45 @@ using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Logging.Formatting;
 using EmulationServer.Shared.Logging.Interfaces;
 
+/**
+  * File overview: src/EmulationServer.Shared/Logging/Services/ConfiguredLogger.cs
+  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Logging.Services;
 
+/**
+  * Applies log filtering and output routing so messages can go to console, file, or both.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class ConfiguredLogger : ILogger, IDisposable
 {
+    /**
+      * Stores the sync root dependency or runtime value for ConfiguredLogger.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly object _syncRoot = new();
+    /**
+      * Stores the settings dependency or runtime value for ConfiguredLogger.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly LoggingSettings _settings;
+    /**
+      * Stores the file writer dependency or runtime value for ConfiguredLogger.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly StreamWriter? _fileWriter;
+    /**
+      * Stores the disposed dependency or runtime value for ConfiguredLogger.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private bool _disposed;
 
+    /**
+      * Creates a new ConfiguredLogger instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public ConfiguredLogger(LoggingSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -54,6 +84,10 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
         }
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of ConfiguredLogger and keeps this workflow isolated from the caller.
+      */
     public void Write(LogType type, string message, string? category = null)
     {
         if (_disposed || !_settings.IsEnabled(type))
@@ -79,6 +113,10 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
         }
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of ConfiguredLogger and keeps this workflow isolated from the caller.
+      */
     public void Dispose()
     {
         lock (_syncRoot)
@@ -93,6 +131,10 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of ConfiguredLogger and keeps this workflow isolated from the caller.
+      */
     private static ConsoleColor GetColor(LogType type)
     {
         return type switch

@@ -20,20 +20,54 @@ using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 
 using EmulationServer.Shared.Logging.Configuration;
+/**
+  * File overview: src/RealmServer/Configuration/RealmServerSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Configuration;
 
+/**
+  * Represents the realm server settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class RealmServerSettings
 {
+    /**
+      * Gets or stores the logging value used by RealmServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public LoggingSettings Logging { get; init; } = new();
 
+    /**
+      * Gets or stores the socket value used by RealmServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public RealmSocketListenerSettings Socket { get; init; } = new();
 
+    /**
+      * Gets or stores the database value used by RealmServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public DatabaseSettings Database { get; init; } = new();
 
+    /**
+      * Gets or stores the internal network value used by RealmServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public InternalNetworkSettings InternalNetwork { get; init; } = new();
 
+    /**
+      * Gets or stores the realms value used by RealmServerSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlyList<ConfiguredRealmSettings> Realms { get; init; } = [];
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of RealmServerSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         Logging.Validate();

@@ -21,13 +21,27 @@ using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
+/**
+  * File overview: src/InstanceServer/Configuration/InstanceServerConfigurationLoader.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.InstanceServer.Configuration;
 
+/**
+  * Represents the instance server configuration loader component in the server configuration loading and strongly typed settings area.
+  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
+  */
 public static class InstanceServerConfigurationLoader
 {
     private const string InstanceServerSection = "InstanceServer";
     private const string InstanceServicesSection = "InstanceServices";
 
+    /**
+      * Gets or stores the default required dbc files value used by InstanceServerConfigurationLoader.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
         "AreaTable.dbc",
@@ -42,6 +56,10 @@ public static class InstanceServerConfigurationLoader
         "WorldSafeLocs.dbc",
     ];
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static InstanceServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -66,6 +84,10 @@ public static class InstanceServerConfigurationLoader
         return settings;
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static MapRuntimeSettings LoadInstanceServices(IniConfiguration configuration)
     {
         TimeSpan tickInterval = configuration.GetTimeSpan(
@@ -113,6 +135,10 @@ public static class InstanceServerConfigurationLoader
         };
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static MapGridLoadingMode ParseGridLoadingMode(string value)
     {
         if (Enum.TryParse(value, ignoreCase: true, out MapGridLoadingMode mode))
@@ -123,6 +149,10 @@ public static class InstanceServerConfigurationLoader
         throw new ConfigurationException($"Invalid GridLoadingMode '{value}'. Expected OnDemand or Preload.");
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlyList<MapTileKey> ParseStartupGrids(string value)
     {
         List<MapTileKey> grids = [];
@@ -143,6 +173,10 @@ public static class InstanceServerConfigurationLoader
         return grids;
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlyList<MapServiceDefinition> ParseInstanceServices(
         string value,
         TimeSpan tickInterval,
@@ -164,6 +198,10 @@ public static class InstanceServerConfigurationLoader
         return services;
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static MapServiceDefinition ParseInstanceService(
         string entry,
         TimeSpan tickInterval,
@@ -208,6 +246,10 @@ public static class InstanceServerConfigurationLoader
         };
     }
 
+    /**
+      * Splits the supplied text into command parts while preserving quoted values.
+      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

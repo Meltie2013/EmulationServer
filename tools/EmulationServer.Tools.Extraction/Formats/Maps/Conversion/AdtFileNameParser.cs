@@ -18,10 +18,25 @@
 
 using System.Text.RegularExpressions;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/AdtFileNameParser.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
+/**
+  * Represents the adt file name parser component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static partial class AdtFileNameParser
 {
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of AdtFileNameParser and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool TryParse(string path, out string mapDirectoryName, out int tileX, out int tileY)
     {
         mapDirectoryName = string.Empty;
@@ -41,5 +56,9 @@ public static partial class AdtFileNameParser
     }
 
     [GeneratedRegex("^(?<map>.+)_(?<x>\\d{1,2})_(?<y>\\d{1,2})$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    /**
+      * Performs the adt file name regex operation for AdtFileNameParser.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static partial Regex AdtFileNameRegex();
 }

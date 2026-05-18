@@ -22,22 +22,64 @@ using System.Net.Sockets;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSession.cs
+  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Sessions;
 
+/**
+  * Represents the realm session component in the network session lifecycle and packet dispatch area.
+  * It stores per-connection runtime state and provides the operations needed by session handlers.
+  */
 public sealed class RealmSession
 {
     private const int ReceiveBufferSize = 4096;
 
+    /**
+      * Stores the client dependency or runtime value for RealmSession.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TcpClient _client;
+    /**
+      * Stores the stream dependency or runtime value for RealmSession.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly NetworkStream _stream;
+    /**
+      * Stores the session processor dependency or runtime value for RealmSession.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly IRealmSessionProcessor? _sessionProcessor;
+    /**
+      * Stores the disconnect cancellation dependency or runtime value for RealmSession.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly CancellationTokenSource _disconnectCancellation = new();
+    /**
+      * Stores the remote end point dependency or runtime value for RealmSession.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _remoteEndPoint;
 
+    /**
+      * Stores the disconnect requested dependency or runtime value for RealmSession.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _disconnectRequested;
 
+    /**
+      * Gets or stores the id value used by RealmSession.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public Guid Id { get; } = Guid.NewGuid();
 
+    /**
+      * Creates a new RealmSession instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmSession(TcpClient client, IRealmSessionProcessor? sessionProcessor = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -46,6 +88,12 @@ public sealed class RealmSession
         _remoteEndPoint = _client.Client.RemoteEndPoint?.ToString() ?? "unknown endpoint";
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of RealmSession and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.NETWORK, $"Started processing session for {_remoteEndPoint}", nameof(RealmSession));
@@ -95,6 +143,11 @@ public sealed class RealmSession
         }
     }
 
+    /**
+      * Performs the disconnect async operation for RealmSession.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task DisconnectAsync()
     {
         if (Interlocked.Exchange(ref _disconnectRequested, 1) == 1)
@@ -133,6 +186,12 @@ public sealed class RealmSession
         return Task.CompletedTask;
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of RealmSession and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ProcessRawDebugSessionAsync(CancellationToken cancellationToken)
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
@@ -157,5 +216,9 @@ public sealed class RealmSession
         }
     }
 
+    /**
+      * Gets or stores the is disconnect requested value used by RealmSession.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     private bool IsDisconnectRequested => Volatile.Read(ref _disconnectRequested) == 1;
 }

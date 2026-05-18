@@ -18,17 +18,35 @@
 
 using EmulationServer.Tools.Extraction.Formats.Dbc;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapDbcIndex.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
+/**
+  * Represents the map dbc index component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class MapDbcIndex
 {
     private readonly Dictionary<string, MapDbcEntry> _byDirectoryName;
 
+    /**
+      * Creates a new MapDbcIndex instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private MapDbcIndex(Dictionary<string, MapDbcEntry> byDirectoryName)
     {
         _byDirectoryName = byDirectoryName;
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of MapDbcIndex and keeps this workflow isolated from the caller.
+      */
     public static MapDbcIndex Load(string path)
     {
         DbcFile dbc = DbcFile.Load(path);
@@ -50,6 +68,11 @@ public sealed class MapDbcIndex
         return new MapDbcIndex(byDirectoryName);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of MapDbcIndex and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryGetByDirectoryName(string directoryName, out MapDbcEntry entry)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryName);

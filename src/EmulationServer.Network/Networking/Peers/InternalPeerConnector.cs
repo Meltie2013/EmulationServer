@@ -25,23 +25,81 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnector.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Peers;
 
+/**
+  * Represents the internal peer connector component in the project runtime logic and supporting data models area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class InternalPeerConnector : IAsyncDisposable
 {
+    /**
+      * Stores the server name dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _serverName;
+    /**
+      * Stores the peers dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly IReadOnlyList<InternalPeerSettings> _peers;
+    /**
+      * Stores the registration key dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _registrationKey;
+    /**
+      * Stores the latency report interval dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _latencyReportInterval;
+    /**
+      * Stores the ping timeout dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _pingTimeout;
+    /**
+      * Stores the callbacks dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly InternalNetworkCallbacks _callbacks;
+    /**
+      * Stores the connection tasks dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly List<Task> _connectionTasks = [];
+    /**
+      * Stores the sync root dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly object _syncRoot = new();
 
+    /**
+      * Stores the stop cancellation dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
+    /**
+      * Stores the started dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _started;
+    /**
+      * Stores the stopping dependency or runtime value for InternalPeerConnector.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _stopping;
 
+    /**
+      * Creates a new InternalPeerConnector instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public InternalPeerConnector(
         string serverName,
         IReadOnlyList<InternalPeerSettings> peers,
@@ -78,6 +136,12 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         _callbacks = callbacks ?? InternalNetworkCallbacks.Empty;
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -110,6 +174,12 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -150,11 +220,22 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"{_serverName} internal peer connector stopped.", nameof(InternalPeerConnector));
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
+    /**
+      * Runs the main loop for this component until cancellation or shutdown is requested.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RunPeerLoopAsync(InternalPeerSettings peer, CancellationToken cancellationToken)
     {
         bool everAuthenticated = false;
@@ -239,6 +320,11 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
+    /**
+      * Completes the internal authentication flow before normal packets are exchanged.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task AuthenticateWithPeerAsync(
         InternalPeerSettings peer,
         NetworkStream stream,
@@ -283,6 +369,11 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task ProcessAuthenticatedPeerAsync(
         InternalPeerConnection connection,
         NetworkStream stream,
@@ -320,6 +411,11 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task ProcessPeerPacketAsync(
         InternalPeerConnection connection,
         string line,

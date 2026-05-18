@@ -16,31 +16,85 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/RealmServer/Configuration/ConfiguredRealmSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Configuration;
 
+/**
+  * Represents the configured realm settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class ConfiguredRealmSettings
 {
+    /**
+      * Gets or stores the id value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint Id { get; init; }
 
+    /**
+      * Gets or stores the name value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Name { get; init; } = "Emulation Server";
 
+    /**
+      * Gets or stores the address value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Address { get; init; } = "127.0.0.1";
 
+    /**
+      * Gets or stores the port value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public ushort Port { get; init; } = 8085;
 
+    /**
+      * Gets or stores the icon value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public byte Icon { get; init; }
 
+    /**
+      * Gets or stores the realm flags value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public byte RealmFlags { get; init; }
 
+    /**
+      * Gets or stores the timezone value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public byte Timezone { get; init; } = 1;
 
+    /**
+      * Gets or stores the allowed security level value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public byte AllowedSecurityLevel { get; init; }
 
+    /**
+      * Gets or stores the online value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool Online { get; init; }
 
+    /**
+      * Gets or stores the active connections value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int ActiveConnections { get; init; }
 
 
+    /**
+      * Gets or stores the builds value used by ConfiguredRealmSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlySet<ushort> Builds { get; init; } = new HashSet<ushort>
     {
         5875,
@@ -51,6 +105,10 @@ public sealed class ConfiguredRealmSettings
         15595
     };
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of ConfiguredRealmSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (Id == 0)

@@ -18,10 +18,24 @@
 
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapConversionService.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
+/**
+  * Represents the map conversion service component in the developer tooling for data extraction, validation, and diagnostics area.
+  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
+  */
 public sealed class MapConversionService
 {
+    /**
+      * Performs the convert raw adt directory operation for MapConversionService.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public MapConversionResult ConvertRawAdtDirectory(
         string rawMapDirectory,
         string dbcDirectory,
@@ -129,6 +143,10 @@ public sealed class MapConversionService
 
         return result;
     }
+    /**
+      * Adds a new item to the managed collection while preserving internal invariants.
+      * The method is part of MapConversionService and keeps this workflow isolated from the caller.
+      */
     private static void AddMessage(MapConversionResult result, Action<string>? progressMessage, string message)
     {
         result.Messages.Add(message);

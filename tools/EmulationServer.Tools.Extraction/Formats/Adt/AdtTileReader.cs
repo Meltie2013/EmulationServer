@@ -20,8 +20,18 @@ using System.Buffers.Binary;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtTileReader.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
+/**
+  * Represents the adt tile reader component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class AdtTileReader
 {
     private const int CellsPerGrid = 16;
@@ -49,6 +59,10 @@ public static class AdtTileReader
     private const int Mh2oHeaderSize = 12;
     private const int Mh2oInstanceSize = 24;
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     public static AdtTile Read(string path, LiquidTypeIndex? liquidTypes = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -74,6 +88,10 @@ public static class AdtTileReader
         return new AdtTile(path, cells, liquid);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlyList<AdtChunk> ReadMcnkChunks(ReadOnlySpan<byte> data, IReadOnlyList<AdtChunk> topLevelChunks)
     {
         List<AdtChunk> chunks = [];
@@ -133,6 +151,10 @@ public static class AdtTileReader
             .ToArray();
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static AdtCell ReadCell(ReadOnlySpan<byte> data, AdtChunk chunk)
     {
         ReadOnlySpan<byte> cell = data.Slice(chunk.DataOffset, chunk.Size);
@@ -163,6 +185,10 @@ public static class AdtTileReader
         };
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static AdtLiquidData ReadLiquidData(
         ReadOnlySpan<byte> data,
         IReadOnlyList<AdtChunk> terrainChunks,
@@ -177,6 +203,10 @@ public static class AdtTileReader
         return liquid;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static void ReadMclqLiquid(ReadOnlySpan<byte> data, IReadOnlyList<AdtChunk> terrainChunks, AdtLiquidData liquid)
     {
         foreach (AdtChunk chunk in terrainChunks)
@@ -301,6 +331,10 @@ public static class AdtTileReader
         }
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static void ReadMh2oLiquid(
         ReadOnlySpan<byte> data,
         IReadOnlyList<AdtChunk> topLevelChunks,
@@ -433,6 +467,10 @@ public static class AdtTileReader
         }
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static float ReadBaseHeight(ReadOnlySpan<byte> cell)
     {
         if (cell.Length < McnkOffsetPosition + 12)
@@ -443,6 +481,10 @@ public static class AdtTileReader
         return ReadSingle(cell, McnkOffsetPosition + 8);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static float[] ReadHeights(ReadOnlySpan<byte> data, AdtChunk mcnkChunk, uint offsetHeight)
     {
         if (offsetHeight == 0)
@@ -472,6 +514,11 @@ public static class AdtTileReader
         return heights;
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryReadMclqData(
         ReadOnlySpan<byte> data,
         AdtChunk mcnkChunk,
@@ -492,6 +539,11 @@ public static class AdtTileReader
             TryReadMclqDataAt(data, mcnkChunk.DataOffset + offset, liquidSize, out chunkData);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryReadMclqDataAt(
         ReadOnlySpan<byte> data,
         int absoluteOffset,
@@ -529,6 +581,11 @@ public static class AdtTileReader
         return false;
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryReadMcnkSubChunk(
         ReadOnlySpan<byte> data,
         AdtChunk mcnkChunk,
@@ -549,6 +606,11 @@ public static class AdtTileReader
                TryReadChunkAt(data, mcnkChunk.DataOffset + offset, expectedFourCC, out chunkData);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryReadChunkAt(ReadOnlySpan<byte> data, int absoluteOffset, string expectedFourCC, out ReadOnlySpan<byte> chunkData)
     {
         chunkData = default;
@@ -577,16 +639,28 @@ public static class AdtTileReader
         return true;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static uint ReadUInt32(ReadOnlySpan<byte> data, int offset)
     {
         return BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset, sizeof(uint)));
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static float ReadSingle(ReadOnlySpan<byte> data, int offset)
     {
         return BinaryPrimitives.ReadSingleLittleEndian(data.Slice(offset, sizeof(float)));
     }
 
+    /**
+      * Finds a matching item in the managed collection and returns the safest available result.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      */
     private static AdtChunk? FindChunk(IReadOnlyList<AdtChunk> chunks, string fourCC)
     {
         foreach (AdtChunk chunk in chunks)
@@ -600,11 +674,21 @@ public static class AdtTileReader
         return null;
     }
 
+    /**
+      * Performs the is valid cell index operation for AdtTileReader.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool IsValidCellIndex(int value)
     {
         return value >= 0 && value < CellsPerGrid;
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of AdtTileReader and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     private static bool TryReadMh2oLiquidHeight(
         ReadOnlySpan<byte> mh2o,
         uint vertexDataOffset,

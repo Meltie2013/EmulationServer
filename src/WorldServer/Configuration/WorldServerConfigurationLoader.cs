@@ -19,14 +19,28 @@
 using EmulationServer.Core.Configuration;
 using EmulationServer.Shared.Configuration;
 
+/**
+  * File overview: src/WorldServer/Configuration/WorldServerConfigurationLoader.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.WorldServer.Configuration;
 
+/**
+  * Represents the world server configuration loader component in the server configuration loading and strongly typed settings area.
+  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
+  */
 public static class WorldServerConfigurationLoader
 {
     private const string WorldServerSection = "WorldServer";
     private const string RealmStatusSection = "RealmStatus";
     private const string GameDataSection = "GameData";
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static WorldServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -52,6 +66,10 @@ public static class WorldServerConfigurationLoader
         return settings;
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static RealmStatusSettings LoadRealmStatusSettings(IniConfiguration configuration)
     {
         return new RealmStatusSettings
@@ -65,6 +83,10 @@ public static class WorldServerConfigurationLoader
     }
 
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static GameDataSettings LoadGameDataSettings(IniConfiguration configuration)
     {
         string requiredDbcFiles = configuration.GetString(
@@ -81,6 +103,10 @@ public static class WorldServerConfigurationLoader
         };
     }
 
+    /**
+      * Splits the supplied text into command parts while preserving quoted values.
+      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

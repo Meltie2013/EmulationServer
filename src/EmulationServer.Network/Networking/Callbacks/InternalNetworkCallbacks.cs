@@ -19,10 +19,24 @@
 using EmulationServer.Network.Networking.Peers;
 using EmulationServer.Network.Networking.Sessions;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Callbacks/InternalNetworkCallbacks.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Callbacks;
 
+/**
+  * Represents the internal network callbacks component in the project runtime logic and supporting data models area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class InternalNetworkCallbacks
 {
+    /**
+      * Gets or stores the empty value used by InternalNetworkCallbacks.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public static InternalNetworkCallbacks Empty { get; } = new();
 
     public Func<InternalServerSession, string, CancellationToken, Task>? ServerAuthenticatedAsync { get; init; }
@@ -39,6 +53,11 @@ public sealed class InternalNetworkCallbacks
 
     public Func<string, string, CancellationToken, Task>? ShutdownRequestedAsync { get; init; }
 
+    /**
+      * Performs the notify server authenticated async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -47,6 +66,11 @@ public sealed class InternalNetworkCallbacks
         return ServerAuthenticatedAsync?.Invoke(session, remoteServerName, cancellationToken) ?? Task.CompletedTask;
     }
 
+    /**
+      * Performs the notify packet received async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -56,6 +80,11 @@ public sealed class InternalNetworkCallbacks
         return PacketReceivedAsync?.Invoke(session, remoteServerName, packet, cancellationToken) ?? Task.CompletedTask;
     }
 
+    /**
+      * Performs the notify server disconnected async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -64,6 +93,11 @@ public sealed class InternalNetworkCallbacks
         return ServerDisconnectedAsync?.Invoke(session, remoteServerName, cancellationToken) ?? Task.CompletedTask;
     }
 
+    /**
+      * Performs the notify peer authenticated async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -72,6 +106,11 @@ public sealed class InternalNetworkCallbacks
         return PeerAuthenticatedAsync?.Invoke(connection, remoteServerName, cancellationToken) ?? Task.CompletedTask;
     }
 
+    /**
+      * Performs the notify peer packet received async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -81,6 +120,11 @@ public sealed class InternalNetworkCallbacks
         return PeerPacketReceivedAsync?.Invoke(connection, remoteServerName, packet, cancellationToken) ?? Task.CompletedTask;
     }
 
+    /**
+      * Performs the notify peer disconnected async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -89,6 +133,11 @@ public sealed class InternalNetworkCallbacks
         return PeerDisconnectedAsync?.Invoke(connection, remoteServerName, cancellationToken) ?? Task.CompletedTask;
     }
 
+    /**
+      * Performs the notify shutdown requested async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public Task NotifyShutdownRequestedAsync(
         string sourceServerName,
         string reason,

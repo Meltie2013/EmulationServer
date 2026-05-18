@@ -18,8 +18,18 @@
 
 using System.Text;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/ExtractedMapFileReader.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps;
 
+/**
+  * Represents the extracted map file reader component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class ExtractedMapFileReader
 {
     private const int MapFileHeaderSize = MapFormatConstants.MapFileHeaderSize;
@@ -27,6 +37,10 @@ public static class ExtractedMapFileReader
     private const int HeightHeaderSize = 16;
     private const int LiquidHeaderSize = 16;
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     public static ExtractedMapFile Read(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -44,6 +58,10 @@ public static class ExtractedMapFileReader
         return new ExtractedMapFile(path, header, area, height, liquid, checked((int)header.HolesSize));
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static MapFileHeader ReadHeader(BinaryReader reader)
     {
         return new MapFileHeader(
@@ -60,6 +78,10 @@ public static class ExtractedMapFileReader
             reader.ReadUInt32());
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static MapAreaSection? ReadAreaSection(BinaryReader reader, MapFileHeader header)
     {
         if (header.AreaMapOffset == 0 || header.AreaMapSize == 0)
@@ -90,6 +112,10 @@ public static class ExtractedMapFileReader
         return new MapAreaSection(flags, gridArea, areaFlags);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static MapHeightSection? ReadHeightSection(BinaryReader reader, MapFileHeader header)
     {
         if (header.HeightMapOffset == 0 || header.HeightMapSize == 0)
@@ -129,6 +155,10 @@ public static class ExtractedMapFileReader
         return new MapHeightSection(flags, gridHeight, gridMaxHeight, v9ValueCount, v8ValueCount);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static MapLiquidSection? ReadLiquidSection(BinaryReader reader, MapFileHeader header)
     {
         if (header.LiquidMapOffset == 0 || header.LiquidMapSize == 0)
@@ -160,6 +190,10 @@ public static class ExtractedMapFileReader
         return new MapLiquidSection(flags, liquidType, offsetX, offsetY, width, height, liquidLevel);
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static void ValidateHeader(MapFileHeader header, long length, string path)
     {
         if (!string.Equals(header.MapMagic, MapFormatConstants.MapMagic, StringComparison.Ordinal))
@@ -193,6 +227,10 @@ public static class ExtractedMapFileReader
         }
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static void ValidateRange(uint offset, uint size, long fileLength, string sectionName)
     {
         if (offset == 0 && size == 0)
@@ -208,6 +246,10 @@ public static class ExtractedMapFileReader
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static int GetHeightBytesPerValue(uint flags)
     {
         if ((flags & MapFormatConstants.MapHeightAsInt8) != 0)
@@ -223,6 +265,10 @@ public static class ExtractedMapFileReader
         return sizeof(float);
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
+      */
     private static string ReadFourCC(BinaryReader reader)
     {
         byte[] bytes = reader.ReadBytes(4);

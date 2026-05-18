@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (C) 2026 Emulation Server Project
 //
 // This program is free software. You can redistribute it and/or modify
@@ -21,6 +21,12 @@ using EmulationServer.RealmServer.Core;
 using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+
+/**
+  * File overview: src/RealmServer/Program.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
 
 using CancellationTokenSource cancellation = new();
 

@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceSnapshot.cs
+  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Maps.Runtime;
 
+/**
+  * Captures the observable runtime health of a map service for status packets and command output.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record MapServiceSnapshot(
     string OwnerServerName,
     MapServiceKind Kind,

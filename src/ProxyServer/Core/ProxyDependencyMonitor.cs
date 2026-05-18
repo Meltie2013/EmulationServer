@@ -26,22 +26,60 @@ using EmulationServer.ProxyServer.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/ProxyServer/Core/ProxyDependencyMonitor.cs
+  * This file belongs to the server startup, shutdown, and dependency orchestration portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.ProxyServer.Core;
 
+/**
+  * Represents the proxy dependency monitor component in the server startup, shutdown, and dependency orchestration area.
+  * It watches ongoing runtime state and reports changes or health information to the logs.
+  */
 public sealed class ProxyDependencyMonitor : IAsyncDisposable
 {
     private static readonly TimeSpan MonitorTickInterval = TimeSpan.FromSeconds(1);
     private const string WorldServerName = "WorldServer";
 
+    /**
+      * Stores the settings dependency or runtime value for ProxyDependencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly ProxyDependencySettings _settings;
     private readonly ConcurrentDictionary<string, ServerState> _servers;
 
+    /**
+      * Stores the stop cancellation dependency or runtime value for ProxyDependencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
+    /**
+      * Stores the monitor task dependency or runtime value for ProxyDependencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private Task? _monitorTask;
+    /**
+      * Stores the world capacity limit dependency or runtime value for ProxyDependencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _worldCapacityLimit;
+    /**
+      * Stores the started dependency or runtime value for ProxyDependencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _started;
+    /**
+      * Stores the stopping dependency or runtime value for ProxyDependencyMonitor.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _stopping;
 
+    /**
+      * Creates a new ProxyDependencyMonitor instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public ProxyDependencyMonitor(ProxyDependencySettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -61,6 +99,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      */
     public InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -71,6 +113,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         };
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -91,6 +139,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -119,11 +173,21 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(LogType.NETWORK, "Proxy dependency monitor stopped.", nameof(ProxyDependencyMonitor));
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
+    /**
+      * Performs the on server authenticated async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -147,6 +211,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await AnnounceWorldCapacityToServerAsync(state, cancellationToken);
     }
 
+    /**
+      * Performs the on packet received async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task OnPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -174,6 +243,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Performs the on server disconnected async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -203,6 +277,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /**
+      * Runs the main loop for this component until cancellation or shutdown is requested.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -224,6 +304,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
     }
 
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      */
     private void HandleMapServiceStatusPacket(string remoteServerName, string packet)
     {
         if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
@@ -243,6 +327,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, message, nameof(ProxyDependencyMonitor));
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task HandleWorldCapacityPacketAsync(
         string remoteServerName,
         string packet,
@@ -267,6 +356,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await BroadcastWorldCapacityAsync(remoteServerName, capacityLimit, cancellationToken);
     }
 
+    /**
+      * Performs the broadcast world capacity async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task BroadcastWorldCapacityAsync(
         string sourceServerName,
         int capacityLimit,
@@ -299,6 +393,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Performs the announce world capacity to server async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task AnnounceWorldCapacityToServerAsync(ServerState state, CancellationToken cancellationToken)
     {
         ServerSnapshot snapshot = state.GetSnapshot();
@@ -322,6 +422,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Performs the check server health async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task CheckServerHealthAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -353,6 +459,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Handles a single operation or packet and keeps the calling code focused on flow control.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task HandleCriticalServerDownAsync(
         ServerState criticalState,
         TimeSpan timeSinceLastPacket,
@@ -378,6 +489,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await BroadcastShutdownRequestAsync(criticalState.Name, reason, cancellationToken);
     }
 
+    /**
+      * Performs the broadcast shutdown request async operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     private async Task BroadcastShutdownRequestAsync(
         string failedServerName,
         string reason,
@@ -411,6 +527,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Performs the report non critical server down if needed operation for ProxyDependencyMonitor.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private void ReportNonCriticalServerDownIfNeeded(ServerState state, DateTimeOffset now)
     {
         bool shouldReport;
@@ -432,6 +552,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
+      */
     private ServerState GetOrCreateServerState(string serverName)
     {
         bool isCritical = _settings.CriticalServers.Contains(serverName);
@@ -441,8 +565,16 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             name => new ServerState(name, isCritical));
     }
 
+    /**
+      * Represents the server state component in the server startup, shutdown, and dependency orchestration area.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private sealed class ServerState
     {
+        /**
+          * Creates a new ServerState instance and stores the dependencies required by the component.
+          * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+          */
         public ServerState(string name, bool isCritical)
         {
             Name = name;
@@ -450,24 +582,64 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             LastPacketReceivedUtc = DateTimeOffset.UtcNow;
         }
 
+        /**
+          * Gets or stores the sync root value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public object SyncRoot { get; } = new();
 
+        /**
+          * Gets or stores the name value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public string Name { get; }
 
+        /**
+          * Gets or stores the is critical value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public bool IsCritical { get; }
 
+        /**
+          * Gets or stores the session value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public InternalServerSession? Session { get; set; }
 
+        /**
+          * Gets or stores the last packet received utc value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public DateTimeOffset LastPacketReceivedUtc { get; set; }
 
+        /**
+          * Gets or stores the last down report utc value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public DateTimeOffset? LastDownReportUtc { get; set; }
 
+        /**
+          * Gets or stores the is connected value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public bool IsConnected { get; set; }
 
+        /**
+          * Gets or stores the shutdown triggered value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public bool ShutdownTriggered { get; set; }
 
+        /**
+          * Gets or stores the has ever connected value used by ServerState.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public bool HasEverConnected { get; set; }
 
+        /**
+          * Returns the current value or snapshot without exposing mutable internal state.
+          * The method is part of ServerState and keeps this workflow isolated from the caller.
+          */
         public ServerSnapshot GetSnapshot()
         {
             lock (SyncRoot)
@@ -484,6 +656,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
+    /**
+      * Represents immutable server snapshot data passed between parts of the server.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private sealed record ServerSnapshot(
         string Name,
         bool IsCritical,

@@ -18,10 +18,24 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Shared/Logging/Formatting/LogMessageFormatter.cs
+  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Logging.Formatting;
 
+/**
+  * Represents the log message formatter component in the logging configuration, formatting, filtering, and output routing area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class LogMessageFormatter
 {
+    /**
+      * Formats runtime values into a stable human-readable message for logging or diagnostics.
+      * The method is part of LogMessageFormatter and keeps this workflow isolated from the caller.
+      */
     public static string Format(LogType type, string message, string? category = null)
     {
         string timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");

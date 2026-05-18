@@ -18,8 +18,18 @@
 
 using System.Diagnostics.CodeAnalysis;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Client/ClientBuilds.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Client;
 
+/**
+  * Represents the client builds component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class ClientBuilds
 {
     public const ushort Classic1121 = 5875;
@@ -38,18 +48,36 @@ public static class ClientBuilds
             [Wrath335a] = new(Wrath335a, "3.3.5a", SupportedClientExpansion.WrathOfTheLichKing, "Mangos Two"),
         };
 
+    /**
+      * Gets or stores the all value used by ClientBuilds.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public static IReadOnlyCollection<ClientBuildInfo> All => BuildsByNumber.Values.ToArray();
 
+    /**
+      * Performs the is supported operation for ClientBuilds.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool IsSupported(ushort build)
     {
         return BuildsByNumber.ContainsKey(build);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of ClientBuilds and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool TryGet(ushort build, [NotNullWhen(true)] out ClientBuildInfo? buildInfo)
     {
         return BuildsByNumber.TryGetValue(build, out buildInfo);
     }
 
+    /**
+      * Performs the require operation for ClientBuilds.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static ClientBuildInfo Require(ushort build)
     {
         if (TryGet(build, out ClientBuildInfo? buildInfo))

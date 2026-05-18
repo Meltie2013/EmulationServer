@@ -18,22 +18,60 @@
 
 using EmulationServer.Tools.Extraction.Client;
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Extraction/AssetExtractionOptions.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Extraction;
 
+/**
+  * Represents the asset extraction options component in the developer tooling for data extraction, validation, and diagnostics area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class AssetExtractionOptions
 {
+    /**
+      * Gets or stores the client root directory value used by AssetExtractionOptions.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string ClientRootDirectory { get; init; } = Directory.GetCurrentDirectory();
 
+    /**
+      * Gets or stores the output directory value used by AssetExtractionOptions.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string OutputDirectory { get; init; } = Path.Combine(Directory.GetCurrentDirectory(), "client-data");
 
+    /**
+      * Gets or stores the build value used by AssetExtractionOptions.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public ushort Build { get; init; } = ClientBuilds.Wrath335a;
 
+    /**
+      * Gets or stores the locale value used by AssetExtractionOptions.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Locale { get; init; } = "enUS";
 
+    /**
+      * Gets or stores the overwrite value used by AssetExtractionOptions.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool Overwrite { get; init; } = true;
 
+    /**
+      * Gets or stores the progress message value used by AssetExtractionOptions.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public Action<string>? ProgressMessage { get; init; }
 
+    /**
+      * Performs the report progress operation for AssetExtractionOptions.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void ReportProgress(string message)
     {
         if (!string.IsNullOrWhiteSpace(message))
@@ -42,6 +80,10 @@ public sealed class AssetExtractionOptions
         }
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of AssetExtractionOptions and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ClientRootDirectory))

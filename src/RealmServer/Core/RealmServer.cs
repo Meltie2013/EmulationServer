@@ -29,19 +29,65 @@ using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/RealmServer/Core/RealmServer.cs
+  * This file belongs to the server startup, shutdown, and dependency orchestration portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Core;
 
+/**
+  * Represents the realm server component in the server startup, shutdown, and dependency orchestration area.
+  * It owns the server startup, shutdown, and dependency wiring for this process.
+  */
 public sealed class RealmServer : IAsyncDisposable
 {
+    /**
+      * Stores the settings dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly RealmServerSettings _settings;
+    /**
+      * Stores the database service dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly IDatabaseService _databaseService;
+    /**
+      * Stores the account repository dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly AccountRepository _accountRepository;
+    /**
+      * Stores the realm store dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly ConfiguredRealmStore _realmStore;
+    /**
+      * Stores the socket listener dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly RealmSocketListener _socketListener;
+    /**
+      * Stores the internal socket listener dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly InternalSocketListener _internalSocketListener;
+    /**
+      * Stores the internal peer connector dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly InternalPeerConnector _internalPeerConnector;
+    /**
+      * Stores the command service dependency or runtime value for RealmServer.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly RealmConsoleCommandService _commandService;
 
+    /**
+      * Creates a new RealmServer instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmServer(RealmServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -70,6 +116,12 @@ public sealed class RealmServer : IAsyncDisposable
         _commandService = new RealmConsoleCommandService(_accountRepository);
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of RealmServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.NOTICE, "Starting RealmServer...", nameof(RealmServer));
@@ -91,6 +143,12 @@ public sealed class RealmServer : IAsyncDisposable
         Logger.Write(LogType.TRACE, "RealmServer stopped.", nameof(RealmServer));
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of RealmServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _internalPeerConnector.StopAsync(cancellationToken);
@@ -98,6 +156,11 @@ public sealed class RealmServer : IAsyncDisposable
         await _socketListener.StopAsync(cancellationToken);
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of RealmServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -105,6 +168,12 @@ public sealed class RealmServer : IAsyncDisposable
         await _databaseService.DisposeAsync();
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of RealmServer and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ValidateStartupAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.TRACE, "Validating RealmServer settings...", nameof(RealmServer));

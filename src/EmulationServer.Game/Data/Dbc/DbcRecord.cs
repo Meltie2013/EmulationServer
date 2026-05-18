@@ -19,14 +19,40 @@
 using System.Buffers.Binary;
 using System.Text;
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecord.cs
+  * This file belongs to the DBC file loading, validation, and raw record access portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Dbc;
 
+/**
+  * Represents the dbc record component in the DBC file loading, validation, and raw record access area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public readonly struct DbcRecord
 {
+    /**
+      * Stores the record data dependency or runtime value for DbcRecord.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly ReadOnlyMemory<byte> _recordData;
+    /**
+      * Stores the string block dependency or runtime value for DbcRecord.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly ReadOnlyMemory<byte> _stringBlock;
+    /**
+      * Stores the field size dependency or runtime value for DbcRecord.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly int _fieldSize;
 
+    /**
+      * Creates a new DbcRecord instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     internal DbcRecord(ReadOnlyMemory<byte> recordData, ReadOnlyMemory<byte> stringBlock, int fieldCount, int fieldSize)
     {
         _recordData = recordData;
@@ -35,10 +61,22 @@ public readonly struct DbcRecord
         _fieldSize = fieldSize;
     }
 
+    /**
+      * Gets or stores the field count value used by DbcRecord.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int FieldCount { get; }
 
+    /**
+      * Gets or stores the id value used by DbcRecord.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint Id => GetUInt32(0);
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public byte GetUInt8(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -47,6 +85,10 @@ public readonly struct DbcRecord
         return _recordData.Span[GetFieldOffset(fieldIndex)];
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public ushort GetUInt16(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -56,6 +98,10 @@ public readonly struct DbcRecord
             _recordData.Span.Slice(GetFieldOffset(fieldIndex), sizeof(ushort)));
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public uint GetUInt32(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -73,11 +119,19 @@ public readonly struct DbcRecord
         };
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public int GetInt32(int fieldIndex)
     {
         return unchecked((int)GetUInt32(fieldIndex));
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public float GetSingle(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -86,6 +140,10 @@ public readonly struct DbcRecord
         return BitConverter.Int32BitsToSingle(unchecked((int)GetUInt32(fieldIndex)));
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public string GetString(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -94,6 +152,10 @@ public readonly struct DbcRecord
         return GetStringAtOffset(GetUInt32(fieldIndex));
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public string GetStringAtOffset(uint offset)
     {
         ReadOnlySpan<byte> strings = _stringBlock.Span;
@@ -114,11 +176,19 @@ public readonly struct DbcRecord
         return Encoding.UTF8.GetString(text[..terminator]);
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     public ReadOnlySpan<byte> GetRawData()
     {
         return _recordData.Span;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     private int GetFieldOffset(int fieldIndex)
     {
         if (_fieldSize <= 0)
@@ -130,6 +200,10 @@ public readonly struct DbcRecord
         return fieldIndex * _fieldSize;
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
+      */
     private void ValidateFieldIndex(int fieldIndex)
     {
         if (fieldIndex < 0 || fieldIndex >= FieldCount)
@@ -138,6 +212,10 @@ public readonly struct DbcRecord
         }
     }
 
+    /**
+      * Performs the ensure field size operation for DbcRecord.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private void EnsureFieldSize(int fieldIndex, int minimumFieldSize)
     {
         if (_fieldSize < minimumFieldSize)

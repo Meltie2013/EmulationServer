@@ -21,8 +21,18 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 
+/**
+  * File overview: src/RealmServer/Auth/Srp6Utilities.cs
+  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Auth;
 
+/**
+  * Represents the srp6 utilities component in the realm authentication, build validation, and realm list packet creation area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class Srp6Utilities
 {
     public const int SaltLength = 32;
@@ -35,6 +45,10 @@ public static class Srp6Utilities
     public static readonly BigInteger N = FromBigEndianHex(ModulusHex);
     public static readonly BigInteger G = new(7);
 
+    /**
+      * Performs the generate random bytes operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static byte[] GenerateRandomBytes(int length)
     {
         byte[] bytes = new byte[length];
@@ -42,16 +56,28 @@ public static class Srp6Utilities
         return bytes;
     }
 
+    /**
+      * Performs the generate private ephemeral operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static BigInteger GeneratePrivateEphemeral()
     {
         return FromLittleEndian(GenerateRandomBytes(19));
     }
 
+    /**
+      * Performs the generate salt operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static BigInteger GenerateSalt()
     {
         return FromLittleEndian(GenerateRandomBytes(SaltLength));
     }
 
+    /**
+      * Calculates a derived value from current runtime state.
+      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
+      */
     public static BigInteger CalculateVerifier(BigInteger salt, string shaPassHash)
     {
         byte[] passwordDigest = Convert.FromHexString(NormalizeHex(shaPassHash));
@@ -64,12 +90,20 @@ public static class Srp6Utilities
         return BigInteger.ModPow(G, x, N);
     }
 
+    /**
+      * Calculates a derived value from current runtime state.
+      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
+      */
     public static BigInteger CalculateHostPublicEphemeral(BigInteger verifier, BigInteger hostPrivateEphemeral)
     {
         BigInteger gMod = BigInteger.ModPow(G, hostPrivateEphemeral, N);
         return PositiveMod((verifier * 3) + gMod, N);
     }
 
+    /**
+      * Calculates a derived value from current runtime state.
+      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
+      */
     public static BigInteger CalculateScrambler(BigInteger clientPublicEphemeral, BigInteger hostPublicEphemeral)
     {
         byte[] digest = SHA1.HashData(Concat(
@@ -79,6 +113,10 @@ public static class Srp6Utilities
         return FromLittleEndian(digest);
     }
 
+    /**
+      * Calculates a derived value from current runtime state.
+      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
+      */
     public static BigInteger CalculateSessionSecret(
         BigInteger clientPublicEphemeral,
         BigInteger verifier,
@@ -89,6 +127,10 @@ public static class Srp6Utilities
         return BigInteger.ModPow(value, hostPrivateEphemeral, N);
     }
 
+    /**
+      * Performs the hash session key operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static byte[] HashSessionKey(BigInteger sessionSecret)
     {
         byte[] secret = ToLittleEndian(sessionSecret, PublicKeyLength);
@@ -114,6 +156,10 @@ public static class Srp6Utilities
         return sessionKey;
     }
 
+    /**
+      * Calculates a derived value from current runtime state.
+      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
+      */
     public static byte[] CalculateClientProof(
         string username,
         BigInteger salt,
@@ -141,6 +187,10 @@ public static class Srp6Utilities
             sessionKey));
     }
 
+    /**
+      * Calculates a derived value from current runtime state.
+      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
+      */
     public static byte[] CalculateHostProof(BigInteger clientPublicEphemeral, byte[] clientProof, byte[] sessionKey)
     {
         return SHA1.HashData(Concat(
@@ -149,21 +199,37 @@ public static class Srp6Utilities
             sessionKey));
     }
 
+    /**
+      * Performs the from little endian operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static BigInteger FromLittleEndian(ReadOnlySpan<byte> bytes)
     {
         return new BigInteger(bytes, isUnsigned: true, isBigEndian: false);
     }
 
+    /**
+      * Performs the from big endian operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static BigInteger FromBigEndian(ReadOnlySpan<byte> bytes)
     {
         return new BigInteger(bytes, isUnsigned: true, isBigEndian: true);
     }
 
+    /**
+      * Performs the from big endian hex operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static BigInteger FromBigEndianHex(string hex)
     {
         return FromBigEndian(Convert.FromHexString(NormalizeHex(hex)));
     }
 
+    /**
+      * Performs the to little endian operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static byte[] ToLittleEndian(BigInteger value, int length = 0)
     {
         byte[] bytes = value.ToByteArray(isUnsigned: true, isBigEndian: false);
@@ -183,6 +249,10 @@ public static class Srp6Utilities
         return result;
     }
 
+    /**
+      * Performs the to big endian hex operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public static string ToBigEndianHex(BigInteger value, int minimumBytes = 0)
     {
         byte[] bytes = value.ToByteArray(isUnsigned: true, isBigEndian: true);
@@ -197,6 +267,11 @@ public static class Srp6Utilities
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
+    /**
+      * Performs the is valid stored srp value operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool IsValidStoredSrpValue(string? hex)
     {
         if (string.IsNullOrWhiteSpace(hex) || hex.Length != SaltLength * 2)
@@ -207,17 +282,30 @@ public static class Srp6Utilities
         return hex.All(Uri.IsHexDigit);
     }
 
+    /**
+      * Performs the fixed time equals operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
     {
         return CryptographicOperations.FixedTimeEquals(left, right);
     }
 
+    /**
+      * Performs the positive mod operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static BigInteger PositiveMod(BigInteger value, BigInteger modulus)
     {
         BigInteger result = value % modulus;
         return result.Sign < 0 ? result + modulus : result;
     }
 
+    /**
+      * Performs the concat operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static byte[] Concat(params byte[][] arrays)
     {
         int length = arrays.Sum(array => array.Length);
@@ -233,6 +321,10 @@ public static class Srp6Utilities
         return result;
     }
 
+    /**
+      * Performs the normalize hex operation for Srp6Utilities.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private static string NormalizeHex(string hex)
     {
         string normalized = hex.Trim();

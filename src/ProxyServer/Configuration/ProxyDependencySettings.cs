@@ -16,25 +16,55 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/ProxyServer/Configuration/ProxyDependencySettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.ProxyServer.Configuration;
 
+/**
+  * Represents the proxy dependency settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class ProxyDependencySettings
 {
+    /**
+      * Gets or stores the critical servers value used by ProxyDependencySettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlySet<string> CriticalServers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "WorldServer",
     };
 
+    /**
+      * Gets or stores the non critical servers value used by ProxyDependencySettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public IReadOnlySet<string> NonCriticalServers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "MapServer",
         "InstanceServer",
     };
 
+    /**
+      * Gets or stores the critical server packet timeout value used by ProxyDependencySettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan CriticalServerPacketTimeout { get; init; } = TimeSpan.FromSeconds(15);
 
+    /**
+      * Gets or stores the non critical reconnect report interval value used by ProxyDependencySettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public TimeSpan NonCriticalReconnectReportInterval { get; init; } = TimeSpan.FromSeconds(30);
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (CriticalServers.Count == 0)
@@ -68,6 +98,10 @@ public sealed class ProxyDependencySettings
         }
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
+      */
     private static void ValidateServerName(string serverName, string settingName)
     {
         if (string.IsNullOrWhiteSpace(serverName))

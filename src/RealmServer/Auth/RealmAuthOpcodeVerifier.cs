@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/RealmServer/Auth/RealmAuthOpcodeVerifier.cs
+  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Auth;
 
+/**
+  * Represents the realm auth opcode verifier component in the realm authentication, build validation, and realm list packet creation area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public static class RealmAuthOpcodeVerifier
 {
     private static readonly IReadOnlyList<RealmAuthOpcodeDefinition> CriticalOpCodes =
@@ -29,6 +39,10 @@ public static class RealmAuthOpcodeVerifier
         new("REALM_LIST", RealmAuthOpCode.RealmList, 0x10),
     ];
 
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of RealmAuthOpcodeVerifier and keeps this workflow isolated from the caller.
+      */
     public static void VerifyCriticalOpCodes()
     {
         List<string> errors = [];
@@ -55,13 +69,25 @@ public static class RealmAuthOpcodeVerifier
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of RealmAuthOpcodeVerifier and keeps this workflow isolated from the caller.
+      */
     public static string GetVerificationSummary()
     {
         return string.Join(", ", CriticalOpCodes.Select(definition => $"{definition.Name}=0x{definition.ExpectedValue:X2}"));
     }
 
+    /**
+      * Represents immutable struct data passed between parts of the server.
+      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+      */
     private readonly record struct RealmAuthOpcodeDefinition(string Name, RealmAuthOpCode OpCode, byte ExpectedValue)
     {
+        /**
+          * Gets or stores the actual value value used by struct.
+          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+          */
         public byte ActualValue => (byte)OpCode;
     }
 }

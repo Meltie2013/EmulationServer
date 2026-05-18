@@ -16,11 +16,30 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Shared/Logging/Configuration/LogOutputMode.cs
+  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Shared.Logging.Configuration;
 
+/**
+  * Defines the allowed log output mode values used to keep state and protocol decisions explicit.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public enum LogOutputMode
 {
+    /**
+      * Represents the console value for LogOutputMode.
+      */
     Console,
+    /**
+      * Represents the file value for LogOutputMode.
+      */
     File,
+    /**
+      * Represents the both value for LogOutputMode.
+      */
     Both
 }

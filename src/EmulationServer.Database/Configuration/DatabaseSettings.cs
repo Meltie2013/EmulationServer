@@ -16,30 +16,84 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Database/Configuration/DatabaseSettings.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Database.Configuration;
 
+/**
+  * Represents the database settings component in the server configuration loading and strongly typed settings area.
+  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
+  */
 public sealed class DatabaseSettings
 {
+    /**
+      * Gets or stores the host value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Host { get; init; } = "127.0.0.1";
 
+    /**
+      * Gets or stores the port value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int Port { get; init; } = 3306;
 
+    /**
+      * Gets or stores the database value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Database { get; init; } = "realmd";
 
+    /**
+      * Gets or stores the username value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Username { get; init; } = "root";
 
+    /**
+      * Gets or stores the password value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Password { get; init; } = "";
 
+    /**
+      * Gets or stores the minimum pool size value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint MinimumPoolSize { get; init; } = 5;
 
+    /**
+      * Gets or stores the maximum pool size value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint MaximumPoolSize { get; init; } = 100;
 
+    /**
+      * Gets or stores the use ssl value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool UseSsl { get; init; } = false;
 
+    /**
+      * Gets or stores the connection timeout seconds value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint ConnectionTimeoutSeconds { get; init; } = 15;
 
+    /**
+      * Gets or stores the default command timeout seconds value used by DatabaseSettings.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public uint DefaultCommandTimeoutSeconds { get; init; } = 30;
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of DatabaseSettings and keeps this workflow isolated from the caller.
+      */
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Host))

@@ -16,14 +16,28 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tests/EmulationServer.Tests/Database/DatabaseIntegrationFactAttribute.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tests.Database;
 
 [AttributeUsage(AttributeTargets.Method)]
+/**
+  * Represents the database integration fact attribute component in the project runtime logic and supporting data models area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class DatabaseIntegrationFactAttribute : FactAttribute
 {
     private const string EnabledValue = "true";
     private const string EnvironmentVariableName = "EMULATIONSERVER_RUN_DATABASE_TESTS";
 
+    /**
+      * Creates a new DatabaseIntegrationFactAttribute instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public DatabaseIntegrationFactAttribute()
     {
         string? enabled = Environment.GetEnvironmentVariable(EnvironmentVariableName);

@@ -19,13 +19,35 @@
 using System.Net;
 using System.Net.Sockets;
 
+/**
+  * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSessionContext.cs
+  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Network.Networking.Sessions;
 
+/**
+  * Represents the realm session context component in the network session lifecycle and packet dispatch area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class RealmSessionContext
 {
+    /**
+      * Stores the client dependency or runtime value for RealmSessionContext.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TcpClient _client;
+    /**
+      * Stores the stream dependency or runtime value for RealmSessionContext.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly NetworkStream _stream;
 
+    /**
+      * Creates a new RealmSessionContext instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public RealmSessionContext(Guid sessionId, TcpClient client, NetworkStream stream)
     {
         Id = sessionId;
@@ -36,12 +58,30 @@ public sealed class RealmSessionContext
         RemoteAddress = (_client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "0.0.0.0";
     }
 
+    /**
+      * Gets or stores the id value used by RealmSessionContext.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public Guid Id { get; }
 
+    /**
+      * Gets or stores the remote end point value used by RealmSessionContext.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string RemoteEndPoint { get; }
 
+    /**
+      * Gets or stores the remote address value used by RealmSessionContext.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string RemoteAddress { get; }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async ValueTask<byte> ReadByteAsync(CancellationToken cancellationToken)
     {
         byte[] buffer = new byte[1];
@@ -49,6 +89,12 @@ public sealed class RealmSessionContext
         return buffer[0];
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async ValueTask<byte[]> ReadBytesAsync(int length, CancellationToken cancellationToken)
     {
         if (length < 0)
@@ -61,6 +107,12 @@ public sealed class RealmSessionContext
         return buffer;
     }
 
+    /**
+      * Reads structured input from the supplied source and converts it into the project model.
+      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async ValueTask ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(buffer);
@@ -78,6 +130,12 @@ public sealed class RealmSessionContext
         }
     }
 
+    /**
+      * Writes the supplied data to the target destination using the project protocol or file format.
+      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
         return _stream.WriteAsync(data, cancellationToken);

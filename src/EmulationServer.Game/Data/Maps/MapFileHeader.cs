@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Maps/MapFileHeader.cs
+  * This file belongs to the extracted map tile file reading and validation portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Maps;
 
+/**
+  * Represents immutable map file header data passed between parts of the server.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record MapFileHeader(
     string MapMagic,
     string VersionMagic,

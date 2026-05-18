@@ -16,12 +16,34 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Extraction/AssetExtractionKind.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Extraction;
 
+/**
+  * Defines the allowed asset extraction kind values used to keep state and protocol decisions explicit.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public enum AssetExtractionKind
 {
+    /**
+      * Represents the dbc value for AssetExtractionKind.
+      */
     Dbc = 0,
+    /**
+      * Represents the maps value for AssetExtractionKind.
+      */
     Maps = 1,
+    /**
+      * Represents the vmaps value for AssetExtractionKind.
+      */
     Vmaps = 2,
+    /**
+      * Represents the mmaps value for AssetExtractionKind.
+      */
     Mmaps = 3,
 }

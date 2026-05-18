@@ -24,13 +24,27 @@ using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging.Configuration;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+  * File overview: src/EmulationServer.Core/Configuration/ServerConfigurationLoader.cs
+  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Core.Configuration;
 
+/**
+  * Represents the server configuration loader component in the server configuration loading and strongly typed settings area.
+  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
+  */
 public static class ServerConfigurationLoader
 {
 
     private const string LoggingSection = "Logging";
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static LoggingSettings LoadLoggingSettings(
         IniConfiguration configuration,
         string configurationPath,
@@ -76,6 +90,10 @@ public static class ServerConfigurationLoader
 
     private const string DatabaseSection = "Database";
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static DatabaseSettings LoadDatabaseSettings(IniConfiguration configuration)
     {
         return new DatabaseSettings
@@ -137,6 +155,10 @@ public static class ServerConfigurationLoader
         };
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     public static InternalNetworkSettings LoadInternalNetworkSettings(
         IniConfiguration configuration,
         string sectionName,
@@ -200,6 +222,10 @@ public static class ServerConfigurationLoader
         };
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static IReadOnlyList<InternalPeerSettings> LoadInternalPeers(
         IniConfiguration configuration,
         string sectionName)
@@ -224,6 +250,10 @@ public static class ServerConfigurationLoader
         return settings;
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static InternalPeerSettings ParsePeer(string entry, TimeSpan reconnectDelay)
     {
         int nameSeparator = entry.IndexOf('@');
@@ -258,6 +288,10 @@ public static class ServerConfigurationLoader
         };
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static TimeSpan ParseDurationOrThrow(string sectionName, string key, string value)
     {
         string text = value.Trim().ToLowerInvariant();
@@ -301,6 +335,10 @@ public static class ServerConfigurationLoader
             $"Invalid time span value for [{sectionName}] {key}: '{value}'. Examples: 15s, 5m, 1h, 00:00:15.");
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static LogOutputMode ParseLogOutputMode(string value)
     {
         string normalized = value.Trim().Replace("-", string.Empty).Replace("_", string.Empty);
@@ -318,6 +356,10 @@ public static class ServerConfigurationLoader
         };
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static HashSet<LogType> ParseLogTypes(string value, bool allowAll)
     {
         HashSet<LogType> logTypes = [];
@@ -351,6 +393,10 @@ public static class ServerConfigurationLoader
         return logTypes;
     }
 
+    /**
+      * Parses text input into a strongly typed value used by the server runtime.
+      * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
     private static LogType ParseLogType(string value)
     {
         string normalized = value.Trim().Replace("-", string.Empty).Replace("_", string.Empty);

@@ -18,17 +18,35 @@
 
 using EmulationServer.RealmServer.Auth;
 
+/**
+  * File overview: tests/EmulationServer.Tests/RealmServer/RealmAuthOpcodeVerifierTests.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tests.RealmServer;
 
+/**
+  * Represents the realm auth opcode verifier tests component in the project runtime logic and supporting data models area.
+  * It documents expected behavior with automated assertions so regressions are easier to detect.
+  */
 public sealed class RealmAuthOpcodeVerifierTests
 {
     [Fact]
+    /**
+      * Verifies that loaded data satisfies the expected format and consistency rules.
+      * The method is part of RealmAuthOpcodeVerifierTests and keeps this workflow isolated from the caller.
+      */
     public void VerifyCriticalOpCodes_ShouldPass_WhenRealmAuthOpCodesMatchExpectedClientProtocolValues()
     {
         RealmAuthOpcodeVerifier.VerifyCriticalOpCodes();
     }
 
     [Fact]
+    /**
+      * Performs the critical realm auth op codes should use expected client protocol values operation for RealmAuthOpcodeVerifierTests.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public void CriticalRealmAuthOpCodes_ShouldUseExpectedClientProtocolValues()
     {
         Assert.Equal((byte)0x00, (byte)RealmAuthOpCode.AuthLogonChallenge);
@@ -39,6 +57,10 @@ public sealed class RealmAuthOpcodeVerifierTests
     }
 
     [Fact]
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of RealmAuthOpcodeVerifierTests and keeps this workflow isolated from the caller.
+      */
     public void GetVerificationSummary_ShouldIncludeCriticalRealmAuthOpCodes()
     {
         string summary = RealmAuthOpcodeVerifier.GetVerificationSummary();

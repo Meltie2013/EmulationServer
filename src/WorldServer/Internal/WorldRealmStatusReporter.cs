@@ -23,24 +23,86 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Configuration;
 
+/**
+  * File overview: src/WorldServer/Internal/WorldRealmStatusReporter.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.WorldServer.Internal;
 
+/**
+  * Represents the world realm status reporter component in the project runtime logic and supporting data models area.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed class WorldRealmStatusReporter : IAsyncDisposable
 {
+    /**
+      * Stores the settings dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly RealmStatusSettings _settings;
+    /**
+      * Stores the registration key dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _registrationKey;
+    /**
+      * Stores the send lock dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+    /**
+      * Stores the max connections dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly int _maxConnections;
+    /**
+      * Stores the latency report interval dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _latencyReportInterval;
+    /**
+      * Stores the ping timeout dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly TimeSpan _pingTimeout;
 
+    /**
+      * Stores the stop cancellation dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
+    /**
+      * Stores the report task dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private Task? _reportTask;
+    /**
+      * Stores the client dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private TcpClient? _client;
+    /**
+      * Stores the stream dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private NetworkStream? _stream;
+    /**
+      * Stores the started dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _started;
+    /**
+      * Stores the active connections dependency or runtime value for WorldRealmStatusReporter.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private int _activeConnections;
 
+    /**
+      * Creates a new WorldRealmStatusReporter instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public WorldRealmStatusReporter(
         RealmStatusSettings settings,
         string registrationKey,
@@ -77,6 +139,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _pingTimeout = pingTimeout;
     }
 
+    /**
+      * Starts the component and prepares the runtime state required before it can accept work.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (!_settings.Enabled)
@@ -98,6 +166,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    /**
+      * Stops the component and releases runtime resources in a controlled order.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _started, 0) == 0)
@@ -143,12 +217,23 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, "WorldServer realm status reporter stopped.", nameof(WorldRealmStatusReporter));
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
         _sendLock.Dispose();
     }
 
+    /**
+      * Runs the main loop for this component until cancellation or shutdown is requested.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -195,6 +280,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendRealmStatusLoopAsync(CancellationToken cancellationToken)
     {
         await SendRealmStatusAsync(true, Volatile.Read(ref _activeConnections), cancellationToken);
@@ -206,6 +297,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ProcessRealmServerPacketsAsync(InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -231,6 +328,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
+    /**
+      * Processes incoming data and dispatches it to the correct subsystem handler.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ProcessRealmServerPacketAsync(string line, InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -264,6 +367,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.DEBUG, $"WorldServer received RealmServer internal packet: {line}", nameof(WorldRealmStatusReporter));
     }
 
+    /**
+      * Creates or restores an internal network connection to the target server.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task ConnectAndAuthenticateAsync(CancellationToken cancellationToken)
     {
         CleanupConnection();
@@ -321,6 +430,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, "WorldServer authenticated with RealmServer internal listener.", nameof(WorldRealmStatusReporter));
     }
 
+    /**
+      * Sends a protocol message or status update to a connected peer.
+      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     private async Task SendRealmStatusAsync(bool online, int activeConnections, CancellationToken cancellationToken)
     {
         if (_stream is null)
@@ -343,6 +458,10 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"WorldServer sent realm status: {packet}", nameof(WorldRealmStatusReporter));
     }
 
+    /**
+      * Performs the cleanup connection operation for WorldRealmStatusReporter.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     private void CleanupConnection()
     {
         try

@@ -21,12 +21,30 @@ using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
+/**
+  * File overview: src/EmulationServer.Database/Services/MySqlDatabaseService.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Database.Services;
 
+/**
+  * Represents the my sql database service component in the project runtime logic and supporting data models area.
+  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
+  */
 public sealed class MySqlDatabaseService : IDatabaseService
 {
+    /**
+      * Stores the connection string dependency or runtime value for MySqlDatabaseService.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly string _connectionString;
 
+    /**
+      * Creates a new MySqlDatabaseService instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public MySqlDatabaseService(DatabaseSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -53,6 +71,12 @@ public sealed class MySqlDatabaseService : IDatabaseService
         _connectionString = builder.ConnectionString;
     }
 
+    /**
+      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
+      * The method is part of MySqlDatabaseService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async ValueTask<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken = default)
     {
         MySqlConnection connection = new(_connectionString);
@@ -69,6 +93,12 @@ public sealed class MySqlDatabaseService : IDatabaseService
         }
     }
 
+    /**
+      * Performs the test connection async operation for MySqlDatabaseService.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -86,6 +116,12 @@ public sealed class MySqlDatabaseService : IDatabaseService
         }
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of MySqlDatabaseService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      */
     public async Task ValidateConnectionAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await CreateConnectionAsync(cancellationToken);
@@ -97,6 +133,11 @@ public sealed class MySqlDatabaseService : IDatabaseService
         }
     }
 
+    /**
+      * Releases owned resources and ensures background work is stopped safely.
+      * The method is part of MySqlDatabaseService and keeps this workflow isolated from the caller.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;

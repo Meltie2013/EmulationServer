@@ -16,14 +16,28 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Client/ClientBuildInfo.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Client;
 
+/**
+  * Represents immutable client build info data passed between parts of the server.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record ClientBuildInfo(
     ushort Build,
     string Version,
     SupportedClientExpansion Expansion,
     string MangosLine)
 {
+    /**
+      * Performs the to string operation for ClientBuildInfo.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public override string ToString()
     {
         return $"{Version} ({Build}) - {Expansion} / {MangosLine}";

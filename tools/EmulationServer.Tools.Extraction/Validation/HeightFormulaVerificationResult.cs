@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Validation/HeightFormulaVerificationResult.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Validation;
 
+/**
+  * Represents immutable height formula verification result data passed between parts of the server.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record HeightFormulaVerificationResult(
     int Samples,
     float GridHeight,
@@ -30,12 +40,28 @@ public sealed record HeightFormulaVerificationResult(
     // The formula gives the ideal half-step quantization error. The implementation
     // intentionally uses float math because the generated map data is float-based,
     // so allow a small tolerance for single-precision rounding during encode/decode.
+    /**
+      * Gets or stores the floating point tolerance value used by HeightFormulaVerificationResult.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public float FloatingPointTolerance => Math.Max(0.00025f, Math.Abs(GridMaxHeight - GridHeight) * 0.0000001f);
 
+    /**
+      * Gets or stores the uint8 allowed maximum error value used by HeightFormulaVerificationResult.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public float UInt8AllowedMaximumError => UInt8ExpectedMaximumError + FloatingPointTolerance;
 
+    /**
+      * Gets or stores the uint16 allowed maximum error value used by HeightFormulaVerificationResult.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public float UInt16AllowedMaximumError => UInt16ExpectedMaximumError + FloatingPointTolerance;
 
+    /**
+      * Gets or stores the is valid value used by HeightFormulaVerificationResult.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool IsValid =>
         UInt8MaximumObservedError <= UInt8AllowedMaximumError &&
         UInt16MaximumObservedError <= UInt16AllowedMaximumError;

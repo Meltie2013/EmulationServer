@@ -18,15 +18,41 @@
 
 using System.Text;
 
+/**
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
+  * This file belongs to the DBC file loading, validation, and raw record access portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Game.Data.Dbc;
 
+/**
+  * Loads generic DBC records and exposes raw cell access before typed DBC schemas are implemented.
+  * It owns loaded data in memory and provides lookup access to other systems.
+  */
 public sealed class DbcDataStore
 {
+    /**
+      * Stores the record data dependency or runtime value for DbcDataStore.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly byte[] _recordData;
+    /**
+      * Stores the string block dependency or runtime value for DbcDataStore.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly byte[] _stringBlock;
     private readonly Dictionary<uint, int> _recordIndexById;
+    /**
+      * Stores the field size dependency or runtime value for DbcDataStore.
+      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
+      */
     private readonly int _fieldSize;
 
+    /**
+      * Creates a new DbcDataStore instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     private DbcDataStore(
         string path,
         DbcHeader header,
@@ -44,16 +70,40 @@ public sealed class DbcDataStore
         _fieldSize = fieldSize;
     }
 
+    /**
+      * Gets or stores the path value used by DbcDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Path { get; }
 
+    /**
+      * Gets or stores the name value used by DbcDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public string Name { get; }
 
+    /**
+      * Gets or stores the header value used by DbcDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public DbcHeader Header { get; }
 
+    /**
+      * Gets or stores the record count value used by DbcDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int RecordCount => Header.RecordCount;
 
+    /**
+      * Gets or stores the field count value used by DbcDataStore.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public int FieldCount => Header.FieldCount;
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
+      */
     public DbcRecord GetRecord(int index)
     {
         if (index < 0 || index >= Header.RecordCount)
@@ -65,6 +115,11 @@ public sealed class DbcDataStore
         return new DbcRecord(_recordData.AsMemory(offset, Header.RecordSize), _stringBlock, Header.FieldCount, _fieldSize);
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TryGetRecordById(uint id, out DbcRecord record)
     {
         if (_recordIndexById.TryGetValue(id, out int index))
@@ -77,6 +132,10 @@ public sealed class DbcDataStore
         return false;
     }
 
+    /**
+      * Performs the enumerate records operation for DbcDataStore.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      */
     public IEnumerable<DbcRecord> EnumerateRecords()
     {
         for (int index = 0; index < Header.RecordCount; index++)
@@ -85,6 +144,10 @@ public sealed class DbcDataStore
         }
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
+      */
     public static DbcDataStore Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -93,6 +156,10 @@ public sealed class DbcDataStore
         return Load(stream, path);
     }
 
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
+      */
     public static DbcDataStore Load(Stream stream, string sourceName)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -155,11 +222,19 @@ public sealed class DbcDataStore
         return index;
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
+      */
     private static int GetGenericFieldSize(DbcHeader header)
     {
         return header.TryGetUniformFieldSize(out int fieldSize) ? fieldSize : 0;
     }
 
+    /**
+      * Validates input and throws a clear exception before invalid state reaches runtime code.
+      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
+      */
     private static void ValidateHeader(DbcHeader header, string sourceName)
     {
         if (!string.Equals(header.Magic, DbcHeader.ExpectedMagic, StringComparison.Ordinal))

@@ -16,8 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/MapHeightSection.cs
+  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.Tools.Extraction.Formats.Maps;
 
+/**
+  * Represents immutable map height section data passed between parts of the server.
+  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+  */
 public sealed record MapHeightSection(
     uint Flags,
     float GridHeight,
@@ -25,13 +35,33 @@ public sealed record MapHeightSection(
     int V9ValueCount,
     int V8ValueCount)
 {
+    /**
+      * Gets or stores the has height value used by MapHeightSection.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool HasHeight => (Flags & MapFormatConstants.MapHeightNoHeight) == 0;
 
+    /**
+      * Gets or stores the is int8 encoded value used by MapHeightSection.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool IsInt8Encoded => (Flags & MapFormatConstants.MapHeightAsInt8) != 0;
 
+    /**
+      * Gets or stores the is int16 encoded value used by MapHeightSection.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool IsInt16Encoded => (Flags & MapFormatConstants.MapHeightAsInt16) != 0;
 
+    /**
+      * Gets or stores the is float encoded value used by MapHeightSection.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public bool IsFloatEncoded => HasHeight && !IsInt8Encoded && !IsInt16Encoded;
 
+    /**
+      * Gets or stores the height range value used by MapHeightSection.
+      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      */
     public float HeightRange => GridMaxHeight - GridHeight;
 }

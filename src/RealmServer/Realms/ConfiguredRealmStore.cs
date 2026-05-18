@@ -18,12 +18,26 @@
 
 using EmulationServer.RealmServer.Configuration;
 
+/**
+  * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
+  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
+  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
+  */
+
 namespace EmulationServer.RealmServer.Realms;
 
+/**
+  * Represents the configured realm store component in the project runtime logic and supporting data models area.
+  * It owns loaded data in memory and provides lookup access to other systems.
+  */
 public sealed class ConfiguredRealmStore
 {
     private readonly Dictionary<uint, ConfiguredRealm> _realms;
 
+    /**
+      * Creates a new ConfiguredRealmStore instance and stores the dependencies required by the component.
+      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      */
     public ConfiguredRealmStore(IEnumerable<ConfiguredRealmSettings> realmSettings)
     {
         ArgumentNullException.ThrowIfNull(realmSettings);
@@ -38,6 +52,10 @@ public sealed class ConfiguredRealmStore
         }
     }
 
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of ConfiguredRealmStore and keeps this workflow isolated from the caller.
+      */
     public IReadOnlyCollection<ConfiguredRealm> GetRealmsForBuild(ushort build)
     {
         return _realms.Values
@@ -46,6 +64,11 @@ public sealed class ConfiguredRealmStore
             .ToArray();
     }
 
+    /**
+      * Attempts the operation without treating a normal failure as an exceptional condition.
+      * The method is part of ConfiguredRealmStore and keeps this workflow isolated from the caller.
+      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      */
     public bool TrySetRealmStatus(uint realmId, bool online, int activeConnections, int capacityLimit)
     {
         if (!_realms.TryGetValue(realmId, out ConfiguredRealm? realm))
