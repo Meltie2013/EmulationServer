@@ -2,10 +2,13 @@
 using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 
+using EmulationServer.Shared.Logging.Configuration;
 namespace EmulationServer.WorldServer.Configuration;
 
 public sealed class WorldServerSettings
 {
+    public LoggingSettings Logging { get; init; } = new();
+
     public InternalNetworkSettings InternalNetwork { get; init; } = new();
 
     public int MaxConnections { get; init; } = 1000;
@@ -18,6 +21,7 @@ public sealed class WorldServerSettings
 
     public void Validate()
     {
+        Logging.Validate();
         InternalNetwork.Validate();
 
         if (MaxConnections <= 0)

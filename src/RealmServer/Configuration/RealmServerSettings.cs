@@ -2,10 +2,13 @@
 using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 
+using EmulationServer.Shared.Logging.Configuration;
 namespace EmulationServer.RealmServer.Configuration;
 
 public sealed class RealmServerSettings
 {
+    public LoggingSettings Logging { get; init; } = new();
+
     public RealmSocketListenerSettings Socket { get; init; } = new();
 
     public DatabaseSettings Database { get; init; } = new();
@@ -16,6 +19,7 @@ public sealed class RealmServerSettings
 
     public void Validate()
     {
+        Logging.Validate();
         Socket.Validate();
         Database.Validate();
         InternalNetwork.Validate();

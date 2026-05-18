@@ -1,5 +1,5 @@
-
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Logging.Formatting;
 using EmulationServer.Shared.Logging.Interfaces;
 
 namespace EmulationServer.Shared.Logging.Services;
@@ -13,15 +13,7 @@ public sealed class ConsoleLogger : ILogger
         lock (SyncRoot)
         {
             Console.ForegroundColor = GetColor(type);
-
-            string timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-
-            Console.WriteLine(
-                $"[{timestamp}] " +
-                $"[{type}] " +
-                $"{(category is not null ? $"[{category}] " : string.Empty)}" +
-                $"{message}");
-
+            Console.WriteLine(LogMessageFormatter.Format(type, message, category));
             Console.ResetColor();
         }
     }
@@ -43,7 +35,7 @@ public sealed class ConsoleLogger : ILogger
             LogType.INFORMATION => ConsoleColor.White,
             LogType.NOTICE => ConsoleColor.Cyan,
             LogType.THREAD => ConsoleColor.DarkYellow,
-            _ => ConsoleColor.Gray
+            _ => ConsoleColor.Gray,
         };
     }
 }

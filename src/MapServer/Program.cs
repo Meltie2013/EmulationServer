@@ -7,13 +7,6 @@ using EmulationServer.Shared.Logging.Enums;
 
 using CancellationTokenSource cancellation = new();
 
-Logger.Write(LogType.NOTICE, @" _____                 _       _   _              ____                           ");
-Logger.Write(LogType.NOTICE, @"| ____|_ __ ___  _   _| | __ _| |_(_) ___  _ __  / ___|  ___ _ ____   _____ _ __ ");
-Logger.Write(LogType.NOTICE, @"|  _| | '_ ` _ \| | | | |/ _` | __| |/ _ \| '_ \ \___ \ / _ \ '__\ \ / / _ \ '__|");
-Logger.Write(LogType.NOTICE, @"| |___| | | | | | |_| | | (_| | |_| | (_) | | | | ___) |  __/ |   \ V /  __/ |   ");
-Logger.Write(LogType.NOTICE, @"|_____|_| |_| |_|\__,_|_|\__,_|\__|_|\___/|_| |_||____/ \___|_|    \_/ \___|_|   ");
-Logger.Write(LogType.NOTICE, @"                                                                                 ");
-Logger.Write(LogType.NOTICE, @"                          :: Map Server ::");
 
 Console.CancelKeyPress += (_, eventArgs) =>
 {
@@ -30,6 +23,16 @@ try
     string configurationPath = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "mapserver.ini");
 
     MapServerSettings settings = MapServerConfigurationLoader.Load(configurationPath);
+
+    Logger.Configure(settings.Logging);
+
+    Logger.Write(LogType.NOTICE, @" _____                 _       _   _              ____                           ");
+    Logger.Write(LogType.NOTICE, @"| ____|_ __ ___  _   _| | __ _| |_(_) ___  _ __  / ___|  ___ _ ____   _____ _ __ ");
+    Logger.Write(LogType.NOTICE, @"|  _| | '_ ` _ \| | | | |/ _` | __| |/ _ \| '_ \ \___ \ / _ \ '__\ \ / / _ \ '__|");
+    Logger.Write(LogType.NOTICE, @"| |___| | | | | | |_| | | (_| | |_| | (_) | | | | ___) |  __/ |   \ V /  __/ |   ");
+    Logger.Write(LogType.NOTICE, @"|_____|_| |_| |_|\__,_|_|\__,_|\__|_|\___/|_| |_||____/ \___|_|    \_/ \___|_|   ");
+    Logger.Write(LogType.NOTICE, @"                                                                                 ");
+    Logger.Write(LogType.NOTICE, @"                          :: Map Server ::");
 
     await using MapServer server = new(settings);
 

@@ -23,6 +23,8 @@ public static class RealmServerConfigurationLoader
 
         RealmServerSettings settings = new()
         {
+            Logging = ServerConfigurationLoader.LoadLoggingSettings(configuration, fullPath, "RealmServer"),
+
             Socket = LoadSocketSettings(configuration),
             Database = LoadDatabaseSettings(configuration),
             InternalNetwork = ServerConfigurationLoader.LoadInternalNetworkSettings(

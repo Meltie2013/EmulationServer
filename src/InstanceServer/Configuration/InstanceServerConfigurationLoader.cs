@@ -32,6 +32,8 @@ public static class InstanceServerConfigurationLoader
 
         InstanceServerSettings settings = new()
         {
+            Logging = ServerConfigurationLoader.LoadLoggingSettings(configuration, fullPath, "InstanceServer"),
+
             InternalNetwork = ServerConfigurationLoader.LoadInternalNetworkSettings(
                 configuration,
                 InstanceServerSection,

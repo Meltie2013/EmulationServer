@@ -17,6 +17,8 @@ public static class WorldServerConfigurationLoader
 
         WorldServerSettings settings = new()
         {
+            Logging = ServerConfigurationLoader.LoadLoggingSettings(configuration, fullPath, "WorldServer"),
+
             InternalNetwork = ServerConfigurationLoader.LoadInternalNetworkSettings(
                 configuration,
                 WorldServerSection,

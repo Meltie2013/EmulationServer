@@ -4,11 +4,59 @@ using System.Globalization;
 using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 using EmulationServer.Shared.Configuration;
+using EmulationServer.Shared.Logging.Configuration;
+using EmulationServer.Shared.Logging.Enums;
 
 namespace EmulationServer.Core.Configuration;
 
 public static class ServerConfigurationLoader
 {
+
+    private const string LoggingSection = "Logging";
+
+    public static LoggingSettings LoadLoggingSettings(
+        IniConfiguration configuration,
+        string configurationPath,
+        string serverName)
+    {
+        if (string.IsNullOrWhiteSpace(configurationPath))
+        {
+            throw new ArgumentException("Configuration path is required.", nameof(configurationPath));
+        }
+
+        if (string.IsNullOrWhiteSpace(serverName))
+        {
+            throw new ArgumentException("Server name is required.", nameof(serverName));
+        }
+
+        string configurationDirectory = Path.GetDirectoryName(Path.GetFullPath(configurationPath))
+            ?? AppContext.BaseDirectory;
+
+        string logFolder = configuration.GetString(LoggingSection, "LogFolder", "logs");
+        string resolvedLogFolder = Path.GetFullPath(Path.IsPathRooted(logFolder)
+            ? logFolder
+            : Path.Combine(configurationDirectory, logFolder));
+
+        HashSet<LogType> enabledTypes = ParseLogTypes(
+            configuration.GetString(LoggingSection, "EnabledTypes", "All"),
+            allowAll: true);
+
+        HashSet<LogType> disabledTypes = ParseLogTypes(
+            configuration.GetString(LoggingSection, "DisabledTypes", string.Empty),
+            allowAll: true);
+
+        enabledTypes.ExceptWith(disabledTypes);
+
+        return new LoggingSettings
+        {
+            ServerName = serverName,
+            Output = ParseLogOutputMode(configuration.GetString(LoggingSection, "Output", "Console")),
+            LogFolder = resolvedLogFolder,
+            FileName = configuration.GetString(LoggingSection, "FileName", $"{serverName}.log"),
+            EnabledTypes = enabledTypes,
+        };
+    }
+
     private const string DatabaseSection = "Database";
 
     public static DatabaseSettings LoadDatabaseSettings(IniConfiguration configuration)
@@ -235,4 +283,77 @@ public static class ServerConfigurationLoader
         throw new ConfigurationException(
             $"Invalid time span value for [{sectionName}] {key}: '{value}'. Examples: 15s, 5m, 1h, 00:00:15.");
     }
+
+    private static LogOutputMode ParseLogOutputMode(string value)
+    {
+        string normalized = value.Trim().Replace("-", string.Empty).Replace("_", string.Empty);
+
+        return normalized.ToLowerInvariant() switch
+        {
+            "console" => LogOutputMode.Console,
+            "consoleonly" => LogOutputMode.Console,
+            "file" => LogOutputMode.File,
+            "fileonly" => LogOutputMode.File,
+            "both" => LogOutputMode.Both,
+            "consoleandfile" => LogOutputMode.Both,
+            "fileandconsole" => LogOutputMode.Both,
+            _ => throw new ConfigurationException($"Invalid logging output mode '{value}'. Expected Console, File, or Both."),
+        };
+    }
+
+    private static HashSet<LogType> ParseLogTypes(string value, bool allowAll)
+    {
+        HashSet<LogType> logTypes = [];
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return logTypes;
+        }
+
+        foreach (string entry in value.Split([';', ',', '|'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (entry.Equals("all", StringComparison.OrdinalIgnoreCase) || entry == "*")
+            {
+                if (!allowAll)
+                {
+                    throw new ConfigurationException("Logging type list does not allow All.");
+                }
+
+                logTypes.UnionWith(Enum.GetValues<LogType>());
+                continue;
+            }
+
+            if (entry.Equals("none", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            logTypes.Add(ParseLogType(entry));
+        }
+
+        return logTypes;
+    }
+
+    private static LogType ParseLogType(string value)
+    {
+        string normalized = value.Trim().Replace("-", string.Empty).Replace("_", string.Empty);
+
+        return normalized.ToUpperInvariant() switch
+        {
+            "INFO" => LogType.INFORMATION,
+            "INFORMATION" => LogType.INFORMATION,
+            "WARN" => LogType.WARNING,
+            "WARNING" => LogType.WARNING,
+            "ERROR" => LogType.FAILED,
+            "FAILED" => LogType.FAILED,
+            "FAIL" => LogType.FAILED,
+            "FATAL" => LogType.CRITICAL,
+            "CRITICAL" => LogType.CRITICAL,
+            "EMERGENCY" => LogType.EMERG,
+            "EMERG" => LogType.EMERG,
+            _ when Enum.TryParse(value, ignoreCase: true, out LogType logType) => logType,
+            _ => throw new ConfigurationException($"Invalid logging type '{value}'."),
+        };
+    }
+
 }

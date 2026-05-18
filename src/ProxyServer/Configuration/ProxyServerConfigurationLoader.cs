@@ -16,6 +16,8 @@ public static class ProxyServerConfigurationLoader
 
         ProxyServerSettings settings = new()
         {
+            Logging = ServerConfigurationLoader.LoadLoggingSettings(configuration, fullPath, "ProxyServer"),
+
             InternalNetwork = ServerConfigurationLoader.LoadInternalNetworkSettings(
                 configuration,
                 ProxyServerSection,

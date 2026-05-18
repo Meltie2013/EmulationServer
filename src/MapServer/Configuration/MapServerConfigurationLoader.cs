@@ -32,6 +32,8 @@ public static class MapServerConfigurationLoader
 
         MapServerSettings settings = new()
         {
+            Logging = ServerConfigurationLoader.LoadLoggingSettings(configuration, fullPath, "MapServer"),
+
             InternalNetwork = ServerConfigurationLoader.LoadInternalNetworkSettings(
                 configuration,
                 MapServerSection,
