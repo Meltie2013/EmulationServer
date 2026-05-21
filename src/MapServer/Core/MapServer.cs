@@ -52,7 +52,8 @@ public sealed class MapServer : IAsyncDisposable
       * Stores the map services dependency or runtime value for MapServer.
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
-    private readonly MapServiceManager _mapServices;
+    private readonly MapServerSettings _settings;
+    private MapServiceManager? _mapServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     /**
@@ -70,11 +71,7 @@ public sealed class MapServer : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
-        _mapServices = new MapServiceManager(
-            nameof(MapServer),
-            settings.MapServices,
-            ReportMapServiceStatusAsync);
-
+        _settings = settings;
         _host = new EmulationServerHost(nameof(MapServer), settings.InternalNetwork, CreateCallbacks());
     }
 
@@ -86,15 +83,24 @@ public sealed class MapServer : IAsyncDisposable
       */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _mapServices.StartAsync(cancellationToken);
+        Task hostTask = _host.StartAsync(cancellationToken);
 
         try
         {
-            await _host.StartAsync(cancellationToken);
+            await _host.StartupCompleted.WaitAsync(cancellationToken);
+
+            MapServiceManager serviceManager = CreateMapServiceManager();
+            _mapServices = serviceManager;
+            await serviceManager.StartAsync(cancellationToken);
+
+            await hostTask;
         }
         finally
         {
-            await _mapServices.StopAsync(CancellationToken.None);
+            if (_mapServices is not null)
+            {
+                await _mapServices.StopAsync(CancellationToken.None);
+            }
         }
     }
 
@@ -106,7 +112,11 @@ public sealed class MapServer : IAsyncDisposable
       */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        await _mapServices.StopAsync(cancellationToken);
+        if (_mapServices is not null)
+        {
+            await _mapServices.StopAsync(cancellationToken);
+        }
+
         await _host.StopAsync(cancellationToken);
     }
 
@@ -118,8 +128,26 @@ public sealed class MapServer : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
-        await _mapServices.DisposeAsync();
+
+        if (_mapServices is not null)
+        {
+            await _mapServices.DisposeAsync();
+        }
+
         await _host.DisposeAsync();
+    }
+
+
+    /**
+      * Creates the map service manager after the host has finished startup validation.
+      * Delaying construction keeps DBC loading, map registration, and service startup after the server has validated and announced startup.
+      */
+    private MapServiceManager CreateMapServiceManager()
+    {
+        return new MapServiceManager(
+            nameof(MapServer),
+            _settings.MapServices,
+            ReportMapServiceStatusAsync);
     }
 
     /**
@@ -152,7 +180,7 @@ public sealed class MapServer : IAsyncDisposable
         _serverSessions[remoteServerName] = session;
 
         Logger.Write(LogType.NETWORK, $"MapServer registered incoming map-service control/status session '{remoteServerName}'.", nameof(MapServer));
-        await _mapServices.ReportAllServicesAsync(cancellationToken);
+        await SendMapServiceStatusesToSessionAsync(session, cancellationToken);
     }
 
     /**
@@ -184,7 +212,7 @@ public sealed class MapServer : IAsyncDisposable
         _peerConnections[remoteServerName] = connection;
 
         Logger.Write(LogType.NETWORK, $"MapServer registered outgoing map-service status peer '{remoteServerName}'.", nameof(MapServer));
-        await _mapServices.ReportAllServicesAsync(cancellationToken);
+        await SendMapServiceStatusesToPeerAsync(connection, cancellationToken);
     }
 
     /**
@@ -304,7 +332,24 @@ public sealed class MapServer : IAsyncDisposable
 
         Logger.Write(LogType.NETWORK, $"MapServer received map {command.Action} command for MapId={command.MapId} from {remoteServerName}.", nameof(MapServer));
 
-        IReadOnlyList<MapServiceControlResult> results = await _mapServices.ExecuteControlCommandAsync(
+        MapServiceManager? mapServices = _mapServices;
+        if (mapServices is null)
+        {
+            InternalMapServiceCommandResultPacket unavailableResult = new(
+                command.CommandId,
+                nameof(MapServer),
+                MapServiceKind.World.ToString(),
+                command.MapId,
+                0,
+                MapServiceControlResultCode.Failed.ToString(),
+                MapServiceState.Offline.ToString(),
+                "MapServer map service manager is not started yet.");
+
+            await sendResponseAsync(unavailableResult.ToPacketLine());
+            return;
+        }
+
+        IReadOnlyList<MapServiceControlResult> results = await mapServices.ExecuteControlCommandAsync(
             action,
             command.MapId,
             cancellationToken);
@@ -324,17 +369,149 @@ public sealed class MapServer : IAsyncDisposable
             await sendResponseAsync(response.ToPacketLine());
         }
 
-        await _mapServices.ReportServicesAsync(command.MapId, cancellationToken);
+        await mapServices.ReportServicesAsync(command.MapId, cancellationToken);
     }
 
     /**
-      * Performs the report map service status async operation for MapServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * Broadcasts one map service status snapshot to all currently connected status peers.
+      * Startup and peer-authentication paths use targeted helpers so a newly connected peer does not cause every existing peer to receive a duplicate startup snapshot.
       */
     private async Task ReportMapServiceStatusAsync(
         MapServiceSnapshot snapshot,
         CancellationToken cancellationToken)
+    {
+        InternalPeerConnection[] peers = _peerConnections.Values.ToArray();
+        InternalServerSession[] sessions = _serverSessions.Values.ToArray();
+        if (peers.Length == 0 && sessions.Length == 0)
+        {
+            return;
+        }
+
+        int sentCount = 0;
+        foreach (InternalPeerConnection peer in peers)
+        {
+            if (await SendMapServiceStatusToPeerAsync(snapshot, peer, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        foreach (InternalServerSession session in sessions)
+        {
+            if (await SendMapServiceStatusToSessionAsync(snapshot, session, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0)
+        {
+            Logger.Write(LogType.TRACE, $"MapServer published map service '{snapshot.Name}' status to {sentCount} status peer(s): state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(MapServer));
+        }
+    }
+
+    /**
+      * Sends all current map service snapshots to one newly authenticated outgoing peer.
+      * This avoids the duplicate reporting that happened when the authentication callback rebroadcast every service to every existing peer.
+      */
+    private async Task SendMapServiceStatusesToPeerAsync(
+        InternalPeerConnection connection,
+        CancellationToken cancellationToken)
+    {
+        MapServiceManager? mapServices = _mapServices;
+        if (mapServices is null)
+        {
+            return;
+        }
+
+        int sentCount = 0;
+        foreach (MapServiceSnapshot snapshot in mapServices.GetSnapshots())
+        {
+            if (await SendMapServiceStatusToPeerAsync(snapshot, connection, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0)
+        {
+            Logger.Write(LogType.TRACE, $"MapServer sent {sentCount} initial map service status snapshot(s) to {connection.RemoteServerName}.", nameof(MapServer));
+        }
+    }
+
+    /**
+      * Sends all current map service snapshots to one newly authenticated incoming session.
+      * This keeps status synchronization targeted to the new connection instead of rebroadcasting to all peers.
+      */
+    private async Task SendMapServiceStatusesToSessionAsync(
+        InternalServerSession session,
+        CancellationToken cancellationToken)
+    {
+        MapServiceManager? mapServices = _mapServices;
+        if (mapServices is null)
+        {
+            return;
+        }
+
+        int sentCount = 0;
+        foreach (MapServiceSnapshot snapshot in mapServices.GetSnapshots())
+        {
+            if (await SendMapServiceStatusToSessionAsync(snapshot, session, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0)
+        {
+            Logger.Write(LogType.TRACE, $"MapServer sent {sentCount} initial map service status snapshot(s) to {session.RemoteServerName}.", nameof(MapServer));
+        }
+    }
+
+    /**
+      * Sends a single map service status snapshot to one outgoing internal peer connection.
+      */
+    private static async Task<bool> SendMapServiceStatusToPeerAsync(
+        MapServiceSnapshot snapshot,
+        InternalPeerConnection peer,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await peer.SendPacketAsync(CreateMapServiceStatusPacket(snapshot), cancellationToken);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.WARNING, $"MapServer could not report map service '{snapshot.Name}' to {peer.RemoteServerName}: {exception.Message}", nameof(MapServer));
+            return false;
+        }
+    }
+
+    /**
+      * Sends a single map service status snapshot to one incoming internal server session.
+      */
+    private static async Task<bool> SendMapServiceStatusToSessionAsync(
+        MapServiceSnapshot snapshot,
+        InternalServerSession session,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await session.SendPacketAsync(CreateMapServiceStatusPacket(snapshot), cancellationToken);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.WARNING, $"MapServer could not report map service '{snapshot.Name}' to {session.RemoteServerName}: {exception.Message}", nameof(MapServer));
+            return false;
+        }
+    }
+
+    /**
+      * Converts a runtime map service snapshot into the shared internal protocol line used by WorldServer and ProxyServer.
+      */
+    private static string CreateMapServiceStatusPacket(MapServiceSnapshot snapshot)
     {
         InternalMapServiceStatusPacket status = new(
             snapshot.OwnerServerName,
@@ -349,41 +526,7 @@ public sealed class MapServer : IAsyncDisposable
             snapshot.AverageTickMilliseconds,
             snapshot.LoadPercent);
 
-        string packet = status.ToPacketLine();
-
-        InternalPeerConnection[] peers = _peerConnections.Values.ToArray();
-        InternalServerSession[] sessions = _serverSessions.Values.ToArray();
-        if (peers.Length == 0 && sessions.Length == 0)
-        {
-            Logger.Write(LogType.TRACE, $"MapServer has no connected status peers for map service '{snapshot.Name}' (MapId={snapshot.MapId}).", nameof(MapServer));
-            return;
-        }
-
-        foreach (InternalPeerConnection peer in peers)
-        {
-            try
-            {
-                await peer.SendPacketAsync(packet, cancellationToken);
-                Logger.Write(LogType.TRACE, $"MapServer reported map service '{snapshot.Name}' to {peer.RemoteServerName}: state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(MapServer));
-            }
-            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
-            {
-                Logger.Write(LogType.WARNING, $"MapServer could not report map service '{snapshot.Name}' to {peer.RemoteServerName}: {exception.Message}", nameof(MapServer));
-            }
-        }
-
-        foreach (InternalServerSession session in sessions)
-        {
-            try
-            {
-                await session.SendPacketAsync(packet, cancellationToken);
-                Logger.Write(LogType.TRACE, $"MapServer reported map service '{snapshot.Name}' to {session.RemoteServerName}: state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(MapServer));
-            }
-            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
-            {
-                Logger.Write(LogType.WARNING, $"MapServer could not report map service '{snapshot.Name}' to {session.RemoteServerName}: {exception.Message}", nameof(MapServer));
-            }
-        }
+        return status.ToPacketLine();
     }
 
     /**

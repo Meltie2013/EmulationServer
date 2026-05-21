@@ -110,6 +110,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             ServerAuthenticatedAsync = OnServerAuthenticatedAsync,
             PacketReceivedAsync = OnPacketReceivedAsync,
             ServerDisconnectedAsync = OnServerDisconnectedAsync,
+            PeerReconnectTimedOutAsync = OnPeerReconnectTimedOutAsync,
         };
     }
 
@@ -202,6 +203,8 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             state.IsConnected = true;
             state.ShutdownTriggered = false;
             state.LastDownReportUtc = null;
+            state.DisconnectedUtc = null;
+            state.ReconnectTimedOut = false;
             state.HasEverConnected = true;
         }
 
@@ -229,6 +232,8 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             state.LastPacketReceivedUtc = DateTimeOffset.UtcNow;
             state.Session = session;
             state.IsConnected = true;
+            state.DisconnectedUtc = null;
+            state.ReconnectTimedOut = false;
         }
 
         if (packet.StartsWith(InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
@@ -263,6 +268,8 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             }
 
             state.IsConnected = false;
+            state.DisconnectedUtc = DateTimeOffset.UtcNow;
+            state.ReconnectTimedOut = false;
         }
 
         if (state.IsCritical)
@@ -273,6 +280,21 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         {
             Logger.Write(LogType.WARNING, $"Non-critical internal server '{remoteServerName}' disconnected. Proxy will monitor for reconnect every {_settings.NonCriticalReconnectReportInterval.TotalSeconds:0.##} second(s).", nameof(ProxyDependencyMonitor));
         }
+
+        return Task.CompletedTask;
+    }
+
+    /**
+      * Handles outbound peer reconnect timeout notifications raised by the shared internal peer connector.
+      * This keeps the dependency monitor aligned with the connector so it stops reporting reconnect attempts after the configured window expires.
+      */
+    private Task OnPeerReconnectTimedOutAsync(
+        string remoteServerName,
+        TimeSpan reconnectTimeout,
+        CancellationToken cancellationToken)
+    {
+        ServerState state = GetOrCreateServerState(remoteServerName);
+        MarkNonCriticalReconnectTimedOut(state, reconnectTimeout);
 
         return Task.CompletedTask;
     }
@@ -449,8 +471,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
 
             if (!snapshot.IsConnected)
             {
-                if (!snapshot.HasEverConnected)
+                if (!snapshot.HasEverConnected || snapshot.ReconnectTimedOut)
                 {
+                    continue;
+                }
+
+                DateTimeOffset downStartedUtc = snapshot.DisconnectedUtc ?? snapshot.LastPacketReceivedUtc;
+                if (now - downStartedUtc >= _settings.NonCriticalReconnectTimeout)
+                {
+                    MarkNonCriticalReconnectTimedOut(state, _settings.NonCriticalReconnectTimeout);
                     continue;
                 }
 
@@ -524,6 +553,37 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             {
                 Logger.Write(LogType.WARNING, $"Proxy could not send shutdown request to '{server.Name}': {exception.Message}", nameof(ProxyDependencyMonitor));
             }
+        }
+    }
+
+    /**
+      * Marks a non-critical dependency as timed out so the monitor stops repeated reconnect warnings.
+      * The dependency remains known, but it returns to passive wait mode until the service registers again.
+      */
+    private void MarkNonCriticalReconnectTimedOut(ServerState state, TimeSpan reconnectTimeout)
+    {
+        if (state.IsCritical)
+        {
+            return;
+        }
+
+        bool shouldReport;
+
+        lock (state.SyncRoot)
+        {
+            shouldReport = !state.ReconnectTimedOut;
+            state.IsConnected = false;
+            state.Session = null;
+            state.ReconnectTimedOut = true;
+            state.LastDownReportUtc = null;
+        }
+
+        if (shouldReport)
+        {
+            Logger.Write(
+                LogType.WARNING,
+                $"Non-critical internal server '{state.Name}' has been unavailable for {reconnectTimeout.TotalSeconds:0.##} second(s). Stopping reconnect monitoring and waiting for the service to register again.",
+                nameof(ProxyDependencyMonitor));
         }
     }
 
@@ -619,6 +679,18 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         public DateTimeOffset? LastDownReportUtc { get; set; }
 
         /**
+          * Gets or stores the disconnected timestamp for a server that has gone offline.
+          * The monitor uses this value to decide when to stop active reconnect reporting and return to passive wait mode.
+          */
+        public DateTimeOffset? DisconnectedUtc { get; set; }
+
+        /**
+          * Gets or stores whether reconnect monitoring has timed out for this dependency.
+          * Once set, the dependency is silent until it registers again through the normal internal listener.
+          */
+        public bool ReconnectTimedOut { get; set; }
+
+        /**
           * Gets or stores the is connected value used by ServerState.
           * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
           */
@@ -649,9 +721,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
                     IsCritical,
                     Session,
                     LastPacketReceivedUtc,
+                    DisconnectedUtc,
                     IsConnected,
                     ShutdownTriggered,
-                    HasEverConnected);
+                    HasEverConnected,
+                    ReconnectTimedOut);
             }
         }
     }
@@ -665,7 +739,9 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         bool IsCritical,
         InternalServerSession? Session,
         DateTimeOffset LastPacketReceivedUtc,
+        DateTimeOffset? DisconnectedUtc,
         bool IsConnected,
         bool ShutdownTriggered,
-        bool HasEverConnected);
+        bool HasEverConnected,
+        bool ReconnectTimedOut);
 }

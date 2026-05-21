@@ -62,6 +62,12 @@ public sealed class ProxyDependencySettings
     public TimeSpan NonCriticalReconnectReportInterval { get; init; } = TimeSpan.FromSeconds(30);
 
     /**
+      * Gets or stores the maximum window where ProxyServer keeps reporting that a non-critical service is down.
+      * Once this timeout expires, ProxyServer resets the dependency to passive wait mode and stops repeated reconnect warnings.
+      */
+    public TimeSpan NonCriticalReconnectTimeout { get; init; } = TimeSpan.FromSeconds(120);
+
+    /**
       * Validates input and throws a clear exception before invalid state reaches runtime code.
       * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
       */
@@ -80,6 +86,11 @@ public sealed class ProxyDependencySettings
         if (NonCriticalReconnectReportInterval <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Proxy non-critical reconnect report interval must be greater than zero.");
+        }
+
+        if (NonCriticalReconnectTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Proxy non-critical reconnect timeout must be greater than zero.");
         }
 
         foreach (string serverName in CriticalServers)

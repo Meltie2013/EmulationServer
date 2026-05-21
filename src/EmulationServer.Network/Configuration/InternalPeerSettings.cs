@@ -56,9 +56,15 @@ public sealed class InternalPeerSettings
 
     /**
       * Gets or stores the reconnect delay value used by InternalPeerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * This delay controls how long the connector waits between reconnect attempts while the peer is unavailable.
       */
     public TimeSpan ReconnectDelay { get; init; } = TimeSpan.FromSeconds(5);
+
+    /**
+      * Gets or stores the reconnect timeout value used by InternalPeerSettings.
+      * Once a peer has been seen at least once, the connector will only attempt to reconnect for this window before returning to passive wait mode.
+      */
+    public TimeSpan ReconnectTimeout { get; init; } = TimeSpan.FromSeconds(120);
 
     /**
       * Validates input and throws a clear exception before invalid state reaches runtime code.
@@ -84,6 +90,16 @@ public sealed class InternalPeerSettings
         if (ReconnectDelay <= TimeSpan.Zero)
         {
             throw new InvalidOperationException($"Internal peer '{Name}' reconnect delay must be greater than zero.");
+        }
+
+        if (ReconnectTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException($"Internal peer '{Name}' reconnect timeout must be greater than zero.");
+        }
+
+        if (ReconnectTimeout < ReconnectDelay)
+        {
+            throw new InvalidOperationException($"Internal peer '{Name}' reconnect timeout must be greater than or equal to the reconnect delay.");
         }
     }
 }

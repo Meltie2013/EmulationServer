@@ -22,6 +22,8 @@
   * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
   */
 
+using EmulationServer.Game.Data.Dbc.Maps;
+
 namespace EmulationServer.WorldServer.Configuration;
 
 /**
@@ -60,8 +62,8 @@ public sealed class GameDataSettings
       */
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
-        "AreaTable.dbc",
-        "AreaTrigger.dbc",
+        MapDbcFileNames.AreaTable,
+        MapDbcFileNames.AreaTrigger,
         "AuctionHouse.dbc",
         "BankBagSlotPrices.dbc",
         "CharStartOutfit.dbc",
@@ -81,7 +83,7 @@ public sealed class GameDataSettings
         "ItemSet.dbc",
         "Lock.dbc",
         "MailTemplate.dbc",
-        "Map.dbc",
+        MapDbcFileNames.Map,
         "QuestSort.dbc",
         "SkillLine.dbc",
         "SkillLineAbility.dbc",
@@ -102,7 +104,9 @@ public sealed class GameDataSettings
         "TaxiPath.dbc",
         "TaxiPathNode.dbc",
         "WMOAreaTable.dbc",
-        "WorldMapArea.dbc",
+        MapDbcFileNames.WorldMapArea,
+        MapDbcFileNames.WorldMapContinent,
+        MapDbcFileNames.WorldMapOverlay,
         "WorldSafeLocs.dbc",
     ];
 

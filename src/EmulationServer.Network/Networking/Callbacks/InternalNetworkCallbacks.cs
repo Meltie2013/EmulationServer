@@ -51,6 +51,8 @@ public sealed class InternalNetworkCallbacks
 
     public Func<InternalPeerConnection, string, CancellationToken, Task>? PeerDisconnectedAsync { get; init; }
 
+    public Func<string, TimeSpan, CancellationToken, Task>? PeerReconnectTimedOutAsync { get; init; }
+
     public Func<string, string, CancellationToken, Task>? ShutdownRequestedAsync { get; init; }
 
     /**
@@ -131,6 +133,19 @@ public sealed class InternalNetworkCallbacks
         CancellationToken cancellationToken)
     {
         return PeerDisconnectedAsync?.Invoke(connection, remoteServerName, cancellationToken) ?? Task.CompletedTask;
+    }
+
+    /**
+      * Performs the notify peer reconnect timed out async operation for InternalNetworkCallbacks.
+      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
+      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      */
+    public Task NotifyPeerReconnectTimedOutAsync(
+        string remoteServerName,
+        TimeSpan reconnectTimeout,
+        CancellationToken cancellationToken)
+    {
+        return PeerReconnectTimedOutAsync?.Invoke(remoteServerName, reconnectTimeout, cancellationToken) ?? Task.CompletedTask;
     }
 
     /**

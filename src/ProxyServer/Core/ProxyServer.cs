@@ -65,11 +65,14 @@ public sealed class ProxyServer : IAsyncDisposable
       */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _dependencyMonitor.StartAsync(cancellationToken);
+        Task hostTask = _host.StartAsync(cancellationToken);
 
         try
         {
-            await _host.StartAsync(cancellationToken);
+            await _host.StartupCompleted.WaitAsync(cancellationToken);
+            await _dependencyMonitor.StartAsync(cancellationToken);
+
+            await hostTask;
         }
         finally
         {

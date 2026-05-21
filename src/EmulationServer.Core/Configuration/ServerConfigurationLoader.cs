@@ -234,6 +234,9 @@ public static class ServerConfigurationLoader
         string reconnectDelay = configuration.GetString(sectionName, "PeerReconnectDelay", "5s");
         TimeSpan defaultReconnectDelay = ParseDurationOrThrow(sectionName, "PeerReconnectDelay", reconnectDelay);
 
+        string reconnectTimeout = configuration.GetString(sectionName, "PeerReconnectTimeout", "120s");
+        TimeSpan defaultReconnectTimeout = ParseDurationOrThrow(sectionName, "PeerReconnectTimeout", reconnectTimeout);
+
         if (string.IsNullOrWhiteSpace(peers))
         {
             return [];
@@ -244,7 +247,7 @@ public static class ServerConfigurationLoader
         string[] entries = peers.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         foreach (string entry in entries)
         {
-            settings.Add(ParsePeer(entry, defaultReconnectDelay));
+            settings.Add(ParsePeer(entry, defaultReconnectDelay, defaultReconnectTimeout));
         }
 
         return settings;
@@ -254,7 +257,7 @@ public static class ServerConfigurationLoader
       * Parses text input into a strongly typed value used by the server runtime.
       * The method is part of ServerConfigurationLoader and keeps this workflow isolated from the caller.
       */
-    private static InternalPeerSettings ParsePeer(string entry, TimeSpan reconnectDelay)
+    private static InternalPeerSettings ParsePeer(string entry, TimeSpan reconnectDelay, TimeSpan reconnectTimeout)
     {
         int nameSeparator = entry.IndexOf('@');
         if (nameSeparator <= 0 || nameSeparator == entry.Length - 1)
@@ -285,6 +288,7 @@ public static class ServerConfigurationLoader
             Host = host,
             Port = port,
             ReconnectDelay = reconnectDelay,
+            ReconnectTimeout = reconnectTimeout,
         };
     }
 

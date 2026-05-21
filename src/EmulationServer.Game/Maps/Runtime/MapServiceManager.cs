@@ -18,6 +18,7 @@
 
 using EmulationServer.Game.Data;
 using EmulationServer.Game.Data.Dbc;
+using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
@@ -31,52 +32,24 @@ namespace EmulationServer.Game.Maps.Runtime;
 
 /**
   * Coordinates all map and instance services hosted by a server process and routes control commands to the correct service.
-  * It coordinates a collection of related runtime objects and keeps ownership rules in one place.
+  * It also owns typed map DBC metadata so registered services can be validated and described from Map.dbc and related area files.
   */
 public sealed class MapServiceManager : IAsyncDisposable
 {
-    /**
-      * Stores the owner server name dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private readonly string _ownerServerName;
-    /**
-      * Stores the settings dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private readonly MapRuntimeSettings _settings;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
-    /**
-      * Stores the services dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private readonly List<MapService> _services = [];
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
+    private readonly MapDbcDataStore _mapData;
 
-    /**
-      * Stores the stop cancellation dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Stores the report task dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private Task? _reportTask;
-    /**
-      * Stores the started dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private int _started;
-    /**
-      * Stores the stopping dependency or runtime value for MapServiceManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
     private int _stopping;
 
     /**
-      * Creates a new MapServiceManager instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
+      * Creates the service manager, loads configured DBC data, creates typed map metadata, and registers configured map services.
       */
     public MapServiceManager(
         string ownerServerName,
@@ -98,6 +71,7 @@ public sealed class MapServiceManager : IAsyncDisposable
         if (!settings.Enabled)
         {
             _dbcStores = new Dictionary<string, DbcDataStore>(StringComparer.OrdinalIgnoreCase);
+            _mapData = MapDbcDataStore.Empty;
             return;
         }
 
@@ -108,12 +82,18 @@ public sealed class MapServiceManager : IAsyncDisposable
                 ownerServerName)
             : new Dictionary<string, DbcDataStore>(StringComparer.OrdinalIgnoreCase);
 
+        _mapData = settings.LoadDbcStores
+            ? MapDbcDataStore.FromDbcStores(_dbcStores, ownerServerName)
+            : MapDbcDataStore.Empty;
+
         string? mapsDirectory = settings.LoadMapTiles
             ? GameDataPathResolver.ResolveDirectory(settings.DataDirectory, settings.MapsDirectory)
             : null;
 
-        foreach (MapServiceDefinition definition in settings.Services)
+        foreach (MapServiceDefinition configuredDefinition in settings.Services)
         {
+            MapServiceDefinition definition = ApplyMapDbcMetadata(configuredDefinition);
+
             MapGridManager? gridManager = settings.LoadMapTiles
                 ? new MapGridManager(
                     definition,
@@ -128,16 +108,22 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Gets or stores the services value used by MapServiceManager.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets all map or instance services registered with this manager.
       */
     public IReadOnlyList<MapService> Services => _services;
 
+    /**
+      * Gets the raw DBC stores loaded by this server for systems that still need generic DBC access.
+      */
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
     /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
+      * Gets typed map, area, trigger, continent, and overlay DBC data for the hosted services.
+      */
+    public MapDbcDataStore MapData => _mapData;
+
+    /**
+      * Returns snapshots for every registered map service.
       */
     public IReadOnlyList<MapServiceSnapshot> GetSnapshots()
     {
@@ -147,8 +133,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
+      * Returns snapshots for every registered service matching the supplied map id.
       */
     public IReadOnlyList<MapServiceSnapshot> GetSnapshots(int mapId)
     {
@@ -159,10 +144,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      * Starts every registered service and begins the periodic status report loop.
       */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -190,10 +172,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      * Stops the status report loop and all registered map services.
       */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
@@ -239,9 +218,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Executes the requested command after parsing and validation are complete.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * Executes a start, shutdown, restart, or info command for every service matching the requested map id.
       */
     public async Task<IReadOnlyList<MapServiceControlResult>> ExecuteControlCommandAsync(
         MapServiceControlAction action,
@@ -278,7 +255,7 @@ public sealed class MapServiceManager : IAsyncDisposable
                 0,
                 MapServiceControlResultCode.NotFound,
                 MapServiceState.Offline,
-                $"{_ownerServerName} has no configured map service for MapId={mapId}.")];
+                $"{_ownerServerName} has no configured map service for MapId={mapId}. {_mapData.DescribeMap(mapId)}")];
         }
 
         List<MapServiceControlResult> results = [];
@@ -291,9 +268,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Releases owned resources and ensures background work is stopped safely.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * Stops owned background work and releases the service manager.
       */
     public async ValueTask DisposeAsync()
     {
@@ -301,9 +276,29 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Executes the requested command after parsing and validation are complete.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * Sends one status report for every registered service immediately.
+      */
+    public async Task ReportAllServicesAsync(CancellationToken cancellationToken)
+    {
+        foreach (MapService service in _services)
+        {
+            await _reportStatusAsync(service.GetSnapshot(), cancellationToken);
+        }
+    }
+
+    /**
+      * Sends one status report for every registered service matching a map id immediately.
+      */
+    public async Task ReportServicesAsync(int mapId, CancellationToken cancellationToken)
+    {
+        foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
+        {
+            await _reportStatusAsync(service.GetSnapshot(), cancellationToken);
+        }
+    }
+
+    /**
+      * Executes a map control command against a single service and converts the result to a protocol-safe response.
       */
     private async Task<MapServiceControlResult> ExecuteControlCommandAsync(
         MapService service,
@@ -319,21 +314,21 @@ public sealed class MapServiceManager : IAsyncDisposable
                     return MapServiceControlResult.FromSnapshot(
                         service.GetSnapshot(),
                         MapServiceControlResultCode.Success,
-                        $"Started map service '{service.Definition.Name}'.");
+                        $"Started map service '{service.Definition.Name}'. {_mapData.DescribeMap(service.Definition.MapId)}");
 
                 case MapServiceControlAction.Shutdown:
                     await service.ShutdownAsync(cancellationToken);
                     return MapServiceControlResult.FromSnapshot(
                         service.GetSnapshot(),
                         MapServiceControlResultCode.Success,
-                        $"Shutdown map service '{service.Definition.Name}'.");
+                        $"Shutdown map service '{service.Definition.Name}'. {_mapData.DescribeMap(service.Definition.MapId)}");
 
                 case MapServiceControlAction.Restart:
                     await service.RestartAsync(GetServiceLifetimeToken(cancellationToken));
                     return MapServiceControlResult.FromSnapshot(
                         service.GetSnapshot(),
                         MapServiceControlResultCode.Success,
-                        $"Restarted map service '{service.Definition.Name}'.");
+                        $"Restarted map service '{service.Definition.Name}'. {_mapData.DescribeMap(service.Definition.MapId)}");
 
                 case MapServiceControlAction.Info:
                     MapServiceSnapshot snapshot = service.GetSnapshot();
@@ -362,9 +357,47 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      * Uses typed Map.dbc data to validate configured service ids, improve service names, and log area/trigger counts.
+      */
+    private MapServiceDefinition ApplyMapDbcMetadata(MapServiceDefinition definition)
+    {
+        definition.Validate();
+
+        if (!_mapData.TryGetMap(definition.MapId, out MapDbcRecord map))
+        {
+            Logger.Write(LogType.WARNING, $"{_ownerServerName} configured map service '{definition.Name}' for MapId={definition.MapId}, but that id was not found in Map.dbc.", nameof(MapServiceManager));
+            return definition;
+        }
+
+        MapServiceKind expectedKind = map.IsWorldMap ? MapServiceKind.World : MapServiceKind.Instance;
+        if (definition.Kind != expectedKind)
+        {
+            Logger.Write(LogType.WARNING, $"{_ownerServerName} configured MapId={definition.MapId} as {definition.Kind}, but Map.dbc identifies '{map.DisplayName}' as {map.Type}.", nameof(MapServiceManager));
+        }
+
+        string configuredDefaultName = definition.Kind == MapServiceKind.Instance
+            ? $"Instance Map {definition.MapId}"
+            : $"Map {definition.MapId}";
+
+        string serviceName = string.Equals(definition.Name, configuredDefaultName, StringComparison.OrdinalIgnoreCase)
+            ? map.DisplayName
+            : definition.Name;
+
+        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} registered {definition.Kind} service: {_mapData.DescribeMap(definition.MapId)}.", nameof(MapServiceManager));
+
+        return new MapServiceDefinition
+        {
+            MapId = definition.MapId,
+            InstanceId = definition.InstanceId,
+            Name = serviceName,
+            Kind = definition.Kind,
+            TickInterval = definition.TickInterval,
+            LogTicks = definition.LogTicks,
+        };
+    }
+
+    /**
+      * Returns the token that should control long-running service work created after manager startup.
       */
     private CancellationToken GetServiceLifetimeToken(CancellationToken fallbackToken)
     {
@@ -372,10 +405,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      * Runs the periodic status report loop until the server shuts down.
       */
     private async Task RunStatusReportLoopAsync(CancellationToken cancellationToken)
     {
@@ -398,36 +428,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Performs the report all services async operation for MapServiceManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
-    public async Task ReportAllServicesAsync(CancellationToken cancellationToken)
-    {
-        foreach (MapService service in _services)
-        {
-            await _reportStatusAsync(service.GetSnapshot(), cancellationToken);
-        }
-    }
-
-    /**
-      * Performs the report services async operation for MapServiceManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
-    public async Task ReportServicesAsync(int mapId, CancellationToken cancellationToken)
-    {
-        foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
-        {
-            await _reportStatusAsync(service.GetSnapshot(), cancellationToken);
-        }
-    }
-
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
+      * Returns the best default service kind for a command result when no actual service was found.
       */
     private MapServiceKind GetDefaultServiceKind()
     {
@@ -443,11 +444,10 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Formats runtime values into a stable human-readable message for logging or diagnostics.
-      * The method is part of MapServiceManager and keeps this workflow isolated from the caller.
+      * Formats one map info response with both runtime status and DBC-backed map metadata.
       */
-    private static string FormatInfoMessage(MapServiceSnapshot snapshot)
+    private string FormatInfoMessage(MapServiceSnapshot snapshot)
     {
-        return $"{snapshot.OwnerServerName} {snapshot.Kind} map service '{snapshot.Name}' is {snapshot.State}: map={snapshot.MapId}, instance={snapshot.InstanceId}, tick={snapshot.Tick}, players={snapshot.ActivePlayers}, grids={snapshot.ActiveGrids}, load={snapshot.LoadPercent:0.##}%, avgTick={snapshot.AverageTickMilliseconds:0.###} ms.";
+        return $"{snapshot.OwnerServerName} {snapshot.Kind} map service '{snapshot.Name}' is {snapshot.State}: map={snapshot.MapId}, instance={snapshot.InstanceId}, tick={snapshot.Tick}, players={snapshot.ActivePlayers}, grids={snapshot.ActiveGrids}, load={snapshot.LoadPercent:0.##}%, avgTick={snapshot.AverageTickMilliseconds:0.###} ms. {_mapData.DescribeMap(snapshot.MapId)}";
     }
 }

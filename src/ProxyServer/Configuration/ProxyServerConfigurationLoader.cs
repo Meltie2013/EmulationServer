@@ -90,6 +90,14 @@ public static class ProxyServerConfigurationLoader
                 ProxyServerSection,
                 "NonCriticalReconnectReportInterval",
                 TimeSpan.FromSeconds(30)),
+
+            NonCriticalReconnectTimeout = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "NonCriticalReconnectTimeout",
+                configuration.GetTimeSpan(
+                    ProxyServerSection,
+                    "PeerReconnectTimeout",
+                    TimeSpan.FromSeconds(120))),
         };
     }
 

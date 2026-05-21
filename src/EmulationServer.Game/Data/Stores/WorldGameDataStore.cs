@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Game.Data.Dbc;
+using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
@@ -35,23 +36,30 @@ namespace EmulationServer.Game.Data.Stores;
 public sealed class WorldGameDataStore
 {
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
+    private readonly MapDbcDataStore _mapData;
 
     /**
       * Creates a new WorldGameDataStore instance and stores the dependencies required by the component.
       * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
       */
-    private WorldGameDataStore(Dictionary<string, DbcDataStore> dbcStores)
+    private WorldGameDataStore(Dictionary<string, DbcDataStore> dbcStores, MapDbcDataStore mapData)
     {
         _dbcStores = dbcStores;
+        _mapData = mapData;
     }
 
     /**
       * Gets or stores the empty value used by WorldGameDataStore.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
-    public static WorldGameDataStore Empty { get; } = new([]);
+    public static WorldGameDataStore Empty { get; } = new([], MapDbcDataStore.Empty);
 
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
+
+    /**
+      * Gets typed map, area, trigger, continent, and overlay DBC data for character routing and map-service decisions.
+      */
+    public MapDbcDataStore MapData => _mapData;
 
     /**
       * Attempts the operation without treating a normal failure as an exceptional condition.
@@ -80,8 +88,10 @@ public sealed class WorldGameDataStore
             requiredDbcFiles,
             nameof(WorldGameDataStore));
 
+        MapDbcDataStore mapData = MapDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+
         Logger.Write(LogType.SUCCESS, $"World game data loaded: {dbcStores.Count} DBC file(s). Map tiles are owned by MapServer and InstanceServer.", nameof(WorldGameDataStore));
 
-        return new WorldGameDataStore(dbcStores);
+        return new WorldGameDataStore(dbcStores, mapData);
     }
 }

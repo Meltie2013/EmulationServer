@@ -52,7 +52,8 @@ public sealed class InstanceServer : IAsyncDisposable
       * Stores the instance services dependency or runtime value for InstanceServer.
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
-    private readonly MapServiceManager _instanceServices;
+    private readonly InstanceServerSettings _settings;
+    private MapServiceManager? _instanceServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     /**
@@ -70,11 +71,7 @@ public sealed class InstanceServer : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
-        _instanceServices = new MapServiceManager(
-            nameof(InstanceServer),
-            settings.InstanceServices,
-            ReportInstanceServiceStatusAsync);
-
+        _settings = settings;
         _host = new EmulationServerHost(nameof(InstanceServer), settings.InternalNetwork, CreateCallbacks());
     }
 
@@ -86,15 +83,24 @@ public sealed class InstanceServer : IAsyncDisposable
       */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _instanceServices.StartAsync(cancellationToken);
+        Task hostTask = _host.StartAsync(cancellationToken);
 
         try
         {
-            await _host.StartAsync(cancellationToken);
+            await _host.StartupCompleted.WaitAsync(cancellationToken);
+
+            MapServiceManager serviceManager = CreateInstanceServiceManager();
+            _instanceServices = serviceManager;
+            await serviceManager.StartAsync(cancellationToken);
+
+            await hostTask;
         }
         finally
         {
-            await _instanceServices.StopAsync(CancellationToken.None);
+            if (_instanceServices is not null)
+            {
+                await _instanceServices.StopAsync(CancellationToken.None);
+            }
         }
     }
 
@@ -106,7 +112,11 @@ public sealed class InstanceServer : IAsyncDisposable
       */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        await _instanceServices.StopAsync(cancellationToken);
+        if (_instanceServices is not null)
+        {
+            await _instanceServices.StopAsync(cancellationToken);
+        }
+
         await _host.StopAsync(cancellationToken);
     }
 
@@ -118,8 +128,26 @@ public sealed class InstanceServer : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
-        await _instanceServices.DisposeAsync();
+
+        if (_instanceServices is not null)
+        {
+            await _instanceServices.DisposeAsync();
+        }
+
         await _host.DisposeAsync();
+    }
+
+
+    /**
+      * Creates the instance service manager after the host has finished startup validation.
+      * Delaying construction keeps DBC loading, instance registration, and service startup after the server has validated and announced startup.
+      */
+    private MapServiceManager CreateInstanceServiceManager()
+    {
+        return new MapServiceManager(
+            nameof(InstanceServer),
+            _settings.InstanceServices,
+            ReportInstanceServiceStatusAsync);
     }
 
     /**
@@ -152,7 +180,7 @@ public sealed class InstanceServer : IAsyncDisposable
         _serverSessions[remoteServerName] = session;
 
         Logger.Write(LogType.NETWORK, $"InstanceServer registered incoming instance-service control/status session '{remoteServerName}'.", nameof(InstanceServer));
-        await _instanceServices.ReportAllServicesAsync(cancellationToken);
+        await SendInstanceServiceStatusesToSessionAsync(session, cancellationToken);
     }
 
     /**
@@ -184,7 +212,7 @@ public sealed class InstanceServer : IAsyncDisposable
         _peerConnections[remoteServerName] = connection;
 
         Logger.Write(LogType.NETWORK, $"InstanceServer registered outgoing instance-service status peer '{remoteServerName}'.", nameof(InstanceServer));
-        await _instanceServices.ReportAllServicesAsync(cancellationToken);
+        await SendInstanceServiceStatusesToPeerAsync(connection, cancellationToken);
     }
 
     /**
@@ -304,7 +332,24 @@ public sealed class InstanceServer : IAsyncDisposable
 
         Logger.Write(LogType.NETWORK, $"InstanceServer received map {command.Action} command for MapId={command.MapId} from {remoteServerName}.", nameof(InstanceServer));
 
-        IReadOnlyList<MapServiceControlResult> results = await _instanceServices.ExecuteControlCommandAsync(
+        MapServiceManager? instanceServices = _instanceServices;
+        if (instanceServices is null)
+        {
+            InternalMapServiceCommandResultPacket unavailableResult = new(
+                command.CommandId,
+                nameof(InstanceServer),
+                MapServiceKind.Instance.ToString(),
+                command.MapId,
+                0,
+                MapServiceControlResultCode.Failed.ToString(),
+                MapServiceState.Offline.ToString(),
+                "InstanceServer instance service manager is not started yet.");
+
+            await sendResponseAsync(unavailableResult.ToPacketLine());
+            return;
+        }
+
+        IReadOnlyList<MapServiceControlResult> results = await instanceServices.ExecuteControlCommandAsync(
             action,
             command.MapId,
             cancellationToken);
@@ -324,17 +369,149 @@ public sealed class InstanceServer : IAsyncDisposable
             await sendResponseAsync(response.ToPacketLine());
         }
 
-        await _instanceServices.ReportServicesAsync(command.MapId, cancellationToken);
+        await instanceServices.ReportServicesAsync(command.MapId, cancellationToken);
     }
 
     /**
-      * Performs the report instance service status async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
+      * Broadcasts one instance service status snapshot to all currently connected status peers.
+      * Startup and peer-authentication paths use targeted helpers so a newly connected peer does not cause every existing peer to receive a duplicate startup snapshot.
       */
     private async Task ReportInstanceServiceStatusAsync(
         MapServiceSnapshot snapshot,
         CancellationToken cancellationToken)
+    {
+        InternalPeerConnection[] peers = _peerConnections.Values.ToArray();
+        InternalServerSession[] sessions = _serverSessions.Values.ToArray();
+        if (peers.Length == 0 && sessions.Length == 0)
+        {
+            return;
+        }
+
+        int sentCount = 0;
+        foreach (InternalPeerConnection peer in peers)
+        {
+            if (await SendInstanceServiceStatusToPeerAsync(snapshot, peer, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        foreach (InternalServerSession session in sessions)
+        {
+            if (await SendInstanceServiceStatusToSessionAsync(snapshot, session, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0)
+        {
+            Logger.Write(LogType.TRACE, $"InstanceServer published instance service '{snapshot.Name}' status to {sentCount} status peer(s): state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(InstanceServer));
+        }
+    }
+
+    /**
+      * Sends all current instance service snapshots to one newly authenticated outgoing peer.
+      * This avoids the duplicate reporting that happened when the authentication callback rebroadcast every service to every existing peer.
+      */
+    private async Task SendInstanceServiceStatusesToPeerAsync(
+        InternalPeerConnection connection,
+        CancellationToken cancellationToken)
+    {
+        MapServiceManager? instanceServices = _instanceServices;
+        if (instanceServices is null)
+        {
+            return;
+        }
+
+        int sentCount = 0;
+        foreach (MapServiceSnapshot snapshot in instanceServices.GetSnapshots())
+        {
+            if (await SendInstanceServiceStatusToPeerAsync(snapshot, connection, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0)
+        {
+            Logger.Write(LogType.TRACE, $"InstanceServer sent {sentCount} initial instance service status snapshot(s) to {connection.RemoteServerName}.", nameof(InstanceServer));
+        }
+    }
+
+    /**
+      * Sends all current instance service snapshots to one newly authenticated incoming session.
+      * This keeps status synchronization targeted to the new connection instead of rebroadcasting to all peers.
+      */
+    private async Task SendInstanceServiceStatusesToSessionAsync(
+        InternalServerSession session,
+        CancellationToken cancellationToken)
+    {
+        MapServiceManager? instanceServices = _instanceServices;
+        if (instanceServices is null)
+        {
+            return;
+        }
+
+        int sentCount = 0;
+        foreach (MapServiceSnapshot snapshot in instanceServices.GetSnapshots())
+        {
+            if (await SendInstanceServiceStatusToSessionAsync(snapshot, session, cancellationToken))
+            {
+                sentCount++;
+            }
+        }
+
+        if (sentCount > 0)
+        {
+            Logger.Write(LogType.TRACE, $"InstanceServer sent {sentCount} initial instance service status snapshot(s) to {session.RemoteServerName}.", nameof(InstanceServer));
+        }
+    }
+
+    /**
+      * Sends a single instance service status snapshot to one outgoing internal peer connection.
+      */
+    private static async Task<bool> SendInstanceServiceStatusToPeerAsync(
+        MapServiceSnapshot snapshot,
+        InternalPeerConnection peer,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await peer.SendPacketAsync(CreateInstanceServiceStatusPacket(snapshot), cancellationToken);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {peer.RemoteServerName}: {exception.Message}", nameof(InstanceServer));
+            return false;
+        }
+    }
+
+    /**
+      * Sends a single instance service status snapshot to one incoming internal server session.
+      */
+    private static async Task<bool> SendInstanceServiceStatusToSessionAsync(
+        MapServiceSnapshot snapshot,
+        InternalServerSession session,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await session.SendPacketAsync(CreateInstanceServiceStatusPacket(snapshot), cancellationToken);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {session.RemoteServerName}: {exception.Message}", nameof(InstanceServer));
+            return false;
+        }
+    }
+
+    /**
+      * Converts a runtime instance service snapshot into the shared internal protocol line used by WorldServer and ProxyServer.
+      */
+    private static string CreateInstanceServiceStatusPacket(MapServiceSnapshot snapshot)
     {
         InternalMapServiceStatusPacket status = new(
             snapshot.OwnerServerName,
@@ -349,41 +526,7 @@ public sealed class InstanceServer : IAsyncDisposable
             snapshot.AverageTickMilliseconds,
             snapshot.LoadPercent);
 
-        string packet = status.ToPacketLine();
-
-        InternalPeerConnection[] peers = _peerConnections.Values.ToArray();
-        InternalServerSession[] sessions = _serverSessions.Values.ToArray();
-        if (peers.Length == 0 && sessions.Length == 0)
-        {
-            Logger.Write(LogType.TRACE, $"InstanceServer has no connected status peers for instance service '{snapshot.Name}' (MapId={snapshot.MapId}, InstanceId={snapshot.InstanceId}).", nameof(InstanceServer));
-            return;
-        }
-
-        foreach (InternalPeerConnection peer in peers)
-        {
-            try
-            {
-                await peer.SendPacketAsync(packet, cancellationToken);
-                Logger.Write(LogType.TRACE, $"InstanceServer reported instance service '{snapshot.Name}' to {peer.RemoteServerName}: state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(InstanceServer));
-            }
-            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
-            {
-                Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {peer.RemoteServerName}: {exception.Message}", nameof(InstanceServer));
-            }
-        }
-
-        foreach (InternalServerSession session in sessions)
-        {
-            try
-            {
-                await session.SendPacketAsync(packet, cancellationToken);
-                Logger.Write(LogType.TRACE, $"InstanceServer reported instance service '{snapshot.Name}' to {session.RemoteServerName}: state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(InstanceServer));
-            }
-            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
-            {
-                Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {session.RemoteServerName}: {exception.Message}", nameof(InstanceServer));
-            }
-        }
+        return status.ToPacketLine();
     }
 
     /**

@@ -240,6 +240,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     {
         bool everAuthenticated = false;
         bool loggedInitialWait = false;
+        DateTimeOffset? reconnectWindowStartedUtc = null;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -247,20 +248,36 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
             try
             {
-                using TcpClient client = new();
-                client.NoDelay = true;
-                client.ReceiveBufferSize = 8192;
-                client.SendBufferSize = 8192;
-
                 if (everAuthenticated)
                 {
-                    Logger.Write(LogType.NETWORK, $"{_serverName} reconnecting to internal peer {peer.Name} at {peer.Host}:{peer.Port}...", nameof(InternalPeerConnector));
+                    reconnectWindowStartedUtc ??= DateTimeOffset.UtcNow;
+
+                    TimeSpan remainingReconnectWindow = GetRemainingReconnectWindow(
+                        peer,
+                        reconnectWindowStartedUtc.Value,
+                        DateTimeOffset.UtcNow);
+
+                    if (remainingReconnectWindow <= TimeSpan.Zero)
+                    {
+                        await StopReconnectAttemptsAsync(peer, cancellationToken);
+                        break;
+                    }
+
+                    Logger.Write(
+                        LogType.NETWORK,
+                        $"{_serverName} reconnecting to internal peer {peer.Name} at {peer.Host}:{peer.Port}. Reconnect window remaining: {remainingReconnectWindow.TotalSeconds:0.##} second(s).",
+                        nameof(InternalPeerConnector));
                 }
                 else if (!loggedInitialWait)
                 {
                     Logger.Write(LogType.NETWORK, $"{_serverName} waiting for internal peer {peer.Name} at {peer.Host}:{peer.Port} to become available...", nameof(InternalPeerConnector));
                     loggedInitialWait = true;
                 }
+
+                using TcpClient client = new();
+                client.NoDelay = true;
+                client.ReceiveBufferSize = 8192;
+                client.SendBufferSize = 8192;
 
                 await client.ConnectAsync(peer.Host, peer.Port, cancellationToken);
 
@@ -271,6 +288,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
                 connection = new InternalPeerConnection(_serverName, peer, stream, sendLock);
                 everAuthenticated = true;
+                reconnectWindowStartedUtc = null;
 
                 Logger.Write(LogType.NETWORK, $"{_serverName} authenticated with internal peer {peer.Name}.", nameof(InternalPeerConnector));
                 await _callbacks.NotifyPeerAuthenticatedAsync(connection, peer.Name, cancellationToken);
@@ -309,6 +327,37 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 }
             }
 
+            if (everAuthenticated)
+            {
+                reconnectWindowStartedUtc ??= DateTimeOffset.UtcNow;
+
+                TimeSpan remainingReconnectWindow = GetRemainingReconnectWindow(
+                    peer,
+                    reconnectWindowStartedUtc.Value,
+                    DateTimeOffset.UtcNow);
+
+                if (remainingReconnectWindow <= TimeSpan.Zero)
+                {
+                    await StopReconnectAttemptsAsync(peer, cancellationToken);
+                    break;
+                }
+
+                TimeSpan reconnectDelay = peer.ReconnectDelay <= remainingReconnectWindow
+                    ? peer.ReconnectDelay
+                    : remainingReconnectWindow;
+
+                try
+                {
+                    await Task.Delay(reconnectDelay, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                continue;
+            }
+
             try
             {
                 await Task.Delay(peer.ReconnectDelay, cancellationToken);
@@ -317,6 +366,42 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             {
                 break;
             }
+        }
+    }
+
+    /**
+      * Calculates the amount of time left before reconnect attempts must be stopped for a previously seen peer.
+      * Keeping this calculation in one place prevents each reconnect path from interpreting the timeout differently.
+      */
+    private static TimeSpan GetRemainingReconnectWindow(
+        InternalPeerSettings peer,
+        DateTimeOffset reconnectWindowStartedUtc,
+        DateTimeOffset nowUtc)
+    {
+        TimeSpan elapsed = nowUtc - reconnectWindowStartedUtc;
+        TimeSpan remaining = peer.ReconnectTimeout - elapsed;
+
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    /**
+      * Stops active reconnect attempts for a peer after its configured reconnect window expires.
+      * The listener remains online, so the remote service can still register inbound when it comes back.
+      */
+    private async Task StopReconnectAttemptsAsync(InternalPeerSettings peer, CancellationToken cancellationToken)
+    {
+        Logger.Write(
+            LogType.WARNING,
+            $"{_serverName} stopped reconnect attempts to internal peer {peer.Name} at {peer.Host}:{peer.Port} after {peer.ReconnectTimeout.TotalSeconds:0.##} second(s). Waiting for {peer.Name} to register again inbound.",
+            nameof(InternalPeerConnector));
+
+        try
+        {
+            await _callbacks.NotifyPeerReconnectTimedOutAsync(peer.Name, peer.ReconnectTimeout, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalPeerConnector));
         }
     }
 

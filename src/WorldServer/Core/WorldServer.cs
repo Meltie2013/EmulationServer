@@ -103,15 +103,14 @@ public sealed class WorldServer : IAsyncDisposable
       */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        LoadGameDataIfEnabled();
-        _commandService.Start(cancellationToken);
-
         Task hostTask = _host.StartAsync(cancellationToken);
 
         try
         {
             await _host.StartupCompleted.WaitAsync(cancellationToken);
 
+            LoadGameDataIfEnabled();
+            _commandService.Start(cancellationToken);
             await _realmStatusReporter.StartAsync(cancellationToken);
 
             await hostTask;
@@ -447,13 +446,14 @@ public sealed class WorldServer : IAsyncDisposable
             .ThenBy(status => status.InstanceId)
             .ToArray();
 
+        string dbcDescription = _gameData.MapData.DescribeMap(mapId);
         if (statuses.Length == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer has no cached map service status for MapId={mapId}. Sending live info request to connected map services...", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer has no cached map service status for MapId={mapId}. {dbcDescription} Sending live info request to connected map services...", nameof(WorldServer));
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"Cached map service info for MapId={mapId}:", nameof(WorldServer));
+        Logger.Write(LogType.TRACE, $"Cached map service info for MapId={mapId}: {dbcDescription}", nameof(WorldServer));
         foreach (InternalMapServiceStatusPacket status in statuses)
         {
             Logger.Write(
@@ -505,6 +505,6 @@ public sealed class WorldServer : IAsyncDisposable
             gameDataSettings.DbcDirectory,
             gameDataSettings.RequiredDbcFiles);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s).", nameof(WorldServer));
+        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), {_gameData.MapData.Maps.Count} map record(s), {_gameData.MapData.Areas.Count} area record(s), {_gameData.MapData.AreaTriggers.Count} area trigger record(s).", nameof(WorldServer));
     }
 }

@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Core.Configuration;
+using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
@@ -44,15 +45,17 @@ public static class MapServerConfigurationLoader
       */
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
-        "AreaTable.dbc",
-        "AreaTrigger.dbc",
+        MapDbcFileNames.AreaTable,
+        MapDbcFileNames.AreaTrigger,
         "Faction.dbc",
         "FactionTemplate.dbc",
         "GameObjectDisplayInfo.dbc",
         "LiquidType.dbc",
-        "Map.dbc",
+        MapDbcFileNames.Map,
         "WMOAreaTable.dbc",
-        "WorldMapArea.dbc",
+        MapDbcFileNames.WorldMapArea,
+        MapDbcFileNames.WorldMapContinent,
+        MapDbcFileNames.WorldMapOverlay,
         "WorldSafeLocs.dbc",
     ];
 
