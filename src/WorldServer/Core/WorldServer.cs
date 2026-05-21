@@ -103,13 +103,14 @@ public sealed class WorldServer : IAsyncDisposable
       */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        LoadGameDataIfEnabled();
+
         Task hostTask = _host.StartAsync(cancellationToken);
 
         try
         {
             await _host.StartupCompleted.WaitAsync(cancellationToken);
 
-            LoadGameDataIfEnabled();
             _commandService.Start(cancellationToken);
             await _realmStatusReporter.StartAsync(cancellationToken);
 
@@ -505,6 +506,6 @@ public sealed class WorldServer : IAsyncDisposable
             gameDataSettings.DbcDirectory,
             gameDataSettings.RequiredDbcFiles);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), {_gameData.MapData.Maps.Count} map record(s), {_gameData.MapData.Areas.Count} area record(s), {_gameData.MapData.AreaTriggers.Count} area trigger record(s).", nameof(WorldServer));
+        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}.", nameof(WorldServer));
     }
 }

@@ -22,7 +22,11 @@
   * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
   */
 
+using EmulationServer.Game.Data.Dbc.Characters;
+using EmulationServer.Game.Data.Dbc.Factions;
+using EmulationServer.Game.Data.Dbc.Items;
 using EmulationServer.Game.Data.Dbc.Maps;
+using EmulationServer.Game.Data.Dbc.Spells;
 
 namespace EmulationServer.WorldServer.Configuration;
 
@@ -62,40 +66,37 @@ public sealed class GameDataSettings
       */
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
-        MapDbcFileNames.AreaTable,
-        MapDbcFileNames.AreaTrigger,
+        // Map and area metadata used for routing, map-service summaries, and future world-entry validation.
+        ..MapDbcFileNames.CoreMapDbcFiles,
+
+        // Character screen and character creation validation.
+        ..CharacterDbcFileNames.CoreCharacterDbcFiles,
+
+        // Starter gear, item display, and future inventory validation.
+        ..ItemDbcFileNames.CoreItemDbcFiles,
+
+        // Skills, spells, ranges, durations, and icons used by starter character data.
+        ..SpellDbcFileNames.CoreSpellDbcFiles,
+
+        // Race/faction defaults and hostile/friendly faction templates.
+        ..FactionDbcFileNames.CoreFactionDbcFiles,
+
+        // Additional vanilla global DBCs that will be needed by character/account systems soon.
         "AuctionHouse.dbc",
         "BankBagSlotPrices.dbc",
-        "CharStartOutfit.dbc",
         "ChatChannels.dbc",
-        "ChrClasses.dbc",
-        "ChrRaces.dbc",
         "CinematicSequences.dbc",
         "DurabilityCosts.dbc",
         "DurabilityQuality.dbc",
         "Emotes.dbc",
         "EmotesText.dbc",
-        "Faction.dbc",
-        "FactionTemplate.dbc",
-        "ItemBagFamily.dbc",
-        "ItemClass.dbc",
-        "ItemRandomProperties.dbc",
-        "ItemSet.dbc",
         "Lock.dbc",
         "MailTemplate.dbc",
-        MapDbcFileNames.Map,
         "QuestSort.dbc",
-        "SkillLine.dbc",
-        "SkillLineAbility.dbc",
-        "SkillRaceClassInfo.dbc",
         "SoundEntries.dbc",
-        "Spell.dbc",
-        "SpellCastTimes.dbc",
-        "SpellDuration.dbc",
         "SpellFocusObject.dbc",
         "SpellItemEnchantment.dbc",
         "SpellRadius.dbc",
-        "SpellRange.dbc",
         "SpellShapeshiftForm.dbc",
         "StableSlotPrices.dbc",
         "Talent.dbc",
@@ -104,9 +105,6 @@ public sealed class GameDataSettings
         "TaxiPath.dbc",
         "TaxiPathNode.dbc",
         "WMOAreaTable.dbc",
-        MapDbcFileNames.WorldMapArea,
-        MapDbcFileNames.WorldMapContinent,
-        MapDbcFileNames.WorldMapOverlay,
         "WorldSafeLocs.dbc",
     ];
 

@@ -17,7 +17,11 @@
 //
 
 using EmulationServer.Game.Data.Dbc;
+using EmulationServer.Game.Data.Dbc.Characters;
+using EmulationServer.Game.Data.Dbc.Factions;
+using EmulationServer.Game.Data.Dbc.Items;
 using EmulationServer.Game.Data.Dbc.Maps;
+using EmulationServer.Game.Data.Dbc.Spells;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
@@ -37,22 +41,42 @@ public sealed class WorldGameDataStore
 {
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
     private readonly MapDbcDataStore _mapData;
+    private readonly CharacterDbcDataStore _characterData;
+    private readonly ItemDbcDataStore _itemData;
+    private readonly SpellDbcDataStore _spellData;
+    private readonly FactionDbcDataStore _factionData;
 
     /**
       * Creates a new WorldGameDataStore instance and stores the dependencies required by the component.
       * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
       */
-    private WorldGameDataStore(Dictionary<string, DbcDataStore> dbcStores, MapDbcDataStore mapData)
+    private WorldGameDataStore(
+        Dictionary<string, DbcDataStore> dbcStores,
+        MapDbcDataStore mapData,
+        CharacterDbcDataStore characterData,
+        ItemDbcDataStore itemData,
+        SpellDbcDataStore spellData,
+        FactionDbcDataStore factionData)
     {
         _dbcStores = dbcStores;
         _mapData = mapData;
+        _characterData = characterData;
+        _itemData = itemData;
+        _spellData = spellData;
+        _factionData = factionData;
     }
 
     /**
       * Gets or stores the empty value used by WorldGameDataStore.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
-    public static WorldGameDataStore Empty { get; } = new([], MapDbcDataStore.Empty);
+    public static WorldGameDataStore Empty { get; } = new(
+        [],
+        MapDbcDataStore.Empty,
+        CharacterDbcDataStore.Empty,
+        ItemDbcDataStore.Empty,
+        SpellDbcDataStore.Empty,
+        FactionDbcDataStore.Empty);
 
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
@@ -60,6 +84,26 @@ public sealed class WorldGameDataStore
       * Gets typed map, area, trigger, continent, and overlay DBC data for character routing and map-service decisions.
       */
     public MapDbcDataStore MapData => _mapData;
+
+    /**
+      * Gets typed race, class, customization, and starter outfit DBC data.
+      */
+    public CharacterDbcDataStore CharacterData => _characterData;
+
+    /**
+      * Gets typed item class, subclass, display, set, and bag-family DBC data.
+      */
+    public ItemDbcDataStore ItemData => _itemData;
+
+    /**
+      * Gets typed spell, skill, range, duration, icon, and cast-time DBC data.
+      */
+    public SpellDbcDataStore SpellData => _spellData;
+
+    /**
+      * Gets typed faction and faction-template DBC data.
+      */
+    public FactionDbcDataStore FactionData => _factionData;
 
     /**
       * Attempts the operation without treating a normal failure as an exceptional condition.
@@ -89,9 +133,13 @@ public sealed class WorldGameDataStore
             nameof(WorldGameDataStore));
 
         MapDbcDataStore mapData = MapDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+        CharacterDbcDataStore characterData = CharacterDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+        ItemDbcDataStore itemData = ItemDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+        SpellDbcDataStore spellData = SpellDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+        FactionDbcDataStore factionData = FactionDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
 
         Logger.Write(LogType.SUCCESS, $"World game data loaded: {dbcStores.Count} DBC file(s). Map tiles are owned by MapServer and InstanceServer.", nameof(WorldGameDataStore));
 
-        return new WorldGameDataStore(dbcStores, mapData);
+        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData);
     }
 }
