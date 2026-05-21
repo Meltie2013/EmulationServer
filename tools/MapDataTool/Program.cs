@@ -350,7 +350,7 @@ static void PrintUsage()
     Console.WriteLine("      Extracts raw ADT/WDT sources and converts ADT tiles into MaNGOS-style .map files.");
     Console.WriteLine();
     Console.WriteLine("  extract-vmaps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>] [--no-overwrite]");
-    Console.WriteLine("      Extracts raw WMO/M2/SKIN source files from the client MPQ archives.");
+    Console.WriteLine("      Extracts raw WMO and ADT placement sources, then converts WMO geometry into compact vmap model/tile files.");
     Console.WriteLine();
     Console.WriteLine("  extract-mmaps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>]");
     Console.WriteLine("      Creates the mmap output location and explains that native navmesh generation is not implemented yet.");

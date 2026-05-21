@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
+using EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 using EmulationServer.Tools.Extraction.Mpq;
 
 /**
@@ -133,17 +134,52 @@ public sealed class GameDataExtractor
     {
         options.Validate();
         WowMpqArchiveSet archives = WowMpqArchiveSet.Discover(options.ClientRootDirectory, options.Locale);
-        string outputDirectory = Path.Combine(options.OutputDirectory, "vmaps-raw");
+        string rawOutputDirectory = Path.Combine(options.OutputDirectory, "vmaps-raw");
+        string dbcOutputDirectory = Path.Combine(options.OutputDirectory, "dbc");
+        string vmapOutputDirectory = Path.Combine(options.OutputDirectory, "vmaps");
+
+        EnsureVmapConversionDbcFiles(archives, dbcOutputDirectory, options.Overwrite, options.ReportProgress);
 
         AssetCopyReport report = archives.ExtractKnownFiles(
             IsVmapSourceFile,
             static normalizedName => normalizedName,
-            outputDirectory,
+            rawOutputDirectory,
             options.Overwrite,
             options.ReportProgress);
 
-        AssetExtractionResult result = ToResult(AssetExtractionKind.Vmaps, report, outputDirectory, archives);
-        AddMessage(result, options.ReportProgress, "VMap source extraction completed. This extracts raw WMO/M2/SKIN source files. MaNGOS vmap assembly is not implemented yet in the C# tool.");
+        AssetExtractionResult result = ToResult(AssetExtractionKind.Vmaps, report, rawOutputDirectory, archives);
+        VmapConversionService conversionService = new();
+        VmapConversionResult conversion = conversionService.ConvertRawVmapDirectory(
+            rawOutputDirectory,
+            dbcOutputDirectory,
+            vmapOutputDirectory,
+            options.Build,
+            options.Overwrite,
+            options.ReportProgress);
+
+        for (int i = 0; i < conversion.ConvertedModelFiles + conversion.ConvertedPlacementFiles; i++)
+        {
+            result.AddExtractedFile();
+        }
+
+        for (int i = 0; i < conversion.SkippedModelFiles + conversion.SkippedPlacementFiles; i++)
+        {
+            result.AddSkippedFile();
+        }
+
+        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedModelFiles} WMO model file(s) and {conversion.ConvertedPlacementFiles} placement tile file(s) into Emulation Server compact vmap files.");
+        AddMessage(result, options.ReportProgress, $"Generated vmap output directory: {vmapOutputDirectory}");
+
+        if (conversion.FailedModelFiles > 0 || conversion.FailedPlacementFiles > 0)
+        {
+            AddMessage(result, options.ReportProgress, $"Failed to convert {conversion.FailedModelFiles} WMO model file(s) and {conversion.FailedPlacementFiles} placement tile file(s).");
+        }
+
+        foreach (string message in conversion.Messages)
+        {
+            result.AddMessage(message);
+        }
+
         return result;
     }
 
@@ -188,6 +224,29 @@ public sealed class GameDataExtractor
                 "DBFilesClient/Map.dbc",
                 "DBFilesClient/AreaTable.dbc",
                 "DBFilesClient/LiquidType.dbc",
+            ],
+            static normalizedName => Path.GetFileName(normalizedName),
+            dbcOutputDirectory,
+            overwrite: true,
+            progressMessage: progressMessage);
+    }
+
+    /**
+      * Ensures the DBC files needed by vmap placement conversion are available.
+      * Map.dbc is required to translate ADT directory names into map identifiers.
+      */
+    private static void EnsureVmapConversionDbcFiles(WowMpqArchiveSet archives, string dbcOutputDirectory, bool overwrite, Action<string>? progressMessage)
+    {
+        string mapDbcPath = Path.Combine(dbcOutputDirectory, "Map.dbc");
+
+        if (File.Exists(mapDbcPath))
+        {
+            return;
+        }
+
+        archives.ExtractKnownFileNames(
+            [
+                "DBFilesClient/Map.dbc",
             ],
             static normalizedName => Path.GetFileName(normalizedName),
             dbcOutputDirectory,
@@ -289,8 +348,12 @@ public sealed class GameDataExtractor
       */
     private static bool IsVmapSourceFile(string normalizedName)
     {
-        return normalizedName.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase) ||
-               normalizedName.EndsWith(".m2", StringComparison.OrdinalIgnoreCase) ||
-               normalizedName.EndsWith(".skin", StringComparison.OrdinalIgnoreCase);
+        if (normalizedName.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return normalizedName.StartsWith("World/Maps/", StringComparison.OrdinalIgnoreCase) &&
+               normalizedName.EndsWith(".adt", StringComparison.OrdinalIgnoreCase);
     }
 }
