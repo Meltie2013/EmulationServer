@@ -20,6 +20,7 @@ using System.Globalization;
 
 using EmulationServer.Database.Interfaces;
 using EmulationServer.WorldServer.Characters;
+using EmulationServer.WorldServer.Players;
 using EmulationServer.WorldServer.WorldData;
 
 using MySqlConnector;
@@ -263,6 +264,159 @@ public sealed class CharacterRepository
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }
+    }
+
+
+    public async Task<PlayerLoginRecord?> GetPlayerForLoginAsync(
+        uint accountId,
+        uint characterGuid,
+        Func<byte, PlayerFaction> factionResolver,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(factionResolver);
+
+        if (characterGuid == 0)
+        {
+            return null;
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            SELECT `guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `zone`, `map`,
+                   `position_x`, `position_y`, `position_z`, `orientation`, `money`, `playerBytes`,
+                   `playerBytes2`, `playerFlags`, `at_login`, `cinematic`, `totaltime`, `leveltime`,
+                   `health`, `power1`, `power2`, `power3`, `power4`, `power5`
+            FROM `characters`
+            WHERE `guid` = @guid
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        CharacterLoginRow? row = null;
+        await using (MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                row = new CharacterLoginRow(
+                    Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                    reader.GetString(2),
+                    Convert.ToByte(reader.GetValue(3), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(5), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(6), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(7), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(reader.GetValue(9), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(reader.GetValue(10), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(reader.GetValue(11), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(reader.GetValue(12), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(13), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(14), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(15), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(16), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(17), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(18), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(19), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(20), CultureInfo.InvariantCulture),
+                    new PlayerStats(
+                        Convert.ToUInt32(reader.GetValue(21), CultureInfo.InvariantCulture),
+                        Convert.ToUInt32(reader.GetValue(22), CultureInfo.InvariantCulture),
+                        Convert.ToUInt32(reader.GetValue(23), CultureInfo.InvariantCulture),
+                        Convert.ToUInt32(reader.GetValue(24), CultureInfo.InvariantCulture),
+                        Convert.ToUInt32(reader.GetValue(25), CultureInfo.InvariantCulture),
+                        Convert.ToUInt32(reader.GetValue(26), CultureInfo.InvariantCulture)));
+            }
+        }
+
+        if (row is null || row.AccountId != accountId)
+        {
+            return null;
+        }
+
+        IReadOnlyList<PlayerInventoryItem> inventory = await LoadPlayerInventoryAsync(connection, row.Guid, cancellationToken);
+
+        return new PlayerLoginRecord(
+            row.Guid,
+            row.AccountId,
+            row.Name,
+            row.Race,
+            row.Class,
+            row.Gender,
+            row.Level,
+            row.Zone,
+            row.Map,
+            row.PositionX,
+            row.PositionY,
+            row.PositionZ,
+            row.Orientation,
+            row.Money,
+            row.PlayerBytes,
+            row.PlayerBytes2,
+            row.PlayerFlags,
+            row.AtLogin,
+            row.Cinematic,
+            row.TotalTime,
+            row.LevelTime,
+            row.Stats,
+            inventory,
+            factionResolver(row.Race));
+    }
+
+    public async Task SetCharacterOnlineAsync(uint characterGuid, bool online, CancellationToken cancellationToken = default)
+    {
+        if (characterGuid == 0)
+        {
+            return;
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            UPDATE `characters`
+            SET `online` = @online,
+                `logout_time` = CASE WHEN @online = 0 THEN @logoutTime ELSE `logout_time` END
+            WHERE `guid` = @guid;
+            """;
+        command.Parameters.AddWithValue("@online", online ? 1 : 0);
+        command.Parameters.AddWithValue("@logoutTime", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<PlayerInventoryItem>> LoadPlayerInventoryAsync(
+        MySqlConnection connection,
+        uint characterGuid,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `ci`.`item`, `ci`.`guid`, `ci`.`item_template`, `ci`.`bag`, `ci`.`slot`, COALESCE(`ii`.`data`, '')
+            FROM `character_inventory` `ci`
+            LEFT JOIN `item_instance` `ii` ON `ii`.`guid` = `ci`.`item`
+            WHERE `ci`.`guid` = @guid
+            ORDER BY `ci`.`bag`, `ci`.`slot`;
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        List<PlayerInventoryItem> items = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(new PlayerInventoryItem(
+                Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture),
+                reader.GetString(5)));
+        }
+
+        return items;
     }
 
     private static async Task<uint> GetNextIdAsync(
@@ -778,6 +932,31 @@ public sealed class CharacterRepository
             ? value
             : 0;
     }
+
+
+    private sealed record CharacterLoginRow(
+        uint Guid,
+        uint AccountId,
+        string Name,
+        byte Race,
+        byte Class,
+        byte Gender,
+        byte Level,
+        uint Zone,
+        uint Map,
+        float PositionX,
+        float PositionY,
+        float PositionZ,
+        float Orientation,
+        uint Money,
+        uint PlayerBytes,
+        uint PlayerBytes2,
+        uint PlayerFlags,
+        uint AtLogin,
+        byte Cinematic,
+        uint TotalTime,
+        uint LevelTime,
+        PlayerStats Stats);
 
     private sealed record CharacterOwnershipRecord(uint AccountId, string Name, bool Online);
 

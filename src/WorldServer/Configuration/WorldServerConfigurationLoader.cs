@@ -61,6 +61,7 @@ public static class WorldServerConfigurationLoader
                 "WorldServer",
                 5002),
             MaxConnections = configuration.GetInt(WorldServerSection, "MaxConnections", 1000, minimum: 1),
+            MessageOfTheDay = configuration.GetString(WorldServerSection, "MessageOfTheDay", "Welcome to Emulation Server."),
             Database = ServerConfigurationLoader.LoadDatabaseSettings(configuration),
             Databases = LoadWorldDatabaseSettings(configuration),
             ClientNetwork = LoadWorldClientSettings(configuration),

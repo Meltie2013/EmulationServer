@@ -53,6 +53,11 @@ public sealed class WorldServerSettings
     public int MaxConnections { get; init; } = 1000;
 
     /**
+      * Gets the message sent to players after they enter the world.
+      */
+    public string MessageOfTheDay { get; init; } = "Welcome to Emulation Server.";
+
+    /**
       * Gets shared database connection defaults used to inherit host/user/pool settings for the concrete WorldServer schemas.
       * WorldServer does not open this database directly.
       */

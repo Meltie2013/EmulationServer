@@ -215,6 +215,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
+      * Updates the active player count used by the next realm-status packet.
+      */
+    public void SetActiveConnections(int activeConnections)
+    {
+        Interlocked.Exchange(ref _activeConnections, Math.Max(0, activeConnections));
+    }
+
+    /**
       * Sends a character-count snapshot immediately when character storage changes.
       */
     public async Task SendCharacterCountSnapshotNowAsync(CancellationToken cancellationToken = default)

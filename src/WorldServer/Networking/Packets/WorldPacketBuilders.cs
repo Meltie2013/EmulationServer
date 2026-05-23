@@ -20,6 +20,9 @@ using System.Buffers.Binary;
 using System.IO.Compression;
 
 using EmulationServer.WorldServer.Characters;
+using EmulationServer.WorldServer.Chat;
+using EmulationServer.WorldServer.Players;
+using EmulationServer.WorldServer.WorldData;
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
@@ -227,6 +230,438 @@ public static class WorldPacketBuilders
         // characters.playerFlags is a persisted in-world player state field.
         _ = character;
         return 0;
+    }
+
+
+    public static byte[] BuildCharacterLoginFailed(CharacterLoginFailureCode failureCode)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt8((byte)failureCode);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildTransferAborted(uint mapId, TransferAbortReason reason)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(mapId);
+        writer.WriteUInt8((byte)reason);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildLoginVerifyWorld(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(player.Map);
+        writer.WriteFloat(player.PositionX);
+        writer.WriteFloat(player.PositionY);
+        writer.WriteFloat(player.PositionZ);
+        writer.WriteFloat(player.Orientation);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildTutorialFlags()
+    {
+        WorldPacketWriter writer = new();
+
+        // Vanilla expects eight tutorial flag blocks after SMSG_LOGIN_VERIFY_WORLD.
+        // All bits set tells the client every tutorial has already been seen.
+        for (int index = 0; index < 8; index++)
+        {
+            writer.WriteUInt32(uint.MaxValue);
+        }
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildPlayerCreateUpdate(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(1); // amount_of_objects
+        writer.WriteUInt8(0); // has_transport
+
+        writer.WriteUInt8(3); // CREATE_OBJECT2
+        WritePackedGuid(writer, player.ClientGuid);
+        writer.WriteUInt8(4); // PLAYER
+        WritePlayerMovementBlock(writer, player);
+        WritePlayerCreateUpdateMask(writer, player);
+
+        return writer.ToArray();
+    }
+
+    private static void WritePlayerMovementBlock(WorldPacketWriter writer, PlayerLoginRecord player)
+    {
+        const byte updateFlagsSelfAllLiving = 0x31;
+
+        writer.WriteUInt8(updateFlagsSelfAllLiving);
+        writer.WriteUInt32(0); // movement flags
+        writer.WriteUInt32(unchecked((uint)Environment.TickCount));
+        writer.WriteFloat(player.PositionX);
+        writer.WriteFloat(player.PositionY);
+        writer.WriteFloat(player.PositionZ);
+        writer.WriteFloat(player.Orientation);
+        writer.WriteFloat(0); // fall time
+        writer.WriteFloat(2.5f); // walking speed
+        writer.WriteFloat(7.0f); // running speed
+        writer.WriteFloat(4.5f); // backwards running speed
+        writer.WriteFloat(4.722222f); // swimming speed
+        writer.WriteFloat(2.5f); // backwards swimming speed
+        writer.WriteFloat(3.1415927f); // turn rate
+        writer.WriteUInt32(1); // living movement block unknown1 used by the 1.12 client
+    }
+
+    private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player)
+    {
+        const int ObjectFieldGuid = 0x0000;
+        const int ObjectFieldType = 0x0002;
+        const int ObjectFieldScaleX = 0x0004;
+        const int UnitFieldHealth = 0x0016;
+        const int UnitFieldMaxHealth = 0x001C;
+        const int UnitFieldLevel = 0x0022;
+        const int UnitFieldFactionTemplate = 0x0023;
+        const int UnitFieldBytes0 = 0x0024;
+        const int UnitFieldDisplayId = 0x0083;
+        const int UnitFieldNativeDisplayId = 0x0084;
+
+        Dictionary<int, uint> fields = [];
+        ulong clientGuid = player.ClientGuid;
+        uint health = player.Stats.Health == 0 ? 100 : player.Stats.Health;
+        uint displayId = ResolvePlayerDisplayId(player.Race, player.Gender);
+
+        fields[ObjectFieldGuid] = (uint)(clientGuid & uint.MaxValue);
+        fields[ObjectFieldGuid + 1] = (uint)(clientGuid >> 32);
+        fields[ObjectFieldType] = 0x19; // OBJECT | UNIT | PLAYER
+        fields[ObjectFieldScaleX] = FloatToUInt32(1.0f);
+        fields[UnitFieldHealth] = health;
+        fields[UnitFieldMaxHealth] = health;
+        fields[UnitFieldLevel] = Math.Max((uint)player.Level, 1u);
+        fields[UnitFieldFactionTemplate] = ResolveFactionTemplateId(player.Race);
+        fields[UnitFieldBytes0] = BuildUnitBytes0(player.Race, player.Class, player.Gender);
+        fields[UnitFieldDisplayId] = displayId;
+        fields[UnitFieldNativeDisplayId] = displayId;
+
+        WriteUpdateMask(writer, fields);
+    }
+
+    private static void WriteUpdateMask(WorldPacketWriter writer, IReadOnlyDictionary<int, uint> fields)
+    {
+        if (fields.Count == 0)
+        {
+            writer.WriteUInt8(0);
+            return;
+        }
+
+        int highestField = fields.Keys.Max();
+        byte blockCount = checked((byte)((highestField / 32) + 1));
+        uint[] blocks = new uint[blockCount];
+
+        foreach (int field in fields.Keys)
+        {
+            blocks[field / 32] |= 1u << (field % 32);
+        }
+
+        writer.WriteUInt8(blockCount);
+        foreach (uint block in blocks)
+        {
+            writer.WriteUInt32(block);
+        }
+
+        foreach (KeyValuePair<int, uint> field in fields.OrderBy(field => field.Key))
+        {
+            writer.WriteUInt32(field.Value);
+        }
+    }
+
+    private static void WritePackedGuid(WorldPacketWriter writer, ulong guid)
+    {
+        Span<byte> guidBytes = stackalloc byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(guidBytes, guid);
+
+        byte mask = 0;
+        for (int index = 0; index < guidBytes.Length; index++)
+        {
+            if (guidBytes[index] != 0)
+            {
+                mask |= (byte)(1 << index);
+            }
+        }
+
+        writer.WriteUInt8(mask);
+        for (int index = 0; index < guidBytes.Length; index++)
+        {
+            if (guidBytes[index] != 0)
+            {
+                writer.WriteUInt8(guidBytes[index]);
+            }
+        }
+    }
+
+    private static uint BuildUnitBytes0(byte race, byte playerClass, byte gender)
+    {
+        return race | ((uint)playerClass << 8) | ((uint)gender << 16) | ((uint)ResolvePowerType(playerClass) << 24);
+    }
+
+    private static byte ResolvePowerType(byte playerClass)
+    {
+        return playerClass switch
+        {
+            1 => 1, // Warrior: rage
+            4 => 3, // Rogue: energy
+            _ => 0, // Vanilla player classes otherwise use mana here.
+        };
+    }
+
+    private static uint ResolveFactionTemplateId(byte race)
+    {
+        return race switch
+        {
+            1 => 1, // Human
+            2 => 2, // Orc
+            3 => 3, // Dwarf
+            4 => 4, // Night Elf
+            5 => 5, // Undead
+            6 => 6, // Tauren
+            7 => 115, // Gnome
+            8 => 116, // Troll
+            _ => 1,
+        };
+    }
+
+    private static uint ResolvePlayerDisplayId(byte race, byte gender)
+    {
+        bool female = gender == 1;
+        return race switch
+        {
+            1 => female ? 50u : 49u,
+            2 => female ? 52u : 51u,
+            3 => female ? 54u : 53u,
+            4 => female ? 56u : 55u,
+            5 => female ? 58u : 57u,
+            6 => female ? 60u : 59u,
+            7 => female ? 1479u : 1478u,
+            8 => female ? 1477u : 1476u,
+            _ => 49u,
+        };
+    }
+
+    private static uint FloatToUInt32(float value)
+    {
+        return BitConverter.SingleToUInt32Bits(value);
+    }
+
+    public static byte[] BuildLoginSetTimeSpeed(DateTimeOffset localTime, float gameSpeed = 0.01666667f)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(EncodePackedGameTime(localTime));
+        writer.WriteFloat(gameSpeed);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildMessageOfTheDay(string message)
+    {
+        WorldPacketWriter writer = new();
+        string[] lines = string.IsNullOrWhiteSpace(message)
+            ? ["Welcome to Emulation Server."]
+            : message.Replace("\r", string.Empty, StringComparison.Ordinal).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        writer.WriteUInt32((uint)lines.Length);
+        foreach (string line in lines)
+        {
+            writer.WriteCString(line);
+        }
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildInitialSpells()
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt8(0);
+        writer.WriteUInt16(0); // spell count
+        writer.WriteUInt16(0); // cooldown count
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildActionButtons()
+    {
+        WorldPacketWriter writer = new();
+        for (int index = 0; index < 120; index++)
+        {
+            writer.WriteUInt32(0);
+        }
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildInitializeFactions()
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(64);
+        for (int index = 0; index < 64; index++)
+        {
+            writer.WriteUInt8(0);
+            writer.WriteUInt32(0);
+        }
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildBindPointUpdate(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        WorldPacketWriter writer = new();
+        writer.WriteFloat(player.PositionX);
+        writer.WriteFloat(player.PositionY);
+        writer.WriteFloat(player.PositionZ);
+        writer.WriteUInt32(player.Map);
+        writer.WriteUInt32(player.Zone);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildSetRestStart(DateTimeOffset localTime)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32((uint)localTime.ToUnixTimeSeconds());
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildItemQuerySingleResponse(ItemTemplateRecord itemTemplate)
+    {
+        ArgumentNullException.ThrowIfNull(itemTemplate);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(itemTemplate.Entry);
+        writer.WriteUInt32(itemTemplate.Class);
+        writer.WriteUInt32(itemTemplate.SubClass);
+        writer.WriteCString(itemTemplate.Name);
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
+        writer.WriteUInt32(itemTemplate.DisplayId);
+        writer.WriteUInt32(1); // quality; Common until full item_template loading is added
+        writer.WriteUInt32(itemTemplate.Flags);
+        writer.WriteUInt32(1); // buy count
+        writer.WriteUInt32(0); // buy price
+        writer.WriteUInt32(0); // sell price
+        writer.WriteUInt32(itemTemplate.InventoryType);
+        writer.WriteUInt32(0xFFFFFFFF); // allowable class
+        writer.WriteUInt32(0xFFFFFFFF); // allowable race
+        writer.WriteUInt32(1); // item level
+        writer.WriteUInt32(0); // required level
+        writer.WriteUInt32(0); // required skill
+        writer.WriteUInt32(0); // required skill rank
+        writer.WriteUInt32(0); // required spell
+        writer.WriteUInt32(0); // required honor rank
+        writer.WriteUInt32(0); // required city rank
+        writer.WriteUInt32(0); // required reputation faction
+        writer.WriteUInt32(0); // required reputation rank
+        writer.WriteUInt32(0); // max count
+        writer.WriteUInt32(1); // stackable
+        writer.WriteUInt32(0); // container slots
+
+        for (int index = 0; index < 10; index++)
+        {
+            writer.WriteUInt32(0); // stat type
+            writer.WriteUInt32(0); // stat value
+        }
+
+        for (int index = 0; index < 5; index++)
+        {
+            writer.WriteFloat(0);
+            writer.WriteFloat(0);
+            writer.WriteUInt32(0);
+        }
+
+        writer.WriteUInt32(0); // armor
+        writer.WriteUInt32(0); // holy resistance
+        writer.WriteUInt32(0); // fire resistance
+        writer.WriteUInt32(0); // nature resistance
+        writer.WriteUInt32(0); // frost resistance
+        writer.WriteUInt32(0); // shadow resistance
+        writer.WriteUInt32(0); // arcane resistance
+        writer.WriteUInt32(0); // delay
+        writer.WriteUInt32(0); // ammo type
+        writer.WriteFloat(0); // ranged mod range
+
+        for (int index = 0; index < 5; index++)
+        {
+            writer.WriteUInt32(0); // spell id
+            writer.WriteUInt32(0); // spell trigger
+            writer.WriteUInt32(0); // spell charges
+            writer.WriteUInt32(0); // spell cooldown
+            writer.WriteUInt32(0); // spell category
+            writer.WriteUInt32(0); // spell category cooldown
+        }
+
+        writer.WriteUInt32(0); // bonding
+        writer.WriteCString(string.Empty); // description
+        writer.WriteUInt32(0); // page text
+        writer.WriteUInt32(0); // language id
+        writer.WriteUInt32(0); // page material
+        writer.WriteUInt32(0); // start quest
+        writer.WriteUInt32(0); // lock id
+        writer.WriteUInt32(0); // material
+        writer.WriteUInt32(0); // sheath
+        writer.WriteUInt32(0); // random property
+        writer.WriteUInt32(0); // block
+        writer.WriteUInt32(0); // item set
+        writer.WriteUInt32(itemTemplate.MaxDurability);
+        writer.WriteUInt32(0); // area
+        writer.WriteUInt32(0); // map
+        writer.WriteUInt32(0); // bag family
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildItemQuerySingleNotFound(uint itemEntry)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(itemEntry | 0x80000000u);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildChatMessage(
+        ChatMessageType messageType,
+        ChatLanguage language,
+        ulong senderGuid,
+        string senderName,
+        string text,
+        string channelName = "")
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt8((byte)messageType);
+        writer.WriteUInt32((uint)language);
+
+        if (messageType == ChatMessageType.Channel)
+        {
+            writer.WriteCString(channelName);
+        }
+
+        writer.WriteUInt64(senderGuid);
+        writer.WriteUInt32(0);
+        writer.WriteUInt64(senderGuid);
+        writer.WriteUInt32((uint)(text.Length + 1));
+        writer.WriteCString(text);
+        writer.WriteUInt8(0);
+        _ = senderName;
+        return writer.ToArray();
+    }
+
+    private static uint EncodePackedGameTime(DateTimeOffset localTime)
+    {
+        DateTime dateTime = localTime.DateTime;
+        uint minute = (uint)dateTime.Minute;
+        uint hour = (uint)dateTime.Hour;
+        uint dayOfWeek = (uint)dateTime.DayOfWeek;
+        uint day = (uint)(dateTime.Day - 1);
+        uint month = (uint)(dateTime.Month - 1);
+        uint year = (uint)Math.Max(0, dateTime.Year - 2000);
+
+        return minute | (hour << 6) | (dayOfWeek << 11) | (day << 14) | (month << 20) | (year << 24);
     }
 
     public static byte[] BuildPong(uint sequence)

@@ -54,6 +54,9 @@ public static class InternalProtocol
     public const string RealmCharacterCountSnapshotEnd = "REALM_CHARACTER_COUNT_SNAPSHOT_END";
     public const string MapServiceCommand = "MAP_SERVICE_COMMAND";
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
+    public const string PlayerEnterWorld = "PLAYER_ENTER_WORLD";
+    public const string PlayerLeaveWorld = "PLAYER_LEAVE_WORLD";
+    public const string PlayerClientPacket = "PLAYER_CLIENT_PACKET";
 
     /**
       * Reads a single protocol line without consuming bytes after the line terminator.

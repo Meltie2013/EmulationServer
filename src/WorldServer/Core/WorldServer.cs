@@ -30,11 +30,15 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Commands;
 using EmulationServer.WorldServer.Characters;
+using EmulationServer.WorldServer.Chat;
 using EmulationServer.WorldServer.Configuration;
 using EmulationServer.WorldServer.Database.Accounts;
 using EmulationServer.WorldServer.Database.Characters;
 using EmulationServer.WorldServer.Internal;
+using EmulationServer.WorldServer.Items;
+using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.WorldServer.Networking.Sessions;
+using EmulationServer.WorldServer.Players;
 using EmulationServer.WorldServer.Networking.Socket;
 using EmulationServer.WorldServer.WorldData;
 
@@ -79,6 +83,10 @@ public sealed class WorldServer : IAsyncDisposable
     private readonly CharacterRepository _characterRepository;
     private readonly WorldTemplateRepository _worldTemplateRepository;
     private readonly CharacterCreationService _characterCreationService;
+    private readonly ItemSystem _itemSystem;
+    private readonly ChatSystem _chatSystem;
+    private readonly InGameCommandService _inGameCommandService;
+    private readonly PlayerSessionRegistry _playerSessionRegistry;
     private readonly WorldClientSocketListener _clientListener;
     private WorldTemplateDataStore _worldTemplateData = WorldTemplateDataStore.Empty;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
@@ -113,6 +121,10 @@ public sealed class WorldServer : IAsyncDisposable
             entry => _worldTemplateData.TryGetItemTemplate(entry, out ItemTemplateRecord itemTemplate) ? itemTemplate : null);
         _worldTemplateRepository = new WorldTemplateRepository(_worldDatabase);
         _characterCreationService = new CharacterCreationService(_characterRepository, () => _gameData, () => _worldTemplateData);
+        _itemSystem = new ItemSystem(() => _worldTemplateData);
+        _playerSessionRegistry = new PlayerSessionRegistry();
+        _chatSystem = new ChatSystem(_playerSessionRegistry);
+        _inGameCommandService = new InGameCommandService();
         _realmStatusReporter = new WorldRealmStatusReporter(
             settings.RealmStatus,
             settings.InternalNetwork.RegistrationKey,
@@ -133,7 +145,18 @@ public sealed class WorldServer : IAsyncDisposable
                 settings.RealmStatus.RealmId,
                 settings.ClientNetwork.MaximumPacketSize,
                 _accountRepository,
+                _characterRepository,
                 _characterCreationService,
+                _itemSystem,
+                _chatSystem,
+                _inGameCommandService,
+                _playerSessionRegistry,
+                ResolveMapAvailabilityForLogin,
+                NotifyMapServicePlayerEnteredWorldAsync,
+                NotifyMapServicePlayerLeftWorldAsync,
+                NotifyMapServicePlayerClientPacketAsync,
+                settings.MessageOfTheDay,
+                _realmStatusReporter.SetActiveConnections,
                 _realmStatusReporter.SendCharacterCountSnapshotNowAsync));
     }
 
@@ -311,6 +334,149 @@ public sealed class WorldServer : IAsyncDisposable
     {
         HandleMapServicePacket(remoteServerName, packet);
         return Task.CompletedTask;
+    }
+
+
+    /**
+      * Resolves whether the player's current map has an online MapServer or InstanceServer owner.
+      */
+    private MapAvailabilityResult ResolveMapAvailabilityForLogin(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        int mapId = unchecked((int)player.Map);
+        string requiredKind = "World";
+        if (_gameData.MapData.TryGetMap(mapId, out EmulationServer.Game.Data.Dbc.Maps.MapDbcRecord map) && map.IsInstanceMap)
+        {
+            requiredKind = "Instance";
+        }
+
+        InternalMapServiceStatusPacket[] candidates = _mapServiceStatuses.Values
+            .Where(status => status.MapId == mapId)
+            .Where(status => string.Equals(status.State, "Online", StringComparison.OrdinalIgnoreCase))
+            .Where(status => IsConnectedMapOwner(status.OwnerServerName))
+            .ToArray();
+
+        InternalMapServiceStatusPacket? selected = candidates.FirstOrDefault(status => string.Equals(status.Kind, requiredKind, StringComparison.OrdinalIgnoreCase))
+            ?? candidates.FirstOrDefault();
+
+        if (selected is not null)
+        {
+            return MapAvailabilityResult.Available(selected.OwnerServerName, string.Equals(requiredKind, "Instance", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (candidates.Length == 0)
+        {
+            return MapAvailabilityResult.Unavailable($"No online map service is currently reporting ownership for map {mapId}.", string.Equals(requiredKind, "Instance", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return MapAvailabilityResult.Unavailable($"Map {mapId} is online only on unsupported service kind(s): {string.Join(',', candidates.Select(candidate => candidate.Kind).Distinct(StringComparer.OrdinalIgnoreCase))}.", string.Equals(requiredKind, "Instance", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /**
+      * Returns whether the named internal map owner is still connected to WorldServer.
+      */
+    private bool IsConnectedMapOwner(string ownerServerName)
+    {
+        return _peerConnections.ContainsKey(ownerServerName) || _serverSessions.ContainsKey(ownerServerName);
+    }
+
+
+    /**
+      * Notifies the selected map service that a player has entered the game world while the client socket remains on WorldServer.
+      */
+    private async Task NotifyMapServicePlayerEnteredWorldAsync(
+        PlayerLoginRecord player,
+        string ownerServerName,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        if (string.IsNullOrWhiteSpace(ownerServerName))
+        {
+            return;
+        }
+
+        string packet = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{InternalProtocol.PlayerEnterWorld} {player.AccountId} {player.Guid} {player.Name} {player.Map} {player.Zone} {player.PositionX:0.###} {player.PositionY:0.###} {player.PositionZ:0.###} {player.Orientation:0.###}");
+
+        int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
+        if (sent == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not notify {ownerServerName} that player '{player.Name}' entered map {player.Map}; no active internal connection was available.", nameof(WorldServer));
+            return;
+        }
+
+        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' entered map {player.Map}.", nameof(WorldServer));
+    }
+
+    /**
+      * Notifies the selected map service that a player has left the game world.
+      */
+    private async Task NotifyMapServicePlayerLeftWorldAsync(
+        PlayerLoginRecord player,
+        string ownerServerName,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        if (string.IsNullOrWhiteSpace(ownerServerName))
+        {
+            return;
+        }
+
+        string packet = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{InternalProtocol.PlayerLeaveWorld} {player.AccountId} {player.Guid} {player.Name} {player.Map} {player.Zone}");
+
+        int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
+        if (sent == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not notify {ownerServerName} that player '{player.Name}' left map {player.Map}; no active internal connection was available.", nameof(WorldServer));
+            return;
+        }
+
+        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' left map {player.Map}.", nameof(WorldServer));
+    }
+
+
+    /**
+      * Forwards unhandled in-world client packets to the selected map service while WorldServer keeps owning the socket.
+      */
+    private async Task NotifyMapServicePlayerClientPacketAsync(
+        PlayerLoginRecord player,
+        string ownerServerName,
+        WorldPacket worldPacket,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(worldPacket);
+
+        if (string.IsNullOrWhiteSpace(ownerServerName))
+        {
+            return;
+        }
+
+        string payloadHex = Convert.ToHexString(worldPacket.Payload);
+        string packet = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{InternalProtocol.PlayerClientPacket} {player.AccountId} {player.Guid} 0x{(ushort)worldPacket.Opcode:X4} {payloadHex}");
+
+        if (packet.Length > InternalProtocol.MaximumPacketLineLength)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer skipped forwarding {worldPacket.Opcode} for player '{player.Name}' because the routed packet line was too large ({packet.Length} characters).", nameof(WorldServer));
+            return;
+        }
+
+        int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
+        if (sent == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not forward {worldPacket.Opcode} for player '{player.Name}' to {ownerServerName}; no active internal connection was available.", nameof(WorldServer));
+            return;
+        }
+
+        Logger.Write(LogType.TRACE, $"WorldServer forwarded {worldPacket.Opcode} from player '{player.Name}' to {ownerServerName}.", nameof(WorldServer));
     }
 
     /**

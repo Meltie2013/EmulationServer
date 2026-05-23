@@ -284,7 +284,16 @@ public sealed class InstanceServer : IAsyncDisposable
             return;
         }
 
+        if (HandlePlayerRoutingPacket(remoteServerName, packet))
+        {
+            return;
+        }
+
         string[] parts = packet.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return;
+        }
 
         if (!string.Equals(parts[0], InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
         {
@@ -301,6 +310,43 @@ public sealed class InstanceServer : IAsyncDisposable
         string capacitySource = parts.Length == 3 ? parts[1] : remoteServerName;
         Volatile.Write(ref _worldCapacityLimit, capacityLimit);
         Logger.Write(LogType.NETWORK, $"InstanceServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", nameof(InstanceServer));
+    }
+
+    /**
+      * Handles player routing notifications from WorldServer while the client socket stays owned by WorldServer.
+      */
+    private static bool HandlePlayerRoutingPacket(string remoteServerName, string packet)
+    {
+        if (string.IsNullOrWhiteSpace(packet))
+        {
+            return false;
+        }
+
+        string[] parts = packet.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return false;
+        }
+
+        if (string.Equals(parts[0], InternalProtocol.PlayerEnterWorld, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.NETWORK, $"InstanceServer received player enter-world route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            return true;
+        }
+
+        if (string.Equals(parts[0], InternalProtocol.PlayerLeaveWorld, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.NETWORK, $"InstanceServer received player leave-world route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            return true;
+        }
+
+        if (string.Equals(parts[0], InternalProtocol.PlayerClientPacket, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.TRACE, $"InstanceServer received player client-packet route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            return true;
+        }
+
+        return false;
     }
 
     /**
