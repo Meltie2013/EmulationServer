@@ -16,15 +16,10 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Players;
+namespace EmulationServer.Game.Chat;
 
-public enum PlayerLoginFailure : byte
-{
-    NoWorld = 0x3E,
-    DuplicateLogin = 0x3F,
-    NoInstances = 0x40,
-    Failed = 0x41,
-    Disabled = 0x42,
-    NotFound = 0x43,
-    AccountMismatch = 0x44,
-}
+public sealed record ChatIncomingMessage(
+    ChatMessageType Type,
+    ChatLanguage Language,
+    string Target,
+    string Text);

@@ -16,15 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Players;
+namespace EmulationServer.Game.Characters;
 
-public sealed record PlayerStats(
-    uint Health,
-    uint Power1,
-    uint Power2,
-    uint Power3,
-    uint Power4,
-    uint Power5)
-{
-    public static PlayerStats Empty { get; } = new(0, 0, 0, 0, 0, 0);
-}
+public sealed record CharacterNameQueryResult(
+    uint Guid,
+    string Name,
+    byte Race,
+    byte Gender,
+    byte Class);

@@ -22,7 +22,7 @@ using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
-namespace EmulationServer.WorldServer.WorldData;
+namespace EmulationServer.Game.WorldData;
 
 public sealed class WorldTemplateRepository
 {

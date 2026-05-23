@@ -16,10 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Chat;
+using EmulationServer.Game.Players;
 
-public sealed record ChatIncomingMessage(
-    ChatMessageType Type,
-    ChatLanguage Language,
-    string Target,
-    string Text);
+namespace EmulationServer.Game.Chat;
+
+public interface IChatSession
+{
+    PlayerLoginRecord? CurrentPlayer { get; }
+
+    PlayerLoginRecord RequireCurrentPlayer();
+
+    bool IsInChatChannel(string channelName);
+
+    void JoinChatChannel(string channelName);
+
+    void LeaveChatChannel(string channelName);
+}

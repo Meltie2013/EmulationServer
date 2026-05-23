@@ -16,14 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.WorldData;
+namespace EmulationServer.Game.Characters;
 
-public sealed record PlayerCreateInfoRecord(
-    byte Race,
-    byte Class,
-    ushort Map,
-    uint Zone,
-    float PositionX,
-    float PositionY,
-    float PositionZ,
-    float Orientation);
+public enum CharacterDeleteServiceResult
+{
+    Success,
+    Failed,
+    SecurityMismatch,
+}

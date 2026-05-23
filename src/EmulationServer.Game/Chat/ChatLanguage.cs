@@ -16,21 +16,22 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using EmulationServer.WorldServer.WorldData;
+namespace EmulationServer.Game.Chat;
 
-namespace EmulationServer.WorldServer.Items;
-
-public sealed class ItemSystem
+public enum ChatLanguage : uint
 {
-    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
-
-    public ItemSystem(Func<WorldTemplateDataStore> worldTemplateAccessor)
-    {
-        _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException(nameof(worldTemplateAccessor));
-    }
-
-    public bool TryGetItemTemplate(uint entry, out ItemTemplateRecord itemTemplate)
-    {
-        return _worldTemplateAccessor().TryGetItemTemplate(entry, out itemTemplate);
-    }
+    Universal = 0,
+    Orcish = 1,
+    Darnassian = 2,
+    Taurahe = 3,
+    Dwarvish = 6,
+    Common = 7,
+    Demonic = 8,
+    Titan = 9,
+    Thalassian = 10,
+    Draconic = 11,
+    Kalimag = 12,
+    Gnomish = 13,
+    Troll = 14,
+    Gutterspeak = 33,
 }

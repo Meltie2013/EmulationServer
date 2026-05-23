@@ -16,17 +16,9 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Players;
+namespace EmulationServer.Game.Data.Dbc.Chat;
 
-public static class CharacterGuid
+public static class ChatDbcFileNames
 {
-    public static ulong ToClientGuid(uint lowGuid)
-    {
-        return lowGuid;
-    }
-
-    public static uint FromClientGuid(ulong clientGuid)
-    {
-        return (uint)(clientGuid & uint.MaxValue);
-    }
+    public const string ChatChannels = "ChatChannels.dbc";
 }

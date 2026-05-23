@@ -16,11 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Characters;
+using EmulationServer.Game.WorldData;
 
-public enum CharacterDeleteServiceResult
-{
-    Success,
-    Failed,
-    SecurityMismatch,
-}
+namespace EmulationServer.Game.Characters;
+
+public sealed record StarterItemCreateData(
+    ItemTemplateRecord Template,
+    byte StorageSlot,
+    int EquipmentSlot);

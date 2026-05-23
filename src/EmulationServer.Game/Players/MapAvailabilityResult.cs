@@ -16,6 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Characters;
+namespace EmulationServer.Game.Players;
 
-public sealed record CharacterEquipmentDisplay(uint DisplayId, byte InventoryType, uint EnchantmentId);
+public sealed record MapAvailabilityResult(bool IsAvailable, string Reason, string OwnerServerName, bool RequiresInstanceServer)
+{
+    public static MapAvailabilityResult Available(string ownerServerName, bool requiresInstanceServer = false)
+    {
+        return new MapAvailabilityResult(true, string.Empty, ownerServerName, requiresInstanceServer);
+    }
+
+    public static MapAvailabilityResult Unavailable(string reason, bool requiresInstanceServer = false)
+    {
+        return new MapAvailabilityResult(false, reason, string.Empty, requiresInstanceServer);
+    }
+}

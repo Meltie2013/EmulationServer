@@ -18,14 +18,13 @@
 
 using System.Globalization;
 
-using EmulationServer.WorldServer.Networking.Sessions;
-using EmulationServer.WorldServer.Players;
+using EmulationServer.Game.Players;
 
-namespace EmulationServer.WorldServer.Commands;
+namespace EmulationServer.Game.Commands;
 
 public sealed class InGameCommandService
 {
-    public Task<string> ExecuteAsync(WorldClientSession session, string commandText, CancellationToken cancellationToken)
+    public Task<string> ExecuteAsync(IInGameCommandSession session, string commandText, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
         cancellationToken.ThrowIfCancellationRequested();

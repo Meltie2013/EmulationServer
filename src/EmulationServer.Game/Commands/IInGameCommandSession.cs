@@ -16,14 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.WorldData;
+using EmulationServer.Game.Players;
 
-public sealed record ItemTemplateRecord(
-    uint Entry,
-    byte Class,
-    byte SubClass,
-    string Name,
-    uint DisplayId,
-    uint Flags,
-    byte InventoryType,
-    uint MaxDurability);
+namespace EmulationServer.Game.Commands;
+
+public interface IInGameCommandSession
+{
+    byte AccountGmLevel { get; }
+
+    int ActivePlayerCount { get; }
+
+    string MessageOfTheDay { get; }
+
+    PlayerLoginRecord RequireCurrentPlayer();
+}

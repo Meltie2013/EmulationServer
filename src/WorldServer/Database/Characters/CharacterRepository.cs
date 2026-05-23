@@ -19,9 +19,9 @@
 using System.Globalization;
 
 using EmulationServer.Database.Interfaces;
-using EmulationServer.WorldServer.Characters;
-using EmulationServer.WorldServer.Players;
-using EmulationServer.WorldServer.WorldData;
+using EmulationServer.Game.Characters;
+using EmulationServer.Game.Players;
+using EmulationServer.Game.WorldData;
 
 using MySqlConnector;
 
@@ -48,7 +48,7 @@ public sealed class CharacterRepository
 
         command.CommandText = """
             SELECT `guid`, `name`, `race`, `class`, `gender`,
-                   `playerBytes`, `playerBytes2`, `level`, `zone`,
+                   `playerBytes`, `playerBytes2`, `level`, `xp`, `zone`,
                    `map`, `position_x`, `position_y`, `position_z`,
                    `playerFlags`, `at_login`, `equipmentCache`
             FROM `characters`
@@ -71,14 +71,15 @@ public sealed class CharacterRepository
                     Convert.ToByte(reader.GetValue(7), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(9), CultureInfo.InvariantCulture),
-                    Convert.ToSingle(reader.GetValue(10), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(10), CultureInfo.InvariantCulture),
                     Convert.ToSingle(reader.GetValue(11), CultureInfo.InvariantCulture),
                     Convert.ToSingle(reader.GetValue(12), CultureInfo.InvariantCulture),
-                    Convert.ToUInt32(reader.GetValue(13), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(reader.GetValue(13), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(14), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(15), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(5), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(6), CultureInfo.InvariantCulture),
-                    reader.IsDBNull(15) ? string.Empty : reader.GetString(15)));
+                    reader.IsDBNull(16) ? string.Empty : reader.GetString(16)));
             }
         }
 
@@ -189,8 +190,9 @@ public sealed class CharacterRepository
             string equipmentCache = BuildEquipmentCache(starterItems);
             uint playerBytes = PackPlayerBytes(request.Skin, request.Face, request.HairStyle, request.HairColor);
             uint playerBytes2 = PackPlayerBytes2(request.FacialHair);
+            PlayerStats initialStats = CreateInitialStats(request.Class, 1);
 
-            await InsertCharacterAsync(connection, transaction, characterGuid, accountId, request, createInfo, playerBytes, playerBytes2, equipmentCache, cancellationToken);
+            await InsertCharacterAsync(connection, transaction, characterGuid, accountId, request, createInfo, playerBytes, playerBytes2, equipmentCache, initialStats, cancellationToken);
             await InsertHomebindAsync(connection, transaction, characterGuid, createInfo, cancellationToken);
 
             foreach (StarterItemCreateData item in starterItems)
@@ -284,7 +286,7 @@ public sealed class CharacterRepository
         using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
-            SELECT `guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `zone`, `map`,
+            SELECT `guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `xp`, `zone`, `map`,
                    `position_x`, `position_y`, `position_z`, `orientation`, `money`, `playerBytes`,
                    `playerBytes2`, `playerFlags`, `at_login`, `cinematic`, `totaltime`, `leveltime`,
                    `health`, `power1`, `power2`, `power3`, `power4`, `power5`
@@ -309,25 +311,32 @@ public sealed class CharacterRepository
                     Convert.ToByte(reader.GetValue(6), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(7), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
-                    Convert.ToSingle(reader.GetValue(9), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(9), CultureInfo.InvariantCulture),
                     Convert.ToSingle(reader.GetValue(10), CultureInfo.InvariantCulture),
                     Convert.ToSingle(reader.GetValue(11), CultureInfo.InvariantCulture),
                     Convert.ToSingle(reader.GetValue(12), CultureInfo.InvariantCulture),
-                    Convert.ToUInt32(reader.GetValue(13), CultureInfo.InvariantCulture),
+                    Convert.ToSingle(reader.GetValue(13), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(14), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(15), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(16), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(17), CultureInfo.InvariantCulture),
-                    Convert.ToByte(reader.GetValue(18), CultureInfo.InvariantCulture),
-                    Convert.ToUInt32(reader.GetValue(19), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(18), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(19), CultureInfo.InvariantCulture),
                     Convert.ToUInt32(reader.GetValue(20), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(21), CultureInfo.InvariantCulture),
                     new PlayerStats(
-                        Convert.ToUInt32(reader.GetValue(21), CultureInfo.InvariantCulture),
                         Convert.ToUInt32(reader.GetValue(22), CultureInfo.InvariantCulture),
                         Convert.ToUInt32(reader.GetValue(23), CultureInfo.InvariantCulture),
                         Convert.ToUInt32(reader.GetValue(24), CultureInfo.InvariantCulture),
                         Convert.ToUInt32(reader.GetValue(25), CultureInfo.InvariantCulture),
-                        Convert.ToUInt32(reader.GetValue(26), CultureInfo.InvariantCulture)));
+                        Convert.ToUInt32(reader.GetValue(26), CultureInfo.InvariantCulture),
+                        Convert.ToUInt32(reader.GetValue(27), CultureInfo.InvariantCulture),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0));
             }
         }
 
@@ -345,7 +354,8 @@ public sealed class CharacterRepository
             row.Race,
             row.Class,
             row.Gender,
-            row.Level,
+            NormalizeLevel(row.Level),
+            row.Xp,
             row.Zone,
             row.Map,
             row.PositionX,
@@ -360,9 +370,41 @@ public sealed class CharacterRepository
             row.Cinematic,
             row.TotalTime,
             row.LevelTime,
-            row.Stats,
+            NormalizePlayerStats(row.Class, NormalizeLevel(row.Level), row.Stats),
             inventory,
             factionResolver(row.Race));
+    }
+
+    public async Task<CharacterNameQueryResult?> GetCharacterNameQueryAsync(uint characterGuid, CancellationToken cancellationToken = default)
+    {
+        if (characterGuid == 0)
+        {
+            return null;
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            SELECT `guid`, `name`, `race`, `gender`, `class`
+            FROM `characters`
+            WHERE `guid` = @guid
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new CharacterNameQueryResult(
+            Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+            reader.GetString(1),
+            Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture),
+            Convert.ToByte(reader.GetValue(3), CultureInfo.InvariantCulture),
+            Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture));
     }
 
     public async Task SetCharacterOnlineAsync(uint characterGuid, bool online, CancellationToken cancellationToken = default)
@@ -443,6 +485,7 @@ public sealed class CharacterRepository
         uint playerBytes,
         uint playerBytes2,
         string equipmentCache,
+        PlayerStats initialStats,
         CancellationToken cancellationToken)
     {
         using MySqlCommand command = connection.CreateCommand();
@@ -452,12 +495,14 @@ public sealed class CharacterRepository
                 (`guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `xp`, `money`,
                  `playerBytes`, `playerBytes2`, `playerFlags`, `position_x`, `position_y`,
                  `position_z`, `map`, `orientation`, `taximask`, `online`, `cinematic`,
-                 `at_login`, `zone`, `equipmentCache`, `createdDate`)
+                 `at_login`, `zone`, `equipmentCache`, `health`, `power1`, `power2`, `power3`,
+                 `power4`, `power5`, `createdDate`)
             VALUES
                 (@guid, @account, @name, @race, @class, @gender, 1, 0, 0,
                  @playerBytes, @playerBytes2, 0, @x, @y,
                  @z, @map, @o, '', 0, 0,
-                 @atLogin, @zone, @equipmentCache, @createdDate);
+                 @atLogin, @zone, @equipmentCache, @health, @power1, @power2, @power3,
+                 @power4, @power5, @createdDate);
             """;
         command.Parameters.AddWithValue("@guid", characterGuid);
         command.Parameters.AddWithValue("@account", accountId);
@@ -474,6 +519,12 @@ public sealed class CharacterRepository
         command.Parameters.AddWithValue("@z", createInfo.PositionZ);
         command.Parameters.AddWithValue("@o", createInfo.Orientation);
         command.Parameters.AddWithValue("@equipmentCache", equipmentCache);
+        command.Parameters.AddWithValue("@health", initialStats.Health);
+        command.Parameters.AddWithValue("@power1", initialStats.Power1);
+        command.Parameters.AddWithValue("@power2", initialStats.Power2);
+        command.Parameters.AddWithValue("@power3", initialStats.Power3);
+        command.Parameters.AddWithValue("@power4", initialStats.Power4);
+        command.Parameters.AddWithValue("@power5", initialStats.Power5);
         command.Parameters.AddWithValue("@atLogin", AtLoginFirst);
         command.Parameters.AddWithValue("@createdDate", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
@@ -826,7 +877,7 @@ public sealed class CharacterRepository
 
     private static string BuildItemInstanceData(uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
     {
-        uint[] fields = new uint[60];
+        uint[] fields = new uint[48];
         fields[0] = itemGuid;
         fields[2] = 3;
         fields[3] = itemTemplate.Entry;
@@ -835,8 +886,8 @@ public sealed class CharacterRepository
         fields[8] = ownerGuid;
         fields[14] = 1;
         fields[21] = itemTemplate.Flags;
-        fields[58] = itemTemplate.MaxDurability;
-        fields[59] = itemTemplate.MaxDurability;
+        fields[46] = itemTemplate.MaxDurability;
+        fields[47] = itemTemplate.MaxDurability;
 
         return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
     }
@@ -934,6 +985,64 @@ public sealed class CharacterRepository
     }
 
 
+    private static PlayerStats NormalizePlayerStats(byte playerClass, byte level, PlayerStats storedStats)
+    {
+        PlayerStats defaults = CreateInitialStats(playerClass, level);
+        return new PlayerStats(
+            storedStats.Health == 0 ? defaults.Health : storedStats.Health,
+            storedStats.Power1 == 0 ? defaults.Power1 : storedStats.Power1,
+            storedStats.Power2 == 0 ? defaults.Power2 : storedStats.Power2,
+            storedStats.Power3 == 0 ? defaults.Power3 : storedStats.Power3,
+            storedStats.Power4 == 0 ? defaults.Power4 : storedStats.Power4,
+            storedStats.Power5 == 0 ? defaults.Power5 : storedStats.Power5,
+            storedStats.Strength == 0 ? defaults.Strength : storedStats.Strength,
+            storedStats.Agility == 0 ? defaults.Agility : storedStats.Agility,
+            storedStats.Stamina == 0 ? defaults.Stamina : storedStats.Stamina,
+            storedStats.Intellect == 0 ? defaults.Intellect : storedStats.Intellect,
+            storedStats.Spirit == 0 ? defaults.Spirit : storedStats.Spirit,
+            storedStats.Armor == 0 ? defaults.Armor : storedStats.Armor);
+    }
+
+    private static PlayerStats CreateInitialStats(byte playerClass, byte level)
+    {
+        uint safeLevel = Math.Max((uint)level, 1u);
+        uint health = 80 + (safeLevel * 20);
+        uint mana = playerClass is 1 or 4 ? 0u : 100 + (safeLevel * 30);
+        uint rage = 0;
+        uint energy = playerClass == 4 ? 100u : 0u;
+        (uint strength, uint agility, uint stamina, uint intellect, uint spirit) = ResolveBaseAttributes(playerClass);
+        uint levelBonus = safeLevel - 1;
+        strength += levelBonus;
+        agility += levelBonus;
+        stamina += levelBonus;
+        intellect += playerClass is 1 or 4 ? 0u : levelBonus;
+        spirit += levelBonus;
+        uint armor = Math.Max(1u, agility * 2u);
+        return new PlayerStats(health, mana, rage, 0, energy, 0, strength, agility, stamina, intellect, spirit, armor);
+    }
+
+    private static (uint Strength, uint Agility, uint Stamina, uint Intellect, uint Spirit) ResolveBaseAttributes(byte playerClass)
+    {
+        return playerClass switch
+        {
+            1 => (23u, 20u, 22u, 20u, 20u), // Warrior
+            2 => (22u, 20u, 22u, 20u, 20u), // Paladin
+            3 => (20u, 23u, 21u, 20u, 20u), // Hunter
+            4 => (21u, 24u, 20u, 20u, 20u), // Rogue
+            5 => (19u, 20u, 20u, 22u, 23u), // Priest
+            7 => (21u, 20u, 21u, 21u, 21u), // Shaman
+            8 => (19u, 20u, 19u, 24u, 22u), // Mage
+            9 => (19u, 20u, 21u, 23u, 22u), // Warlock
+            11 => (21u, 22u, 21u, 22u, 22u), // Druid
+            _ => (20u, 20u, 20u, 20u, 20u),
+        };
+    }
+
+    private static byte NormalizeLevel(byte level)
+    {
+        return level == 0 ? (byte)1 : level;
+    }
+
     private sealed record CharacterLoginRow(
         uint Guid,
         uint AccountId,
@@ -942,6 +1051,7 @@ public sealed class CharacterRepository
         byte Class,
         byte Gender,
         byte Level,
+        uint Xp,
         uint Zone,
         uint Map,
         float PositionX,
@@ -967,6 +1077,7 @@ public sealed class CharacterRepository
         byte Class,
         byte Gender,
         byte Level,
+        uint Xp,
         uint Zone,
         uint Map,
         float PositionX,

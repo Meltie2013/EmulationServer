@@ -16,12 +16,14 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Players;
+namespace EmulationServer.Game.WorldData;
 
-public sealed record PlayerInventoryItem(
-    uint ItemGuid,
-    uint OwnerGuid,
-    uint TemplateEntry,
-    uint BagGuid,
-    byte Slot,
-    string InstanceData);
+public sealed record ItemTemplateRecord(
+    uint Entry,
+    byte Class,
+    byte SubClass,
+    string Name,
+    uint DisplayId,
+    uint Flags,
+    byte InventoryType,
+    uint MaxDurability);

@@ -16,33 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Players;
+namespace EmulationServer.Game.Players;
 
-public sealed record PlayerLoginRecord(
-    uint Guid,
-    uint AccountId,
-    string Name,
-    byte Race,
-    byte Class,
-    byte Gender,
-    byte Level,
-    uint Zone,
-    uint Map,
-    float PositionX,
-    float PositionY,
-    float PositionZ,
-    float Orientation,
-    uint Money,
-    uint PlayerBytes,
-    uint PlayerBytes2,
-    uint PlayerFlags,
-    uint AtLogin,
-    byte Cinematic,
-    uint TotalTime,
-    uint LevelTime,
-    PlayerStats Stats,
-    IReadOnlyList<PlayerInventoryItem> Inventory,
-    PlayerFaction Faction)
+public static class CharacterGuid
 {
-    public ulong ClientGuid => CharacterGuid.ToClientGuid(Guid);
+    public static ulong ToClientGuid(uint lowGuid)
+    {
+        return lowGuid;
+    }
+
+    public static uint FromClientGuid(ulong clientGuid)
+    {
+        return (uint)(clientGuid & uint.MaxValue);
+    }
 }

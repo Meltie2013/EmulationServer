@@ -16,26 +16,29 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 
+using EmulationServer.Game.Characters;
+using EmulationServer.Game.Chat;
+using EmulationServer.Game.Commands;
+using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
+using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
+using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
+using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
+using EmulationServer.Game.Players;
+using EmulationServer.Game.WorldData;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Auth;
 using EmulationServer.WorldServer.Characters;
-using EmulationServer.WorldServer.Chat;
-using EmulationServer.WorldServer.Commands;
 using EmulationServer.WorldServer.Database.Accounts;
 using EmulationServer.WorldServer.Database.Characters;
-using EmulationServer.WorldServer.Items;
 using EmulationServer.WorldServer.Networking.Packets;
-using EmulationServer.WorldServer.Players;
-using EmulationServer.WorldServer.WorldData;
 
 namespace EmulationServer.WorldServer.Networking.Sessions;
 
-public sealed class WorldClientSession : IAsyncDisposable
+public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IAsyncDisposable
 {
     private readonly TcpClient _client;
     private readonly uint _realmId;
@@ -43,10 +46,10 @@ public sealed class WorldClientSession : IAsyncDisposable
     private readonly WorldAccountRepository _accountRepository;
     private readonly CharacterRepository _characterRepository;
     private readonly CharacterCreationService _characterService;
-    private readonly ItemSystem _itemSystem;
-    private readonly ChatSystem _chatSystem;
-    private readonly InGameCommandService _commandService;
-    private readonly PlayerSessionRegistry _playerSessionRegistry;
+    private readonly GameItemSystem _itemSystem;
+    private readonly GameChatSystem _chatSystem;
+    private readonly GameInGameCommandService _commandService;
+    private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
     private readonly Func<PlayerLoginRecord, MapAvailabilityResult> _mapAvailabilityResolver;
     private readonly Func<PlayerLoginRecord, string, CancellationToken, Task> _playerEnteredWorldAsync;
     private readonly Func<PlayerLoginRecord, string, CancellationToken, Task> _playerLeftWorldAsync;
@@ -71,10 +74,10 @@ public sealed class WorldClientSession : IAsyncDisposable
         WorldAccountRepository accountRepository,
         CharacterRepository characterRepository,
         CharacterCreationService characterService,
-        ItemSystem itemSystem,
-        ChatSystem chatSystem,
-        InGameCommandService commandService,
-        PlayerSessionRegistry playerSessionRegistry,
+        GameItemSystem itemSystem,
+        GameChatSystem chatSystem,
+        GameInGameCommandService commandService,
+        WorldPlayerSessionRegistry playerSessionRegistry,
         Func<PlayerLoginRecord, MapAvailabilityResult> mapAvailabilityResolver,
         Func<PlayerLoginRecord, string, CancellationToken, Task> playerEnteredWorldAsync,
         Func<PlayerLoginRecord, string, CancellationToken, Task> playerLeftWorldAsync,
@@ -181,23 +184,17 @@ public sealed class WorldClientSession : IAsyncDisposable
 
     public bool IsInChatChannel(string channelName)
     {
-        return _chatChannels.Contains(channelName);
+        return _chatChannels.Contains(ChatSystem.NormalizeChannelName(channelName));
     }
 
     public void JoinChatChannel(string channelName)
     {
-        if (!string.IsNullOrWhiteSpace(channelName))
-        {
-            _chatChannels.Add(channelName.Trim());
-        }
+        _chatChannels.Add(ChatSystem.NormalizeChannelName(channelName));
     }
 
     public void LeaveChatChannel(string channelName)
     {
-        if (!string.IsNullOrWhiteSpace(channelName))
-        {
-            _chatChannels.Remove(channelName.Trim());
-        }
+        _chatChannels.Remove(ChatSystem.NormalizeChannelName(channelName));
     }
 
     private async Task AuthenticateAsync(CancellationToken cancellationToken)
@@ -278,16 +275,65 @@ public sealed class WorldClientSession : IAsyncDisposable
                     await HandleItemQuerySingleAsync(packet, cancellationToken);
                     break;
 
+                case WorldOpcode.CMSG_ITEM_NAME_QUERY:
+                    await HandleItemNameQueryAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_NAME_QUERY:
+                    await HandleNameQueryAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_WHO:
+                    await HandleWhoAsync(cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_PLAYER_LOGOUT:
+                case WorldOpcode.CMSG_LOGOUT_REQUEST:
+                    await HandleLogoutRequestAsync(cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_LOGOUT_CANCEL:
+                    await SendAsync(WorldOpcode.SMSG_LOGOUT_CANCEL_ACK, WorldPacketBuilders.BuildLogoutCancelAck(), _crypt, cancellationToken);
+                    break;
+
                 case WorldOpcode.CMSG_MESSAGECHAT:
                     await HandleMessageChatAsync(packet, cancellationToken);
                     break;
 
                 case WorldOpcode.CMSG_JOIN_CHANNEL:
-                    HandleJoinChannel(packet);
+                    await HandleJoinChannelAsync(packet, cancellationToken);
                     break;
 
                 case WorldOpcode.CMSG_LEAVE_CHANNEL:
-                    HandleLeaveChannel(packet);
+                    await HandleLeaveChannelAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_CHANNEL_LIST:
+                    await HandleChannelListAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_QUERY_TIME:
+                    await SendAsync(WorldOpcode.SMSG_QUERY_TIME_RESPONSE, WorldPacketBuilders.BuildServerTime(DateTimeOffset.Now), _crypt, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_SERVERTIME:
+                    await SendAsync(WorldOpcode.SMSG_SERVERTIME, WorldPacketBuilders.BuildServerTime(DateTimeOffset.Now), _crypt, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_PLAYED_TIME:
+                    await HandlePlayedTimeAsync(cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_OPENING_CINEMATIC:
+                case WorldOpcode.CMSG_NEXT_CINEMATIC_CAMERA:
+                case WorldOpcode.CMSG_COMPLETE_CINEMATIC:
+                case WorldOpcode.CMSG_TUTORIAL_FLAG:
+                case WorldOpcode.CMSG_TUTORIAL_CLEAR:
+                case WorldOpcode.CMSG_TUTORIAL_RESET:
+                case WorldOpcode.CMSG_STANDSTATECHANGE:
+                case WorldOpcode.CMSG_SET_ACTION_BUTTON:
+                case WorldOpcode.CMSG_SET_ACTIONBAR_TOGGLES:
+                    Logger.Write(LogType.TRACE, $"Accepted client interface opcode {packet.Opcode} from {RemoteEndPoint}; persistence is not implemented yet.", nameof(WorldClientSession));
                     break;
 
                 case WorldOpcode.CMSG_ZONEUPDATE:
@@ -371,7 +417,6 @@ public sealed class WorldClientSession : IAsyncDisposable
             CurrentPlayer = player;
             _currentMapOwnerServerName = mapAvailability.OwnerServerName;
             await _playerEnteredWorldAsync(player, _currentMapOwnerServerName, cancellationToken);
-            JoinChatChannel("General");
             await SendWorldEntryPacketsAsync(player, cancellationToken);
 
             _activePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
@@ -389,29 +434,33 @@ public sealed class WorldClientSession : IAsyncDisposable
 
     private async Task SendCharacterLoginFailedAsync(CharacterLoginFailureCode failureCode, CancellationToken cancellationToken)
     {
-        // This is the initial character-login failure path. Do not send
-        // SMSG_TRANSFER_ABORTED here; transfer abort is for an already in-world
-        // map transfer and can cause the 1.12 client to close the login attempt
-        // instead of displaying the character-screen error text.
+        // Do not follow this with SMSG_CHAR_ENUM. During CMSG_PLAYER_LOGIN the
+        // 1.12 client is in the character-login transition state and expects a
+        // single login failure result. Sending a character list immediately after
+        // the failure can make the client treat the world socket as invalid.
         await SendAsync(WorldOpcode.SMSG_CHARACTER_LOGIN_FAILED, WorldPacketBuilders.BuildCharacterLoginFailed(failureCode), _crypt, cancellationToken);
     }
 
     private async Task SendWorldEntryPacketsAsync(PlayerLoginRecord player, CancellationToken cancellationToken)
     {
         DateTimeOffset localTime = DateTimeOffset.Now;
+        // Follow the MaNGOS Zero login bootstrap order more closely:
+        // login position/account cache first, then pre-map UI state, then the
+        // object create packet that makes the player appear in the world.
         await SendAsync(WorldOpcode.SMSG_LOGIN_VERIFY_WORLD, WorldPacketBuilders.BuildLoginVerifyWorld(player), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_TUTORIAL_FLAGS, WorldPacketBuilders.BuildTutorialFlags(), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildPlayerCreateUpdate(player), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_ACCOUNT_DATA_TIMES, WorldPacketBuilders.BuildAccountDataTimes(), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_LOGIN_SETTIMESPEED, WorldPacketBuilders.BuildLoginSetTimeSpeed(localTime), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_BINDPOINTUPDATE, WorldPacketBuilders.BuildBindPointUpdate(player), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_SET_REST_START, WorldPacketBuilders.BuildSetRestStart(localTime), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_INITIAL_SPELLS, WorldPacketBuilders.BuildInitialSpells(), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_ACTION_BUTTONS, WorldPacketBuilders.BuildActionButtons(), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_BINDPOINTUPDATE, WorldPacketBuilders.BuildBindPointUpdate(player), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_TUTORIAL_FLAGS, WorldPacketBuilders.BuildTutorialFlags(), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_INITIAL_SPELLS, WorldPacketBuilders.BuildInitialSpells(player), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_ACTION_BUTTONS, WorldPacketBuilders.BuildActionButtons(player), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_INITIALIZE_FACTIONS, WorldPacketBuilders.BuildInitializeFactions(), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_LOGIN_SETTIMESPEED, WorldPacketBuilders.BuildLoginSetTimeSpeed(localTime), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildPlayerCreateUpdate(player), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(new CharacterNameQueryResult(player.Guid, player.Name, player.Race, player.Gender, player.Class)), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_MOTD, WorldPacketBuilders.BuildMessageOfTheDay(_messageOfTheDay), _crypt, cancellationToken);
+        await JoinDefaultChatChannelsAsync(cancellationToken);
     }
-
 
     private async Task<bool> ForwardPacketToMapServiceAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
@@ -446,6 +495,69 @@ public sealed class WorldClientSession : IAsyncDisposable
         await SendAsync(WorldOpcode.SMSG_ITEM_QUERY_SINGLE_RESPONSE, payload, _crypt, cancellationToken);
     }
 
+    private async Task HandleItemNameQueryAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        WorldPacketReader reader = new(packet.Payload);
+        uint itemEntry = reader.ReadUInt32();
+
+        byte[] payload = _itemSystem.TryGetItemTemplate(itemEntry, out ItemTemplateRecord itemTemplate)
+            ? WorldPacketBuilders.BuildItemNameQueryResponse(itemTemplate)
+            : WorldPacketBuilders.BuildItemNameQueryNotFound(itemEntry);
+
+        await SendAsync(WorldOpcode.SMSG_ITEM_NAME_QUERY_RESPONSE, payload, _crypt, cancellationToken);
+    }
+
+    private async Task HandleNameQueryAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        uint characterGuid = CharacterGuid.FromClientGuid(ReadClientGuid(packet.Payload));
+        if (characterGuid == 0)
+        {
+            return;
+        }
+
+        CharacterNameQueryResult? character = CurrentPlayer is not null && CurrentPlayer.Guid == characterGuid
+            ? new CharacterNameQueryResult(CurrentPlayer.Guid, CurrentPlayer.Name, CurrentPlayer.Race, CurrentPlayer.Gender, CurrentPlayer.Class)
+            : await _characterRepository.GetCharacterNameQueryAsync(characterGuid, cancellationToken);
+
+        if (character is null)
+        {
+            return;
+        }
+
+        await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(character), _crypt, cancellationToken);
+    }
+
+    private async Task HandleWhoAsync(CancellationToken cancellationToken)
+    {
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerLoginRecord> players = _playerSessionRegistry.SnapshotSessions()
+            .Select(session => session.CurrentPlayer)
+            .Where(other => other is not null && other.Faction == player.Faction)
+            .Cast<PlayerLoginRecord>()
+            .ToArray();
+
+        await SendAsync(WorldOpcode.SMSG_WHO, WorldPacketBuilders.BuildWhoResponse(players), _crypt, cancellationToken);
+    }
+
+    private async Task HandleLogoutRequestAsync(CancellationToken cancellationToken)
+    {
+        if (CurrentPlayer is null)
+        {
+            await SendAsync(WorldOpcode.SMSG_LOGOUT_RESPONSE, WorldPacketBuilders.BuildLogoutResponse(), _crypt, cancellationToken);
+            await SendAsync(WorldOpcode.SMSG_LOGOUT_COMPLETE, WorldPacketBuilders.BuildLogoutComplete(), _crypt, cancellationToken);
+            return;
+        }
+
+        await SendAsync(WorldOpcode.SMSG_LOGOUT_RESPONSE, WorldPacketBuilders.BuildLogoutResponse(), _crypt, cancellationToken);
+        await CleanupCurrentPlayerAsync(cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_LOGOUT_COMPLETE, WorldPacketBuilders.BuildLogoutComplete(), _crypt, cancellationToken);
+    }
+
+    private async Task HandlePlayedTimeAsync(CancellationToken cancellationToken)
+    {
+        await SendAsync(WorldOpcode.SMSG_PLAYED_TIME, WorldPacketBuilders.BuildPlayedTime(RequireCurrentPlayer()), _crypt, cancellationToken);
+    }
+
     private async Task HandleMessageChatAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -462,11 +574,11 @@ public sealed class WorldClientSession : IAsyncDisposable
             return;
         }
 
-        IReadOnlyList<WorldClientSession> recipients = _chatSystem.GetRecipients(this, message);
-        string channelName = message.Type == ChatMessageType.Channel ? message.Target : string.Empty;
+        IReadOnlyList<IChatSession> recipients = _chatSystem.GetRecipients(this, message, _playerSessionRegistry.SnapshotSessions().Cast<IChatSession>());
+        string channelName = message.Type == ChatMessageType.Channel ? _chatSystem.ResolveChannelName(CurrentPlayer, message.Target) : string.Empty;
         byte[] payload = WorldPacketBuilders.BuildChatMessage(message.Type, message.Language, CurrentPlayer.ClientGuid, CurrentPlayer.Name, message.Text, channelName);
 
-        foreach (WorldClientSession recipient in recipients)
+        foreach (WorldClientSession recipient in recipients.OfType<WorldClientSession>())
         {
             await recipient.SendAsync(WorldOpcode.SMSG_MESSAGECHAT, payload, recipient._crypt, cancellationToken);
         }
@@ -483,19 +595,20 @@ public sealed class WorldClientSession : IAsyncDisposable
         await SendAsync(WorldOpcode.SMSG_MESSAGECHAT, payload, _crypt, cancellationToken);
     }
 
-    private void HandleJoinChannel(WorldPacket packet)
+    private async Task JoinDefaultChatChannelsAsync(CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
         {
             return;
         }
 
-        WorldPacketReader reader = new(packet.Payload);
-        string channelName = reader.ReadCString();
-        _chatSystem.JoinChannel(this, channelName);
+        foreach (string channelName in _chatSystem.GetDefaultChannelNames(CurrentPlayer))
+        {
+            await JoinChatChannelAsync(channelName, cancellationToken);
+        }
     }
 
-    private void HandleLeaveChannel(WorldPacket packet)
+    private async Task HandleJoinChannelAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
         {
@@ -503,8 +616,53 @@ public sealed class WorldClientSession : IAsyncDisposable
         }
 
         WorldPacketReader reader = new(packet.Payload);
-        string channelName = reader.ReadCString();
-        _chatSystem.LeaveChannel(this, channelName);
+        string channelName = reader.Remaining > 0 ? reader.ReadCString() : string.Empty;
+        await JoinChatChannelAsync(channelName, cancellationToken);
+    }
+
+    private async Task JoinChatChannelAsync(string channelName, CancellationToken cancellationToken)
+    {
+        if (CurrentPlayer is null)
+        {
+            return;
+        }
+
+        string normalized = _chatSystem.ResolveChannelName(CurrentPlayer, channelName);
+        _chatSystem.JoinChannel(this, normalized);
+        await SendAsync(WorldOpcode.SMSG_CHANNEL_NOTIFY, WorldPacketBuilders.BuildChannelNotify(0x02, normalized), _crypt, cancellationToken);
+    }
+
+    private async Task HandleLeaveChannelAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (CurrentPlayer is null)
+        {
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        string channelName = reader.Remaining > 0 ? reader.ReadCString() : string.Empty;
+        string normalized = _chatSystem.ResolveChannelName(CurrentPlayer, channelName);
+        _chatSystem.LeaveChannel(this, normalized);
+        await SendAsync(WorldOpcode.SMSG_CHANNEL_NOTIFY, WorldPacketBuilders.BuildChannelNotify(0x03, normalized), _crypt, cancellationToken);
+    }
+
+    private async Task HandleChannelListAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (CurrentPlayer is null)
+        {
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        string channelName = reader.Remaining > 0 ? reader.ReadCString() : string.Empty;
+        string normalized = _chatSystem.ResolveChannelName(CurrentPlayer, channelName);
+        PlayerFaction faction = CurrentPlayer.Faction;
+        IReadOnlyList<PlayerLoginRecord> members = _playerSessionRegistry.SnapshotSessions()
+            .Where(session => session.CurrentPlayer?.Faction == faction && session.IsInChatChannel(normalized))
+            .Select(session => session.RequireCurrentPlayer())
+            .ToArray();
+
+        await SendAsync(WorldOpcode.SMSG_CHANNEL_LIST, WorldPacketBuilders.BuildChannelList(normalized, members), _crypt, cancellationToken);
     }
 
     private async Task HandleRequestAccountDataAsync(WorldPacket packet, CancellationToken cancellationToken)
@@ -576,6 +734,7 @@ public sealed class WorldClientSession : IAsyncDisposable
         string ownerServerName = _currentMapOwnerServerName;
         CurrentPlayer = null;
         _currentMapOwnerServerName = string.Empty;
+        _chatChannels.Clear();
 
         if (!string.IsNullOrWhiteSpace(ownerServerName))
         {

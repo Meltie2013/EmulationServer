@@ -18,11 +18,12 @@
 
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Globalization;
 
-using EmulationServer.WorldServer.Characters;
-using EmulationServer.WorldServer.Chat;
-using EmulationServer.WorldServer.Players;
-using EmulationServer.WorldServer.WorldData;
+using EmulationServer.Game.Characters;
+using EmulationServer.Game.Chat;
+using EmulationServer.Game.Players;
+using EmulationServer.Game.WorldData;
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
@@ -157,9 +158,11 @@ public static class WorldPacketBuilders
     {
         WorldPacketWriter writer = new();
 
-        // Vanilla keeps eight account-data blocks. Sending zero timestamps tells
-        // the client there is no cached server-side UI data to request yet.
-        for (int index = 0; index < 8; index++)
+        // Vanilla sends thirty-two uint32 values here. MaNGOS Zero, CMangos,
+        // and VMangos send all zeros at login. Sending only eight values leaves
+        // the client UI/addon cache bootstrap incomplete and can destabilize
+        // the packets that immediately follow world entry.
+        for (int index = 0; index < 32; index++)
         {
             writer.WriteUInt32(0);
         }
@@ -279,6 +282,12 @@ public static class WorldPacketBuilders
     {
         ArgumentNullException.ThrowIfNull(player);
 
+        // Keep the first world-entry object update conservative. The 1.12
+        // client is very sensitive to malformed item create blocks during
+        // CMSG_PLAYER_LOGIN. Equipment/inventory will be restored in a separate
+        // verified update path once the item field masks are fully validated.
+        PlayerInventoryItem[] visibleInventory = [];
+
         WorldPacketWriter writer = new();
         writer.WriteUInt32(1); // amount_of_objects
         writer.WriteUInt8(0); // has_transport
@@ -287,7 +296,7 @@ public static class WorldPacketBuilders
         WritePackedGuid(writer, player.ClientGuid);
         writer.WriteUInt8(4); // PLAYER
         WritePlayerMovementBlock(writer, player);
-        WritePlayerCreateUpdateMask(writer, player);
+        WritePlayerCreateUpdateMask(writer, player, visibleInventory);
 
         return writer.ToArray();
     }
@@ -313,37 +322,220 @@ public static class WorldPacketBuilders
         writer.WriteUInt32(1); // living movement block unknown1 used by the 1.12 client
     }
 
-    private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player)
+    private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> visibleInventory)
     {
         const int ObjectFieldGuid = 0x0000;
         const int ObjectFieldType = 0x0002;
         const int ObjectFieldScaleX = 0x0004;
         const int UnitFieldHealth = 0x0016;
+        const int UnitFieldPower1 = 0x0017;
         const int UnitFieldMaxHealth = 0x001C;
+        const int UnitFieldMaxPower1 = 0x001D;
         const int UnitFieldLevel = 0x0022;
         const int UnitFieldFactionTemplate = 0x0023;
         const int UnitFieldBytes0 = 0x0024;
+        const int UnitFieldFlags = 0x002E;
+        const int UnitFieldBaseAttackTime = 0x007E;
+        const int UnitFieldRangedAttackTime = 0x0080;
+        const int UnitFieldBoundingRadius = 0x0081;
+        const int UnitFieldCombatReach = 0x0082;
         const int UnitFieldDisplayId = 0x0083;
         const int UnitFieldNativeDisplayId = 0x0084;
+        const int UnitFieldMinDamage = 0x0086;
+        const int UnitFieldMaxDamage = 0x0087;
+        const int UnitFieldMinOffHandDamage = 0x0088;
+        const int UnitFieldMaxOffHandDamage = 0x0089;
+        const int UnitFieldBytes1 = 0x008A;
+        const int UnitFieldDynamicFlags = 0x008B;
+        const int UnitModCastSpeed = 0x008C;
+        const int UnitFieldStat0 = 0x0096;
+        const int UnitFieldResistances = 0x009B;
+        const int UnitFieldBaseMana = 0x00A2;
+        const int UnitFieldBaseHealth = 0x00A3;
+        const int UnitFieldBytes2 = 0x00A4;
+        const int UnitFieldAttackPower = 0x00A5;
+        const int UnitFieldAttackPowerMods = 0x00A6;
+        const int UnitFieldAttackPowerMultiplier = 0x00A7;
+        const int UnitFieldRangedAttackPower = 0x00A8;
+        const int UnitFieldRangedAttackPowerMods = 0x00A9;
+        const int UnitFieldRangedAttackPowerMultiplier = 0x00AA;
+        const int UnitFieldMinRangedDamage = 0x00AB;
+        const int UnitFieldMaxRangedDamage = 0x00AC;
+        const int PlayerFlags = 0x00BE;
+        const int PlayerBytes = 0x00C1;
+        const int PlayerBytes2 = 0x00C2;
+        const int PlayerBytes3 = 0x00C3;
+        const int PlayerFieldInvSlotHead = 0x01E6;
+        const int PlayerXp = 0x02CC;
+        const int PlayerNextLevelXp = 0x02CD;
+        const int PlayerRestStateExperience = 0x0497;
+        const int PlayerFieldCoinage = 0x0498;
+        const int PlayerFieldPosStat0 = 0x0499;
+        const int PlayerFieldNegStat0 = 0x049E;
+        const int PlayerFieldBytes = 0x04C6;
+        const int PlayerFieldBytes2 = 0x04EC;
+        const int PlayerFieldWatchedFactionIndex = 0x04ED;
 
         Dictionary<int, uint> fields = [];
         ulong clientGuid = player.ClientGuid;
-        uint health = player.Stats.Health == 0 ? 100 : player.Stats.Health;
+        uint health = player.Stats.Health == 0 ? 100u : player.Stats.Health;
+        uint mana = player.Stats.Power1;
+        uint rage = player.Class == 1 ? 1000u : player.Stats.Power2;
+        uint energy = player.Class == 4 ? 100u : player.Stats.Power4;
         uint displayId = ResolvePlayerDisplayId(player.Race, player.Gender);
+        uint level = Math.Max((uint)player.Level, 1u);
 
         fields[ObjectFieldGuid] = (uint)(clientGuid & uint.MaxValue);
         fields[ObjectFieldGuid + 1] = (uint)(clientGuid >> 32);
         fields[ObjectFieldType] = 0x19; // OBJECT | UNIT | PLAYER
         fields[ObjectFieldScaleX] = FloatToUInt32(1.0f);
+
         fields[UnitFieldHealth] = health;
+        fields[UnitFieldPower1] = mana;
+        fields[UnitFieldPower1 + 1] = rage;
+        fields[UnitFieldPower1 + 2] = player.Stats.Power3;
+        fields[UnitFieldPower1 + 3] = energy;
+        fields[UnitFieldPower1 + 4] = player.Stats.Power5;
         fields[UnitFieldMaxHealth] = health;
-        fields[UnitFieldLevel] = Math.Max((uint)player.Level, 1u);
+        fields[UnitFieldMaxPower1] = mana;
+        fields[UnitFieldMaxPower1 + 1] = rage;
+        fields[UnitFieldMaxPower1 + 2] = player.Stats.Power3;
+        fields[UnitFieldMaxPower1 + 3] = energy;
+        fields[UnitFieldMaxPower1 + 4] = player.Stats.Power5;
+        fields[UnitFieldLevel] = level;
         fields[UnitFieldFactionTemplate] = ResolveFactionTemplateId(player.Race);
         fields[UnitFieldBytes0] = BuildUnitBytes0(player.Race, player.Class, player.Gender);
+        fields[UnitFieldFlags] = 0;
+        fields[UnitFieldBaseAttackTime] = 2000;
+        fields[UnitFieldBaseAttackTime + 1] = 2000;
+        fields[UnitFieldRangedAttackTime] = 2000;
+        fields[UnitFieldBoundingRadius] = FloatToUInt32(0.389f);
+        fields[UnitFieldCombatReach] = FloatToUInt32(1.5f);
         fields[UnitFieldDisplayId] = displayId;
         fields[UnitFieldNativeDisplayId] = displayId;
+        fields[UnitFieldMinDamage] = FloatToUInt32(1.0f);
+        fields[UnitFieldMaxDamage] = FloatToUInt32(2.0f);
+        fields[UnitFieldMinOffHandDamage] = FloatToUInt32(0.0f);
+        fields[UnitFieldMaxOffHandDamage] = FloatToUInt32(0.0f);
+        fields[UnitFieldBytes1] = 0;
+        fields[UnitFieldDynamicFlags] = 0;
+        fields[UnitModCastSpeed] = FloatToUInt32(1.0f);
+
+        fields[UnitFieldStat0] = Math.Max(player.Stats.Strength, 1u);
+        fields[UnitFieldStat0 + 1] = Math.Max(player.Stats.Agility, 1u);
+        fields[UnitFieldStat0 + 2] = Math.Max(player.Stats.Stamina, 1u);
+        fields[UnitFieldStat0 + 3] = Math.Max(player.Stats.Intellect, 1u);
+        fields[UnitFieldStat0 + 4] = Math.Max(player.Stats.Spirit, 1u);
+        fields[UnitFieldResistances] = player.Stats.Armor;
+        for (int school = 1; school < 7; school++)
+        {
+            fields[UnitFieldResistances + school] = 0;
+        }
+
+        fields[UnitFieldBaseMana] = mana;
+        fields[UnitFieldBaseHealth] = health;
+        fields[UnitFieldBytes2] = 0;
+        fields[UnitFieldAttackPower] = Math.Max(1u, player.Stats.Strength * 2u);
+        fields[UnitFieldAttackPowerMods] = 0;
+        fields[UnitFieldAttackPowerMultiplier] = FloatToUInt32(0.0f);
+        fields[UnitFieldRangedAttackPower] = player.Stats.Agility;
+        fields[UnitFieldRangedAttackPowerMods] = 0;
+        fields[UnitFieldRangedAttackPowerMultiplier] = FloatToUInt32(0.0f);
+        fields[UnitFieldMinRangedDamage] = FloatToUInt32(0.0f);
+        fields[UnitFieldMaxRangedDamage] = FloatToUInt32(0.0f);
+
+        fields[PlayerFlags] = player.PlayerFlags;
+        fields[PlayerBytes] = player.PlayerBytes;
+        fields[PlayerBytes2] = player.PlayerBytes2;
+        fields[PlayerBytes3] = 0;
+
+        foreach (PlayerInventoryItem item in visibleInventory)
+        {
+            int fieldIndex = PlayerFieldInvSlotHead + (item.Slot * 2);
+            ulong itemClientGuid = CharacterGuid.ToClientGuid(item.ItemGuid);
+            fields[fieldIndex] = (uint)(itemClientGuid & uint.MaxValue);
+            fields[fieldIndex + 1] = (uint)(itemClientGuid >> 32);
+        }
+
+        fields[PlayerXp] = player.Experience;
+        fields[PlayerNextLevelXp] = BuildNextLevelExperience(player.Level);
+        fields[PlayerRestStateExperience] = 0;
+        fields[PlayerFieldCoinage] = player.Money;
+        for (int index = 0; index < 5; index++)
+        {
+            fields[PlayerFieldPosStat0 + index] = 0;
+            fields[PlayerFieldNegStat0 + index] = 0;
+        }
+
+        fields[PlayerFieldBytes] = player.PlayerBytes;
+        fields[PlayerFieldBytes2] = player.PlayerBytes2;
+        fields[PlayerFieldWatchedFactionIndex] = uint.MaxValue;
 
         WriteUpdateMask(writer, fields);
+    }
+
+    private static void WriteItemCreateUpdateBlock(WorldPacketWriter writer, PlayerLoginRecord player, PlayerInventoryItem item)
+    {
+        writer.WriteUInt8(3); // CREATE_OBJECT2
+        WritePackedGuid(writer, CharacterGuid.ToClientGuid(item.ItemGuid));
+        writer.WriteUInt8(1); // ITEM
+        writer.WriteUInt8(0); // item update flags
+        WriteItemCreateUpdateMask(writer, player, item);
+    }
+
+    private static void WriteItemCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, PlayerInventoryItem item)
+    {
+        const int ObjectFieldGuid = 0x0000;
+        const int ObjectFieldType = 0x0002;
+        const int ObjectFieldEntry = 0x0003;
+        const int ObjectFieldScaleX = 0x0004;
+        const int ItemFieldOwner = 0x0006;
+        const int ItemFieldContained = 0x0008;
+        const int ItemFieldStackCount = 0x000E;
+        const int ItemFieldFlags = 0x0015;
+        const int ItemFieldDurability = 0x002E;
+        const int ItemFieldMaxDurability = 0x002F;
+
+        Dictionary<int, uint> fields = ReadItemInstanceFields(item.InstanceData);
+        ulong itemClientGuid = CharacterGuid.ToClientGuid(item.ItemGuid);
+        ulong ownerClientGuid = player.ClientGuid;
+
+        fields[ObjectFieldGuid] = (uint)(itemClientGuid & uint.MaxValue);
+        fields[ObjectFieldGuid + 1] = (uint)(itemClientGuid >> 32);
+        fields[ObjectFieldType] = 0x03; // OBJECT | ITEM
+        fields[ObjectFieldEntry] = item.TemplateEntry;
+        fields[ObjectFieldScaleX] = FloatToUInt32(1.0f);
+        fields[ItemFieldOwner] = (uint)(ownerClientGuid & uint.MaxValue);
+        fields[ItemFieldOwner + 1] = (uint)(ownerClientGuid >> 32);
+        fields[ItemFieldContained] = fields[ItemFieldOwner];
+        fields[ItemFieldContained + 1] = fields[ItemFieldOwner + 1];
+        fields[ItemFieldStackCount] = fields.TryGetValue(ItemFieldStackCount, out uint stackCount) && stackCount != 0 ? stackCount : 1u;
+        fields.TryAdd(ItemFieldFlags, 0);
+        fields.TryAdd(ItemFieldDurability, 0);
+        fields.TryAdd(ItemFieldMaxDurability, fields[ItemFieldDurability]);
+
+        WriteUpdateMask(writer, fields);
+    }
+
+    private static Dictionary<int, uint> ReadItemInstanceFields(string instanceData)
+    {
+        Dictionary<int, uint> fields = [];
+        if (string.IsNullOrWhiteSpace(instanceData))
+        {
+            return fields;
+        }
+
+        string[] parts = instanceData.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        int count = Math.Min(parts.Length, 48);
+        for (int index = 0; index < count; index++)
+        {
+            if (uint.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value) && value != 0)
+            {
+                fields[index] = value;
+            }
+        }
+
+        return fields;
     }
 
     private static void WriteUpdateMask(WorldPacketWriter writer, IReadOnlyDictionary<int, uint> fields)
@@ -418,14 +610,14 @@ public static class WorldPacketBuilders
     {
         return race switch
         {
-            1 => 1, // Human
-            2 => 2, // Orc
-            3 => 3, // Dwarf
-            4 => 4, // Night Elf
-            5 => 5, // Undead
-            6 => 6, // Tauren
-            7 => 115, // Gnome
-            8 => 116, // Troll
+            1 => 1,
+            2 => 2,
+            3 => 3,
+            4 => 4,
+            5 => 5,
+            6 => 6,
+            7 => 115,
+            8 => 116,
             _ => 1,
         };
     }
@@ -452,6 +644,25 @@ public static class WorldPacketBuilders
         return BitConverter.SingleToUInt32Bits(value);
     }
 
+    private static uint BuildNextLevelExperience(byte level)
+    {
+        uint safeLevel = Math.Max((uint)level, 1u);
+        return safeLevel switch
+        {
+            1 => 400,
+            2 => 900,
+            3 => 1400,
+            4 => 2100,
+            5 => 2800,
+            6 => 3600,
+            7 => 4500,
+            8 => 5400,
+            9 => 6500,
+            10 => 7600,
+            _ => 7600 + ((safeLevel - 10) * 1100u),
+        };
+    }
+
     public static byte[] BuildLoginSetTimeSpeed(DateTimeOffset localTime, float gameSpeed = 0.01666667f)
     {
         WorldPacketWriter writer = new();
@@ -476,24 +687,98 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    public static byte[] BuildInitialSpells()
+    public static byte[] BuildInitialSpells(PlayerLoginRecord player)
     {
+        ArgumentNullException.ThrowIfNull(player);
+
+        ushort[] spellIds = GetInitialSpellIds(player).ToArray();
         WorldPacketWriter writer = new();
-        writer.WriteUInt8(0);
-        writer.WriteUInt16(0); // spell count
+        writer.WriteUInt8(0); // MaNGOS Zero sends zero here for Vanilla.
+        writer.WriteUInt16((ushort)spellIds.Length);
+        foreach (ushort spellId in spellIds)
+        {
+            writer.WriteUInt16(spellId);
+            writer.WriteUInt16(0);
+        }
+
         writer.WriteUInt16(0); // cooldown count
         return writer.ToArray();
     }
 
-    public static byte[] BuildActionButtons()
+    public static byte[] BuildActionButtons(PlayerLoginRecord player)
     {
+        ArgumentNullException.ThrowIfNull(player);
+
+        ushort[] starterSpells = GetStarterActionButtonSpellIds(player.Class).ToArray();
         WorldPacketWriter writer = new();
         for (int index = 0; index < 120; index++)
         {
-            writer.WriteUInt32(0);
+            writer.WriteUInt32(index < starterSpells.Length ? starterSpells[index] : 0u);
         }
 
         return writer.ToArray();
+    }
+
+
+    private static IEnumerable<ushort> GetInitialSpellIds(PlayerLoginRecord player)
+    {
+        SortedSet<ushort> spells =
+        [
+            81, // Dodge
+            203, // Unarmed
+            204, // Defense
+            522, // SPELLDEFENSE client bookkeeping spell
+            6603, // Auto Attack
+        ];
+
+        foreach (ushort languageSpell in GetLanguageSpellIds(player.Race, player.Faction))
+        {
+            spells.Add(languageSpell);
+        }
+
+        foreach (ushort classSpell in GetStarterActionButtonSpellIds(player.Class))
+        {
+            spells.Add(classSpell);
+        }
+
+        return spells;
+    }
+
+    private static IEnumerable<ushort> GetLanguageSpellIds(byte race, PlayerFaction faction)
+    {
+        yield return faction == PlayerFaction.Horde ? (ushort)669 : (ushort)668; // Orcish or Common.
+
+        ushort raceLanguage = race switch
+        {
+            3 => 672, // Dwarven
+            4 => 671, // Darnassian
+            6 => 670, // Taurahe
+            7 => 7340, // Gnomish
+            8 => 7341, // Troll
+            _ => 0,
+        };
+
+        if (raceLanguage != 0)
+        {
+            yield return raceLanguage;
+        }
+    }
+
+    private static IEnumerable<ushort> GetStarterActionButtonSpellIds(byte playerClass)
+    {
+        return playerClass switch
+        {
+            1 => new ushort[] { 78, 2457 }, // Warrior: Heroic Strike, Battle Stance
+            2 => new ushort[] { 635, 21084 }, // Paladin: Holy Light, Seal of Righteousness
+            3 => new ushort[] { 75, 2973 }, // Hunter: Auto Shot, Raptor Strike
+            4 => new ushort[] { 1752 }, // Rogue: Sinister Strike
+            5 => new ushort[] { 585, 2050 }, // Priest: Smite, Lesser Heal
+            7 => new ushort[] { 403, 331 }, // Shaman: Lightning Bolt, Healing Wave
+            8 => new ushort[] { 133, 168 }, // Mage: Fireball, Frost Armor
+            9 => new ushort[] { 686, 687 }, // Warlock: Shadow Bolt, Demon Skin
+            11 => new ushort[] { 5176, 5185 }, // Druid: Wrath, Healing Touch
+            _ => Array.Empty<ushort>(),
+        };
     }
 
     public static byte[] BuildInitializeFactions()
@@ -648,6 +933,120 @@ public static class WorldPacketBuilders
         writer.WriteCString(text);
         writer.WriteUInt8(0);
         _ = senderName;
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildNameQueryResponse(CharacterNameQueryResult character)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt64(CharacterGuid.ToClientGuid(character.Guid));
+        writer.WriteCString(character.Name);
+        writer.WriteCString(string.Empty); // realm name; empty means local realm
+        writer.WriteUInt32(character.Race);
+        writer.WriteUInt32(character.Gender);
+        writer.WriteUInt32(character.Class);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildLogoutResponse(uint reason = 0, bool instantLogout = true)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(reason);
+        writer.WriteUInt8(instantLogout ? (byte)1 : (byte)0);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildLogoutComplete()
+    {
+        return [];
+    }
+
+    public static byte[] BuildLogoutCancelAck()
+    {
+        return [];
+    }
+
+    public static byte[] BuildServerTime(DateTimeOffset localTime)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(EncodePackedGameTime(localTime));
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildPlayedTime(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(player.TotalTime);
+        writer.WriteUInt32(player.LevelTime);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildChannelNotify(byte notificationType, string channelName)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt8(notificationType);
+        writer.WriteCString(channelName);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildChannelList(string channelName, IReadOnlyList<PlayerLoginRecord> members)
+    {
+        ArgumentNullException.ThrowIfNull(members);
+
+        WorldPacketWriter writer = new();
+        writer.WriteCString(channelName);
+        writer.WriteUInt8(0); // normal channel flags
+        writer.WriteUInt32((uint)members.Count);
+        foreach (PlayerLoginRecord member in members)
+        {
+            writer.WriteUInt64(member.ClientGuid);
+            writer.WriteUInt8(0); // normal member flags
+        }
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildWhoResponse(IReadOnlyList<PlayerLoginRecord> players)
+    {
+        ArgumentNullException.ThrowIfNull(players);
+
+        WorldPacketWriter writer = new();
+        uint count = (uint)Math.Min(players.Count, 50);
+        writer.WriteUInt32(count);
+        writer.WriteUInt32(count);
+
+        foreach (PlayerLoginRecord player in players.Take((int)count))
+        {
+            writer.WriteCString(player.Name);
+            writer.WriteCString(string.Empty); // guild
+            writer.WriteUInt32(player.Level);
+            writer.WriteUInt32(player.Class);
+            writer.WriteUInt32(player.Race);
+            writer.WriteUInt32(player.Zone);
+        }
+
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildItemNameQueryResponse(ItemTemplateRecord itemTemplate)
+    {
+        ArgumentNullException.ThrowIfNull(itemTemplate);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(itemTemplate.Entry);
+        writer.WriteCString(itemTemplate.Name);
+        writer.WriteUInt32(itemTemplate.InventoryType);
+        return writer.ToArray();
+    }
+
+    public static byte[] BuildItemNameQueryNotFound(uint itemEntry)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(itemEntry | 0x80000000u);
         return writer.ToArray();
     }
 

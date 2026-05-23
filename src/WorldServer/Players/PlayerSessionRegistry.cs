@@ -18,6 +18,7 @@
 
 using System.Collections.Concurrent;
 
+using EmulationServer.Game.Players;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Networking.Sessions;
@@ -69,6 +70,14 @@ public sealed class PlayerSessionRegistry
         }
 
         Logger.Write(LogType.NETWORK, $"Unregistered in-world player '{player.Name}' ({player.Guid}). Active players={ActivePlayerCount}.", nameof(PlayerSessionRegistry));
+    }
+
+
+    public IReadOnlyList<WorldClientSession> SnapshotSessions()
+    {
+        return _playersByGuid.Values
+            .Distinct()
+            .ToArray();
     }
 
     public IReadOnlyList<WorldClientSession> GetSessionsForFaction(PlayerFaction faction)

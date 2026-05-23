@@ -18,6 +18,7 @@
 
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Game.Data.Dbc.Characters;
+using EmulationServer.Game.Data.Dbc.Chat;
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Data.Dbc.Items;
 using EmulationServer.Game.Data.Dbc.Maps;
@@ -45,6 +46,7 @@ public sealed class WorldGameDataStore
     private readonly ItemDbcDataStore _itemData;
     private readonly SpellDbcDataStore _spellData;
     private readonly FactionDbcDataStore _factionData;
+    private readonly ChatChannelDbcDataStore _chatData;
 
     /**
       * Creates a new WorldGameDataStore instance and stores the dependencies required by the component.
@@ -56,7 +58,8 @@ public sealed class WorldGameDataStore
         CharacterDbcDataStore characterData,
         ItemDbcDataStore itemData,
         SpellDbcDataStore spellData,
-        FactionDbcDataStore factionData)
+        FactionDbcDataStore factionData,
+        ChatChannelDbcDataStore chatData)
     {
         _dbcStores = dbcStores;
         _mapData = mapData;
@@ -64,6 +67,7 @@ public sealed class WorldGameDataStore
         _itemData = itemData;
         _spellData = spellData;
         _factionData = factionData;
+        _chatData = chatData;
     }
 
     /**
@@ -76,7 +80,8 @@ public sealed class WorldGameDataStore
         CharacterDbcDataStore.Empty,
         ItemDbcDataStore.Empty,
         SpellDbcDataStore.Empty,
-        FactionDbcDataStore.Empty);
+        FactionDbcDataStore.Empty,
+        ChatChannelDbcDataStore.Empty);
 
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
@@ -104,6 +109,11 @@ public sealed class WorldGameDataStore
       * Gets typed faction and faction-template DBC data.
       */
     public FactionDbcDataStore FactionData => _factionData;
+
+    /**
+      * Gets typed chat-channel DBC data used for zone-scoped channel names and auto-join behavior.
+      */
+    public ChatChannelDbcDataStore ChatData => _chatData;
 
     /**
       * Attempts the operation without treating a normal failure as an exceptional condition.
@@ -137,9 +147,10 @@ public sealed class WorldGameDataStore
         ItemDbcDataStore itemData = ItemDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
         SpellDbcDataStore spellData = SpellDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
         FactionDbcDataStore factionData = FactionDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+        ChatChannelDbcDataStore chatData = ChatChannelDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
 
         Logger.Write(LogType.SUCCESS, $"World game data loaded: {dbcStores.Count} DBC file(s). Map tiles are owned by MapServer and InstanceServer.", nameof(WorldGameDataStore));
 
-        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData);
+        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData, chatData);
     }
 }

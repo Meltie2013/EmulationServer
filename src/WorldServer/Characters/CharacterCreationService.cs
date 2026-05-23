@@ -23,8 +23,9 @@ using EmulationServer.Game.Data.Stores;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Database.Characters;
+using EmulationServer.Game.Characters;
 using EmulationServer.WorldServer.Networking.Packets;
-using EmulationServer.WorldServer.WorldData;
+using EmulationServer.Game.WorldData;
 
 namespace EmulationServer.WorldServer.Characters;
 

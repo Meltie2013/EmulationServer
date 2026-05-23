@@ -28,19 +28,22 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
-using EmulationServer.WorldServer.Commands;
+using WorldConsoleCommandService = EmulationServer.WorldServer.Commands.WorldConsoleCommandService;
+using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
 using EmulationServer.WorldServer.Characters;
-using EmulationServer.WorldServer.Chat;
+using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
 using EmulationServer.WorldServer.Configuration;
 using EmulationServer.WorldServer.Database.Accounts;
 using EmulationServer.WorldServer.Database.Characters;
+using EmulationServer.Game.Characters;
 using EmulationServer.WorldServer.Internal;
-using EmulationServer.WorldServer.Items;
+using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
 using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.WorldServer.Networking.Sessions;
-using EmulationServer.WorldServer.Players;
+using EmulationServer.Game.Players;
+using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
 using EmulationServer.WorldServer.Networking.Socket;
-using EmulationServer.WorldServer.WorldData;
+using EmulationServer.Game.WorldData;
 
 /**
   * File overview: src/WorldServer/Core/WorldServer.cs
@@ -83,10 +86,10 @@ public sealed class WorldServer : IAsyncDisposable
     private readonly CharacterRepository _characterRepository;
     private readonly WorldTemplateRepository _worldTemplateRepository;
     private readonly CharacterCreationService _characterCreationService;
-    private readonly ItemSystem _itemSystem;
-    private readonly ChatSystem _chatSystem;
-    private readonly InGameCommandService _inGameCommandService;
-    private readonly PlayerSessionRegistry _playerSessionRegistry;
+    private readonly GameItemSystem _itemSystem;
+    private readonly GameChatSystem _chatSystem;
+    private readonly GameInGameCommandService _inGameCommandService;
+    private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
     private readonly WorldClientSocketListener _clientListener;
     private WorldTemplateDataStore _worldTemplateData = WorldTemplateDataStore.Empty;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
@@ -121,10 +124,10 @@ public sealed class WorldServer : IAsyncDisposable
             entry => _worldTemplateData.TryGetItemTemplate(entry, out ItemTemplateRecord itemTemplate) ? itemTemplate : null);
         _worldTemplateRepository = new WorldTemplateRepository(_worldDatabase);
         _characterCreationService = new CharacterCreationService(_characterRepository, () => _gameData, () => _worldTemplateData);
-        _itemSystem = new ItemSystem(() => _worldTemplateData);
-        _playerSessionRegistry = new PlayerSessionRegistry();
-        _chatSystem = new ChatSystem(_playerSessionRegistry);
-        _inGameCommandService = new InGameCommandService();
+        _itemSystem = new GameItemSystem(() => _worldTemplateData);
+        _playerSessionRegistry = new WorldPlayerSessionRegistry();
+        _chatSystem = new GameChatSystem(() => _gameData);
+        _inGameCommandService = new GameInGameCommandService();
         _realmStatusReporter = new WorldRealmStatusReporter(
             settings.RealmStatus,
             settings.InternalNetwork.RegistrationKey,
@@ -762,6 +765,6 @@ public sealed class WorldServer : IAsyncDisposable
             gameDataSettings.DbcDirectory,
             gameDataSettings.RequiredDbcFiles);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}.", nameof(WorldServer));
+        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}, chatChannels={_gameData.ChatData.Records.Count}.", nameof(WorldServer));
     }
 }

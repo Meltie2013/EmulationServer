@@ -16,23 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.WorldServer.Characters;
+namespace EmulationServer.Game.Chat;
 
-public sealed record CharacterListEntry(
-    uint Guid,
-    string Name,
-    byte Race,
-    byte Class,
-    byte Gender,
-    byte Level,
-    uint Zone,
-    uint Map,
-    float PositionX,
-    float PositionY,
-    float PositionZ,
-    uint GuildId,
-    uint PlayerFlags,
-    uint AtLogin,
-    uint PlayerBytes,
-    uint PlayerBytes2,
-    IReadOnlyList<CharacterEquipmentDisplay> Equipment);
+public enum ChatMessageType : uint
+{
+    Say = 0,
+    Party = 1,
+    Raid = 2,
+    Guild = 3,
+    Officer = 4,
+    Yell = 5,
+    Whisper = 6,
+    System = 10,
+    Channel = 17,
+}

@@ -16,11 +16,21 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using EmulationServer.WorldServer.WorldData;
+namespace EmulationServer.Game.Players;
 
-namespace EmulationServer.WorldServer.Database.Characters;
-
-public sealed record StarterItemCreateData(
-    ItemTemplateRecord Template,
-    byte StorageSlot,
-    int EquipmentSlot);
+public sealed record PlayerStats(
+    uint Health,
+    uint Power1,
+    uint Power2,
+    uint Power3,
+    uint Power4,
+    uint Power5,
+    uint Strength,
+    uint Agility,
+    uint Stamina,
+    uint Intellect,
+    uint Spirit,
+    uint Armor)
+{
+    public static PlayerStats Empty { get; } = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+}
