@@ -177,7 +177,7 @@ public sealed class InternalSocketListener
             }
 
 
-            ConfigureClient(client);
+            ConfigureClient(client, _settings);
 
             Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal connection from {client.Client.RemoteEndPoint}", nameof(InternalSocketListener));
 
@@ -219,11 +219,42 @@ public sealed class InternalSocketListener
       * Applies configuration to shared runtime services before they are used by the server.
       * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
       */
-    private static void ConfigureClient(TcpClient client)
+    private static void ConfigureClient(TcpClient client, InternalNetworkSettings settings)
     {
         client.NoDelay = true;
-        client.ReceiveBufferSize = 8192;
-        client.SendBufferSize = 8192;
+        client.ReceiveBufferSize = settings.ReceiveBufferSize;
+        client.SendBufferSize = settings.SendBufferSize;
+
+        if (!settings.KeepAlive)
+        {
+            return;
+        }
+
+        client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+
+        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveTime, settings.KeepAliveTimeSeconds);
+        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveInterval, settings.KeepAliveIntervalSeconds);
+    }
+
+    private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
+    {
+        if (valueSeconds <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            client.Client.SetSocketOption(SocketOptionLevel.Tcp, optionName, valueSeconds);
+        }
+        catch (SocketException)
+        {
+            // Some platforms do not expose per-socket TCP keep-alive tuning. KeepAlive itself is still enabled.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The socket is already closed.
+        }
     }
 
     /**

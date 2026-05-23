@@ -133,6 +133,12 @@ public sealed class EmulationServerHost : IAsyncDisposable
             internalNetworkSettings.RegistrationKey,
             internalNetworkSettings.LatencyReportInterval,
             internalNetworkSettings.PingTimeout,
+            internalNetworkSettings.ReceiveBufferSize,
+            internalNetworkSettings.SendBufferSize,
+            internalNetworkSettings.KeepAlive,
+            internalNetworkSettings.KeepAliveTimeSeconds,
+            internalNetworkSettings.KeepAliveIntervalSeconds,
+            internalNetworkSettings.AuthenticationTimeout,
             hostCallbacks);
     }
 

@@ -18,6 +18,8 @@
 
 using System.Net;
 
+using EmulationServer.Network.Networking.Protocol;
+
 /**
   * File overview: src/EmulationServer.Network/Configuration/InternalNetworkSettings.cs
   * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
@@ -62,6 +64,43 @@ public sealed class InternalNetworkSettings
       */
     public int Backlog { get; init; } = 128;
 
+    /**
+      * Gets or stores the receive buffer size used by InternalNetworkSettings.
+      * Larger buffers reduce socket read pressure during packet bursts between internal servers.
+      */
+    public int ReceiveBufferSize { get; init; } = 65536;
+
+    /**
+      * Gets or stores the send buffer size used by InternalNetworkSettings.
+      * Larger buffers reduce socket write pressure during packet bursts between internal servers.
+      */
+    public int SendBufferSize { get; init; } = 65536;
+
+    /**
+      * Gets or stores whether TCP keep-alive should be enabled for internal server sockets.
+      */
+    public bool KeepAlive { get; init; } = true;
+
+    /**
+      * Gets or stores how long a quiet internal TCP connection can sit before keep-alive probes start.
+      */
+    public int KeepAliveTimeSeconds { get; init; } = 30;
+
+    /**
+      * Gets or stores the interval between internal TCP keep-alive probes.
+      */
+    public int KeepAliveIntervalSeconds { get; init; } = 10;
+
+    /**
+      * Gets or stores how long an internal connection has to finish authentication.
+      */
+    public TimeSpan AuthenticationTimeout { get; init; } = TimeSpan.FromSeconds(5);
+
+    /**
+      * Gets or stores the allowed inbound internal server names.
+      * An empty list keeps compatibility and allows any server with a valid registration proof.
+      */
+    public IReadOnlyList<string> AllowedServers { get; init; } = [];
 
     /**
       * Gets or stores the shutdown grace period value used by InternalNetworkSettings.
@@ -107,9 +146,9 @@ public sealed class InternalNetworkSettings
       */
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(ServerName))
+        if (!InternalProtocol.IsValidServerName(ServerName))
         {
-            throw new InvalidOperationException("Internal network server name is required.");
+            throw new InvalidOperationException($"Invalid internal network server name: '{ServerName}'.");
         }
 
         _ = GetBindAddress();
@@ -139,6 +178,38 @@ public sealed class InternalNetworkSettings
             throw new InvalidOperationException("Internal network listener backlog must be greater than zero.");
         }
 
+        if (ReceiveBufferSize <= 0)
+        {
+            throw new InvalidOperationException("Internal network receive buffer size must be greater than zero.");
+        }
+
+        if (SendBufferSize <= 0)
+        {
+            throw new InvalidOperationException("Internal network send buffer size must be greater than zero.");
+        }
+
+        if (KeepAliveTimeSeconds < 0)
+        {
+            throw new InvalidOperationException("Internal network keep-alive time cannot be negative.");
+        }
+
+        if (KeepAliveIntervalSeconds < 0)
+        {
+            throw new InvalidOperationException("Internal network keep-alive interval cannot be negative.");
+        }
+
+        if (AuthenticationTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Internal network authentication timeout must be greater than zero.");
+        }
+
+        foreach (string allowedServer in AllowedServers)
+        {
+            if (!InternalProtocol.IsValidServerName(allowedServer))
+            {
+                throw new InvalidOperationException($"Invalid allowed internal server name: '{allowedServer}'.");
+            }
+        }
 
         if (ShutdownGracePeriod < TimeSpan.Zero)
         {

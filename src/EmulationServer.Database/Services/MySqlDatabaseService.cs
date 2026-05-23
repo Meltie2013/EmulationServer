@@ -66,6 +66,11 @@ public sealed class MySqlDatabaseService : IDatabaseService
 
             ConnectionTimeout = settings.ConnectionTimeoutSeconds,
             DefaultCommandTimeout = settings.DefaultCommandTimeoutSeconds,
+            ConnectionIdleTimeout = settings.ConnectionIdleTimeoutSeconds,
+            ConnectionLifeTime = settings.ConnectionLifeTimeSeconds,
+            Keepalive = settings.KeepAliveSeconds,
+            ConnectionReset = settings.ConnectionReset,
+            UseCompression = settings.UseCompression,
         };
 
         _connectionString = builder.ConnectionString;

@@ -91,6 +91,35 @@ public sealed class DatabaseSettings
     public uint DefaultCommandTimeoutSeconds { get; init; } = 30;
 
     /**
+      * Gets or stores how long idle pooled database connections may remain open.
+      */
+    public uint ConnectionIdleTimeoutSeconds { get; init; } = 180;
+
+    /**
+      * Gets or stores the maximum lifetime for pooled database connections.
+      * A value of 0 leaves the provider default lifetime behavior in place.
+      */
+    public uint ConnectionLifeTimeSeconds { get; init; } = 0;
+
+    /**
+      * Gets or stores the TCP keep-alive interval used by database connections.
+      * A value of 0 disables provider-level database keep-alive.
+      */
+    public uint KeepAliveSeconds { get; init; } = 30;
+
+    /**
+      * Gets or stores whether pooled database connections are reset before reuse.
+      * Keep this true unless all session state is tightly controlled.
+      */
+    public bool ConnectionReset { get; init; } = true;
+
+    /**
+      * Gets or stores whether MySQL protocol compression should be enabled.
+      * Compression is disabled by default because local/LAN database traffic is usually faster without it.
+      */
+    public bool UseCompression { get; init; } = false;
+
+    /**
       * Validates input and throws a clear exception before invalid state reaches runtime code.
       * The method is part of DatabaseSettings and keeps this workflow isolated from the caller.
       */
@@ -134,6 +163,11 @@ public sealed class DatabaseSettings
         if (DefaultCommandTimeoutSeconds == 0)
         {
             throw new InvalidOperationException("Database command timeout must be greater than zero.");
+        }
+
+        if (ConnectionIdleTimeoutSeconds == 0)
+        {
+            throw new InvalidOperationException("Database idle connection timeout must be greater than zero.");
         }
     }
 }

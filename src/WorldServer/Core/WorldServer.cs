@@ -119,6 +119,12 @@ public sealed class WorldServer : IAsyncDisposable
             settings.MaxConnections,
             settings.InternalNetwork.LatencyReportInterval,
             settings.InternalNetwork.PingTimeout,
+            settings.InternalNetwork.ReceiveBufferSize,
+            settings.InternalNetwork.SendBufferSize,
+            settings.InternalNetwork.KeepAlive,
+            settings.InternalNetwork.KeepAliveTimeSeconds,
+            settings.InternalNetwork.KeepAliveIntervalSeconds,
+            settings.InternalNetwork.AuthenticationTimeout,
             _characterRepository.GetCharacterCountsByAccountAsync);
         _clientListener = new WorldClientSocketListener(
             settings.ClientNetwork,

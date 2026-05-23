@@ -37,6 +37,9 @@ public static class InternalProtocol
     public const int MaximumAuthenticationLineLength = 512;
     public const int MaximumPacketLineLength = 2048;
 
+    private const int AuthenticationNonceByteLength = 32;
+    private const int MaximumServerNameLength = 64;
+
     public const string AuthenticationChallenge = "AUTH_CHALLENGE";
     public const string AuthenticationResponse = "AUTH_RESPONSE";
     public const string AuthenticationAccepted = "AUTH_ACCEPTED";
@@ -53,10 +56,8 @@ public static class InternalProtocol
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
 
     /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of InternalProtocol and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      * Reads a single protocol line without consuming bytes after the line terminator.
+      * Prefer InternalProtocolReader for long-lived sessions so incoming packets are buffered efficiently.
       */
     public static async Task<string?> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
     {
@@ -121,9 +122,104 @@ public static class InternalProtocol
     }
 
     /**
+      * Creates a cryptographically random challenge value used during internal server authentication.
+      */
+    public static string CreateAuthenticationNonce()
+    {
+        return Convert.ToHexString(RandomNumberGenerator.GetBytes(AuthenticationNonceByteLength));
+    }
+
+    /**
+      * Creates the HMAC proof sent during internal server authentication.
+      * The shared registration key is never sent over the socket.
+      */
+    public static string CreateAuthenticationProof(
+        string registrationKey,
+        string sourceServerName,
+        string targetServerName,
+        string challengeNonce)
+    {
+        if (string.IsNullOrWhiteSpace(registrationKey))
+        {
+            throw new ArgumentException("Registration key is required.", nameof(registrationKey));
+        }
+
+        if (!IsValidServerName(sourceServerName))
+        {
+            throw new ArgumentException("Source server name is invalid.", nameof(sourceServerName));
+        }
+
+        if (!IsValidServerName(targetServerName))
+        {
+            throw new ArgumentException("Target server name is invalid.", nameof(targetServerName));
+        }
+
+        if (string.IsNullOrWhiteSpace(challengeNonce))
+        {
+            throw new ArgumentException("Authentication challenge nonce is required.", nameof(challengeNonce));
+        }
+
+        using HMACSHA256 hmac = new(Encoding.UTF8.GetBytes(registrationKey));
+        byte[] proofInput = Encoding.UTF8.GetBytes($"{sourceServerName}\n{targetServerName}\n{challengeNonce}");
+        byte[] proof = hmac.ComputeHash(proofInput);
+
+        return Convert.ToHexString(proof);
+    }
+
+    /**
+      * Performs a fixed-time authentication proof comparison so timing differences do not leak useful information.
+      */
+    public static bool AuthenticationProofsMatch(
+        string registrationKey,
+        string sourceServerName,
+        string targetServerName,
+        string challengeNonce,
+        string suppliedProof)
+    {
+        if (string.IsNullOrWhiteSpace(suppliedProof))
+        {
+            return false;
+        }
+
+        string expectedProof = CreateAuthenticationProof(
+            registrationKey,
+            sourceServerName,
+            targetServerName,
+            challengeNonce);
+
+        byte[] expectedBytes = Encoding.ASCII.GetBytes(expectedProof);
+        byte[] actualBytes = Encoding.ASCII.GetBytes(suppliedProof.Trim());
+
+        return expectedBytes.Length == actualBytes.Length &&
+            CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
+    }
+
+    /**
+      * Validates internal server names before they are accepted into runtime dependency state.
+      */
+    public static bool IsValidServerName(string serverName)
+    {
+        if (string.IsNullOrWhiteSpace(serverName) || serverName.Length > MaximumServerNameLength)
+        {
+            return false;
+        }
+
+        foreach (char value in serverName)
+        {
+            if (char.IsLetterOrDigit(value) || value is '_' or '-' or '.')
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
       * Performs the registration keys match operation for InternalProtocol.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
+      * This remains available for tests and old helpers, but new authentication uses HMAC proofs.
       */
     public static bool RegistrationKeysMatch(string expected, string actual)
     {

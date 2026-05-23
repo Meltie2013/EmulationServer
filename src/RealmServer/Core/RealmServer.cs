@@ -111,6 +111,12 @@ public sealed class RealmServer : IAsyncDisposable
             settings.InternalNetwork.RegistrationKey,
             settings.InternalNetwork.LatencyReportInterval,
             settings.InternalNetwork.PingTimeout,
+            settings.InternalNetwork.ReceiveBufferSize,
+            settings.InternalNetwork.SendBufferSize,
+            settings.InternalNetwork.KeepAlive,
+            settings.InternalNetwork.KeepAliveTimeSeconds,
+            settings.InternalNetwork.KeepAliveIntervalSeconds,
+            settings.InternalNetwork.AuthenticationTimeout,
             internalPacketHandler.CreateCallbacks());
 
         _commandService = new RealmConsoleCommandService(_accountRepository);

@@ -97,6 +97,34 @@ public static class RealmServerConfigurationLoader
                 128,
                 minimum: 1),
 
+            ReceiveBufferSize = configuration.GetInt(
+                RealmServerSection,
+                "ReceiveBufferSize",
+                65536,
+                minimum: 1024),
+
+            SendBufferSize = configuration.GetInt(
+                RealmServerSection,
+                "SendBufferSize",
+                65536,
+                minimum: 1024),
+
+            KeepAlive = configuration.GetBool(
+                RealmServerSection,
+                "KeepAlive",
+                true),
+
+            KeepAliveTimeSeconds = configuration.GetInt(
+                RealmServerSection,
+                "KeepAliveTimeSeconds",
+                30,
+                minimum: 0),
+
+            KeepAliveIntervalSeconds = configuration.GetInt(
+                RealmServerSection,
+                "KeepAliveIntervalSeconds",
+                10,
+                minimum: 0),
 
             ShutdownGracePeriod = configuration.GetTimeSpan(
                 RealmServerSection,
@@ -167,6 +195,32 @@ public static class RealmServerConfigurationLoader
                 "DefaultCommandTimeoutSeconds",
                 30,
                 minimum: 1),
+
+            ConnectionIdleTimeoutSeconds = configuration.GetUInt(
+                DatabaseSection,
+                "ConnectionIdleTimeoutSeconds",
+                180,
+                minimum: 1),
+
+            ConnectionLifeTimeSeconds = configuration.GetUInt(
+                DatabaseSection,
+                "ConnectionLifeTimeSeconds",
+                0),
+
+            KeepAliveSeconds = configuration.GetUInt(
+                DatabaseSection,
+                "KeepAliveSeconds",
+                30),
+
+            ConnectionReset = configuration.GetBool(
+                DatabaseSection,
+                "ConnectionReset",
+                true),
+
+            UseCompression = configuration.GetBool(
+                DatabaseSection,
+                "UseCompression",
+                false),
         };
     }
 

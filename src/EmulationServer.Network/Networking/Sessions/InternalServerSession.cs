@@ -49,6 +49,7 @@ public sealed class InternalServerSession
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
     private readonly NetworkStream _stream;
+    private readonly InternalProtocolReader _reader;
     /**
       * Stores the send lock dependency or runtime value for InternalServerSession.
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
@@ -126,6 +127,7 @@ public sealed class InternalServerSession
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _callbacks = callbacks ?? InternalNetworkCallbacks.Empty;
         _stream = _client.GetStream();
+        _reader = new InternalProtocolReader(_stream);
         _remoteEndPoint = _client.Client.RemoteEndPoint?.ToString() ?? "unknown endpoint";
         _lastPacketReceivedUtcTicks = DateTimeOffset.UtcNow.Ticks;
     }
@@ -149,7 +151,18 @@ public sealed class InternalServerSession
 
         try
         {
-            remoteServerName = await RequestAndValidateAuthenticationAsync(linkedCancellation.Token);
+            using CancellationTokenSource authenticationCancellation = CancellationTokenSource.CreateLinkedTokenSource(linkedCancellation.Token);
+            authenticationCancellation.CancelAfter(_settings.AuthenticationTimeout);
+
+            try
+            {
+                remoteServerName = await RequestAndValidateAuthenticationAsync(authenticationCancellation.Token);
+            }
+            catch (OperationCanceledException) when (!linkedCancellation.Token.IsCancellationRequested)
+            {
+                throw new UnauthorizedAccessException($"Internal authentication timed out after {_settings.AuthenticationTimeout.TotalSeconds:0.##} second(s).");
+            }
+
             RemoteServerName = remoteServerName;
             MarkPacketReceived();
 
@@ -175,8 +188,7 @@ public sealed class InternalServerSession
 
             while (!linkedCancellation.Token.IsCancellationRequested)
             {
-                string? line = await InternalProtocol.ReadLineAsync(
-                    _stream,
+                string? line = await _reader.ReadLineAsync(
                     InternalProtocol.MaximumPacketLineLength,
                     linkedCancellation.Token);
 
@@ -312,6 +324,7 @@ public sealed class InternalServerSession
             // The socket may have already been disposed.
         }
 
+        _reader.Dispose();
         _stream.Dispose();
         _client.Dispose();
         _sendLock.Dispose();
@@ -328,14 +341,15 @@ public sealed class InternalServerSession
       */
     private async Task<string> RequestAndValidateAuthenticationAsync(CancellationToken cancellationToken)
     {
+        string challengeNonce = InternalProtocol.CreateAuthenticationNonce();
+
         await InternalProtocol.WriteLineAsync(
             _stream,
             _sendLock,
-            $"{InternalProtocol.AuthenticationChallenge} {_settings.ServerName}",
+            $"{InternalProtocol.AuthenticationChallenge} {_settings.ServerName} {challengeNonce}",
             cancellationToken);
 
-        string? line = await InternalProtocol.ReadLineAsync(
-            _stream,
+        string? line = await _reader.ReadLineAsync(
             InternalProtocol.MaximumAuthenticationLineLength,
             cancellationToken);
 
@@ -352,16 +366,27 @@ public sealed class InternalServerSession
         }
 
         string remoteServerName = parts[1];
-        string registrationKey = parts[2];
+        string authenticationProof = parts[2];
 
-        if (string.IsNullOrWhiteSpace(remoteServerName))
+        if (!InternalProtocol.IsValidServerName(remoteServerName))
         {
-            throw new UnauthorizedAccessException("Missing remote server name.");
+            throw new UnauthorizedAccessException($"Invalid remote server name '{remoteServerName}'.");
         }
 
-        if (!InternalProtocol.RegistrationKeysMatch(_settings.RegistrationKey, registrationKey))
+        if (_settings.AllowedServers.Count > 0 &&
+            !_settings.AllowedServers.Any(allowedServer => string.Equals(allowedServer, remoteServerName, StringComparison.OrdinalIgnoreCase)))
         {
-            throw new UnauthorizedAccessException($"Invalid registration key for server '{remoteServerName}'.");
+            throw new UnauthorizedAccessException($"Server '{remoteServerName}' is not allowed to register with {_settings.ServerName}.");
+        }
+
+        if (!InternalProtocol.AuthenticationProofsMatch(
+            _settings.RegistrationKey,
+            remoteServerName,
+            _settings.ServerName,
+            challengeNonce,
+            authenticationProof))
+        {
+            throw new UnauthorizedAccessException($"Invalid authentication proof for server '{remoteServerName}'.");
         }
 
         return remoteServerName;

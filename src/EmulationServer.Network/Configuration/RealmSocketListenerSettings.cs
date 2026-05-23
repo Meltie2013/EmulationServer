@@ -50,6 +50,30 @@ public sealed class RealmSocketListenerSettings
       */
     public int Backlog { get; init; } = 128;
 
+    /**
+      * Gets or stores the receive buffer size used by the RealmServer client listener.
+      */
+    public int ReceiveBufferSize { get; init; } = 65536;
+
+    /**
+      * Gets or stores the send buffer size used by the RealmServer client listener.
+      */
+    public int SendBufferSize { get; init; } = 65536;
+
+    /**
+      * Gets or stores whether TCP keep-alive should be enabled for client sockets.
+      */
+    public bool KeepAlive { get; init; } = true;
+
+    /**
+      * Gets or stores how long a quiet client TCP connection can sit before keep-alive probes start.
+      */
+    public int KeepAliveTimeSeconds { get; init; } = 30;
+
+    /**
+      * Gets or stores the interval between client TCP keep-alive probes.
+      */
+    public int KeepAliveIntervalSeconds { get; init; } = 10;
 
     /**
       * Gets or stores the shutdown grace period value used by RealmSocketListenerSettings.
@@ -89,6 +113,25 @@ public sealed class RealmSocketListenerSettings
             throw new InvalidOperationException("Realm listener backlog must be greater than zero.");
         }
 
+        if (ReceiveBufferSize <= 0)
+        {
+            throw new InvalidOperationException("Realm listener receive buffer size must be greater than zero.");
+        }
+
+        if (SendBufferSize <= 0)
+        {
+            throw new InvalidOperationException("Realm listener send buffer size must be greater than zero.");
+        }
+
+        if (KeepAliveTimeSeconds < 0)
+        {
+            throw new InvalidOperationException("Realm listener keep-alive time cannot be negative.");
+        }
+
+        if (KeepAliveIntervalSeconds < 0)
+        {
+            throw new InvalidOperationException("Realm listener keep-alive interval cannot be negative.");
+        }
 
         if (ShutdownGracePeriod < TimeSpan.Zero)
         {

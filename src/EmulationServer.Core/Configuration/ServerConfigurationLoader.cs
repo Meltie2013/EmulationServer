@@ -152,6 +152,32 @@ public static class ServerConfigurationLoader
                 "DefaultCommandTimeoutSeconds",
                 30,
                 minimum: 1),
+
+            ConnectionIdleTimeoutSeconds = configuration.GetUInt(
+                DatabaseSection,
+                "ConnectionIdleTimeoutSeconds",
+                180,
+                minimum: 1),
+
+            ConnectionLifeTimeSeconds = configuration.GetUInt(
+                DatabaseSection,
+                "ConnectionLifeTimeSeconds",
+                0),
+
+            KeepAliveSeconds = configuration.GetUInt(
+                DatabaseSection,
+                "KeepAliveSeconds",
+                30),
+
+            ConnectionReset = configuration.GetBool(
+                DatabaseSection,
+                "ConnectionReset",
+                true),
+
+            UseCompression = configuration.GetBool(
+                DatabaseSection,
+                "UseCompression",
+                false),
         };
     }
 
@@ -202,6 +228,41 @@ public static class ServerConfigurationLoader
                 128,
                 minimum: 1),
 
+            ReceiveBufferSize = configuration.GetInt(
+                sectionName,
+                "ReceiveBufferSize",
+                65536,
+                minimum: 1024),
+
+            SendBufferSize = configuration.GetInt(
+                sectionName,
+                "SendBufferSize",
+                65536,
+                minimum: 1024),
+
+            KeepAlive = configuration.GetBool(
+                sectionName,
+                "KeepAlive",
+                true),
+
+            KeepAliveTimeSeconds = configuration.GetInt(
+                sectionName,
+                "KeepAliveTimeSeconds",
+                30,
+                minimum: 0),
+
+            KeepAliveIntervalSeconds = configuration.GetInt(
+                sectionName,
+                "KeepAliveIntervalSeconds",
+                10,
+                minimum: 0),
+
+            AuthenticationTimeout = configuration.GetTimeSpan(
+                sectionName,
+                "AuthenticationTimeout",
+                TimeSpan.FromSeconds(5)),
+
+            AllowedServers = SplitList(configuration.GetString(sectionName, "AllowedServers", string.Empty)).ToArray(),
 
             ShutdownGracePeriod = configuration.GetTimeSpan(
                 sectionName,
@@ -220,6 +281,14 @@ public static class ServerConfigurationLoader
 
             Peers = LoadInternalPeers(configuration, sectionName),
         };
+    }
+
+    /**
+      * Splits semicolon/comma-separated configuration values into trimmed entries.
+      */
+    private static IEnumerable<string> SplitList(string value)
+    {
+        return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
 
     /**

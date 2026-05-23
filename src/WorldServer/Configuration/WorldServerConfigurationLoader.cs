@@ -101,6 +101,11 @@ public static class WorldServerConfigurationLoader
             BindAddress = configuration.GetString(WorldClientSection, "BindAddress", "127.0.0.1"),
             Port = (ushort)configuration.GetInt(WorldClientSection, "Port", 8085, minimum: 1, maximum: 65535),
             Backlog = configuration.GetInt(WorldClientSection, "Backlog", 128, minimum: 1),
+            ReceiveBufferSize = configuration.GetInt(WorldClientSection, "ReceiveBufferSize", 65536, minimum: 1024),
+            SendBufferSize = configuration.GetInt(WorldClientSection, "SendBufferSize", 65536, minimum: 1024),
+            KeepAlive = configuration.GetBool(WorldClientSection, "KeepAlive", true),
+            KeepAliveTimeSeconds = configuration.GetInt(WorldClientSection, "KeepAliveTimeSeconds", 30, minimum: 0),
+            KeepAliveIntervalSeconds = configuration.GetInt(WorldClientSection, "KeepAliveIntervalSeconds", 10, minimum: 0),
             ShutdownGracePeriod = configuration.GetTimeSpan(WorldClientSection, "ShutdownGracePeriod", TimeSpan.FromSeconds(15)),
             MaximumPacketSize = configuration.GetInt(WorldClientSection, "MaximumPacketSize", 0x8000, minimum: 6),
         };
@@ -142,6 +147,11 @@ public static class WorldServerConfigurationLoader
             UseSsl = configuration.GetBool(sectionName, "UseSsl", fallback.UseSsl),
             ConnectionTimeoutSeconds = (uint)configuration.GetInt(sectionName, "ConnectionTimeoutSeconds", (int)fallback.ConnectionTimeoutSeconds, minimum: 1),
             DefaultCommandTimeoutSeconds = (uint)configuration.GetInt(sectionName, "DefaultCommandTimeoutSeconds", (int)fallback.DefaultCommandTimeoutSeconds, minimum: 1),
+            ConnectionIdleTimeoutSeconds = (uint)configuration.GetInt(sectionName, "ConnectionIdleTimeoutSeconds", (int)fallback.ConnectionIdleTimeoutSeconds, minimum: 1),
+            ConnectionLifeTimeSeconds = (uint)configuration.GetInt(sectionName, "ConnectionLifeTimeSeconds", (int)fallback.ConnectionLifeTimeSeconds, minimum: 0),
+            KeepAliveSeconds = (uint)configuration.GetInt(sectionName, "KeepAliveSeconds", (int)fallback.KeepAliveSeconds, minimum: 0),
+            ConnectionReset = configuration.GetBool(sectionName, "ConnectionReset", fallback.ConnectionReset),
+            UseCompression = configuration.GetBool(sectionName, "UseCompression", fallback.UseCompression),
         };
     }
 

@@ -16,6 +16,8 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Network.Networking.Protocol;
+
 /**
   * File overview: src/EmulationServer.Network/Configuration/InternalPeerSettings.cs
   * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
@@ -72,9 +74,9 @@ public sealed class InternalPeerSettings
       */
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(Name))
+        if (!InternalProtocol.IsValidServerName(Name))
         {
-            throw new InvalidOperationException("Internal peer name is required.");
+            throw new InvalidOperationException($"Invalid internal peer name: '{Name}'.");
         }
 
         if (string.IsNullOrWhiteSpace(Host))

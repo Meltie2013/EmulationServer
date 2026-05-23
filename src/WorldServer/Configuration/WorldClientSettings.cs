@@ -25,6 +25,11 @@ public sealed class WorldClientSettings
     public string BindAddress { get; init; } = "127.0.0.1";
     public ushort Port { get; init; } = 8085;
     public int Backlog { get; init; } = 128;
+    public int ReceiveBufferSize { get; init; } = 65536;
+    public int SendBufferSize { get; init; } = 65536;
+    public bool KeepAlive { get; init; } = true;
+    public int KeepAliveTimeSeconds { get; init; } = 30;
+    public int KeepAliveIntervalSeconds { get; init; } = 10;
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
     public int MaximumPacketSize { get; init; } = 0x8000;
 
@@ -45,6 +50,26 @@ public sealed class WorldClientSettings
         if (Backlog <= 0)
         {
             throw new InvalidOperationException("World client backlog must be greater than zero.");
+        }
+
+        if (ReceiveBufferSize <= 0)
+        {
+            throw new InvalidOperationException("World client receive buffer size must be greater than zero.");
+        }
+
+        if (SendBufferSize <= 0)
+        {
+            throw new InvalidOperationException("World client send buffer size must be greater than zero.");
+        }
+
+        if (KeepAliveTimeSeconds < 0)
+        {
+            throw new InvalidOperationException("World client keep-alive time cannot be negative.");
+        }
+
+        if (KeepAliveIntervalSeconds < 0)
+        {
+            throw new InvalidOperationException("World client keep-alive interval cannot be negative.");
         }
 
         if (ShutdownGracePeriod < TimeSpan.Zero)

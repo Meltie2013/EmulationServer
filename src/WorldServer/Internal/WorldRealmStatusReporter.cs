@@ -68,6 +68,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
     private readonly TimeSpan _pingTimeout;
+    private readonly int _receiveBufferSize;
+    private readonly int _sendBufferSize;
+    private readonly bool _keepAlive;
+    private readonly int _keepAliveTimeSeconds;
+    private readonly int _keepAliveIntervalSeconds;
+    private readonly TimeSpan _authenticationTimeout;
     private readonly Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> _characterCountSnapshotLoader;
 
     /**
@@ -90,6 +96,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
     private NetworkStream? _stream;
+    private InternalProtocolReader? _reader;
     /**
       * Stores the started dependency or runtime value for WorldRealmStatusReporter.
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
@@ -111,6 +118,12 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         int maxConnections,
         TimeSpan latencyReportInterval,
         TimeSpan pingTimeout,
+        int receiveBufferSize,
+        int sendBufferSize,
+        bool keepAlive,
+        int keepAliveTimeSeconds,
+        int keepAliveIntervalSeconds,
+        TimeSpan authenticationTimeout,
         Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> characterCountSnapshotLoader)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -135,11 +148,42 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(pingTimeout), "Ping timeout must be greater than zero.");
         }
 
+        if (receiveBufferSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), "Receive buffer size must be greater than zero.");
+        }
+
+        if (sendBufferSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sendBufferSize), "Send buffer size must be greater than zero.");
+        }
+
+        if (keepAliveTimeSeconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(keepAliveTimeSeconds), "Keep-alive time cannot be negative.");
+        }
+
+        if (keepAliveIntervalSeconds < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(keepAliveIntervalSeconds), "Keep-alive interval cannot be negative.");
+        }
+
+        if (authenticationTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(authenticationTimeout), "Authentication timeout must be greater than zero.");
+        }
+
         _settings.Validate();
         _registrationKey = registrationKey;
         _maxConnections = maxConnections;
         _latencyReportInterval = latencyReportInterval;
         _pingTimeout = pingTimeout;
+        _receiveBufferSize = receiveBufferSize;
+        _sendBufferSize = sendBufferSize;
+        _keepAlive = keepAlive;
+        _keepAliveTimeSeconds = keepAliveTimeSeconds;
+        _keepAliveIntervalSeconds = keepAliveIntervalSeconds;
+        _authenticationTimeout = authenticationTimeout;
         _characterCountSnapshotLoader = characterCountSnapshotLoader ?? throw new ArgumentNullException(nameof(characterCountSnapshotLoader));
     }
 
@@ -406,10 +450,9 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            NetworkStream stream = _stream ?? throw new IOException("RealmServer connection is not available.");
+            InternalProtocolReader reader = _reader ?? throw new IOException("RealmServer connection reader is not available.");
 
-            string? line = await InternalProtocol.ReadLineAsync(
-                stream,
+            string? line = await reader.ReadLineAsync(
                 InternalProtocol.MaximumPacketLineLength,
                 cancellationToken);
 
@@ -479,51 +522,80 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _client = new TcpClient
         {
             NoDelay = true,
-            ReceiveBufferSize = 8192,
-            SendBufferSize = 8192,
+            ReceiveBufferSize = _receiveBufferSize,
+            SendBufferSize = _sendBufferSize,
         };
+
+        if (_keepAlive)
+        {
+            _client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            TrySetTcpKeepAliveOption(_client, SocketOptionName.TcpKeepAliveTime, _keepAliveTimeSeconds);
+            TrySetTcpKeepAliveOption(_client, SocketOptionName.TcpKeepAliveInterval, _keepAliveIntervalSeconds);
+        }
 
         Logger.Write(LogType.NETWORK, $"WorldServer connecting to RealmServer internal listener at {_settings.RealmServerHost}:{_settings.RealmServerPort}...", nameof(WorldRealmStatusReporter));
 
         await _client.ConnectAsync(_settings.RealmServerHost, _settings.RealmServerPort, cancellationToken);
         _stream = _client.GetStream();
+        _reader = new InternalProtocolReader(_stream);
 
-        string? challenge = await InternalProtocol.ReadLineAsync(
-            _stream,
+        using CancellationTokenSource authenticationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        authenticationCancellation.CancelAfter(_authenticationTimeout);
+
+        string? challenge = await _reader.ReadLineAsync(
             InternalProtocol.MaximumAuthenticationLineLength,
-            cancellationToken);
+            authenticationCancellation.Token);
 
         if (challenge is null)
         {
             throw new InvalidOperationException("RealmServer disconnected before authentication challenge.");
         }
 
-        string[] challengeParts = challenge.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        string[] challengeParts = challenge.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-        if (challengeParts.Length != 2 || !string.Equals(challengeParts[0], InternalProtocol.AuthenticationChallenge, StringComparison.OrdinalIgnoreCase))
+        if (challengeParts.Length != 3 || !string.Equals(challengeParts[0], InternalProtocol.AuthenticationChallenge, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("RealmServer sent an invalid authentication challenge.");
         }
 
+        string challengedServerName = challengeParts[1];
+        string challengeNonce = challengeParts[2];
+
+        if (!string.Equals(challengedServerName, "RealmServer", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"RealmServer internal listener identified as unexpected server '{challengedServerName}'.");
+        }
+
+        string authenticationProof = InternalProtocol.CreateAuthenticationProof(
+            _registrationKey,
+            "WorldServer",
+            challengedServerName,
+            challengeNonce);
+
         await InternalProtocol.WriteLineAsync(
             _stream,
             _sendLock,
-            $"{InternalProtocol.AuthenticationResponse} WorldServer {_registrationKey}",
-            cancellationToken);
+            $"{InternalProtocol.AuthenticationResponse} WorldServer {authenticationProof}",
+            authenticationCancellation.Token);
 
-        string? response = await InternalProtocol.ReadLineAsync(
-            _stream,
+        string? response = await _reader.ReadLineAsync(
             InternalProtocol.MaximumAuthenticationLineLength,
-            cancellationToken);
+            authenticationCancellation.Token);
 
         if (response is null)
         {
             throw new InvalidOperationException("RealmServer disconnected before accepting authentication.");
         }
 
-        if (!response.StartsWith($"{InternalProtocol.AuthenticationAccepted} ", StringComparison.OrdinalIgnoreCase))
+        string[] responseParts = response.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (responseParts.Length != 2 || !string.Equals(responseParts[0], InternalProtocol.AuthenticationAccepted, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("RealmServer rejected WorldServer authentication.");
+        }
+
+        if (!string.Equals(responseParts[1], "RealmServer", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"RealmServer accepted WorldServer authentication as unexpected server '{responseParts[1]}'.");
         }
 
         Logger.Write(LogType.NETWORK, "WorldServer authenticated with RealmServer internal listener.", nameof(WorldRealmStatusReporter));
@@ -557,12 +629,42 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"WorldServer sent realm status: {packet}", nameof(WorldRealmStatusReporter));
     }
 
+    private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
+    {
+        if (valueSeconds <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            client.Client.SetSocketOption(SocketOptionLevel.Tcp, optionName, valueSeconds);
+        }
+        catch (SocketException)
+        {
+            // Some platforms do not expose per-socket TCP keep-alive tuning. KeepAlive itself is still enabled.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The socket is already closed.
+        }
+    }
+
     /**
       * Performs the cleanup connection operation for WorldRealmStatusReporter.
       * Keeping this logic in a dedicated method makes the control flow easier to read and test.
       */
     private void CleanupConnection()
     {
+        try
+        {
+            _reader?.Dispose();
+        }
+        catch
+        {
+            // Ignore cleanup exceptions.
+        }
+
         try
         {
             _stream?.Dispose();
@@ -581,6 +683,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             // Ignore cleanup exceptions.
         }
 
+        _reader = null;
         _stream = null;
         _client = null;
     }
