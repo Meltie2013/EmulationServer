@@ -18,6 +18,7 @@
 
 using System.Globalization;
 using EmulationServer.Network.Networking.Callbacks;
+using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
@@ -52,6 +53,7 @@ public sealed class RealmInternalPacketHandler
     private readonly object _syncRoot = new();
 
     private readonly Dictionary<string, HashSet<uint>> _realmsByServerName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Dictionary<uint, Dictionary<uint, byte>>> _pendingCharacterCounts = new(StringComparer.OrdinalIgnoreCase);
 
     /**
       * Creates a new RealmInternalPacketHandler instance and stores the dependencies required by the component.
@@ -108,12 +110,30 @@ public sealed class RealmInternalPacketHandler
             return Task.CompletedTask;
         }
 
-        if (!string.Equals(parts[0], RealmStatusPacket, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(parts[0], RealmStatusPacket, StringComparison.OrdinalIgnoreCase))
         {
+            HandleRealmStatusPacket(remoteServerName, parts);
             return Task.CompletedTask;
         }
 
-        HandleRealmStatusPacket(remoteServerName, parts);
+        if (string.Equals(parts[0], InternalProtocol.RealmCharacterCountSnapshotBegin, StringComparison.OrdinalIgnoreCase))
+        {
+            HandleCharacterCountSnapshotBegin(remoteServerName, parts);
+            return Task.CompletedTask;
+        }
+
+        if (string.Equals(parts[0], InternalProtocol.RealmCharacterCountSnapshotData, StringComparison.OrdinalIgnoreCase))
+        {
+            HandleCharacterCountSnapshotData(remoteServerName, parts);
+            return Task.CompletedTask;
+        }
+
+        if (string.Equals(parts[0], InternalProtocol.RealmCharacterCountSnapshotEnd, StringComparison.OrdinalIgnoreCase))
+        {
+            HandleCharacterCountSnapshotEnd(remoteServerName, parts);
+            return Task.CompletedTask;
+        }
+
         return Task.CompletedTask;
     }
 
@@ -131,6 +151,8 @@ public sealed class RealmInternalPacketHandler
 
         lock (_syncRoot)
         {
+            _pendingCharacterCounts.Remove(remoteServerName);
+
             if (!_realmsByServerName.Remove(remoteServerName, out HashSet<uint>? mappedRealmIds))
             {
                 Logger.Write(LogType.WARNING, $"RealmServer internal server '{remoteServerName}' disconnected. No realm status mapping was registered.", nameof(RealmInternalPacketHandler));
@@ -149,6 +171,96 @@ public sealed class RealmInternalPacketHandler
         }
 
         return Task.CompletedTask;
+    }
+
+    /**
+      * Starts a new character-count snapshot from a WorldServer.
+      */
+    private void HandleCharacterCountSnapshotBegin(string remoteServerName, string[] parts)
+    {
+        if (parts.Length != 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
+        {
+            Logger.Write(LogType.WARNING, $"Invalid {InternalProtocol.RealmCharacterCountSnapshotBegin} packet from '{remoteServerName}'.", nameof(RealmInternalPacketHandler));
+            return;
+        }
+
+        lock (_syncRoot)
+        {
+            if (!_pendingCharacterCounts.TryGetValue(remoteServerName, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm))
+            {
+                snapshotsByRealm = [];
+                _pendingCharacterCounts[remoteServerName] = snapshotsByRealm;
+            }
+
+            snapshotsByRealm[realmId] = [];
+        }
+    }
+
+    /**
+      * Adds one data chunk to the pending character-count snapshot.
+      */
+    private void HandleCharacterCountSnapshotData(string remoteServerName, string[] parts)
+    {
+        if (parts.Length < 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
+        {
+            Logger.Write(LogType.WARNING, $"Invalid {InternalProtocol.RealmCharacterCountSnapshotData} packet from '{remoteServerName}'.", nameof(RealmInternalPacketHandler));
+            return;
+        }
+
+        lock (_syncRoot)
+        {
+            if (!_pendingCharacterCounts.TryGetValue(remoteServerName, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm) ||
+                !snapshotsByRealm.TryGetValue(realmId, out Dictionary<uint, byte>? characterCounts))
+            {
+                Logger.Write(LogType.WARNING, $"Received {InternalProtocol.RealmCharacterCountSnapshotData} from '{remoteServerName}' before snapshot begin for realm {realmId}.", nameof(RealmInternalPacketHandler));
+                return;
+            }
+
+            for (int index = 2; index < parts.Length; index++)
+            {
+                string[] pair = parts[index].Split(':', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                if (pair.Length != 2 ||
+                    !uint.TryParse(pair[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint accountId) ||
+                    !byte.TryParse(pair[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out byte count))
+                {
+                    Logger.Write(LogType.WARNING, $"Invalid character-count pair '{parts[index]}' from '{remoteServerName}'.", nameof(RealmInternalPacketHandler));
+                    continue;
+                }
+
+                characterCounts[accountId] = count;
+            }
+        }
+    }
+
+    /**
+      * Completes and publishes the pending character-count snapshot for a realm.
+      */
+    private void HandleCharacterCountSnapshotEnd(string remoteServerName, string[] parts)
+    {
+        if (parts.Length != 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
+        {
+            Logger.Write(LogType.WARNING, $"Invalid {InternalProtocol.RealmCharacterCountSnapshotEnd} packet from '{remoteServerName}'.", nameof(RealmInternalPacketHandler));
+            return;
+        }
+
+        Dictionary<uint, byte>? snapshot;
+        lock (_syncRoot)
+        {
+            if (!_pendingCharacterCounts.TryGetValue(remoteServerName, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm) ||
+                !snapshotsByRealm.Remove(realmId, out snapshot))
+            {
+                Logger.Write(LogType.WARNING, $"Received {InternalProtocol.RealmCharacterCountSnapshotEnd} from '{remoteServerName}' before snapshot data for realm {realmId}.", nameof(RealmInternalPacketHandler));
+                return;
+            }
+        }
+
+        if (snapshot is null || !_realmStore.TryReplaceRealmCharacterCounts(realmId, snapshot))
+        {
+            Logger.Write(LogType.WARNING, $"Character-count snapshot from '{remoteServerName}' referenced unknown realm id {realmId}.", nameof(RealmInternalPacketHandler));
+            return;
+        }
+
+        Logger.Write(LogType.NETWORK, $"Realm {realmId} character-count snapshot updated by '{remoteServerName}': {snapshot.Count} account(s).", nameof(RealmInternalPacketHandler));
     }
 
     /**

@@ -1,82 +1,124 @@
+-- Host: 10.220.100.102:3306
+-- Generation Time: May 23, 2026 at 12:13 PM
+-- Server version: 10.6.22-MariaDB-0ubuntu0.22.04.1
+-- PHP Version: 8.1.2-1ubuntu2.23
 
--- EmulationServer auth database schema
--- Matches the current RealmServer account/auth repository implementation.
--- Realms are intentionally configuration/internal-packet driven, so no realmlist table is included here.
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
-CREATE TABLE IF NOT EXISTS `account` (
-    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `username` VARCHAR(32) NOT NULL DEFAULT '',
-    `sha_pass_hash` VARCHAR(40) NOT NULL DEFAULT '',
-    `gmlevel` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-    `sessionkey` VARCHAR(80) NOT NULL DEFAULT '',
-    `v` TEXT NULL,
-    `s` TEXT NULL,
-    `email` VARCHAR(255) NOT NULL DEFAULT '',
-    `joindate` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `last_ip` VARCHAR(15) NOT NULL DEFAULT '0.0.0.0',
-    `failed_logins` INT UNSIGNED NOT NULL DEFAULT 0,
-    `locked` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-    `last_login` TIMESTAMP NULL DEFAULT NULL,
-    `active_realm_id` INT UNSIGNED NOT NULL DEFAULT 0,
-    `expansion` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-    `mutetime` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `locale` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-    `os` VARCHAR(3) NOT NULL DEFAULT '',
-    `playerBot` BIT(1) NOT NULL DEFAULT b'0',
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_account_username` (`username`),
-    KEY `idx_account_last_ip` (`last_ip`),
-    KEY `idx_account_active_realm_id` (`active_realm_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `account_banned` (
-    `id` INT UNSIGNED NOT NULL DEFAULT 0,
-    `bandate` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `unbandate` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `bannedby` VARCHAR(50) NOT NULL DEFAULT '',
-    `banreason` VARCHAR(255) NOT NULL DEFAULT '',
-    `active` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-    PRIMARY KEY (`id`, `bandate`),
-    KEY `idx_account_banned_active` (`active`),
-    KEY `idx_account_banned_unbandate` (`unbandate`),
-    CONSTRAINT `fk_account_banned_account`
-        FOREIGN KEY (`id`) REFERENCES `account` (`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
-CREATE TABLE IF NOT EXISTS `ip_banned` (
-    `ip` VARCHAR(15) NOT NULL DEFAULT '0.0.0.0',
-    `bandate` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `unbandate` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-    `bannedby` VARCHAR(50) NOT NULL DEFAULT '',
-    `banreason` VARCHAR(255) NOT NULL DEFAULT '',
-    PRIMARY KEY (`ip`, `bandate`),
-    KEY `idx_ip_banned_unbandate` (`unbandate`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- --------------------------------------------------------
 
--- Optional helper view for quick account inspection while testing.
-CREATE OR REPLACE VIEW `account_login_status` AS
-SELECT
-    `account`.`id`,
-    `account`.`username`,
-    `account`.`gmlevel`,
-    `account`.`last_ip`,
-    `account`.`last_login`,
-    `account`.`failed_logins`,
-    `account`.`locked`,
-    CASE
-        WHEN `account_banned`.`id` IS NULL THEN 0
-        ELSE 1
-    END AS `is_banned`
-FROM `account`
-LEFT JOIN `account_banned`
-    ON `account_banned`.`id` = `account`.`id`
-   AND `account_banned`.`active` = 1
-   AND (`account_banned`.`unbandate` = `account_banned`.`bandate` OR `account_banned`.`unbandate` > UNIX_TIMESTAMP());
-
--- Account creation is expected to be done through RealmServer console commands:
---   account add <username> <password> [email] [gmlevel]
---   account remove <username>
 --
--- Example after starting RealmServer:
---   account add test test
+-- Table structure for table `account`
+--
+
+CREATE TABLE `account` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `username` varchar(32) NOT NULL DEFAULT '',
+  `sha_pass_hash` varchar(40) NOT NULL DEFAULT '',
+  `gmlevel` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `sessionkey` varchar(80) NOT NULL DEFAULT '',
+  `v` text DEFAULT NULL,
+  `s` text DEFAULT NULL,
+  `email` varchar(255) NOT NULL DEFAULT '',
+  `joindate` timestamp NOT NULL DEFAULT current_timestamp(),
+  `last_ip` varchar(15) NOT NULL DEFAULT '0.0.0.0',
+  `failed_logins` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `locked` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `last_login` timestamp NULL DEFAULT NULL,
+  `active_realm_id` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `expansion` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `mutetime` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `locale` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `os` varchar(3) NOT NULL DEFAULT '',
+  `playerBot` bit(1) NOT NULL DEFAULT b'0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `account_banned`
+--
+
+CREATE TABLE `account_banned` (
+  `id` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `bandate` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `unbandate` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `bannedby` varchar(50) NOT NULL DEFAULT '',
+  `banreason` varchar(255) NOT NULL DEFAULT '',
+  `active` tinyint(3) UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ip_banned`
+--
+
+CREATE TABLE `ip_banned` (
+  `ip` varchar(15) NOT NULL DEFAULT '0.0.0.0',
+  `bandate` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `unbandate` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `bannedby` varchar(50) NOT NULL DEFAULT '',
+  `banreason` varchar(255) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `account`
+--
+ALTER TABLE `account`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_account_username` (`username`),
+  ADD KEY `idx_account_last_ip` (`last_ip`),
+  ADD KEY `idx_account_active_realm_id` (`active_realm_id`);
+
+--
+-- Indexes for table `account_banned`
+--
+ALTER TABLE `account_banned`
+  ADD PRIMARY KEY (`id`,`bandate`),
+  ADD KEY `idx_account_banned_active` (`active`),
+  ADD KEY `idx_account_banned_unbandate` (`unbandate`);
+
+--
+-- Indexes for table `ip_banned`
+--
+ALTER TABLE `ip_banned`
+  ADD PRIMARY KEY (`ip`,`bandate`),
+  ADD KEY `idx_ip_banned_unbandate` (`unbandate`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `account`
+--
+ALTER TABLE `account`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `account_banned`
+--
+ALTER TABLE `account_banned`
+  ADD CONSTRAINT `fk_account_banned_account` FOREIGN KEY (`id`) REFERENCES `account` (`id`) ON DELETE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System.Globalization;
 using System.Net.Sockets;
 using EmulationServer.Network.Networking.Health;
 using EmulationServer.Network.Networking.Protocol;
@@ -67,6 +68,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
     private readonly TimeSpan _pingTimeout;
+    private readonly Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> _characterCountSnapshotLoader;
 
     /**
       * Stores the stop cancellation dependency or runtime value for WorldRealmStatusReporter.
@@ -108,7 +110,8 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         string registrationKey,
         int maxConnections,
         TimeSpan latencyReportInterval,
-        TimeSpan pingTimeout)
+        TimeSpan pingTimeout,
+        Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> characterCountSnapshotLoader)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
@@ -137,6 +140,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _maxConnections = maxConnections;
         _latencyReportInterval = latencyReportInterval;
         _pingTimeout = pingTimeout;
+        _characterCountSnapshotLoader = characterCountSnapshotLoader ?? throw new ArgumentNullException(nameof(characterCountSnapshotLoader));
     }
 
     /**
@@ -164,6 +168,26 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"WorldServer realm status reporter started for realm {_settings.RealmId}.", nameof(WorldRealmStatusReporter));
 
         return Task.CompletedTask;
+    }
+
+    /**
+      * Sends a character-count snapshot immediately when character storage changes.
+      */
+    public async Task SendCharacterCountSnapshotNowAsync(CancellationToken cancellationToken = default)
+    {
+        if (Volatile.Read(ref _started) == 0 || _stream is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await SendCharacterCountSnapshotAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or OperationCanceledException)
+        {
+            Logger.Write(LogType.WARNING, $"Unable to send immediate character-count snapshot: {exception.Message}", nameof(WorldRealmStatusReporter));
+        }
     }
 
     /**
@@ -289,12 +313,87 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     private async Task SendRealmStatusLoopAsync(CancellationToken cancellationToken)
     {
         await SendRealmStatusAsync(true, Volatile.Read(ref _activeConnections), cancellationToken);
+        await SendCharacterCountSnapshotAsync(cancellationToken);
 
         while (!cancellationToken.IsCancellationRequested)
         {
             await Task.Delay(_settings.UpdateInterval, cancellationToken);
             await SendRealmStatusAsync(true, Volatile.Read(ref _activeConnections), cancellationToken);
+            await SendCharacterCountSnapshotAsync(cancellationToken);
         }
+    }
+
+    /**
+      * Sends the latest per-account character counts to RealmServer in chunked snapshot packets.
+      */
+    private async Task SendCharacterCountSnapshotAsync(CancellationToken cancellationToken)
+    {
+        if (_stream is null)
+        {
+            return;
+        }
+
+        IReadOnlyDictionary<uint, byte> characterCounts;
+        try
+        {
+            characterCounts = await _characterCountSnapshotLoader(cancellationToken);
+        }
+        catch (Exception exception) when (exception is MySqlConnector.MySqlException or InvalidOperationException or IOException)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not load character-count snapshot for RealmServer: {exception.Message}", nameof(WorldRealmStatusReporter));
+            return;
+        }
+
+        uint realmId = _settings.RealmId;
+        await InternalProtocol.WriteLineAsync(
+            _stream,
+            _sendLock,
+            $"{InternalProtocol.RealmCharacterCountSnapshotBegin} {realmId}",
+            cancellationToken);
+
+        const int MaxPairsPerPacket = 64;
+        List<string> pairs = [];
+        foreach ((uint accountId, byte count) in characterCounts.OrderBy(pair => pair.Key))
+        {
+            pairs.Add(string.Create(CultureInfo.InvariantCulture, $"{accountId}:{count}"));
+
+            if (pairs.Count >= MaxPairsPerPacket)
+            {
+                await SendCharacterCountSnapshotDataAsync(realmId, pairs, cancellationToken);
+                pairs.Clear();
+            }
+        }
+
+        if (pairs.Count > 0)
+        {
+            await SendCharacterCountSnapshotDataAsync(realmId, pairs, cancellationToken);
+        }
+
+        await InternalProtocol.WriteLineAsync(
+            _stream,
+            _sendLock,
+            $"{InternalProtocol.RealmCharacterCountSnapshotEnd} {realmId}",
+            cancellationToken);
+
+        Logger.Write(LogType.NETWORK, $"WorldServer sent realm {realmId} character-count snapshot: {characterCounts.Count} account(s).", nameof(WorldRealmStatusReporter));
+    }
+
+    /**
+      * Sends one character-count data chunk.
+      */
+    private async Task SendCharacterCountSnapshotDataAsync(uint realmId, IReadOnlyList<string> pairs, CancellationToken cancellationToken)
+    {
+        if (_stream is null || pairs.Count == 0)
+        {
+            return;
+        }
+
+        string packet = $"{InternalProtocol.RealmCharacterCountSnapshotData} {realmId} {string.Join(' ', pairs)}";
+        await InternalProtocol.WriteLineAsync(
+            _stream,
+            _sendLock,
+            packet,
+            cancellationToken);
     }
 
     /**

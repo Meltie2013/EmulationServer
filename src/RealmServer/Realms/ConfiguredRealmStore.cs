@@ -65,6 +65,20 @@ public sealed class ConfiguredRealmStore
     }
 
     /**
+      * Updates the per-account character-count snapshot for a realm.
+      */
+    public bool TryReplaceRealmCharacterCounts(uint realmId, IReadOnlyDictionary<uint, byte> characterCountsByAccount)
+    {
+        if (!_realms.TryGetValue(realmId, out ConfiguredRealm? realm))
+        {
+            return false;
+        }
+
+        realm.ReplaceCharacterCounts(characterCountsByAccount);
+        return true;
+    }
+
+    /**
       * Attempts the operation without treating a normal failure as an exceptional condition.
       * The method is part of ConfiguredRealmStore and keeps this workflow isolated from the caller.
       * The boolean result lets callers branch without throwing for normal negative outcomes.

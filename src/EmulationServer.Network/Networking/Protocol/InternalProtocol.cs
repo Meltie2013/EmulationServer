@@ -46,6 +46,9 @@ public static class InternalProtocol
     public const string ShutdownRequest = "SHUTDOWN_REQUEST";
     public const string WorldCapacity = "WORLD_CAPACITY";
     public const string MapServiceStatus = "MAP_SERVICE_STATUS";
+    public const string RealmCharacterCountSnapshotBegin = "REALM_CHARACTER_COUNT_SNAPSHOT_BEGIN";
+    public const string RealmCharacterCountSnapshotData = "REALM_CHARACTER_COUNT_SNAPSHOT_DATA";
+    public const string RealmCharacterCountSnapshotEnd = "REALM_CHARACTER_COUNT_SNAPSHOT_END";
     public const string MapServiceCommand = "MAP_SERVICE_COMMAND";
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
 

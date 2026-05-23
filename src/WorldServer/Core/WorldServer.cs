@@ -20,6 +20,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 
 using EmulationServer.Core.Servers;
+using EmulationServer.Database.Services;
 using EmulationServer.Game.Data.Stores;
 using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Peers;
@@ -28,8 +29,14 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Commands;
+using EmulationServer.WorldServer.Characters;
 using EmulationServer.WorldServer.Configuration;
+using EmulationServer.WorldServer.Database.Accounts;
+using EmulationServer.WorldServer.Database.Characters;
 using EmulationServer.WorldServer.Internal;
+using EmulationServer.WorldServer.Networking.Sessions;
+using EmulationServer.WorldServer.Networking.Socket;
+using EmulationServer.WorldServer.WorldData;
 
 /**
   * File overview: src/WorldServer/Core/WorldServer.cs
@@ -65,6 +72,15 @@ public sealed class WorldServer : IAsyncDisposable
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
     private readonly WorldConsoleCommandService _commandService;
+    private readonly MySqlDatabaseService _authDatabase;
+    private readonly MySqlDatabaseService _characterDatabase;
+    private readonly MySqlDatabaseService _worldDatabase;
+    private readonly WorldAccountRepository _accountRepository;
+    private readonly CharacterRepository _characterRepository;
+    private readonly WorldTemplateRepository _worldTemplateRepository;
+    private readonly CharacterCreationService _characterCreationService;
+    private readonly WorldClientSocketListener _clientListener;
+    private WorldTemplateDataStore _worldTemplateData = WorldTemplateDataStore.Empty;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
@@ -85,14 +101,34 @@ public sealed class WorldServer : IAsyncDisposable
         settings.Validate();
 
         _settings = settings;
-        _host = new EmulationServerHost(nameof(WorldServer), settings.Database, settings.InternalNetwork, CreateCallbacks());
+        _host = new EmulationServerHost(nameof(WorldServer), settings.InternalNetwork, CreateCallbacks());
+        _commandService = new WorldConsoleCommandService(ExecuteMapCommandAsync);
+
+        _authDatabase = new MySqlDatabaseService(settings.Databases.Auth);
+        _characterDatabase = new MySqlDatabaseService(settings.Databases.Character);
+        _worldDatabase = new MySqlDatabaseService(settings.Databases.World);
+        _accountRepository = new WorldAccountRepository(_authDatabase);
+        _characterRepository = new CharacterRepository(
+            _characterDatabase,
+            entry => _worldTemplateData.TryGetItemTemplate(entry, out ItemTemplateRecord itemTemplate) ? itemTemplate : null);
+        _worldTemplateRepository = new WorldTemplateRepository(_worldDatabase);
+        _characterCreationService = new CharacterCreationService(_characterRepository, () => _gameData, () => _worldTemplateData);
         _realmStatusReporter = new WorldRealmStatusReporter(
             settings.RealmStatus,
             settings.InternalNetwork.RegistrationKey,
             settings.MaxConnections,
             settings.InternalNetwork.LatencyReportInterval,
-            settings.InternalNetwork.PingTimeout);
-        _commandService = new WorldConsoleCommandService(ExecuteMapCommandAsync);
+            settings.InternalNetwork.PingTimeout,
+            _characterRepository.GetCharacterCountsByAccountAsync);
+        _clientListener = new WorldClientSocketListener(
+            settings.ClientNetwork,
+            client => new WorldClientSession(
+                client,
+                settings.RealmStatus.RealmId,
+                settings.ClientNetwork.MaximumPacketSize,
+                _accountRepository,
+                _characterCreationService,
+                _realmStatusReporter.SendCharacterCountSnapshotNowAsync));
     }
 
     /**
@@ -104,8 +140,11 @@ public sealed class WorldServer : IAsyncDisposable
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         LoadGameDataIfEnabled();
+        await ValidateDatabaseConnectionsAsync(cancellationToken);
+        await LoadWorldTemplateDataAsync(cancellationToken);
 
         Task hostTask = _host.StartAsync(cancellationToken);
+        Task clientTask = _clientListener.StartAsync(cancellationToken);
 
         try
         {
@@ -114,11 +153,12 @@ public sealed class WorldServer : IAsyncDisposable
             _commandService.Start(cancellationToken);
             await _realmStatusReporter.StartAsync(cancellationToken);
 
-            await hostTask;
+            await Task.WhenAll(hostTask, clientTask);
         }
         finally
         {
             await _realmStatusReporter.StopAsync(CancellationToken.None);
+            await _clientListener.StopAsync(CancellationToken.None);
         }
     }
 
@@ -131,6 +171,7 @@ public sealed class WorldServer : IAsyncDisposable
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _realmStatusReporter.StopAsync(cancellationToken);
+        await _clientListener.StopAsync(cancellationToken);
         await _host.StopAsync(cancellationToken);
     }
 
@@ -143,7 +184,11 @@ public sealed class WorldServer : IAsyncDisposable
     {
         await StopAsync(CancellationToken.None);
         await _realmStatusReporter.DisposeAsync();
+        await _clientListener.DisposeAsync();
         await _host.DisposeAsync();
+        await _authDatabase.DisposeAsync();
+        await _characterDatabase.DisposeAsync();
+        await _worldDatabase.DisposeAsync();
     }
 
     /**
@@ -484,6 +529,45 @@ public sealed class WorldServer : IAsyncDisposable
         return string.Create(
             CultureInfo.InvariantCulture,
             $"{status.OwnerServerName}|{status.Kind}|{status.MapId}|{status.InstanceId}");
+    }
+
+    /**
+      * Validates the MaNGOS-compatible auth, character, and world database connections before the realm is advertised.
+      */
+    private async Task ValidateDatabaseConnectionsAsync(CancellationToken cancellationToken)
+    {
+        Logger.Write(LogType.NOTICE, "WorldServer validating Auth, Character, and World database connections...", nameof(WorldServer));
+
+        await _authDatabase.ValidateConnectionAsync(cancellationToken);
+        Logger.Write(LogType.SUCCESS, $"WorldServer Auth database is reachable: {_settings.Databases.Auth.Database}.", nameof(WorldServer));
+
+        await _characterDatabase.ValidateConnectionAsync(cancellationToken);
+        Logger.Write(LogType.SUCCESS, $"WorldServer Character database is reachable: {_settings.Databases.Character.Database}.", nameof(WorldServer));
+
+        await _worldDatabase.ValidateConnectionAsync(cancellationToken);
+        Logger.Write(LogType.SUCCESS, $"WorldServer World database is reachable: {_settings.Databases.World.Database}.", nameof(WorldServer));
+    }
+
+    /**
+      * Loads MaNGOS world database templates needed by the character screen into memory.
+      */
+    private async Task LoadWorldTemplateDataAsync(CancellationToken cancellationToken)
+    {
+        Logger.Write(LogType.NOTICE, "WorldServer loading MaNGOS world templates into memory: playercreateinfo and item_template...", nameof(WorldServer));
+
+        _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
+
+        if (_worldTemplateData.PlayerCreateInfo.Count == 0)
+        {
+            throw new InvalidOperationException("World database table `playercreateinfo` is empty. Character creation cannot resolve race/class start positions.");
+        }
+
+        if (_worldTemplateData.ItemTemplates.Count == 0)
+        {
+            throw new InvalidOperationException("World database table `item_template` is empty. Character creation cannot resolve starter items.");
+        }
+
+        Logger.Write(LogType.SUCCESS, $"WorldServer world templates are ready in memory: playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}.", nameof(WorldServer));
     }
 
     /**

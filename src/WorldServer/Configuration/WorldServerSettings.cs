@@ -53,10 +53,20 @@ public sealed class WorldServerSettings
     public int MaxConnections { get; init; } = 1000;
 
     /**
-      * Gets or stores the database value used by WorldServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets shared database connection defaults used to inherit host/user/pool settings for the concrete WorldServer schemas.
+      * WorldServer does not open this database directly.
       */
     public DatabaseSettings Database { get; init; } = new();
+
+    /**
+      * Gets grouped database settings for the account/auth, character, and world schemas.
+      */
+    public WorldDatabaseSettings Databases { get; init; } = new();
+
+    /**
+      * Gets public WoW client listener settings for the realm connection port.
+      */
+    public WorldClientSettings ClientNetwork { get; init; } = new();
 
     /**
       * Gets or stores the realm status value used by WorldServerSettings.
@@ -85,6 +95,8 @@ public sealed class WorldServerSettings
         }
 
         Database.Validate();
+        Databases.Validate();
+        ClientNetwork.Validate();
         RealmStatus.Validate();
         GameData.Validate();
     }

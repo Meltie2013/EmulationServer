@@ -53,6 +53,7 @@ public sealed class ConfiguredRealm
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
       */
     private int _capacityLimit;
+    private Dictionary<uint, byte> _characterCountsByAccount = [];
 
     /**
       * Creates a new ConfiguredRealm instance and stores the dependencies required by the component.
@@ -192,6 +193,45 @@ public sealed class ConfiguredRealm
         }
     }
 
+
+    /**
+      * Returns the number of characters this account has on this realm from the latest WorldServer snapshot.
+      */
+    public byte GetCharacterCount(uint accountId)
+    {
+        lock (_syncRoot)
+        {
+            return _characterCountsByAccount.TryGetValue(accountId, out byte count)
+                ? count
+                : (byte)0;
+        }
+    }
+
+    /**
+      * Replaces the in-memory account character counts for this realm.
+      */
+    public void ReplaceCharacterCounts(IReadOnlyDictionary<uint, byte> characterCountsByAccount)
+    {
+        ArgumentNullException.ThrowIfNull(characterCountsByAccount);
+
+        lock (_syncRoot)
+        {
+            _characterCountsByAccount = characterCountsByAccount
+                .ToDictionary(pair => pair.Key, pair => pair.Value);
+        }
+    }
+
+    /**
+      * Clears cached character counts when the owning WorldServer is offline.
+      */
+    public void ClearCharacterCounts()
+    {
+        lock (_syncRoot)
+        {
+            _characterCountsByAccount = [];
+        }
+    }
+
     /**
       * Gets or stores the client address value used by ConfiguredRealm.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
@@ -209,6 +249,11 @@ public sealed class ConfiguredRealm
             _online = online;
             _activeConnections = Math.Max(0, activeConnections);
             _capacityLimit = Math.Max(1, capacityLimit);
+
+            if (!online)
+            {
+                _characterCountsByAccount = [];
+            }
         }
     }
 }

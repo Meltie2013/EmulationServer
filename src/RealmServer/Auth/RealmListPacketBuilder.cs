@@ -53,22 +53,35 @@ public sealed class RealmListPacketBuilder
       * Builds a protocol payload or domain model from validated input values.
       * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
       */
-    public byte[] BuildRealmList(ushort build, byte accountSecurityLevel)
+    public async Task<byte[]> BuildRealmListAsync(
+        ushort build,
+        byte accountSecurityLevel,
+        uint accountId,
+        CancellationToken cancellationToken = default)
     {
-        ConfiguredRealm[] realms = _realmStore.GetRealmsForBuild(build)
-            .Where(realm => accountSecurityLevel >= realm.AllowedSecurityLevel || accountSecurityLevel > 0)
-            .ToArray();
-
-        return RealmBuilds.UsesModernRealmList(build)
-            ? BuildModernRealmList(realms, accountSecurityLevel)
-            : BuildVanillaRealmList(realms, accountSecurityLevel);
+        return await Task.FromResult(BuildRealmList(build, accountSecurityLevel, accountId));
     }
 
     /**
       * Builds a protocol payload or domain model from validated input values.
       * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
       */
-    private static byte[] BuildVanillaRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel)
+    public byte[] BuildRealmList(ushort build, byte accountSecurityLevel, uint accountId)
+    {
+        ConfiguredRealm[] realms = _realmStore.GetRealmsForBuild(build)
+            .Where(realm => accountSecurityLevel >= realm.AllowedSecurityLevel || accountSecurityLevel > 0)
+            .ToArray();
+
+        return RealmBuilds.UsesModernRealmList(build)
+            ? BuildModernRealmList(realms, accountSecurityLevel, accountId)
+            : BuildVanillaRealmList(realms, accountSecurityLevel, accountId);
+    }
+
+    /**
+      * Builds a protocol payload or domain model from validated input values.
+      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
+      */
+    private static byte[] BuildVanillaRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
     {
         ByteWriter body = new();
         body.WriteUInt32(0);
@@ -83,7 +96,7 @@ public sealed class RealmListPacketBuilder
             body.WriteCString(realm.Name);
             body.WriteCString(realm.ClientAddress);
             body.WriteFloat(realm.Population);
-            body.WriteUInt8(0); // Character count will come from WorldServer later.
+            body.WriteUInt8(realm.GetCharacterCount(accountId));
             body.WriteUInt8(realm.Timezone);
             body.WriteUInt8(0); // Unknown realm list value used by 1.x clients.
         }
@@ -97,7 +110,7 @@ public sealed class RealmListPacketBuilder
       * Builds a protocol payload or domain model from validated input values.
       * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
       */
-    private static byte[] BuildModernRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel)
+    private static byte[] BuildModernRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
     {
         ByteWriter body = new();
         body.WriteUInt32(0);
@@ -114,7 +127,7 @@ public sealed class RealmListPacketBuilder
             body.WriteCString(realm.Name);
             body.WriteCString(realm.ClientAddress);
             body.WriteFloat(realm.Population);
-            body.WriteUInt8(0); // Character count will come from WorldServer later.
+            body.WriteUInt8(realm.GetCharacterCount(accountId));
             body.WriteUInt8(realm.Timezone);
             body.WriteUInt8(0); // Unknown realm list value.
         }

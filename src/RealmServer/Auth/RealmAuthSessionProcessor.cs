@@ -309,7 +309,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
             return;
         }
 
-        byte[] packet = _realmListPacketBuilder.BuildRealmList(_build, _account.GmLevel);
+        byte[] packet = await _realmListPacketBuilder.BuildRealmListAsync(_build, _account.GmLevel, _account.Id, cancellationToken);
         await context.WriteAsync(packet, cancellationToken);
 
         Logger.Write(LogType.TRACE, $"Sent realm list to account '{_login}'.", nameof(RealmAuthSessionProcessor));

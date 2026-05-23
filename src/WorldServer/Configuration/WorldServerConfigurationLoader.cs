@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Core.Configuration;
+using EmulationServer.Database.Configuration;
 using EmulationServer.Shared.Configuration;
 
 /**
@@ -36,6 +37,10 @@ public static class WorldServerConfigurationLoader
     private const string WorldServerSection = "WorldServer";
     private const string RealmStatusSection = "RealmStatus";
     private const string GameDataSection = "GameData";
+    private const string WorldClientSection = "WorldClient";
+    private const string AuthDatabaseSection = "AuthDatabase";
+    private const string CharacterDatabaseSection = "CharacterDatabase";
+    private const string WorldDatabaseSection = "WorldDatabase";
 
     /**
       * Loads configuration or data from the configured source and validates the result before it is used.
@@ -57,6 +62,8 @@ public static class WorldServerConfigurationLoader
                 5002),
             MaxConnections = configuration.GetInt(WorldServerSection, "MaxConnections", 1000, minimum: 1),
             Database = ServerConfigurationLoader.LoadDatabaseSettings(configuration),
+            Databases = LoadWorldDatabaseSettings(configuration),
+            ClientNetwork = LoadWorldClientSettings(configuration),
             RealmStatus = LoadRealmStatusSettings(configuration),
             GameData = LoadGameDataSettings(configuration),
         };
@@ -83,6 +90,61 @@ public static class WorldServerConfigurationLoader
     }
 
 
+
+    /**
+      * Loads public WoW client socket settings.
+      */
+    private static WorldClientSettings LoadWorldClientSettings(IniConfiguration configuration)
+    {
+        return new WorldClientSettings
+        {
+            BindAddress = configuration.GetString(WorldClientSection, "BindAddress", "127.0.0.1"),
+            Port = (ushort)configuration.GetInt(WorldClientSection, "Port", 8085, minimum: 1, maximum: 65535),
+            Backlog = configuration.GetInt(WorldClientSection, "Backlog", 128, minimum: 1),
+            ShutdownGracePeriod = configuration.GetTimeSpan(WorldClientSection, "ShutdownGracePeriod", TimeSpan.FromSeconds(15)),
+            MaximumPacketSize = configuration.GetInt(WorldClientSection, "MaximumPacketSize", 0x8000, minimum: 6),
+        };
+    }
+
+    /**
+      * Loads the three MaNGOS-style database schemas used by WorldServer.
+      */
+    private static WorldDatabaseSettings LoadWorldDatabaseSettings(IniConfiguration configuration)
+    {
+        DatabaseSettings fallback = ServerConfigurationLoader.LoadDatabaseSettings(configuration);
+
+        return new WorldDatabaseSettings
+        {
+            Auth = LoadDatabaseSettings(configuration, AuthDatabaseSection, fallback, "account"),
+            Character = LoadDatabaseSettings(configuration, CharacterDatabaseSection, fallback, "character0"),
+            World = LoadDatabaseSettings(configuration, WorldDatabaseSection, fallback, "mangos0"),
+        };
+    }
+
+    /**
+      * Loads a database section while inheriting connection host/user settings from [Database].
+      */
+    private static DatabaseSettings LoadDatabaseSettings(
+        IniConfiguration configuration,
+        string sectionName,
+        DatabaseSettings fallback,
+        string defaultDatabaseName)
+    {
+        return new DatabaseSettings
+        {
+            Host = configuration.GetString(sectionName, "Host", fallback.Host),
+            Port = configuration.GetInt(sectionName, "Port", fallback.Port, minimum: 1, maximum: 65535),
+            Database = configuration.GetString(sectionName, "Database", defaultDatabaseName),
+            Username = configuration.GetString(sectionName, "Username", fallback.Username),
+            Password = configuration.GetString(sectionName, "Password", fallback.Password),
+            MinimumPoolSize = (uint)configuration.GetInt(sectionName, "MinimumPoolSize", (int)fallback.MinimumPoolSize, minimum: 0),
+            MaximumPoolSize = (uint)configuration.GetInt(sectionName, "MaximumPoolSize", (int)fallback.MaximumPoolSize, minimum: 1),
+            UseSsl = configuration.GetBool(sectionName, "UseSsl", fallback.UseSsl),
+            ConnectionTimeoutSeconds = (uint)configuration.GetInt(sectionName, "ConnectionTimeoutSeconds", (int)fallback.ConnectionTimeoutSeconds, minimum: 1),
+            DefaultCommandTimeoutSeconds = (uint)configuration.GetInt(sectionName, "DefaultCommandTimeoutSeconds", (int)fallback.DefaultCommandTimeoutSeconds, minimum: 1),
+        };
+    }
+
     /**
       * Loads configuration or data from the configured source and validates the result before it is used.
       * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
@@ -96,7 +158,7 @@ public static class WorldServerConfigurationLoader
 
         return new GameDataSettings
         {
-            Enabled = configuration.GetBool(GameDataSection, "Enabled", false),
+            Enabled = configuration.GetBool(GameDataSection, "Enabled", true),
             DataDirectory = configuration.GetString(GameDataSection, "DataDirectory", "Data"),
             DbcDirectory = configuration.GetString(GameDataSection, "DbcDirectory", "dbc"),
             RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
