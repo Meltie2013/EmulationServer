@@ -21,6 +21,7 @@ using EmulationServer.InstanceServer.Core;
 using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Threading;
 
 /**
   * File overview: src/InstanceServer/Program.cs
@@ -52,6 +53,8 @@ try
     Logger.Configure(settings.Logging);
 
     Logger.WriteBanner("Instance Server");
+
+    RuntimeConcurrencyConfigurator.ConfigureForServer("InstanceServer");
 
     await using InstanceServer server = new(settings);
 

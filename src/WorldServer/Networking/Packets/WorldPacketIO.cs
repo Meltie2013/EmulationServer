@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Net.Sockets;
 
@@ -45,30 +46,44 @@ public static class WorldPacketIO
         int maximumPacketSize,
         CancellationToken cancellationToken)
     {
-        byte[] header = new byte[6];
-        await ReadExactlyAsync(stream, header, cancellationToken);
-
-        if (crypt is not null)
+        byte[] header = ArrayPool<byte>.Shared.Rent(6);
+        try
         {
-            crypt.Decrypt(header);
-        }
+            await ReadExactlyAsync(stream, header.AsMemory(0, 6), cancellationToken);
 
-        ushort packetSize = BinaryPrimitives.ReadUInt16BigEndian(header.AsSpan(0, 2));
-        if (packetSize < 4 || packetSize > maximumPacketSize)
+            ushort packetSize;
+            uint opcodeValue;
+            int payloadLength;
+            {
+                Span<byte> headerSpan = header.AsSpan(0, 6);
+                if (crypt is not null)
+                {
+                    crypt.Decrypt(headerSpan);
+                }
+
+                packetSize = BinaryPrimitives.ReadUInt16BigEndian(headerSpan[..2]);
+                if (packetSize < 4 || packetSize > maximumPacketSize)
+                {
+                    throw new InvalidDataException($"Invalid client world packet size: {packetSize}.");
+                }
+
+                opcodeValue = BinaryPrimitives.ReadUInt32LittleEndian(headerSpan.Slice(2, 4));
+                payloadLength = packetSize - 4;
+            }
+
+            byte[] payload = new byte[payloadLength];
+
+            if (payloadLength > 0)
+            {
+                await ReadExactlyAsync(stream, payload, cancellationToken);
+            }
+
+            return new WorldPacket((WorldOpcode)opcodeValue, payload);
+        }
+        finally
         {
-            throw new InvalidDataException($"Invalid client world packet size: {packetSize}.");
+            ArrayPool<byte>.Shared.Return(header);
         }
-
-        uint opcodeValue = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(2, 4));
-        int payloadLength = packetSize - 4;
-        byte[] payload = new byte[payloadLength];
-
-        if (payloadLength > 0)
-        {
-            await ReadExactlyAsync(stream, payload, cancellationToken);
-        }
-
-        return new WorldPacket((WorldOpcode)opcodeValue, payload);
     }
 
     /**
@@ -90,22 +105,46 @@ public static class WorldPacketIO
             throw new InvalidOperationException($"Server world packet is too large: {packetSize}.");
         }
 
-        byte[] header = new byte[4];
-        BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(0, 2), (ushort)packetSize);
-        BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(2, 2), (ushort)opcode);
+        byte[] frame = RentServerFrame(opcode, payload, crypt, (ushort)packetSize, out int frameLength);
+        try
+        {
+            await stream.WriteAsync(frame.AsMemory(0, frameLength), cancellationToken);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(frame);
+        }
+    }
+
+    /**
+      * Builds the encrypted server packet frame in a pooled buffer before the async socket write starts.
+      * Keeping Span work outside the async state machine avoids extra allocations and compiler restrictions.
+      */
+    private static byte[] RentServerFrame(
+        WorldOpcode opcode,
+        ReadOnlyMemory<byte> payload,
+        WorldHeaderCrypt? crypt,
+        ushort packetSize,
+        out int frameLength)
+    {
+        frameLength = 4 + payload.Length;
+        byte[] frame = ArrayPool<byte>.Shared.Rent(frameLength);
+
+        Span<byte> header = frame.AsSpan(0, 4);
+        BinaryPrimitives.WriteUInt16BigEndian(header[..2], packetSize);
+        BinaryPrimitives.WriteUInt16LittleEndian(header.Slice(2, 2), (ushort)opcode);
 
         if (crypt is not null)
         {
             crypt.Encrypt(header);
         }
 
-        await stream.WriteAsync(header, cancellationToken);
         if (payload.Length > 0)
         {
-            await stream.WriteAsync(payload, cancellationToken);
+            payload.Span.CopyTo(frame.AsSpan(4, payload.Length));
         }
 
-        await stream.FlushAsync(cancellationToken);
+        return frame;
     }
 
     /**
@@ -114,12 +153,20 @@ public static class WorldPacketIO
       * Inputs used by this operation: stream, buffer, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private static async ValueTask ReadExactlyAsync(NetworkStream stream, byte[] buffer, CancellationToken cancellationToken)
+    private static ValueTask ReadExactlyAsync(NetworkStream stream, byte[] buffer, CancellationToken cancellationToken)
+    {
+        return ReadExactlyAsync(stream, buffer.AsMemory(), cancellationToken);
+    }
+
+    /**
+      * Reads exactly into an existing memory buffer so small pooled buffers can be used on packet hot paths.
+      */
+    private static async ValueTask ReadExactlyAsync(NetworkStream stream, Memory<byte> buffer, CancellationToken cancellationToken)
     {
         int offset = 0;
         while (offset < buffer.Length)
         {
-            int received = await stream.ReadAsync(buffer.AsMemory(offset, buffer.Length - offset), cancellationToken);
+            int received = await stream.ReadAsync(buffer.Slice(offset), cancellationToken);
             if (received == 0)
             {
                 throw new EndOfStreamException("World client disconnected.");

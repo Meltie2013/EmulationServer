@@ -97,7 +97,7 @@ public static class WorldMovementPacketParser
 
         try
         {
-            WorldPacketReader reader = new(payload[movementInfoOffset..]);
+            WorldPacketReader reader = new(payload.AsMemory(movementInfoOffset));
             MovementFlags flags = (MovementFlags)reader.ReadUInt32();
             uint clientTime = reader.ReadUInt32();
             MovementPosition position = new(

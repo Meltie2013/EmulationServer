@@ -21,6 +21,7 @@ using EmulationServer.MapServer.Core;
 using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Threading;
 
 /**
   * File overview: src/MapServer/Program.cs
@@ -52,6 +53,8 @@ try
     Logger.Configure(settings.Logging);
 
     Logger.WriteBanner("Map Server");
+
+    RuntimeConcurrencyConfigurator.ConfigureForServer("MapServer");
 
     await using MapServer server = new(settings);
 

@@ -52,6 +52,34 @@ public static class WorldPacketBuilders
     private const uint AtLoginFirst = 0x20;
 
     /**
+      * Vanilla object create movement update flags.
+      * These mirror the MaNGOS 1.12 layout used by Object::BuildMovementUpdate:
+      * - write update flags first
+      * - write MovementInfo when UPDATEFLAG_LIVING is present
+      * - write movement speeds immediately after living MovementInfo
+      * - write optional trailing fields in flag order.
+      */
+    [Flags]
+    private enum VanillaUpdateFlags : byte
+    {
+        None = 0x00,
+        Self = 0x01,
+        Transport = 0x02,
+        HasAttackingTarget = 0x04,
+        HighGuid = 0x08,
+        All = 0x10,
+        Living = 0x20,
+        HasPosition = 0x40,
+    }
+
+    private const float PlayerWalkSpeed = 2.5f;
+    private const float PlayerRunSpeed = 7.0f;
+    private const float PlayerRunBackSpeed = 4.5f;
+    private const float PlayerSwimSpeed = 4.722222f;
+    private const float PlayerSwimBackSpeed = 2.5f;
+    private const float PlayerTurnRate = 3.1415927f;
+
+    /**
       * Builds the build auth challenge result needed by the caller.
       * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
       * Inputs used by this operation: serverSeed.
@@ -419,23 +447,47 @@ public static class WorldPacketBuilders
       */
     private static void WritePlayerMovementBlock(WorldPacketWriter writer, PlayerLoginRecord player)
     {
-        const byte updateFlagsSelfAllLiving = 0x31;
+        const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.Self | VanillaUpdateFlags.All | VanillaUpdateFlags.Living;
 
-        writer.WriteUInt8(updateFlagsSelfAllLiving);
-        writer.WriteUInt32(0); // movement flags
+        writer.WriteUInt8((byte)updateFlags);
+        WritePlayerLivingMovementInfo(writer, player);
+        WritePlayerMovementSpeeds(writer);
+
+        // MaNGOS writes this field after the living movement/speed block when
+        // UPDATEFLAG_ALL is set. This is not part of MovementInfo itself; it is
+        // the optional UPDATEFLAG_ALL trailing field and should remain uint32 1.
+        writer.WriteUInt32(1);
+    }
+
+    /**
+      * Writes the Vanilla 1.12 MovementInfo layout used by UPDATEFLAG_LIVING.
+      * The no-transport/no-swim/no-fall login state is intentionally minimal:
+      * movement flags, client/server time, position, orientation, and fall time.
+      */
+    private static void WritePlayerLivingMovementInfo(WorldPacketWriter writer, PlayerLoginRecord player)
+    {
+        writer.WriteUInt32(0); // MovementFlags: player is spawned idle at login.
         writer.WriteUInt32(unchecked((uint)Environment.TickCount));
         writer.WriteFloat(player.PositionX);
         writer.WriteFloat(player.PositionY);
         writer.WriteFloat(player.PositionZ);
         writer.WriteFloat(player.Orientation);
-        writer.WriteFloat(0); // fall time
-        writer.WriteFloat(2.5f); // walking speed
-        writer.WriteFloat(7.0f); // running speed
-        writer.WriteFloat(4.5f); // backwards running speed
-        writer.WriteFloat(4.722222f); // swimming speed
-        writer.WriteFloat(2.5f); // backwards swimming speed
-        writer.WriteFloat(3.1415927f); // turn rate
-        writer.WriteUInt32(1); // living movement block unknown1 used by the 1.12 client
+        writer.WriteUInt32(0); // fallTime is uint32 in MovementInfo.
+    }
+
+    /**
+      * Writes the Vanilla player speed block that follows living MovementInfo.
+      * MaNGOS writes exactly six speeds for 1.12: walk, run, run-back, swim,
+      * swim-back, and turn-rate.
+      */
+    private static void WritePlayerMovementSpeeds(WorldPacketWriter writer)
+    {
+        writer.WriteFloat(PlayerWalkSpeed);
+        writer.WriteFloat(PlayerRunSpeed);
+        writer.WriteFloat(PlayerRunBackSpeed);
+        writer.WriteFloat(PlayerSwimSpeed);
+        writer.WriteFloat(PlayerSwimBackSpeed);
+        writer.WriteFloat(PlayerTurnRate);
     }
 
     /**

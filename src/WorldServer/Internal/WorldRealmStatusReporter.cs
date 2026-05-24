@@ -400,7 +400,6 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         {
             await Task.Delay(_settings.UpdateInterval, cancellationToken);
             await SendRealmStatusAsync(true, Volatile.Read(ref _activeConnections), cancellationToken);
-            await SendCharacterCountSnapshotAsync(cancellationToken);
         }
     }
 
@@ -459,7 +458,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             $"{InternalProtocol.RealmCharacterCountSnapshotEnd} {realmId}",
             cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"WorldServer sent realm {realmId} character-count snapshot: {characterCounts.Count} account(s).", "WorldRealmStatusReporter");
+        Logger.Write(LogType.TRACE, $"WorldServer sent realm {realmId} character-count snapshot: {characterCounts.Count} account(s).", "WorldRealmStatusReporter");
     }
 
     /**
@@ -666,7 +665,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             packet,
             cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"WorldServer sent realm status: {packet}", "WorldRealmStatusReporter");
+        Logger.Write(LogType.TRACE, $"WorldServer sent realm status: {packet}", "WorldRealmStatusReporter");
     }
 
     /**

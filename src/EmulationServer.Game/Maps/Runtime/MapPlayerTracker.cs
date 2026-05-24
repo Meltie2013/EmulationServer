@@ -50,6 +50,16 @@ public sealed class MapPlayerTracker
     }
 
     /**
+      * Returns the active player count grouped by map id so hosted map services can publish accurate status snapshots.
+      */
+    public IReadOnlyDictionary<uint, int> CountPlayersByMap()
+    {
+        return _players.Values
+            .GroupBy(player => player.Map)
+            .ToDictionary(group => group.Key, group => group.Count());
+    }
+
+    /**
       * Performs the player entered operation for the runtime map-player state tracking workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: player.
@@ -67,7 +77,15 @@ public sealed class MapPlayerTracker
       */
     public bool PlayerLeft(uint guid)
     {
-        return _players.TryRemove(guid, out _);
+        return PlayerLeft(guid, out _);
+    }
+
+    /**
+      * Removes a player and returns the last tracked map state when the caller needs to refresh per-map service counts.
+      */
+    public bool PlayerLeft(uint guid, out MapPlayerRuntimeState? player)
+    {
+        return _players.TryRemove(guid, out player);
     }
 
     /**
@@ -88,8 +106,47 @@ public sealed class MapPlayerTracker
         uint movementFlags,
         uint clientMovementTime)
     {
+        return PlayerMoved(
+            accountId,
+            guid,
+            map,
+            zone,
+            positionX,
+            positionY,
+            positionZ,
+            orientation,
+            opcode,
+            movementFlags,
+            clientMovementTime,
+            out _,
+            out _);
+    }
+
+    /**
+      * Updates movement state and tells the caller whether hosted service player counts may have changed.
+      * Counts only change when a new player is first observed or an existing player changes maps, so movement can stay lightweight.
+      */
+    public MapPlayerRuntimeState PlayerMoved(
+        uint accountId,
+        uint guid,
+        uint map,
+        uint zone,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float orientation,
+        ushort opcode,
+        uint movementFlags,
+        uint clientMovementTime,
+        out uint previousMap,
+        out bool serviceCountChanged)
+    {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        return _players.AddOrUpdate(
+        uint observedPreviousMap = map;
+        bool observedExistingPlayer = false;
+        bool observedMapChange = false;
+
+        MapPlayerRuntimeState updatedState = _players.AddOrUpdate(
             guid,
             _ => new MapPlayerRuntimeState(
                 accountId,
@@ -105,19 +162,30 @@ public sealed class MapPlayerTracker
                 movementFlags,
                 clientMovementTime,
                 now),
-            (_, existing) => existing with
+            (_, existing) =>
             {
-                AccountId = accountId,
-                Map = map,
-                Zone = zone,
-                PositionX = positionX,
-                PositionY = positionY,
-                PositionZ = positionZ,
-                Orientation = orientation,
-                LastMovementOpcode = opcode,
-                MovementFlags = movementFlags,
-                ClientMovementTime = clientMovementTime,
-                LastUpdatedUtc = now,
+                observedExistingPlayer = true;
+                observedPreviousMap = existing.Map;
+                observedMapChange = existing.Map != map;
+
+                return existing with
+                {
+                    AccountId = accountId,
+                    Map = map,
+                    Zone = zone,
+                    PositionX = positionX,
+                    PositionY = positionY,
+                    PositionZ = positionZ,
+                    Orientation = orientation,
+                    LastMovementOpcode = opcode,
+                    MovementFlags = movementFlags,
+                    ClientMovementTime = clientMovementTime,
+                    LastUpdatedUtc = now,
+                };
             });
+
+        previousMap = observedPreviousMap;
+        serviceCountChanged = !observedExistingPlayer || observedMapChange;
+        return updatedState;
     }
 }

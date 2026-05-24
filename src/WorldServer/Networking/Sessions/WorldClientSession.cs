@@ -19,6 +19,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Threading.Channels;
 
 using EmulationServer.Database.Accounts;
 using EmulationServer.Game.Characters;
@@ -72,6 +73,38 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Defines how often the session may notify an already-in-world player about map-service delivery problems.
       */
     private static readonly TimeSpan MapServiceFailureNotificationCooldown = TimeSpan.FromSeconds(5);
+    /**
+      * Limits internal movement telemetry to Map/Instance services so client packet handling is not blocked by every movement opcode.
+      */
+    private static readonly TimeSpan MapServiceMovementRouteInterval = TimeSpan.FromSeconds(1);
+    /**
+      * Defines how often account/IP ban state is rechecked after authentication.
+      * The check runs on a background monitor so movement and ping packets never wait on database queries.
+      */
+    private static readonly TimeSpan BanRecheckInterval = TimeSpan.FromSeconds(30);
+    /**
+      * Limits how often the full player login record is cloned for movement-only position changes.
+      * CurrentMovement keeps the exact latest position while the heavier persistence record is coalesced.
+      */
+    private static readonly TimeSpan PlayerRecordMovementUpdateInterval = TimeSpan.FromMilliseconds(250);
+    /**
+      * Limits queued movement broadcasts per recipient so slow sockets drop old movement instead of back-pressuring the sender.
+      */
+    private const int MovementBroadcastQueueCapacity = 256;
+    /**
+      * Keeps only the newest World -> Map/Instance movement sample when the internal route is busy.
+      */
+    private const int MapServiceMovementQueueCapacity = 1;
+
+    /**
+      * Holds the compact queued movement packet sent by the per-session movement writer.
+      */
+    private readonly record struct QueuedMovementPacket(WorldOpcode Opcode, byte[] Payload);
+
+    /**
+      * Holds one coalesced movement sample for the routed Map/Instance telemetry writer.
+      */
+    private readonly record struct QueuedMapServiceMovement(PlayerLoginRecord Player, string OwnerServerName, PlayerMovementState Movement);
 
     /**
       * Holds the private client state used by the owning component.
@@ -139,6 +172,43 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private readonly SemaphoreSlim _playerSaveLock = new(1, 1);
     /**
+      * Serializes every server-to-client packet write.
+      * The WoW header cipher is stateful, so concurrent writes must never encrypt headers out of order or interleave header/body data.
+      */
+    private readonly SemaphoreSlim _sendLock = new(1, 1);
+    /**
+      * Carries high-frequency movement broadcasts on a small bounded queue so one sender does not wait on every recipient socket.
+      */
+    private readonly Channel<QueuedMovementPacket> _movementBroadcastQueue = Channel.CreateBounded<QueuedMovementPacket>(new BoundedChannelOptions(MovementBroadcastQueueCapacity)
+    {
+        SingleReader = true,
+        SingleWriter = false,
+        FullMode = BoundedChannelFullMode.DropOldest,
+        AllowSynchronousContinuations = false,
+    });
+    /**
+      * Carries coalesced movement telemetry to Map/Instance services on one serialized background path.
+      * This prevents slow internal networking from creating unbounded fire-and-forget movement tasks.
+      */
+    private readonly Channel<QueuedMapServiceMovement> _mapServiceMovementQueue = Channel.CreateBounded<QueuedMapServiceMovement>(new BoundedChannelOptions(MapServiceMovementQueueCapacity)
+    {
+        SingleReader = true,
+        SingleWriter = false,
+        FullMode = BoundedChannelFullMode.DropOldest,
+        AllowSynchronousContinuations = false,
+    });
+    /**
+      * Carries regular non-movement gameplay packets to a per-session worker.
+      * This keeps slower database/control handlers from blocking the socket receive loop and delaying CMSG_PING/CMSG_PONG latency.
+      */
+    private readonly Channel<WorldPacket> _gameplayPacketQueue = Channel.CreateBounded<WorldPacket>(new BoundedChannelOptions(1024)
+    {
+        SingleReader = true,
+        SingleWriter = true,
+        FullMode = BoundedChannelFullMode.Wait,
+        AllowSynchronousContinuations = false,
+    });
+    /**
       * Holds the private active player count changed state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -201,6 +271,35 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private Task? _playerSaveLoop;
     /**
+      * Runs the per-session movement broadcast writer.
+      * This keeps recipient socket writes away from another player's movement receive loop.
+      */
+    private Task? _movementBroadcastLoop;
+    /**
+      * Runs the serialized World -> Map/Instance movement telemetry writer.
+      */
+    private Task? _mapServiceMovementRouteLoop;
+    /**
+      * Runs the serialized non-movement gameplay packet worker for this client.
+      */
+    private Task? _gameplayPacketLoop;
+    /**
+      * Cancels the authenticated-account ban monitor.
+      */
+    private CancellationTokenSource? _banMonitorCancellation;
+    /**
+      * Runs account/IP ban checks away from the packet receive loop.
+      */
+    private Task? _banMonitorLoop;
+    /**
+      * Prevents duplicate ban disconnect work if the monitor races with session shutdown.
+      */
+    private int _banDisconnectStarted;
+    /**
+      * Stores the last time CurrentPlayer was cloned for movement-only coordinates.
+      */
+    private DateTimeOffset _lastPlayerRecordMovementUpdateUtc = DateTimeOffset.MinValue;
+    /**
       * Holds the private player state dirty state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -215,9 +314,20 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private DateTimeOffset _lastMapServiceFailureNotificationUtc = DateTimeOffset.MinValue;
     /**
+      * Tracks the last movement state routed to the current map service so high-frequency movement packets can be coalesced.
+      */
+    private DateTimeOffset _lastMapServiceMovementRouteUtc = DateTimeOffset.MinValue;
+    private uint _lastMapServiceMovementRouteMap;
+    private uint _lastMapServiceMovementRouteZone;
+    private bool _hasLastMapServiceMovementRoute;
+    /**
       * Prevents the automatic CMSG_CHAR_ENUM sent by the client after SMSG_CHARACTER_LOGIN_FAILED from hiding the failure dialog immediately.
       */
     private DateTimeOffset _delayCharacterEnumUntilUtc = DateTimeOffset.MinValue;
+    /**
+      * Prevents duplicate forced logout work when a map or instance owner becomes unavailable.
+      */
+    private int _serviceDisconnectStarted;
     /**
       * Holds the private disposed state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -292,6 +402,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     public PlayerMovementState? CurrentMovement { get; private set; }
 
     /**
+      * Exposes the current map service owner used by the player so WorldServer can evict sessions when that owner goes down.
+      */
+    public string CurrentMapOwnerServerName => _currentMapOwnerServerName;
+
+    /**
       * Stores the default account gm level value used when the caller does not supply an override.
       * Centralizing the default keeps configuration and packet behavior consistent across the server process.
       */
@@ -334,6 +449,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
         CancellationToken cancellationToken = linkedCancellation.Token;
         _stream = _client.GetStream();
+        WorldMovementDiagnostics.LogEnabledOnce();
+        StartMovementBroadcastLoop(cancellationToken);
+        StartMapServiceMovementRouteLoop(cancellationToken);
+        StartGameplayPacketLoop(cancellationToken);
 
         try
         {
@@ -374,10 +493,17 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     public async Task DisconnectAsync()
     {
+        _movementBroadcastQueue.Writer.TryComplete();
+        _mapServiceMovementQueue.Writer.TryComplete();
+        _gameplayPacketQueue.Writer.TryComplete();
+        await StopBanMonitorAsync();
+
         if (!_disconnect.IsCancellationRequested)
         {
             await _disconnect.CancelAsync();
         }
+
+        await WaitForNetworkBackgroundLoopsAsync();
 
         try
         {
@@ -408,6 +534,92 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         {
             // Ignore shutdown races.
         }
+    }
+
+
+    /**
+      * Waits for per-session networking helper loops to observe cancellation before owned resources are disposed.
+      */
+    private async Task WaitForNetworkBackgroundLoopsAsync()
+    {
+        Task? movementLoop = _movementBroadcastLoop;
+        Task? mapRouteLoop = _mapServiceMovementRouteLoop;
+        Task? gameplayLoop = _gameplayPacketLoop;
+        _movementBroadcastLoop = null;
+        _mapServiceMovementRouteLoop = null;
+        _gameplayPacketLoop = null;
+
+        await WaitForBackgroundLoopAsync(movementLoop);
+        await WaitForBackgroundLoopAsync(mapRouteLoop);
+        await WaitForBackgroundLoopAsync(gameplayLoop);
+    }
+
+    /**
+      * Suppresses expected shutdown exceptions from a helper loop.
+      */
+    private static async Task WaitForBackgroundLoopAsync(Task? loop)
+    {
+        if (loop is null || loop.IsCompleted)
+        {
+            return;
+        }
+
+        try
+        {
+            Task completedTask = await Task.WhenAny(loop, Task.Delay(TimeSpan.FromSeconds(1)));
+            if (completedTask == loop)
+            {
+                await loop;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    /**
+      * Forces an in-world player through the same logout cleanup path when their map or instance owner disappears.
+      */
+    public async Task DisconnectForMapServiceUnavailableAsync(string ownerServerName, string reason, CancellationToken cancellationToken)
+    {
+        PlayerLoginRecord? player = CurrentPlayer;
+        if (player is null)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _serviceDisconnectStarted, 1) == 1)
+        {
+            return;
+        }
+
+        Logger.Write(LogType.WARNING, $"Disconnecting player '{player.Name}' ({player.Guid}) because map service owner '{ownerServerName}' is unavailable. {reason}", "WorldClientSession");
+
+        try
+        {
+            await SendAsync(WorldOpcode.SMSG_NOTIFICATION, WorldPacketBuilders.BuildNotification(reason), _crypt, CancellationToken.None);
+            await SendAsync(WorldOpcode.SMSG_LOGOUT_RESPONSE, WorldPacketBuilders.BuildLogoutResponse(), _crypt, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.TRACE, $"Could not send map-service disconnect notice to player '{player.Name}' ({player.Guid}): {exception.Message}", "WorldClientSession");
+        }
+
+        await CleanupCurrentPlayerAsync(CancellationToken.None, notifyMapService: false);
+
+        try
+        {
+            await SendAsync(WorldOpcode.SMSG_LOGOUT_COMPLETE, WorldPacketBuilders.BuildLogoutComplete(), _crypt, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.TRACE, $"Could not send logout complete after map-service disconnect for player '{player.Name}' ({player.Guid}): {exception.Message}", "WorldClientSession");
+        }
+
+        await DisconnectAsync();
     }
 
     /**
@@ -507,6 +719,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await SendAsync(WorldOpcode.SMSG_ADDON_INFO, WorldPacketBuilders.BuildAddonInfo(request.AddonInfo), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Ok), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_ACCOUNT_DATA_TIMES, WorldPacketBuilders.BuildAccountDataTimes(), _crypt, cancellationToken);
+        StartBanMonitor();
 
         Logger.Write(LogType.SUCCESS, $"World client authenticated account '{account.Username}' ({account.Id}) from {RemoteEndPoint}.", "WorldClientSession");
     }
@@ -522,12 +735,85 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
+      * Starts the authenticated-account ban monitor.
+      * The monitor intentionally runs outside ProcessAuthenticatedPacketsAsync so client movement and ping packets never wait on database work.
+      */
+    private void StartBanMonitor()
+    {
+        if (_banMonitorLoop is not null && !_banMonitorLoop.IsCompleted)
+        {
+            return;
+        }
+
+        _banMonitorCancellation?.Cancel();
+        _banMonitorCancellation?.Dispose();
+        _banMonitorCancellation = CancellationTokenSource.CreateLinkedTokenSource(_disconnect.Token);
+        _banMonitorLoop = Task.Run(() => RunBanMonitorAsync(_banMonitorCancellation.Token), CancellationToken.None);
+    }
+
+    /**
+      * Performs low-frequency ban checks without blocking the socket receive loop.
+      */
+    private async Task RunBanMonitorAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using PeriodicTimer timer = new(BanRecheckInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (await DisconnectIfBanBecameActiveAsync(cancellationToken))
+                {
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during disconnect/shutdown.
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.WARNING, $"Ban monitor stopped for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+        }
+    }
+
+    /**
+      * Stops the ban monitor without making shutdown noisy.
+      */
+    private async Task StopBanMonitorAsync()
+    {
+        CancellationTokenSource? banCancellation = _banMonitorCancellation;
+        Task? banLoop = _banMonitorLoop;
+        _banMonitorCancellation = null;
+        _banMonitorLoop = null;
+
+        if (banCancellation is null)
+        {
+            return;
+        }
+
+        await banCancellation.CancelAsync();
+        if (banLoop is not null && Task.CurrentId != banLoop.Id)
+        {
+            try
+            {
+                await banLoop;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        banCancellation.Dispose();
+    }
+
+    /**
       * Sends the matching in-client auth failure when a ban becomes active after the account has already authenticated.
       */
     private async Task<bool> DisconnectIfBanBecameActiveAsync(CancellationToken cancellationToken)
     {
         WorldAccountSessionRecord? account = _account;
-        if (account is null || _crypt is null)
+        if (account is null || _crypt is null || _disconnect.IsCancellationRequested)
         {
             return false;
         }
@@ -539,11 +825,17 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return false;
         }
 
+        if (Interlocked.Exchange(ref _banDisconnectStarted, 1) == 1)
+        {
+            return true;
+        }
+
         AuthResponseCode responseCode = ipBanned || banStatus.IsPermanent ? AuthResponseCode.Banned : AuthResponseCode.Suspended;
         string banType = ipBanned ? "IP banned" : (banStatus.IsPermanent ? "permanently banned" : "temporarily suspended");
         Logger.Write(LogType.WARNING, $"World client {RemoteEndPoint} disconnected because account '{account.Username}' is now {banType}.", "WorldClientSession");
         await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(responseCode), _crypt, cancellationToken);
         await AllowTerminalResponseDeliveryAsync(cancellationToken);
+        await DisconnectAsync();
         return true;
     }
 
@@ -573,12 +865,81 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         while (!cancellationToken.IsCancellationRequested)
         {
             WorldPacket packet = await WorldPacketIO.ReadClientPacketAsync(GetStream(), _crypt, _maximumPacketSize, cancellationToken);
-            if (await DisconnectIfBanBecameActiveAsync(cancellationToken))
+
+            if (packet.Opcode == WorldOpcode.CMSG_PING)
             {
-                return;
+                await HandlePingAsync(packet, cancellationToken);
+                continue;
             }
 
-            switch (packet.Opcode)
+            if (WorldMovementOpcode.IsMovementOpcode(packet.Opcode))
+            {
+                HandleMovementPacket(packet);
+                continue;
+            }
+
+            await QueueGameplayPacketAsync(packet, cancellationToken);
+        }
+    }
+
+    /**
+      * Queues regular gameplay/control packets behind a per-session worker so the socket receive loop can keep reading pings and movement.
+      * Movement remains on the hot path because the latest position should be accepted immediately; slower DB/control handlers are serialized here.
+      */
+    private async Task QueueGameplayPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        await _gameplayPacketQueue.Writer.WriteAsync(packet, cancellationToken);
+    }
+
+    /**
+      * Starts the regular gameplay packet worker once for this session.
+      */
+    private void StartGameplayPacketLoop(CancellationToken cancellationToken)
+    {
+        _gameplayPacketLoop ??= Task.Run(() => ProcessGameplayPacketQueueAsync(cancellationToken), CancellationToken.None);
+    }
+
+    /**
+      * Processes queued non-movement packets in order while the receive loop stays free for latency-sensitive pings and movement.
+      */
+    private async Task ProcessGameplayPacketQueueAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await _gameplayPacketQueue.Reader.WaitToReadAsync(cancellationToken))
+            {
+                while (_gameplayPacketQueue.Reader.TryRead(out WorldPacket? packet))
+                {
+                    if (packet is null)
+                    {
+                        continue;
+                    }
+
+                    await DispatchAuthenticatedPacketAsync(packet, cancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during disconnect/shutdown.
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.NETWORK, $"Gameplay packet worker stopped for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.CRITICAL, $"Gameplay packet worker failed for {RemoteEndPoint}: {exception}", "WorldClientSession");
+            await DisconnectAsync();
+        }
+    }
+
+    /**
+      * Dispatches non-hot-path client packets from the per-session gameplay worker.
+      */
+    private async Task DispatchAuthenticatedPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        switch (packet.Opcode)
             {
                 case WorldOpcode.CMSG_PING:
                     await HandlePingAsync(packet, cancellationToken);
@@ -682,7 +1043,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     break;
 
                 case var movementOpcode when WorldMovementOpcode.IsMovementOpcode(movementOpcode):
-                    await HandleMovementPacketAsync(packet, cancellationToken);
+                    HandleMovementPacket(packet);
                     break;
 
                 default:
@@ -697,8 +1058,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     }
                     break;
             }
-        }
     }
+
 
     /**
       * Handles the handle ping event for the connected world client session lifecycle and packet dispatch workflow.
@@ -810,9 +1171,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             await _characterRepository.SetCharacterOnlineAsync(player.Guid, true, cancellationToken);
             CurrentPlayer = player;
             CurrentMovement = PlayerMovementState.FromPlayer(player);
+            _lastPlayerRecordMovementUpdateUtc = DateTimeOffset.UtcNow;
             _lastPlayerTimeSaveUtc = DateTimeOffset.UtcNow;
             _playerStateDirty = true;
             _currentMapOwnerServerName = mapAvailability.OwnerServerName;
+            ResetMapServiceMovementRoute();
             StartPlayerSaveTimer();
             await _playerEnteredWorldAsync(player, _currentMapOwnerServerName, cancellationToken);
             await SendWorldEntryPacketsAsync(player, cancellationToken);
@@ -826,6 +1189,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             CurrentPlayer = null;
             CurrentMovement = null;
             _currentMapOwnerServerName = string.Empty;
+            ResetMapServiceMovementRoute();
             _playerSessionRegistry.Unregister(player, this);
             await _characterRepository.SetCharacterOnlineAsync(player.Guid, false, CancellationToken.None);
 
@@ -987,7 +1351,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Inputs used by this operation: packet, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private async Task HandleMovementPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
+    private void HandleMovementPacket(WorldPacket packet)
     {
         PlayerLoginRecord? player = CurrentPlayer;
         string ownerServerName = _currentMapOwnerServerName;
@@ -1003,24 +1367,125 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                 Logger.Write(LogType.TRACE, $"Accepted movement opcode {packet.Opcode} from {RemoteEndPoint}, but no position state could be parsed from payload={packet.Payload.Length} byte(s). Future packets with this opcode will be accepted silently.", "WorldClientSession");
             }
 
-            await ForwardPacketToMapServiceAsync(packet, cancellationToken);
+            // Do not forward unparsed movement as generic client-packet traffic. Some movement opcodes are
+            // high-frequency, and forwarding the raw payload through the internal text stream can create
+            // visible client latency without giving Map/Instance services useful authoritative state.
             return;
         }
+
+        PlayerMovementState? previousMovement = CurrentMovement;
+        WorldMovementDiagnostics.LogIncomingMovement(packet.Opcode, packet.Payload.Length, player, movement, previousMovement, RemoteEndPoint);
 
         ApplyMovementState(movement);
         PlayerLoginRecord updatedPlayer = RequireCurrentPlayer();
 
-        try
+        QueueMovementBroadcastToNearbyPlayers(packet, movement);
+
+        if (!ShouldRouteMovementToMapService(movement))
         {
-            await _playerMovementAsync(updatedPlayer, ownerServerName, movement, cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            Logger.Write(LogType.WARNING, $"Failed to route movement for player '{updatedPlayer.Name}' ({updatedPlayer.Guid}) to {ownerServerName}: {exception.Message}", "WorldClientSession");
-            await NotifyMapServiceFailureAsync($"The map service for map {updatedPlayer.Map} is not available right now. Movement may not save until it returns.", cancellationToken);
+            return;
         }
 
-        await BroadcastMovementToNearbyPlayersAsync(packet, movement, cancellationToken);
+        QueueMapServiceMovement(updatedPlayer, ownerServerName, movement);
+    }
+
+    /**
+      * Enqueues the latest coalesced movement telemetry for Map/Instance services without starting one task per movement sample.
+      */
+    private void QueueMapServiceMovement(PlayerLoginRecord player, string ownerServerName, PlayerMovementState movement)
+    {
+        if (_disconnect.IsCancellationRequested || string.IsNullOrWhiteSpace(ownerServerName))
+        {
+            return;
+        }
+
+        _mapServiceMovementQueue.Writer.TryWrite(new QueuedMapServiceMovement(player, ownerServerName, movement));
+    }
+
+    /**
+      * Starts the serialized World -> Map/Instance movement telemetry route loop.
+      */
+    private void StartMapServiceMovementRouteLoop(CancellationToken cancellationToken)
+    {
+        _mapServiceMovementRouteLoop ??= Task.Run(() => ProcessMapServiceMovementRouteQueueAsync(cancellationToken), CancellationToken.None);
+    }
+
+    /**
+      * Routes coalesced movement telemetry on one background path so slow internal networking cannot pile up movement tasks.
+      */
+    private async Task ProcessMapServiceMovementRouteQueueAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await _mapServiceMovementQueue.Reader.WaitToReadAsync(cancellationToken))
+            {
+                QueuedMapServiceMovement latest = default;
+                bool hasLatest = false;
+
+                while (_mapServiceMovementQueue.Reader.TryRead(out QueuedMapServiceMovement queued))
+                {
+                    latest = queued;
+                    hasLatest = true;
+                }
+
+                if (!hasLatest)
+                {
+                    continue;
+                }
+
+                DateTimeOffset routeStartedUtc = DateTimeOffset.UtcNow;
+                await _playerMovementAsync(latest.Player, latest.OwnerServerName, latest.Movement, cancellationToken);
+                WorldMovementDiagnostics.LogMapServiceMovementRoute(
+                    latest.Player,
+                    latest.OwnerServerName,
+                    latest.Movement,
+                    routeStartedUtc,
+                    DateTimeOffset.UtcNow - routeStartedUtc,
+                    RemoteEndPoint);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during shutdown or session disconnect.
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.WARNING, $"Map-service movement route writer stopped for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+        }
+    }
+
+    /**
+      * Clears movement telemetry throttle state when the player enters or leaves a routed map owner.
+      */
+    private void ResetMapServiceMovementRoute()
+    {
+        _lastMapServiceMovementRouteUtc = DateTimeOffset.MinValue;
+        _lastMapServiceMovementRouteMap = 0;
+        _lastMapServiceMovementRouteZone = 0;
+        _hasLastMapServiceMovementRoute = false;
+    }
+
+    /**
+      * Returns true when the latest movement should be sent to Map/Instance services.
+      * Normal movement packets are coalesced because WorldServer remains authoritative for the client socket and nearby-player broadcast.
+      */
+    private bool ShouldRouteMovementToMapService(PlayerMovementState movement)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        bool mapOrZoneChanged = !_hasLastMapServiceMovementRoute ||
+            _lastMapServiceMovementRouteMap != movement.Map ||
+            _lastMapServiceMovementRouteZone != movement.Zone;
+
+        if (!mapOrZoneChanged && now - _lastMapServiceMovementRouteUtc < MapServiceMovementRouteInterval)
+        {
+            return false;
+        }
+
+        _lastMapServiceMovementRouteUtc = now;
+        _lastMapServiceMovementRouteMap = movement.Map;
+        _lastMapServiceMovementRouteZone = movement.Zone;
+        _hasLastMapServiceMovementRoute = true;
+        return true;
     }
 
     /**
@@ -1037,7 +1502,24 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         CurrentMovement = movement;
-        CurrentPlayer = player with
+        _playerStateDirty = true;
+
+        bool mapOrZoneChanged = player.Map != movement.Map || player.Zone != movement.Zone;
+        if (!mapOrZoneChanged && movement.LastUpdatedUtc - _lastPlayerRecordMovementUpdateUtc < PlayerRecordMovementUpdateInterval)
+        {
+            return;
+        }
+
+        CurrentPlayer = ApplyMovementToPlayerRecord(player, movement);
+        _lastPlayerRecordMovementUpdateUtc = movement.LastUpdatedUtc;
+    }
+
+    /**
+      * Applies the latest movement coordinates to the heavier player record only when persistence or slower systems need it.
+      */
+    private static PlayerLoginRecord ApplyMovementToPlayerRecord(PlayerLoginRecord player, PlayerMovementState movement)
+    {
+        return player with
         {
             Map = movement.Map,
             Zone = movement.Zone,
@@ -1046,7 +1528,22 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             PositionZ = movement.PositionZ,
             Orientation = movement.Orientation,
         };
-        _playerStateDirty = true;
+    }
+
+    /**
+      * Copies CurrentMovement into CurrentPlayer before persistence-sensitive operations.
+      */
+    private void SynchronizeCurrentPlayerRecordFromMovement()
+    {
+        PlayerLoginRecord? player = CurrentPlayer;
+        PlayerMovementState? movement = CurrentMovement;
+        if (player is null || movement is null)
+        {
+            return;
+        }
+
+        CurrentPlayer = ApplyMovementToPlayerRecord(player, movement);
+        _lastPlayerRecordMovementUpdateUtc = movement.LastUpdatedUtc;
     }
 
     /**
@@ -1055,7 +1552,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Inputs used by this operation: packet, movement, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private async Task BroadcastMovementToNearbyPlayersAsync(WorldPacket packet, PlayerMovementState movement, CancellationToken cancellationToken)
+    private void QueueMovementBroadcastToNearbyPlayers(WorldPacket packet, PlayerMovementState movement)
     {
         if (!WorldMovementOpcode.HasMovementInfoAtPayloadStart(packet.Opcode))
         {
@@ -1068,37 +1565,82 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return;
         }
 
-        byte[] payload = WorldPacketBuilders.BuildMovementBroadcast(movement.ClientGuid, packet.Payload);
-        foreach (WorldClientSession recipient in _playerSessionRegistry.SnapshotSessions())
+        byte[]? payload = null;
+        foreach (WorldClientSession recipient in _playerSessionRegistry.EnumerateSessions())
         {
-            if (ReferenceEquals(recipient, this) || recipient.CurrentPlayer is null || recipient.CurrentPlayer.Map != player.Map)
+            PlayerLoginRecord? recipientPlayer = recipient.CurrentPlayer;
+            if (ReferenceEquals(recipient, this) || recipientPlayer is null || recipientPlayer.Map != movement.Map)
             {
                 continue;
             }
 
-            if (!IsWithinMovementBroadcastRange(player, recipient.CurrentPlayer))
+            if (recipientPlayer.Guid == player.Guid || recipientPlayer.ClientGuid == movement.ClientGuid)
+            {
+                WorldMovementDiagnostics.LogSkippedSelfMovementBroadcast(player, recipientPlayer, movement, RemoteEndPoint, recipient.RemoteEndPoint);
+                continue;
+            }
+
+            if (!IsWithinMovementBroadcastRange(movement, recipient.CurrentMovement, recipientPlayer))
             {
                 continue;
             }
 
-            await recipient.SendMovementPacketAsync(packet.Opcode, payload, cancellationToken);
+            payload ??= WorldPacketBuilders.BuildMovementBroadcast(movement.ClientGuid, packet.Payload);
+            recipient.TryQueueMovementPacket(packet.Opcode, payload);
         }
     }
 
     /**
-      * Sends send movement packet data to the connected session or internal peer.
-      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-      * Inputs used by this operation: opcode, payload, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      * Enqueues a high-frequency movement update for this session without blocking the source player's packet receive loop.
+      * Old movement is intentionally dropped when a recipient falls behind because the newest position supersedes it.
       */
-    private async Task SendMovementPacketAsync(WorldOpcode opcode, byte[] payload, CancellationToken cancellationToken)
+    private bool TryQueueMovementPacket(WorldOpcode opcode, byte[] payload)
     {
-        if (_crypt is null)
+        if (_crypt is null || _disconnect.IsCancellationRequested)
         {
-            return;
+            return false;
         }
 
-        await SendAsync(opcode, payload, _crypt, cancellationToken);
+        return _movementBroadcastQueue.Writer.TryWrite(new QueuedMovementPacket(opcode, payload));
+    }
+
+    /**
+      * Starts the per-session movement broadcast writer once the client network stream is available.
+      */
+    private void StartMovementBroadcastLoop(CancellationToken cancellationToken)
+    {
+        _movementBroadcastLoop ??= Task.Run(() => ProcessMovementBroadcastQueueAsync(cancellationToken), CancellationToken.None);
+    }
+
+    /**
+      * Drains queued movement packets for this session on one writer path.
+      * This mirrors the MaNGOS-style idea of buffering outbound packets instead of writing them inline from gameplay packet handling.
+      */
+    private async Task ProcessMovementBroadcastQueueAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await _movementBroadcastQueue.Reader.WaitToReadAsync(cancellationToken))
+            {
+                while (_movementBroadcastQueue.Reader.TryRead(out QueuedMovementPacket packet))
+                {
+                    if (_crypt is null)
+                    {
+                        continue;
+                    }
+
+                    await SendAsync(packet.Opcode, packet.Payload, _crypt, cancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during disconnect/shutdown.
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.TRACE, $"Movement broadcast writer stopped for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+        }
     }
 
     /**
@@ -1157,7 +1699,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             using PeriodicTimer timer = new(_playerSaveInterval);
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await SaveCurrentPlayerAsync(force: true, cancellationToken);
+                await SaveCurrentPlayerAsync(force: false, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1209,6 +1751,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private async Task SaveCurrentPlayerAsync(bool force, CancellationToken cancellationToken)
     {
+        SynchronizeCurrentPlayerRecordFromMovement();
+
         PlayerLoginRecord? player = CurrentPlayer;
         if (player is null || (!force && !_playerStateDirty))
         {
@@ -1232,12 +1776,18 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                 LevelTime = AddClamped(player.LevelTime, elapsedSeconds),
             };
 
-            await _characterRepository.SavePlayerAsync(snapshot, cancellationToken);
+            if (force)
+            {
+                await _characterRepository.SavePlayerAsync(snapshot, cancellationToken);
+            }
+            else
+            {
+                await _characterRepository.SavePlayerPositionAsync(snapshot, cancellationToken);
+            }
+
             CurrentPlayer = snapshot;
             _lastPlayerTimeSaveUtc = now;
             _playerStateDirty = false;
-
-            Logger.Write(LogType.TRACE, $"Saved player '{snapshot.Name}' ({snapshot.Guid}) state: map={snapshot.Map}, zone={snapshot.Zone}, position=({snapshot.PositionX:0.##}, {snapshot.PositionY:0.##}, {snapshot.PositionZ:0.##}).", "WorldClientSession");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -1254,11 +1804,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: source, target.
       */
-    private static bool IsWithinMovementBroadcastRange(PlayerLoginRecord source, PlayerLoginRecord target)
+    private static bool IsWithinMovementBroadcastRange(PlayerMovementState source, PlayerMovementState? targetMovement, PlayerLoginRecord targetPlayer)
     {
-        float deltaX = source.PositionX - target.PositionX;
-        float deltaY = source.PositionY - target.PositionY;
-        float deltaZ = source.PositionZ - target.PositionZ;
+        float targetX = targetMovement?.PositionX ?? targetPlayer.PositionX;
+        float targetY = targetMovement?.PositionY ?? targetPlayer.PositionY;
+        float targetZ = targetMovement?.PositionZ ?? targetPlayer.PositionZ;
+
+        float deltaX = source.PositionX - targetX;
+        float deltaY = source.PositionY - targetY;
+        float deltaZ = source.PositionZ - targetZ;
         float distanceSquared = (deltaX * deltaX) + (deltaY * deltaY) + (deltaZ * deltaZ);
         return distanceSquared <= MaximumMovementBroadcastDistanceSquared;
     }
@@ -1694,7 +2248,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Inputs used by this operation: cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private async Task CleanupCurrentPlayerAsync(CancellationToken cancellationToken)
+    private async Task CleanupCurrentPlayerAsync(CancellationToken cancellationToken, bool notifyMapService = true)
     {
         PlayerLoginRecord? player = CurrentPlayer;
         if (player is null)
@@ -1710,9 +2264,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         CurrentPlayer = null;
         CurrentMovement = null;
         _currentMapOwnerServerName = string.Empty;
+        ResetMapServiceMovementRoute();
         _chatChannels.Clear();
 
-        if (!string.IsNullOrWhiteSpace(ownerServerName))
+        if (notifyMapService && !string.IsNullOrWhiteSpace(ownerServerName))
         {
             try
             {
@@ -1824,7 +2379,17 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private async Task SendAsync(WorldOpcode opcode, byte[] payload, WorldHeaderCrypt? crypt, CancellationToken cancellationToken)
     {
-        await WorldPacketIO.WriteServerPacketAsync(GetStream(), opcode, payload, crypt, cancellationToken);
+        WorldMovementDiagnostics.LogOutgoingPositionPacket(opcode, payload, CurrentPlayer, CurrentMovement, RemoteEndPoint);
+
+        await _sendLock.WaitAsync(cancellationToken);
+        try
+        {
+            await WorldPacketIO.WriteServerPacketAsync(GetStream(), opcode, payload, crypt, cancellationToken);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
     }
 
     /**
@@ -1860,8 +2425,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         _disposed = true;
         await CleanupCurrentPlayerAsync(CancellationToken.None);
         await DisconnectAsync();
+        await StopBanMonitorAsync();
         await StopPlayerSaveTimerAsync();
         _playerSaveLock.Dispose();
+        _sendLock.Dispose();
         _disconnect.Dispose();
         _client.Dispose();
     }

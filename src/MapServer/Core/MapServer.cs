@@ -300,7 +300,7 @@ public sealed class MapServer : IAsyncDisposable
             return;
         }
 
-        if (HandlePlayerRoutingPacket(remoteServerName, packet))
+        if (await HandlePlayerRoutingPacketAsync(remoteServerName, packet, cancellationToken))
         {
             return;
         }
@@ -331,7 +331,7 @@ public sealed class MapServer : IAsyncDisposable
     /**
       * Handles player routing notifications from WorldServer while the client socket stays owned by WorldServer.
       */
-    private bool HandlePlayerRoutingPacket(string remoteServerName, string packet)
+    private async Task<bool> HandlePlayerRoutingPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(packet))
         {
@@ -349,6 +349,7 @@ public sealed class MapServer : IAsyncDisposable
             if (TryReadPlayerEnterRoute(parts, out MapPlayerRuntimeState? state))
             {
                 _playerTracker.PlayerEntered(state);
+                await RefreshMapServicePlayerCountsAsync(cancellationToken, state.Map);
                 Logger.Write(LogType.NETWORK, $"MapServer tracked player '{state.Name}' ({state.Guid}) entering map={state.Map}, zone={state.Zone} from {remoteServerName}. Active players={_playerTracker.ActivePlayerCount}.", "MapServer");
             }
             else
@@ -365,7 +366,13 @@ public sealed class MapServer : IAsyncDisposable
                 ? parsedGuid
                 : 0;
 
-            bool removed = guid != 0 && _playerTracker.PlayerLeft(guid);
+            MapPlayerRuntimeState? removedPlayer = null;
+            bool removed = guid != 0 && _playerTracker.PlayerLeft(guid, out removedPlayer);
+            if (removedPlayer is not null)
+            {
+                await RefreshMapServicePlayerCountsAsync(cancellationToken, removedPlayer.Map);
+            }
+
             Logger.Write(LogType.NETWORK, $"MapServer tracked player leave-world route from {remoteServerName}: guid={(guid == 0 ? "unknown" : guid.ToString(CultureInfo.InvariantCulture))}, removed={removed}, active players={_playerTracker.ActivePlayerCount}.", "MapServer");
             return true;
         }
@@ -374,8 +381,11 @@ public sealed class MapServer : IAsyncDisposable
         {
             if (TryReadPlayerMovementRoute(parts, out uint accountId, out uint guid, out ushort opcode, out uint map, out uint zone, out float x, out float y, out float z, out float orientation, out uint flags, out uint clientTime))
             {
-                MapPlayerRuntimeState state = _playerTracker.PlayerMoved(accountId, guid, map, zone, x, y, z, orientation, opcode, flags, clientTime);
-                Logger.Write(LogType.TRACE, $"MapServer updated movement for guid={state.Guid}: opcode=0x{state.LastMovementOpcode:X4}, map={state.Map}, zone={state.Zone}, position=({state.PositionX:0.##}, {state.PositionY:0.##}, {state.PositionZ:0.##}), active players={_playerTracker.ActivePlayerCount}.", "MapServer");
+                MapPlayerRuntimeState state = _playerTracker.PlayerMoved(accountId, guid, map, zone, x, y, z, orientation, opcode, flags, clientTime, out uint previousMap, out bool serviceCountChanged);
+                if (serviceCountChanged)
+                {
+                    await RefreshMapServicePlayerCountsAsync(cancellationToken, previousMap, state.Map);
+                }
             }
             else
             {
@@ -387,13 +397,35 @@ public sealed class MapServer : IAsyncDisposable
 
         if (string.Equals(parts[0], InternalProtocol.PlayerClientPacket, StringComparison.OrdinalIgnoreCase))
         {
-            string opcode = parts.Length > 3 ? parts[3] : "unknown";
-            int payloadBytes = parts.Length > 4 ? parts[4].Length / 2 : 0;
-            Logger.Write(LogType.TRACE, $"MapServer received player client-packet route from {remoteServerName}: account={(parts.Length > 1 ? parts[1] : "unknown")}, guid={(parts.Length > 2 ? parts[2] : "unknown")}, opcode={opcode}, payload={payloadBytes} byte(s).", "MapServer");
+            // Intentionally accepted without per-packet logging. Client packet routes can become high-volume
+            // once gameplay handlers are added, and console/file logging here slows the internal stream down.
             return true;
         }
 
         return false;
+    }
+
+
+    /**
+      * Refreshes active player counts on hosted map services and immediately publishes the affected map snapshots.
+      */
+    private async Task RefreshMapServicePlayerCountsAsync(CancellationToken cancellationToken, params uint[] affectedMapIds)
+    {
+        MapServiceManager? mapServices = _mapServices;
+        if (mapServices is null)
+        {
+            return;
+        }
+
+        mapServices.SetActivePlayerCounts(_playerTracker.CountPlayersByMap());
+
+        foreach (uint affectedMapId in affectedMapIds.Distinct())
+        {
+            if (affectedMapId <= int.MaxValue)
+            {
+                await mapServices.ReportServicesAsync(unchecked((int)affectedMapId), cancellationToken);
+            }
+        }
     }
 
     /**
@@ -582,10 +614,7 @@ public sealed class MapServer : IAsyncDisposable
             }
         }
 
-        if (sentCount > 0)
-        {
-            Logger.Write(LogType.TRACE, $"MapServer published map service '{snapshot.Name}' status to {sentCount} status peer(s): state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", "MapServer");
-        }
+        _ = sentCount;
     }
 
     /**

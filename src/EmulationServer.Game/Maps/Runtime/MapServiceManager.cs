@@ -176,6 +176,21 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
+      * Applies the active player counts collected by the owning map or instance server to every hosted service.
+      */
+    public void SetActivePlayerCounts(IReadOnlyDictionary<uint, int> activePlayersByMap)
+    {
+        ArgumentNullException.ThrowIfNull(activePlayersByMap);
+
+        foreach (MapService service in _services)
+        {
+            uint mapId = unchecked((uint)service.Definition.MapId);
+            activePlayersByMap.TryGetValue(mapId, out int activePlayers);
+            service.SetActivePlayerCount(activePlayers);
+        }
+    }
+
+    /**
       * Starts every registered service and begins the periodic status report loop.
       */
     public async Task StartAsync(CancellationToken cancellationToken)

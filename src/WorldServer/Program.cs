@@ -21,6 +21,7 @@ using EmulationServer.WorldServer.Core;
 using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Threading;
 
 /**
   * File overview: src/WorldServer/Program.cs
@@ -52,6 +53,8 @@ try
     Logger.Configure(settings.Logging);
 
     Logger.WriteBanner("World Server");
+
+    RuntimeConcurrencyConfigurator.ConfigureForServer("WorldServer");
 
     await using WorldServer server = new(settings);
 

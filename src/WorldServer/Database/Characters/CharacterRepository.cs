@@ -562,6 +562,49 @@ public sealed class CharacterRepository
     }
 
     /**
+      * Saves the lightweight movement/time fields used by routine autosaves.
+      * Full player data is still saved during logout and explicit forced saves.
+      */
+    public async Task SavePlayerPositionAsync(PlayerLoginRecord player, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        if (player.Guid == 0)
+        {
+            return;
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            UPDATE `characters`
+            SET `zone` = @zone,
+                `map` = @map,
+                `position_x` = @x,
+                `position_y` = @y,
+                `position_z` = @z,
+                `orientation` = @o,
+                `totaltime` = @totalTime,
+                `leveltime` = @levelTime
+            WHERE `guid` = @guid
+              AND `account` = @account;
+            """;
+        command.Parameters.AddWithValue("@guid", player.Guid);
+        command.Parameters.AddWithValue("@account", player.AccountId);
+        command.Parameters.AddWithValue("@zone", player.Zone);
+        command.Parameters.AddWithValue("@map", player.Map);
+        command.Parameters.AddWithValue("@x", player.PositionX);
+        command.Parameters.AddWithValue("@y", player.PositionY);
+        command.Parameters.AddWithValue("@z", player.PositionZ);
+        command.Parameters.AddWithValue("@o", player.Orientation);
+        command.Parameters.AddWithValue("@totalTime", player.TotalTime);
+        command.Parameters.AddWithValue("@levelTime", player.LevelTime);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /**
       * Updates save player state in memory or persistent storage.
       * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
       * Inputs used by this operation: player, cancellationToken.

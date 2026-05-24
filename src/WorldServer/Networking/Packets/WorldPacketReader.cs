@@ -37,7 +37,7 @@ public sealed class WorldPacketReader
       * Holds the private buffer state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly byte[] _buffer;
+    private readonly ReadOnlyMemory<byte> _buffer;
     /**
       * Holds the private offset state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -51,7 +51,17 @@ public sealed class WorldPacketReader
       */
     public WorldPacketReader(byte[] buffer)
     {
-        _buffer = buffer ?? throw new ArgumentNullException();
+        ArgumentNullException.ThrowIfNull(buffer);
+        _buffer = buffer;
+    }
+
+    /**
+      * Initializes a reader over an existing packet payload slice without copying it.
+      * This is important for high-frequency movement packets where even small per-packet allocations cause jitter.
+      */
+    public WorldPacketReader(ReadOnlyMemory<byte> buffer)
+    {
+        _buffer = buffer;
     }
 
     /**
@@ -67,7 +77,7 @@ public sealed class WorldPacketReader
     public byte ReadUInt8()
     {
         EnsureAvailable(1);
-        return _buffer[_offset++];
+        return _buffer.Span[_offset++];
     }
 
     /**
@@ -77,7 +87,7 @@ public sealed class WorldPacketReader
     public ushort ReadUInt16()
     {
         EnsureAvailable(2);
-        ushort value = BinaryPrimitives.ReadUInt16LittleEndian(_buffer.AsSpan(_offset, 2));
+        ushort value = BinaryPrimitives.ReadUInt16LittleEndian(_buffer.Span.Slice(_offset, 2));
         _offset += 2;
         return value;
     }
@@ -89,7 +99,7 @@ public sealed class WorldPacketReader
     public uint ReadUInt32()
     {
         EnsureAvailable(4);
-        uint value = BinaryPrimitives.ReadUInt32LittleEndian(_buffer.AsSpan(_offset, 4));
+        uint value = BinaryPrimitives.ReadUInt32LittleEndian(_buffer.Span.Slice(_offset, 4));
         _offset += 4;
         return value;
     }
@@ -101,7 +111,7 @@ public sealed class WorldPacketReader
     public ulong ReadUInt64()
     {
         EnsureAvailable(8);
-        ulong value = BinaryPrimitives.ReadUInt64LittleEndian(_buffer.AsSpan(_offset, 8));
+        ulong value = BinaryPrimitives.ReadUInt64LittleEndian(_buffer.Span.Slice(_offset, 8));
         _offset += 8;
         return value;
     }
@@ -113,7 +123,7 @@ public sealed class WorldPacketReader
     public float ReadFloat()
     {
         EnsureAvailable(4);
-        float value = BinaryPrimitives.ReadSingleLittleEndian(_buffer.AsSpan(_offset, 4));
+        float value = BinaryPrimitives.ReadSingleLittleEndian(_buffer.Span.Slice(_offset, 4));
         _offset += 4;
         return value;
     }
@@ -126,7 +136,7 @@ public sealed class WorldPacketReader
     public byte[] ReadBytes(int length)
     {
         EnsureAvailable(length);
-        byte[] value = _buffer.AsSpan(_offset, length).ToArray();
+        byte[] value = _buffer.Span.Slice(_offset, length).ToArray();
         _offset += length;
         return value;
     }
@@ -137,14 +147,15 @@ public sealed class WorldPacketReader
       */
     public string ReadCString()
     {
-        int terminator = Array.IndexOf(_buffer, (byte)0, _offset);
-        if (terminator < 0)
+        ReadOnlySpan<byte> remaining = _buffer.Span[_offset..];
+        int terminatorOffset = remaining.IndexOf((byte)0);
+        if (terminatorOffset < 0)
         {
             throw new InvalidDataException("CString terminator was not found in world packet payload.");
         }
 
-        string value = Encoding.UTF8.GetString(_buffer, _offset, terminator - _offset);
-        _offset = terminator + 1;
+        string value = Encoding.UTF8.GetString(remaining[..terminatorOffset]);
+        _offset += terminatorOffset + 1;
         return value;
     }
 

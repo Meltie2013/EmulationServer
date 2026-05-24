@@ -108,6 +108,15 @@ public sealed class PlayerSessionRegistry
     }
 
     /**
+      * Enumerates the current in-world sessions without allocating a new array.
+      * Hot paths such as movement broadcasting use this to avoid per-packet snapshots.
+      */
+    public IEnumerable<WorldClientSession> EnumerateSessions()
+    {
+        return _playersByGuid.Values;
+    }
+
+    /**
       * Resolves the sessions for faction value requested by the caller.
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: faction.

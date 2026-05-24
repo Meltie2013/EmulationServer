@@ -21,6 +21,7 @@ using EmulationServer.ProxyServer.Core;
 using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Threading;
 
 /**
   * File overview: src/ProxyServer/Program.cs
@@ -52,6 +53,8 @@ try
     Logger.Configure(settings.Logging);
 
     Logger.WriteBanner("Proxy Server");
+
+    RuntimeConcurrencyConfigurator.ConfigureForServer("ProxyServer");
 
     await using ProxyServer server = new(settings);
 

@@ -53,7 +53,7 @@ public sealed class ProxyDependencySettings
       * Gets or stores the critical server packet timeout value used by ProxyDependencySettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
-    public TimeSpan CriticalServerPacketTimeout { get; init; } = TimeSpan.FromSeconds(15);
+    public TimeSpan CriticalServerPacketTimeout { get; init; } = TimeSpan.FromSeconds(45);
 
     /**
       * Gets or stores the non critical reconnect report interval value used by ProxyDependencySettings.

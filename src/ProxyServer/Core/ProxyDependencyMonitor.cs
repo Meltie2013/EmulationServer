@@ -57,6 +57,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
       */
     private readonly ProxyDependencySettings _settings;
     private readonly ConcurrentDictionary<string, ServerState> _servers;
+    private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
 
     /**
       * Holds the private stop cancellation state used by the owning component.
@@ -222,6 +223,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"Proxy registered {role} internal server '{remoteServerName}'.", "ProxyDependencyMonitor");
 
         await AnnounceWorldCapacityToServerAsync(state, cancellationToken);
+        await AnnounceCachedMapServicesToServerAsync(state, cancellationToken);
     }
 
     /**
@@ -255,7 +257,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
 
         if (packet.StartsWith(InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
         {
-            HandleMapServiceStatusPacket(remoteServerName, packet);
+            await HandleMapServiceStatusPacketAsync(remoteServerName, packet, cancellationToken);
         }
     }
 
@@ -265,23 +267,32 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
       * Inputs used by this operation: session, remoteServerName, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private Task OnServerDisconnectedAsync(
+    private async Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
         ServerState state = GetOrCreateServerState(remoteServerName);
 
+        bool acceptedDisconnect;
+
         lock (state.SyncRoot)
         {
-            if (ReferenceEquals(state.Session, session))
+            acceptedDisconnect = ReferenceEquals(state.Session, session);
+
+            if (acceptedDisconnect)
             {
                 state.Session = null;
+                state.IsConnected = false;
+                state.DisconnectedUtc = DateTimeOffset.UtcNow;
+                state.ReconnectTimedOut = false;
             }
+        }
 
-            state.IsConnected = false;
-            state.DisconnectedUtc = DateTimeOffset.UtcNow;
-            state.ReconnectTimedOut = false;
+        if (!acceptedDisconnect)
+        {
+            Logger.Write(LogType.TRACE, $"Ignored stale disconnect notification for internal server '{remoteServerName}' because a newer session is already registered.", "ProxyDependencyMonitor");
+            return;
         }
 
         if (state.IsCritical)
@@ -293,7 +304,10 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             Logger.Write(LogType.WARNING, $"Non-critical internal server '{remoteServerName}' disconnected. Proxy will monitor for reconnect every {_settings.NonCriticalReconnectReportInterval.TotalSeconds:0.##} second(s).", "ProxyDependencyMonitor");
         }
 
-        return Task.CompletedTask;
+        if (IsMapControlServer(remoteServerName))
+        {
+            await MarkCachedMapServicesUnavailableAsync(remoteServerName, "internal server disconnected", cancellationToken);
+        }
     }
 
     /**
@@ -341,7 +355,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
       * Handles a single operation or packet and keeps the calling code focused on flow control.
       * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
       */
-    private void HandleMapServiceStatusPacket(string remoteServerName, string packet)
+    private async Task HandleMapServiceStatusPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
         {
@@ -349,15 +363,99 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             return;
         }
 
-        string message = $"Proxy received {status.OwnerServerName} {status.Kind} map service status: map={status.MapId}, instance={status.InstanceId}, state={status.State}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.";
+        string key = GetStatusKey(status);
+        _mapServiceStatuses.TryGetValue(key, out InternalMapServiceStatusPacket? previous);
+        _mapServiceStatuses[key] = status;
 
-        if (status.LoadPercent >= 85d)
+        bool isOnline = IsMapServiceOnline(status.State);
+        bool previousIsOnline = previous is not null && IsMapServiceOnline(previous.State);
+        bool firstSnapshot = previous is null;
+        bool stateChanged = previous is not null && !string.Equals(previous.State, status.State, StringComparison.OrdinalIgnoreCase);
+        bool playerCountChanged = previous is not null && previous.ActivePlayers != status.ActivePlayers;
+        bool becameUnavailable = previousIsOnline && !isOnline;
+        bool loadWarning = isOnline && status.LoadPercent >= 85d;
+        bool loadWarningStarted = loadWarning && (previous is null || previous.LoadPercent < 85d);
+
+        // Map services can briefly report Offline while the MapServer has connected but its services
+        // are still moving through startup. Cache that snapshot, but do not warn or forward it as a
+        // failure unless this is a real transition from a routable Online service.
+        if (becameUnavailable)
         {
-            Logger.Write(LogType.WARNING, message, "ProxyDependencyMonitor");
+            Logger.Write(LogType.WARNING, $"Proxy cached offline map service state for {status.OwnerServerName}: kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, players={status.ActivePlayers}.", "ProxyDependencyMonitor");
+        }
+        else if (loadWarningStarted)
+        {
+            Logger.Write(LogType.WARNING, $"Proxy cached high-load map service state for {status.OwnerServerName}: kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.", "ProxyDependencyMonitor");
+        }
+
+        bool shouldForwardSnapshot =
+            (isOnline && (firstSnapshot || stateChanged || playerCountChanged || loadWarningStarted)) ||
+            becameUnavailable;
+
+        if (shouldForwardSnapshot)
+        {
+            await BroadcastMapServiceStatusToCriticalServersAsync(status, cancellationToken);
+        }
+    }
+
+    /**
+      * Marks cached map services as offline when a map or instance server socket disappears.
+      */
+    private async Task MarkCachedMapServicesUnavailableAsync(string ownerServerName, string reason, CancellationToken cancellationToken)
+    {
+        InternalMapServiceStatusPacket[] affectedStatuses = _mapServiceStatuses.Values
+            .Where(status => string.Equals(status.OwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
+            .Where(status => !string.Equals(status.State, "Offline", StringComparison.OrdinalIgnoreCase))
+            .Select(status => status with { State = "Offline" })
+            .ToArray();
+
+        if (affectedStatuses.Length == 0)
+        {
             return;
         }
 
-        Logger.Write(LogType.TRACE, message, "ProxyDependencyMonitor");
+        foreach (InternalMapServiceStatusPacket status in affectedStatuses)
+        {
+            _mapServiceStatuses[GetStatusKey(status)] = status;
+        }
+
+        Logger.Write(LogType.WARNING, $"Proxy marked {affectedStatuses.Length} cached map service status snapshot(s) for '{ownerServerName}' as Offline because {reason}.", "ProxyDependencyMonitor");
+
+        foreach (InternalMapServiceStatusPacket status in affectedStatuses)
+        {
+            await BroadcastMapServiceStatusToCriticalServersAsync(status, cancellationToken);
+        }
+    }
+
+    /**
+      * Forwards map service state snapshots to critical servers so WorldServer can keep routing decisions current.
+      */
+    private async Task BroadcastMapServiceStatusToCriticalServersAsync(InternalMapServiceStatusPacket status, CancellationToken cancellationToken)
+    {
+        List<ServerSnapshot> connectedCriticalServers = _servers.Values
+            .Select(server => server.GetSnapshot())
+            .Where(server => server.IsCritical && server.IsConnected && server.Session is not null)
+            .ToList();
+
+        if (connectedCriticalServers.Count == 0)
+        {
+            return;
+        }
+
+        string packet = status.ToPacketLine();
+
+        foreach (ServerSnapshot server in connectedCriticalServers)
+        {
+            try
+            {
+                await server.Session!.SendPacketAsync(packet, cancellationToken);
+
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                Logger.Write(LogType.WARNING, $"Proxy could not forward map service status to '{server.Name}': {exception.Message}", "ProxyDependencyMonitor");
+            }
+        }
     }
 
     /**
@@ -428,6 +526,42 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
     }
 
     /**
+      * Sends cached map service state to a newly connected critical server so routing starts with the current proxy view.
+      */
+    private async Task AnnounceCachedMapServicesToServerAsync(ServerState state, CancellationToken cancellationToken)
+    {
+        ServerSnapshot snapshot = state.GetSnapshot();
+        if (!snapshot.IsCritical || snapshot.Session is null || !snapshot.IsConnected)
+        {
+            return;
+        }
+
+        InternalMapServiceStatusPacket[] statuses = _mapServiceStatuses.Values
+            .OrderBy(status => status.OwnerServerName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(status => status.MapId)
+            .ThenBy(status => status.InstanceId)
+            .ToArray();
+
+        foreach (InternalMapServiceStatusPacket status in statuses)
+        {
+            try
+            {
+                await snapshot.Session.SendPacketAsync(status.ToPacketLine(), cancellationToken);
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                Logger.Write(LogType.WARNING, $"Proxy could not announce cached map service status to '{snapshot.Name}': {exception.Message}", "ProxyDependencyMonitor");
+                return;
+            }
+        }
+
+        if (statuses.Length > 0)
+        {
+            Logger.Write(LogType.NETWORK, $"Proxy announced {statuses.Length} cached map service status snapshot(s) to '{snapshot.Name}'.", "ProxyDependencyMonitor");
+        }
+    }
+
+    /**
       * Performs the announce world capacity to server operation for the proxy startup, service discovery, and client-routing support workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: state, cancellationToken.
@@ -469,11 +603,14 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         foreach (ServerState state in _servers.Values)
         {
             ServerSnapshot snapshot = state.GetSnapshot();
-            TimeSpan timeSinceLastPacket = now - snapshot.LastPacketReceivedUtc;
+            DateTimeOffset lastPacketReceivedUtc = GetLatestPacketReceivedUtc(snapshot);
+            TimeSpan timeSinceLastPacket = now - lastPacketReceivedUtc;
 
             if (snapshot.IsCritical)
             {
-                if (snapshot.HasEverConnected && timeSinceLastPacket > _settings.CriticalServerPacketTimeout && !snapshot.ShutdownTriggered)
+                TimeSpan criticalPacketTimeout = GetEffectiveCriticalPacketTimeout();
+
+                if (snapshot.HasEverConnected && timeSinceLastPacket > criticalPacketTimeout && !snapshot.ShutdownTriggered)
                 {
                     await HandleCriticalServerDownAsync(state, timeSinceLastPacket, cancellationToken);
                 }
@@ -498,6 +635,35 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
                 ReportNonCriticalServerDownIfNeeded(state, now);
             }
         }
+    }
+
+    /**
+      * Returns the newest packet timestamp known for a server.
+      * ServerState is updated by normal routed packets, while InternalServerSession is updated by every line, including ping/pong health packets.
+      * Using both prevents ProxyServer from treating a quiet but healthy WorldServer as stale during normal startup or idle runtime.
+      */
+    private static DateTimeOffset GetLatestPacketReceivedUtc(ServerSnapshot snapshot)
+    {
+        DateTimeOffset latest = snapshot.LastPacketReceivedUtc;
+
+        if (snapshot.Session is not null && snapshot.Session.LastPacketReceivedUtc > latest)
+        {
+            latest = snapshot.Session.LastPacketReceivedUtc;
+        }
+
+        return latest;
+    }
+
+    /**
+      * Keeps the critical-server watchdog from racing the internal ping interval.
+      * The configured timeout still controls the policy, but a small minimum avoids false shutdowns when health packets arrive near the monitor tick boundary.
+      */
+    private TimeSpan GetEffectiveCriticalPacketTimeout()
+    {
+        TimeSpan minimumSafeTimeout = TimeSpan.FromSeconds(45);
+        return _settings.CriticalServerPacketTimeout >= minimumSafeTimeout
+            ? _settings.CriticalServerPacketTimeout
+            : minimumSafeTimeout;
     }
 
     /**
@@ -624,6 +790,33 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         {
             Logger.Write(LogType.WARNING, $"Non-critical internal server '{state.Name}' is down or disconnected. Waiting for reconnect...", "ProxyDependencyMonitor");
         }
+    }
+
+    /**
+      * Returns whether the named dependency owns map or instance execution.
+      */
+    private static bool IsMapControlServer(string remoteServerName)
+    {
+        return string.Equals(remoteServerName, "MapServer", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(remoteServerName, "InstanceServer", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /**
+      * Returns whether a map service status should be treated as routable.
+      */
+    private static bool IsMapServiceOnline(string state)
+    {
+        return string.Equals(state, "Online", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /**
+      * Builds the cache key for a map service status snapshot.
+      */
+    private static string GetStatusKey(InternalMapServiceStatusPacket status)
+    {
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{status.OwnerServerName}|{status.Kind}|{status.MapId}|{status.InstanceId}");
     }
 
     /**

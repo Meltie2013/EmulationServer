@@ -17,6 +17,7 @@
 //
 
 using System.Net.Sockets;
+using System.Threading.Channels;
 
 using EmulationServer.Network.Configuration;
 using EmulationServer.Network.Networking.Callbacks;
@@ -39,6 +40,11 @@ namespace EmulationServer.Network.Networking.Peers;
   */
 public sealed class InternalPeerConnector : IAsyncDisposable
 {
+    /**
+      * Keeps peer packet dispatch bounded so internal routing can use worker scheduling without unbounded memory growth.
+      */
+    private const int InternalPeerPacketDispatchQueueCapacity = 4096;
+
     /**
       * Holds the private server name state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -610,32 +616,59 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
         latencyMonitor.Start(cancellationToken);
 
-        while (!cancellationToken.IsCancellationRequested)
+        Channel<string> packetDispatchQueue = Channel.CreateBounded<string>(new BoundedChannelOptions(InternalPeerPacketDispatchQueueCapacity)
         {
-            string? line = await reader.ReadLineAsync(
-                InternalProtocol.MaximumPacketLineLength,
-                cancellationToken);
+            SingleReader = true,
+            SingleWriter = true,
+            FullMode = BoundedChannelFullMode.Wait,
+            AllowSynchronousContinuations = false,
+        });
 
-            if (line is null)
+        Task packetDispatchLoop = Task.Run(
+            () => ProcessQueuedPeerPacketsAsync(connection, packetDispatchQueue.Reader, cancellationToken),
+            CancellationToken.None);
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
             {
-                break;
-            }
+                string? line = await reader.ReadLineAsync(
+                    InternalProtocol.MaximumPacketLineLength,
+                    cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
+                if (line is null)
+                {
+                    break;
+                }
 
-            await ProcessPeerPacketAsync(connection, line, latencyMonitor, cancellationToken);
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                if (await TryProcessPeerControlPacketAsync(connection, line, latencyMonitor, cancellationToken))
+                {
+                    continue;
+                }
+
+                LogPeerPacket(connection, line);
+                await packetDispatchQueue.Writer.WriteAsync(line, cancellationToken);
+            }
+        }
+        finally
+        {
+            packetDispatchQueue.Writer.TryComplete();
+            await WaitForPeerPacketDispatchLoopAsync(packetDispatchLoop);
         }
     }
+
 
     /**
       * Processes incoming data and dispatches it to the correct subsystem handler.
       * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
       * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
       */
-    private async Task ProcessPeerPacketAsync(
+    private async Task<bool> TryProcessPeerControlPacketAsync(
         InternalPeerConnection connection,
         string line,
         InternalLatencyMonitor latencyMonitor,
@@ -644,27 +677,105 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
-            return;
+            return false;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
             Logger.Write(LogType.TRACE, $"{_serverName} received PING packet from {connection.RemoteServerName}.", "InternalPeerConnector");
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
-            return;
+            return true;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
             Logger.Write(LogType.TRACE, $"{_serverName} received PONG packet from {connection.RemoteServerName}.", "InternalPeerConnector");
             latencyMonitor.RecordPong(parts[1]);
-            return;
+            return true;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.ShutdownRequest, StringComparison.OrdinalIgnoreCase))
         {
             string reason = parts.Length == 3 ? parts[2] : "No reason provided.";
             await _callbacks.NotifyShutdownRequestedAsync(parts[1], reason, cancellationToken);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+      * Dispatches non-control packets from an authenticated peer on a worker path.
+      */
+    private async Task ProcessQueuedPeerPacketsAsync(
+        InternalPeerConnection connection,
+        ChannelReader<string> reader,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await reader.WaitToReadAsync(cancellationToken))
+            {
+                while (reader.TryRead(out string? line))
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        continue;
+                    }
+
+                    await _callbacks.NotifyPeerPacketReceivedAsync(connection, connection.RemoteServerName, line, cancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during shutdown/reconnect.
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.NETWORK, $"{_serverName} peer packet dispatcher stopped for {connection.RemoteServerName}: {exception.Message}", "InternalPeerConnector");
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalPeerConnector");
+        }
+    }
+
+    /**
+      * Waits briefly for queued peer dispatch to stop without delaying reconnects for a long time.
+      */
+    private static async Task WaitForPeerPacketDispatchLoopAsync(Task packetDispatchLoop)
+    {
+        if (packetDispatchLoop.IsCompleted)
+        {
+            await packetDispatchLoop;
+            return;
+        }
+
+        try
+        {
+            Task completedTask = await Task.WhenAny(packetDispatchLoop, Task.Delay(TimeSpan.FromSeconds(1)));
+            if (completedTask == packetDispatchLoop)
+            {
+                await packetDispatchLoop;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    /**
+      * Keeps normal peer packet logging out of the socket reader loop body.
+      */
+    private void LogPeerPacket(InternalPeerConnection connection, string line)
+    {
+        string[] parts = line.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
             return;
         }
 
@@ -672,23 +783,20 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         {
             Logger.Write(LogType.NETWORK, $"{_serverName} received world capacity packet from {connection.RemoteServerName}: {line}", "InternalPeerConnector");
         }
-        else if (string.Equals(parts[0], InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
-        {
-            Logger.Write(LogType.TRACE, $"{_serverName} received map service status packet from {connection.RemoteServerName}.", "InternalPeerConnector");
-        }
-        else if (string.Equals(parts[0], InternalProtocol.MapServiceCommand, StringComparison.OrdinalIgnoreCase))
-        {
-            Logger.Write(LogType.TRACE, $"{_serverName} received map service command packet from {connection.RemoteServerName}.", "InternalPeerConnector");
-        }
-        else if (string.Equals(parts[0], InternalProtocol.MapServiceCommandResult, StringComparison.OrdinalIgnoreCase))
-        {
-            Logger.Write(LogType.TRACE, $"{_serverName} received map service command result packet from {connection.RemoteServerName}.", "InternalPeerConnector");
-        }
-        else
+        else if (!IsQuietMapServicePacket(parts[0]))
         {
             Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {connection.RemoteServerName}: {line}", "InternalPeerConnector");
         }
+    }
 
-        await _callbacks.NotifyPeerPacketReceivedAsync(connection, connection.RemoteServerName, line, cancellationToken);
+
+    /**
+      * Returns true for high-volume map-service packets that should be dispatched without per-packet connector logging.
+      */
+    private static bool IsQuietMapServicePacket(string opcode)
+    {
+        return string.Equals(opcode, InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(opcode, InternalProtocol.MapServiceCommand, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(opcode, InternalProtocol.MapServiceCommandResult, StringComparison.OrdinalIgnoreCase);
     }
 }

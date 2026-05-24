@@ -17,6 +17,7 @@
 //
 
 using System.Net.Sockets;
+using System.Threading.Channels;
 
 using EmulationServer.Network.Configuration;
 using EmulationServer.Network.Networking.Callbacks;
@@ -39,6 +40,16 @@ namespace EmulationServer.Network.Networking.Sessions;
   */
 public sealed class InternalServerSession
 {
+    /**
+      * Keeps internal packet dispatch bounded so a slow subsystem cannot create unbounded memory pressure while the socket reader continues to drain the TCP stream.
+      */
+    private const int InternalPacketDispatchQueueCapacity = 4096;
+
+    /**
+      * Holds an authenticated internal packet waiting for subsystem dispatch.
+      */
+    private readonly record struct QueuedInternalPacket(string RemoteServerName, string Line);
+
     /**
       * Holds the private client state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -79,6 +90,22 @@ public sealed class InternalServerSession
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly string _remoteEndPoint;
+
+    /**
+      * Queues authenticated non-control packets so the socket read loop can keep processing incoming data and latency pings.
+      */
+    private readonly Channel<QueuedInternalPacket> _packetDispatchQueue = Channel.CreateBounded<QueuedInternalPacket>(new BoundedChannelOptions(InternalPacketDispatchQueueCapacity)
+    {
+        SingleReader = true,
+        SingleWriter = true,
+        FullMode = BoundedChannelFullMode.Wait,
+        AllowSynchronousContinuations = false,
+    });
+
+    /**
+      * Runs the serialized packet dispatcher for this internal connection.
+      */
+    private Task? _packetDispatchLoop;
 
     /**
       * Holds the private last packet received utc ticks state used by the owning component.
@@ -190,6 +217,7 @@ public sealed class InternalServerSession
                 _settings.PingTimeout);
 
             latencyMonitor.Start(linkedCancellation.Token);
+            StartPacketDispatchLoop(linkedCancellation.Token);
 
             while (!linkedCancellation.Token.IsCancellationRequested)
             {
@@ -209,8 +237,12 @@ public sealed class InternalServerSession
                 }
 
                 MarkPacketReceived();
-                await _callbacks.NotifyPacketReceivedAsync(this, remoteServerName, line, linkedCancellation.Token);
-                await ProcessPacketAsync(remoteServerName, line, latencyMonitor, linkedCancellation.Token);
+                if (await TryProcessControlPacketAsync(remoteServerName, line, latencyMonitor, linkedCancellation.Token))
+                {
+                    continue;
+                }
+
+                await _packetDispatchQueue.Writer.WriteAsync(new QueuedInternalPacket(remoteServerName, line), linkedCancellation.Token);
             }
         }
         catch (UnauthorizedAccessException exception)
@@ -252,6 +284,9 @@ public sealed class InternalServerSession
         }
         finally
         {
+            _packetDispatchQueue.Writer.TryComplete();
+            await StopPacketDispatchLoopAsync();
+
             if (latencyMonitor is not null)
             {
                 await latencyMonitor.DisposeAsync();
@@ -269,6 +304,72 @@ public sealed class InternalServerSession
                 }
             }
 
+            await DisconnectAsync();
+        }
+    }
+
+    /**
+      * Starts the authenticated packet dispatch worker for this internal connection.
+      */
+    private void StartPacketDispatchLoop(CancellationToken cancellationToken)
+    {
+        _packetDispatchLoop ??= Task.Run(() => ProcessQueuedPacketsAsync(cancellationToken), CancellationToken.None);
+    }
+
+    /**
+      * Stops the authenticated packet dispatch worker without making disconnects noisy.
+      */
+    private async Task StopPacketDispatchLoopAsync()
+    {
+        Task? loop = _packetDispatchLoop;
+        _packetDispatchLoop = null;
+        if (loop is null || loop.IsCompleted)
+        {
+            return;
+        }
+
+        try
+        {
+            Task completedTask = await Task.WhenAny(loop, Task.Delay(TimeSpan.FromSeconds(1)));
+            if (completedTask == loop)
+            {
+                await loop;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    /**
+      * Dispatches queued non-control packets in order on a worker path so ping/pong and socket reads are not blocked by subsystem handlers.
+      */
+    private async Task ProcessQueuedPacketsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await _packetDispatchQueue.Reader.WaitToReadAsync(cancellationToken))
+            {
+                while (_packetDispatchQueue.Reader.TryRead(out QueuedInternalPacket packet))
+                {
+                    await _callbacks.NotifyPacketReceivedAsync(this, packet.RemoteServerName, packet.Line, cancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during disconnect/shutdown.
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.NETWORK, $"Internal packet dispatcher stopped for {_remoteEndPoint}: {exception.Message}", "InternalServerSession");
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalServerSession");
             await DisconnectAsync();
         }
     }
@@ -402,7 +503,7 @@ public sealed class InternalServerSession
       * The method is part of InternalServerSession and keeps this workflow isolated from the caller.
       * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
       */
-    private async Task ProcessPacketAsync(
+    private async Task<bool> TryProcessControlPacketAsync(
         string remoteServerName,
         string line,
         InternalLatencyMonitor latencyMonitor,
@@ -411,29 +512,31 @@ public sealed class InternalServerSession
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
-            return;
+            return false;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
             Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PING packet from {remoteServerName}.", "InternalServerSession");
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
-            return;
+            return true;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
             Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PONG packet from {remoteServerName}.", "InternalServerSession");
             latencyMonitor.RecordPong(parts[1]);
-            return;
+            return true;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.ShutdownRequest, StringComparison.OrdinalIgnoreCase))
         {
             string reason = parts.Length == 3 ? parts[2] : "No reason provided.";
             await _callbacks.NotifyShutdownRequestedAsync(parts[1], reason, cancellationToken);
-            return;
+            return true;
         }
+
+        return false;
     }
 
     /**

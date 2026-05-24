@@ -88,7 +88,7 @@ public static class ProxyServerConfigurationLoader
             CriticalServerPacketTimeout = configuration.GetTimeSpan(
                 ProxyServerSection,
                 "CriticalServerPacketTimeout",
-                TimeSpan.FromSeconds(15)),
+                TimeSpan.FromSeconds(45)),
 
             NonCriticalReconnectReportInterval = configuration.GetTimeSpan(
                 ProxyServerSection,

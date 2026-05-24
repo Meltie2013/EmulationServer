@@ -324,15 +324,24 @@ public sealed class WorldServer : IAsyncDisposable
       * Inputs used by this operation: session, remoteServerName, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private Task OnServerDisconnectedAsync(
+    private async Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
-        _serverSessions.TryRemove(remoteServerName, out _);
+        if (!_serverSessions.TryGetValue(remoteServerName, out InternalServerSession? currentSession) || !ReferenceEquals(currentSession, session))
+        {
+            Logger.Write(LogType.TRACE, $"Ignored stale incoming internal disconnect from {remoteServerName}; a newer session is already registered.", "WorldServer");
+            return;
+        }
+
+        ((ICollection<KeyValuePair<string, InternalServerSession>>)_serverSessions).Remove(new KeyValuePair<string, InternalServerSession>(remoteServerName, session));
         Logger.Write(LogType.NETWORK, $"WorldServer removed incoming internal session from {remoteServerName}.", "WorldServer");
 
-        return Task.CompletedTask;
+        if (IsMapControlServer(remoteServerName))
+        {
+            await MarkMapOwnerUnavailableAsync(remoteServerName, "incoming internal connection disconnected", cancellationToken);
+        }
     }
 
     /**
@@ -360,15 +369,24 @@ public sealed class WorldServer : IAsyncDisposable
       * Inputs used by this operation: connection, remoteServerName, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private Task OnPeerDisconnectedAsync(
+    private async Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
-        _peerConnections.TryRemove(remoteServerName, out _);
+        if (!_peerConnections.TryGetValue(remoteServerName, out InternalPeerConnection? currentConnection) || !ReferenceEquals(currentConnection, connection))
+        {
+            Logger.Write(LogType.TRACE, $"Ignored stale outgoing internal peer disconnect from {remoteServerName}; a newer connection is already registered.", "WorldServer");
+            return;
+        }
+
+        ((ICollection<KeyValuePair<string, InternalPeerConnection>>)_peerConnections).Remove(new KeyValuePair<string, InternalPeerConnection>(remoteServerName, connection));
         Logger.Write(LogType.NETWORK, $"WorldServer removed outgoing internal peer {remoteServerName}.", "WorldServer");
 
-        return Task.CompletedTask;
+        if (IsMapControlServer(remoteServerName))
+        {
+            await MarkMapOwnerUnavailableAsync(remoteServerName, "outgoing internal peer disconnected", cancellationToken);
+        }
     }
 
     /**
@@ -377,14 +395,13 @@ public sealed class WorldServer : IAsyncDisposable
       * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private Task OnPeerPacketReceivedAsync(
+    private async Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
         string packet,
         CancellationToken cancellationToken)
     {
-        HandleMapServicePacket(remoteServerName, packet);
-        return Task.CompletedTask;
+        await HandleMapServicePacketAsync(remoteServerName, packet, cancellationToken);
     }
 
     /**
@@ -393,14 +410,13 @@ public sealed class WorldServer : IAsyncDisposable
       * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private Task OnSessionPacketReceivedAsync(
+    private async Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
         string packet,
         CancellationToken cancellationToken)
     {
-        HandleMapServicePacket(remoteServerName, packet);
-        return Task.CompletedTask;
+        await HandleMapServicePacketAsync(remoteServerName, packet, cancellationToken);
     }
 
     /**
@@ -533,7 +549,6 @@ public sealed class WorldServer : IAsyncDisposable
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"WorldServer routed movement {movement.Opcode:X4} for player '{player.Name}' to {ownerServerName}: map={movement.Map}, zone={movement.Zone}, position=({movement.PositionX:0.##}, {movement.PositionY:0.##}, {movement.PositionZ:0.##}).", "WorldServer");
     }
 
     /**
@@ -571,7 +586,6 @@ public sealed class WorldServer : IAsyncDisposable
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"WorldServer forwarded {worldPacket.Opcode} from player '{player.Name}' to {ownerServerName}.", "WorldServer");
     }
 
     /**
@@ -681,7 +695,7 @@ public sealed class WorldServer : IAsyncDisposable
       * Handles a single operation or packet and keeps the calling code focused on flow control.
       * The method is part of WorldServer and keeps this workflow isolated from the caller.
       */
-    private void HandleMapServicePacket(string remoteServerName, string packet)
+    private async Task HandleMapServicePacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (InternalMapServiceCommandResultPacket.TryParse(packet, out InternalMapServiceCommandResultPacket result))
         {
@@ -691,7 +705,7 @@ public sealed class WorldServer : IAsyncDisposable
 
         if (packet.StartsWith(InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
         {
-            HandleMapServiceStatusPacket(remoteServerName, packet);
+            await HandleMapServiceStatusPacketAsync(remoteServerName, packet, cancellationToken);
         }
     }
 
@@ -727,7 +741,7 @@ public sealed class WorldServer : IAsyncDisposable
       * Handles a single operation or packet and keeps the calling code focused on flow control.
       * The method is part of WorldServer and keeps this workflow isolated from the caller.
       */
-    private void HandleMapServiceStatusPacket(string remoteServerName, string packet)
+    private async Task HandleMapServiceStatusPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
         {
@@ -735,17 +749,107 @@ public sealed class WorldServer : IAsyncDisposable
             return;
         }
 
-        _mapServiceStatuses[GetStatusKey(status)] = status;
+        string key = GetStatusKey(status);
+        _mapServiceStatuses.TryGetValue(key, out InternalMapServiceStatusPacket? previous);
+        _mapServiceStatuses[key] = status;
 
-        string message = $"WorldServer received {status.OwnerServerName} {status.Kind} map service status: map={status.MapId}, instance={status.InstanceId}, state={status.State}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.";
+        bool isOnline = IsMapServiceOnline(status.State);
+        bool previousIsOnline = previous is not null && IsMapServiceOnline(previous.State);
+        bool becameUnavailable = previousIsOnline && !isOnline;
+        bool loadWarning = isOnline && status.LoadPercent >= 85d;
+        bool loadWarningStarted = loadWarning && (previous is null || previous.LoadPercent < 85d);
 
-        if (status.LoadPercent >= 85d)
+        // WorldServer receives map service snapshots from both the direct MapServer/InstanceServer
+        // connection and ProxyServer's cached forwarding path. Only log and perform forced logout on
+        // an actual Online -> non-Online transition so duplicate Offline snapshots do not double-post.
+        if (becameUnavailable)
         {
-            Logger.Write(LogType.WARNING, message, "WorldServer");
+            Logger.Write(LogType.WARNING, $"WorldServer cached offline map service state for {status.OwnerServerName}: kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, players={status.ActivePlayers}.", "WorldServer");
+            await DisconnectPlayersForUnavailableMapServiceAsync(status, $"{status.OwnerServerName} reported {status.Kind} map service map={status.MapId}, instance={status.InstanceId} as {status.State}.", cancellationToken);
             return;
         }
 
-        Logger.Write(LogType.TRACE, message, "WorldServer");
+        if (loadWarningStarted)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer cached high-load map service state for {status.OwnerServerName}: kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.", "WorldServer");
+            return;
+        }
+
+        // Routine, first-startup, and duplicate status packets are cached silently.
+    }
+
+    /**
+      * Marks all cached services for a disconnected map owner as offline and removes players routed through it.
+      */
+    private async Task MarkMapOwnerUnavailableAsync(string ownerServerName, string reason, CancellationToken cancellationToken)
+    {
+        InternalMapServiceStatusPacket[] affectedStatuses = _mapServiceStatuses.Values
+            .Where(status => string.Equals(status.OwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
+            .Select(status => status with { State = "Offline" })
+            .ToArray();
+
+        foreach (InternalMapServiceStatusPacket status in affectedStatuses)
+        {
+            _mapServiceStatuses[GetStatusKey(status)] = status;
+        }
+
+        if (affectedStatuses.Length > 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer marked {affectedStatuses.Length} cached map service status snapshot(s) for {ownerServerName} as Offline because {reason}.", "WorldServer");
+        }
+
+        await DisconnectPlayersForMapOwnerAsync(ownerServerName, affectedStatuses, $"Map service owner {ownerServerName} is unavailable: {reason}.", cancellationToken);
+    }
+
+    /**
+      * Disconnects active player sessions affected by an explicit non-online service status packet.
+      */
+    private async Task DisconnectPlayersForUnavailableMapServiceAsync(InternalMapServiceStatusPacket status, string reason, CancellationToken cancellationToken)
+    {
+        await DisconnectPlayersForMapOwnerAsync(status.OwnerServerName, new[] { status }, reason, cancellationToken);
+    }
+
+    /**
+      * Finds in-world players currently routed through a map owner and forces a safe logout cleanup.
+      */
+    private async Task DisconnectPlayersForMapOwnerAsync(
+        string ownerServerName,
+        IReadOnlyCollection<InternalMapServiceStatusPacket> statuses,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        HashSet<uint> affectedMapIds = statuses
+            .Select(status => unchecked((uint)status.MapId))
+            .ToHashSet();
+
+        WorldClientSession[] affectedSessions = _playerSessionRegistry.SnapshotSessions()
+            .Where(session => string.Equals(session.CurrentMapOwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
+            .Where(session => session.CurrentPlayer is not null)
+            .Where(session => affectedMapIds.Count == 0 || affectedMapIds.Contains(session.CurrentPlayer!.Map))
+            .ToArray();
+
+        if (affectedSessions.Length == 0)
+        {
+            return;
+        }
+
+        Logger.Write(LogType.WARNING, $"WorldServer disconnecting {affectedSessions.Length} in-world player session(s) routed through {ownerServerName}. {reason}", "WorldServer");
+
+        foreach (WorldClientSession session in affectedSessions)
+        {
+            try
+            {
+                await session.DisconnectForMapServiceUnavailableAsync(ownerServerName, reason, cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                PlayerLoginRecord? player = session.CurrentPlayer;
+                string playerName = player is null ? "unknown" : $"{player.Name} ({player.Guid})";
+                Logger.Write(LogType.WARNING, $"WorldServer failed to force-disconnect player {playerName} after {ownerServerName} became unavailable: {exception.Message}", "WorldServer");
+            }
+        }
+
+        _realmStatusReporter.SetActiveConnections(_playerSessionRegistry.ActivePlayerCount);
     }
 
     /**
@@ -776,6 +880,14 @@ public sealed class WorldServer : IAsyncDisposable
                 $"  {status.OwnerServerName} {status.Kind}: instance={status.InstanceId}, state={status.State}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.",
                 "WorldServer");
         }
+    }
+
+    /**
+      * Returns whether a map service status should be treated as available for player routing.
+      */
+    private static bool IsMapServiceOnline(string state)
+    {
+        return string.Equals(state, "Online", StringComparison.OrdinalIgnoreCase);
     }
 
     /**
