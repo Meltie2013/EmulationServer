@@ -16,24 +16,26 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/MapHeightCodec.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/MapHeightCodec.cs
+ * Documents the MapHeightCodec source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps;
 
 /**
-  * Represents the map height codec component in the developer tooling for data extraction, validation, and diagnostics area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the map height codec behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class MapHeightCodec
 {
     /**
-      * Performs the select uint8 step store operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the select u int 8 step store operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: maxDiff.
+     */
     public static float SelectUInt8StepStore(float maxDiff)
     {
         ValidateRange(maxDiff);
@@ -41,9 +43,10 @@ public static class MapHeightCodec
     }
 
     /**
-      * Performs the select uint16 step store operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the select u int 16 step store operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: maxDiff.
+     */
     public static float SelectUInt16StepStore(float maxDiff)
     {
         ValidateRange(maxDiff);
@@ -51,9 +54,10 @@ public static class MapHeightCodec
     }
 
     /**
-      * Performs the encode uint8 operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the encode u int 8 operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: height, gridHeight, gridMaxHeight.
+     */
     public static byte EncodeUInt8(float height, float gridHeight, float gridMaxHeight)
     {
         float encoded = Encode(height, gridHeight, gridMaxHeight, byte.MaxValue);
@@ -61,9 +65,10 @@ public static class MapHeightCodec
     }
 
     /**
-      * Performs the encode uint16 operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the encode u int 16 operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: height, gridHeight, gridMaxHeight.
+     */
     public static ushort EncodeUInt16(float height, float gridHeight, float gridMaxHeight)
     {
         float encoded = Encode(height, gridHeight, gridMaxHeight, ushort.MaxValue);
@@ -71,45 +76,50 @@ public static class MapHeightCodec
     }
 
     /**
-      * Performs the decode uint8 operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the decode u int 8 operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: storedHeight, gridHeight, gridMaxHeight.
+     */
     public static float DecodeUInt8(byte storedHeight, float gridHeight, float gridMaxHeight)
     {
         return Decode(storedHeight, gridHeight, gridMaxHeight, byte.MaxValue);
     }
 
     /**
-      * Performs the decode uint16 operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the decode u int 16 operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: storedHeight, gridHeight, gridMaxHeight.
+     */
     public static float DecodeUInt16(ushort storedHeight, float gridHeight, float gridMaxHeight)
     {
         return Decode(storedHeight, gridHeight, gridMaxHeight, ushort.MaxValue);
     }
 
     /**
-      * Performs the maximum uint8 error operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the maximum u int 8 error operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: gridHeight, gridMaxHeight.
+     */
     public static float MaximumUInt8Error(float gridHeight, float gridMaxHeight)
     {
         return MaximumQuantizationError(gridHeight, gridMaxHeight, byte.MaxValue);
     }
 
     /**
-      * Performs the maximum uint16 error operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the maximum u int 16 error operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: gridHeight, gridMaxHeight.
+     */
     public static float MaximumUInt16Error(float gridHeight, float gridMaxHeight)
     {
         return MaximumQuantizationError(gridHeight, gridMaxHeight, ushort.MaxValue);
     }
 
     /**
-      * Performs the encode operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the encode operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: height, gridHeight, gridMaxHeight, maxStoredValue.
+     */
     private static float Encode(float height, float gridHeight, float gridMaxHeight, int maxStoredValue)
     {
         float range = gridMaxHeight - gridHeight;
@@ -121,9 +131,10 @@ public static class MapHeightCodec
     }
 
     /**
-      * Performs the decode operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the decode operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: storedHeight, gridHeight, gridMaxHeight, maxStoredValue.
+     */
     private static float Decode(float storedHeight, float gridHeight, float gridMaxHeight, int maxStoredValue)
     {
         float range = gridMaxHeight - gridHeight;
@@ -134,9 +145,10 @@ public static class MapHeightCodec
     }
 
     /**
-      * Performs the maximum quantization error operation for MapHeightCodec.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the maximum quantization error operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: gridHeight, gridMaxHeight, maxStoredValue.
+     */
     private static float MaximumQuantizationError(float gridHeight, float gridMaxHeight, int maxStoredValue)
     {
         float range = gridMaxHeight - gridHeight;

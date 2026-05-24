@@ -20,10 +20,24 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Chat/ChatChannelDbcDataStore.cs
+ * Documents the ChatChannelDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Chat;
 
+/**
+ * Owns the chat channel dbc data store behavior for the DBC loading and strongly typed client data records layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ChatChannelDbcDataStore
 {
+    /**
+     * Stores the default auto join shortcuts value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     private static readonly HashSet<string> AutoJoinShortcuts = new(StringComparer.OrdinalIgnoreCase)
     {
         "General",
@@ -33,6 +47,11 @@ public sealed class ChatChannelDbcDataStore
 
     private readonly Dictionary<string, ChatChannelDbcRecord> _recordsByShortcut;
 
+    /**
+     * Initializes a new ChatChannelDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: records.
+     */
     private ChatChannelDbcDataStore(IReadOnlyDictionary<int, ChatChannelDbcRecord> records)
     {
         Records = records;
@@ -42,10 +61,19 @@ public sealed class ChatChannelDbcDataStore
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
     }
 
+    /**
+     * Exposes the empty value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static ChatChannelDbcDataStore Empty { get; } = new(new Dictionary<int, ChatChannelDbcRecord>());
 
     public IReadOnlyDictionary<int, ChatChannelDbcRecord> Records { get; }
 
+    /**
+     * Performs the from dbc stores operation for the DBC loading and strongly typed client data records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: dbcStores, ownerName.
+     */
     public static ChatChannelDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -64,6 +92,11 @@ public sealed class ChatChannelDbcDataStore
         return data;
     }
 
+    /**
+     * Resolves the auto join channel names value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: zoneName.
+     */
     public IReadOnlyList<string> GetAutoJoinChannelNames(string zoneName)
     {
         string safeZoneName = string.IsNullOrWhiteSpace(zoneName) ? "Local" : zoneName.Trim();
@@ -90,6 +123,11 @@ public sealed class ChatChannelDbcDataStore
         ];
     }
 
+    /**
+     * Resolves the channel name value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: requestedName, zoneName.
+     */
     public string ResolveChannelName(string requestedName, string zoneName)
     {
         string safeRequestedName = string.IsNullOrWhiteSpace(requestedName) ? "General" : requestedName.Trim();
@@ -103,6 +141,11 @@ public sealed class ChatChannelDbcDataStore
         return safeRequestedName.Replace("%s", safeZoneName, StringComparison.OrdinalIgnoreCase);
     }
 
+    /**
+     * Resolves the channel flags value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: requestedName, zoneName.
+     */
     public int ResolveChannelFlags(string requestedName, string zoneName)
     {
         string safeRequestedName = string.IsNullOrWhiteSpace(requestedName) ? "General" : requestedName.Trim();
@@ -125,6 +168,11 @@ public sealed class ChatChannelDbcDataStore
         return 0;
     }
 
+    /**
+     * Parses read record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static ChatChannelDbcRecord ReadRecord(DbcRecord record)
     {
         return new ChatChannelDbcRecord(
@@ -135,6 +183,11 @@ public sealed class ChatChannelDbcDataStore
             DbcRecordReader.ReadString(record, 12));
     }
 
+    /**
+     * Performs the format channel name operation for the DBC loading and strongly typed client data records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: record, zoneName.
+     */
     private static string FormatChannelName(ChatChannelDbcRecord record, string zoneName)
     {
         string template = string.IsNullOrWhiteSpace(record.Name) ? record.ShortcutName : record.Name;

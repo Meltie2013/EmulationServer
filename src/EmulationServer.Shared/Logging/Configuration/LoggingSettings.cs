@@ -18,18 +18,19 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Shared/Logging/Configuration/LoggingSettings.cs
-  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Shared/Logging/Configuration/LoggingSettings.cs
+ * Documents the LoggingSettings source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Shared.Logging.Configuration;
 
 /**
-  * Represents the logging settings component in the logging configuration, formatting, filtering, and output routing area.
-  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
-  */
+ * Owns the logging settings behavior for the shared configuration, logging, and utility support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class LoggingSettings
 {
     /**
@@ -63,10 +64,10 @@ public sealed class LoggingSettings
     public IReadOnlySet<LogType> EnabledTypes { get; init; } = Enum.GetValues<LogType>().ToHashSet();
 
     /**
-      * Performs the is enabled operation for LoggingSettings.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+     * Determines whether enabled for the shared configuration, logging, and utility support workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: type.
+     */
     public bool IsEnabled(LogType type)
     {
         return EnabledTypes.Contains(type);

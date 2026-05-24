@@ -21,18 +21,19 @@ using System.Collections.Concurrent;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/InternalSessionManager.cs
-  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Sessions/InternalSessionManager.cs
+ * Documents the InternalSessionManager source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Sessions;
 
 /**
-  * Represents the internal session manager component in the network session lifecycle and packet dispatch area.
-  * It coordinates a collection of related runtime objects and keeps ownership rules in one place.
-  */
+ * Owns the internal session manager behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class InternalSessionManager
 {
     private readonly ConcurrentDictionary<Guid, SessionEntry> _sessions = new();
@@ -58,9 +59,10 @@ public sealed class InternalSessionManager
     }
 
     /**
-      * Performs the complete session operation for InternalSessionManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the complete session operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: session.
+     */
     public void CompleteSession(InternalServerSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -72,10 +74,10 @@ public sealed class InternalSessionManager
     }
 
     /**
-      * Performs the disconnect all async operation for InternalSessionManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the disconnect all operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task DisconnectAllAsync()
     {
         Task[] disconnectTasks = _sessions.Values
@@ -86,11 +88,11 @@ public sealed class InternalSessionManager
     }
 
     /**
-      * Performs the wait for all sessions async operation for InternalSessionManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Performs the wait for all sessions operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: timeout, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task WaitForAllSessionsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         Task[] completionTasks = _sessions.Values
@@ -124,21 +126,22 @@ public sealed class InternalSessionManager
     }
 
     /**
-      * Represents the session entry component in the network session lifecycle and packet dispatch area.
-      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-      */
+     * Owns the session entry behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+     * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+     */
     private sealed class SessionEntry
     {
         /**
-          * Stores the completion dependency or runtime value for SessionEntry.
-          * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-          */
+         * Holds the private completion state used by the owning component.
+         * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+         */
         private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /**
-          * Creates a new SessionEntry instance and stores the dependencies required by the component.
-          * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-          */
+         * Performs the session entry operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+         * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+         * Inputs used by this operation: session.
+         */
         public SessionEntry(InternalServerSession session)
         {
             Session = session;
@@ -157,9 +160,9 @@ public sealed class InternalSessionManager
         public Task Completion => _completion.Task;
 
         /**
-          * Performs the mark completed operation for SessionEntry.
-          * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-          */
+         * Performs the mark completed operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+         * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+         */
         public void MarkCompleted()
         {
             _completion.TrySetResult();

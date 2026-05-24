@@ -16,10 +16,12 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoGroupGeometry.cs
-  * This file stores one parsed WMO group geometry payload.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoGroupGeometry.cs
+ * Documents the WmoGroupGeometry source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -30,8 +32,10 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 public sealed class WmoGroupGeometry
 {
     /**
-      * Creates a new WMO group geometry object.
-      */
+     * Initializes a new WmoGroupGeometry instance with the dependencies required by the client data extraction and conversion tooling workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: groupIndex, flags, bounds, vertices, indices.
+     */
     public WmoGroupGeometry(int groupIndex, uint flags, VmapBounds bounds, IReadOnlyList<VmapVector3> vertices, IReadOnlyList<int> indices)
     {
         GroupIndex = groupIndex;

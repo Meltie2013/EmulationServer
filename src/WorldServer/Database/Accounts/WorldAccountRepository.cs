@@ -20,17 +20,42 @@ using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
+/**
+ * File overview: src/WorldServer/Database/Accounts/WorldAccountRepository.cs
+ * Documents the WorldAccountRepository source file in the world database repositories and persisted player/account records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.WorldServer.Database.Accounts;
 
+/**
+ * Owns the world account repository behavior for the world database repositories and persisted player/account records layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class WorldAccountRepository
 {
+    /**
+     * Holds the private database service state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly IDatabaseService _databaseService;
 
+    /**
+     * Initializes a new WorldAccountRepository instance with the dependencies required by the world database repositories and persisted player/account records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: databaseService.
+     */
     public WorldAccountRepository(IDatabaseService databaseService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
     }
 
+    /**
+     * Resolves the account session value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: username, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<WorldAccountSessionRecord?> GetAccountSessionAsync(string username, CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
@@ -60,6 +85,12 @@ public sealed class WorldAccountRepository
             reader.IsDBNull(4) ? string.Empty : reader.GetString(4));
     }
 
+    /**
+     * Performs the set active realm operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: accountId, realmId, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task SetActiveRealmAsync(uint accountId, uint realmId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -76,6 +107,11 @@ public sealed class WorldAccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Normalizes the username for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: username.
+     */
     public static string NormalizeUsername(string username)
     {
         return string.IsNullOrWhiteSpace(username)

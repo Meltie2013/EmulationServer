@@ -26,11 +26,12 @@ using EmulationServer.Game.Data.Dbc.Spells;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Stores/WorldGameDataStore.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Data/Stores/WorldGameDataStore.cs
+ * Documents the WorldGameDataStore source file in the combined game data store construction and validation area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Stores;
 
@@ -41,18 +42,47 @@ namespace EmulationServer.Game.Data.Stores;
 public sealed class WorldGameDataStore
 {
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
+    /**
+     * Holds the private map data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MapDbcDataStore _mapData;
+    /**
+     * Holds the private character data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly CharacterDbcDataStore _characterData;
+    /**
+     * Holds the private item data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly ItemDbcDataStore _itemData;
+    /**
+     * Holds the private spell data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly SpellDbcDataStore _spellData;
+    /**
+     * Holds the private faction data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly FactionDbcDataStore _factionData;
+    /**
+     * Holds the private chat data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly ChatChannelDbcDataStore _chatData;
+    /**
+     * Holds the private language data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly LanguageDbcDataStore _languageData;
 
     /**
-      * Creates a new WorldGameDataStore instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new WorldGameDataStore instance with the dependencies required by the combined game data store construction and validation workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: dbcStores, mapData, characterData, itemData, spellData, factionData....
+     */
     private WorldGameDataStore(
         Dictionary<string, DbcDataStore> dbcStores,
         MapDbcDataStore mapData,

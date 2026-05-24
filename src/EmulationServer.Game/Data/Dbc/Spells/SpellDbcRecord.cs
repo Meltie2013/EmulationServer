@@ -16,10 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcRecord.cs
+ * Documents the SpellDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
 /**
   * Represents one Spell.dbc row with core fields needed by early character data validation.
+ * Positional fields carried by this record: Id, School, Category, DispelType, Mechanic, Attributes, AttributesEx, CastingTimeIndex, DurationIndex, PowerType, ManaCost, RangeIndex, SpellIconId, Name, NameSubText, Description.
   */
 public sealed record SpellDbcRecord(
     int Id,

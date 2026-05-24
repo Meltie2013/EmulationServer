@@ -18,10 +18,12 @@
 
 using System.Buffers.Binary;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoGroupReader.cs
-  * This file reads geometry from WMO group files for compact vmap model generation.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoGroupReader.cs
+ * Documents the WmoGroupReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -31,6 +33,10 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
   */
 public static class WmoGroupReader
 {
+    /**
+     * Defines the constant value for mogp header size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int MogpHeaderSize = 68;
 
     /**

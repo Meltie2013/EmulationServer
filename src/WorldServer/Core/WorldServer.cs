@@ -46,67 +46,121 @@ using EmulationServer.WorldServer.Networking.Socket;
 using EmulationServer.Game.WorldData;
 using EmulationServer.Game.Movement;
 
+
 /**
-  * File overview: src/WorldServer/Core/WorldServer.cs
-  * This file belongs to the server startup, shutdown, and dependency orchestration portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/WorldServer/Core/WorldServer.cs
+ * Documents the WorldServer source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.WorldServer.Core;
 
 /**
-  * Represents the world server component in the server startup, shutdown, and dependency orchestration area.
-  * It owns the server startup, shutdown, and dependency wiring for this process.
-  */
+ * Owns the world server behavior for the world server startup, client networking, gameplay routing, and persistence layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class WorldServer : IAsyncDisposable
 {
     /**
-      * Stores the settings dependency or runtime value for WorldServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldServerSettings _settings;
     /**
-      * Stores the host dependency or runtime value for WorldServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private host state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly EmulationServerHost _host;
     /**
-      * Stores the realm status reporter dependency or runtime value for WorldServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private realm status reporter state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldRealmStatusReporter _realmStatusReporter;
     /**
-      * Stores the command service dependency or runtime value for WorldServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private command service state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldConsoleCommandService _commandService;
+    /**
+     * Holds the private auth database state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MySqlDatabaseService _authDatabase;
+    /**
+     * Holds the private character database state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MySqlDatabaseService _characterDatabase;
+    /**
+     * Holds the private world database state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MySqlDatabaseService _worldDatabase;
+    /**
+     * Holds the private account repository state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldAccountRepository _accountRepository;
+    /**
+     * Holds the private character repository state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly CharacterRepository _characterRepository;
+    /**
+     * Holds the private world template repository state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldTemplateRepository _worldTemplateRepository;
+    /**
+     * Holds the private character creation service state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly CharacterCreationService _characterCreationService;
+    /**
+     * Holds the private item system state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly GameItemSystem _itemSystem;
+    /**
+     * Holds the private chat system state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly GameChatSystem _chatSystem;
+    /**
+     * Holds the private in game command service state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly GameInGameCommandService _inGameCommandService;
+    /**
+     * Holds the private player session registry state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
+    /**
+     * Holds the private client listener state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly WorldClientSocketListener _clientListener;
+    /**
+     * Holds the private world template data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private WorldTemplateDataStore _worldTemplateData = WorldTemplateDataStore.Empty;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
 
     /**
-      * Stores the game data dependency or runtime value for WorldServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private game data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private WorldGameDataStore _gameData = WorldGameDataStore.Empty;
 
     /**
-      * Creates a new WorldServer instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new WorldServer instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: settings.
+     */
     public WorldServer(WorldServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -168,11 +222,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         LoadGameDataIfEnabled();
@@ -200,11 +254,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _realmStatusReporter.StopAsync(cancellationToken);
@@ -213,10 +267,10 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Releases owned resources and ensures background work is stopped safely.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -229,9 +283,9 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+     * Creates the callbacks result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     */
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -246,10 +300,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on server authenticated async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on server authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -265,10 +320,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on server disconnected async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on server disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -281,10 +337,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on peer authenticated async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on peer authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -299,10 +356,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on peer disconnected async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on peer disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -315,10 +373,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on peer packet received async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on peer packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -330,10 +389,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on session packet received async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on session packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -606,10 +666,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the announce world capacity async operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the announce world capacity operation for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: sendPacketAsync, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task AnnounceWorldCapacityAsync(
         Func<string, CancellationToken, Task> sendPacketAsync,
         string remoteServerName,
@@ -693,9 +754,10 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+     * Writes write cached map info data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     * Inputs used by this operation: mapId.
+     */
     private void WriteCachedMapInfo(int mapId)
     {
         InternalMapServiceStatusPacket[] statuses = _mapServiceStatuses.Values
@@ -722,10 +784,10 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Performs the is map control server operation for WorldServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+     * Determines whether map control server for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: remoteServerName.
+     */
     private static bool IsMapControlServer(string remoteServerName)
     {
         return string.Equals(remoteServerName, "MapServer", StringComparison.OrdinalIgnoreCase) ||
@@ -811,6 +873,11 @@ public sealed class WorldServer : IAsyncDisposable
             nameof(WorldServer));
     }
 
+    /**
+     * Performs the log optional world template count operation for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: tableName, count, fallbackMessage.
+     */
     private static void LogOptionalWorldTemplateCount(string tableName, int count, string fallbackMessage)
     {
         if (count == 0)

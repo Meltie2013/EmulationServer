@@ -16,11 +16,30 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/WorldServer/Networking/Packets/CharacterDeleteResult.cs
+ * Documents the CharacterDeleteResult source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.WorldServer.Networking.Packets;
 
+/**
+ * Lists the supported character delete result values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum CharacterDeleteResult : byte
 {
+    /**
+     * Represents the in progress value for character delete result handling.
+     */
     InProgress = 0x38,
+    /**
+     * Represents the success value for character delete result handling.
+     */
     Success = 0x39,
+    /**
+     * Represents the failed value for character delete result handling.
+     */
     Failed = 0x3A,
 }

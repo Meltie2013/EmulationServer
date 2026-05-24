@@ -19,18 +19,19 @@
 using System.Security.Cryptography;
 using System.Text;
 
+
 /**
-  * File overview: src/EmulationServer.Database/Accounts/AccountPasswordHasher.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Database/Accounts/AccountPasswordHasher.cs
+ * Documents the AccountPasswordHasher source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Database.Accounts;
 
 /**
-  * Represents the account password hasher component in the project runtime logic and supporting data models area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the account password hasher behavior for the database access, account persistence, and MySQL connectivity layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class AccountPasswordHasher
 {
     /**

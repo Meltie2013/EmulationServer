@@ -16,6 +16,12 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcFileNames.cs
+ * Documents the FactionDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Factions;
 
 /**
@@ -23,9 +29,21 @@ namespace EmulationServer.Game.Data.Dbc.Factions;
   */
 public static class FactionDbcFileNames
 {
+    /**
+     * Defines the constant value for faction.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string Faction = "Faction.dbc";
+    /**
+     * Defines the constant value for faction template.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string FactionTemplate = "FactionTemplate.dbc";
 
+    /**
+     * Exposes the core faction dbc files value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static IReadOnlyList<string> CoreFactionDbcFiles { get; } =
     [
         Faction,

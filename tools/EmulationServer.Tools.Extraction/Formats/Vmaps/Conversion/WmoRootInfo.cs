@@ -16,14 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoRootInfo.cs
-  * This file stores basic metadata read from a root WMO file.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoRootInfo.cs
+ * Documents the WmoRootInfo source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
 /**
   * Contains the root WMO metadata needed to find related group files.
+ * Positional fields carried by this record: GroupCount.
   */
 public sealed record WmoRootInfo(int GroupCount);

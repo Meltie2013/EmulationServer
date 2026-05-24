@@ -26,71 +26,73 @@ using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Core/Servers/EmulationServerHost.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Core/Servers/EmulationServerHost.cs
+ * Documents the EmulationServerHost source file in the shared startup, configuration, and host orchestration area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Core.Servers;
 
 /**
-  * Represents the emulation server host component in the project runtime logic and supporting data models area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the emulation server host behavior for the shared startup, configuration, and host orchestration layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class EmulationServerHost : IAsyncDisposable
 {
     /**
-      * Stores the server name dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private server name state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _serverName;
     /**
-      * Stores the database settings dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private database settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly DatabaseSettings? _databaseSettings;
     /**
-      * Stores the internal network settings dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private internal network settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InternalNetworkSettings _internalNetworkSettings;
     /**
-      * Stores the database service dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private database service state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly IDatabaseService? _databaseService;
     /**
-      * Stores the internal socket listener dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private internal socket listener state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InternalSocketListener _internalSocketListener;
     /**
-      * Stores the internal peer connector dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private internal peer connector state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InternalPeerConnector _internalPeerConnector;
     /**
-      * Stores the shutdown cancellation dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private shutdown cancellation state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly CancellationTokenSource _shutdownCancellation = new();
     /**
-      * Stores the startup completed dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private startup completed state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TaskCompletionSource<bool> _startupCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /**
-      * Stores the shutdown requested dependency or runtime value for EmulationServerHost.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private shutdown requested state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _shutdownRequested;
 
     /**
-      * Creates a new EmulationServerHost instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new EmulationServerHost instance with the dependencies required by the shared startup, configuration, and host orchestration workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: serverName, internalNetworkSettings, callbacks.
+     */
     public EmulationServerHost(
         string serverName,
         InternalNetworkSettings internalNetworkSettings,
@@ -100,9 +102,10 @@ public sealed class EmulationServerHost : IAsyncDisposable
     }
 
     /**
-      * Creates a new EmulationServerHost instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new EmulationServerHost instance with the dependencies required by the shared startup, configuration, and host orchestration workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: serverName, databaseSettings, internalNetworkSettings, callbacks.
+     */
     public EmulationServerHost(
         string serverName,
         DatabaseSettings? databaseSettings,
@@ -149,11 +152,11 @@ public sealed class EmulationServerHost : IAsyncDisposable
     public Task StartupCompleted => _startupCompleted.Task;
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of EmulationServerHost and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -187,11 +190,11 @@ public sealed class EmulationServerHost : IAsyncDisposable
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of EmulationServerHost and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _internalPeerConnector.StopAsync(cancellationToken);
@@ -199,10 +202,10 @@ public sealed class EmulationServerHost : IAsyncDisposable
     }
 
     /**
-      * Releases owned resources and ensures background work is stopped safely.
-      * The method is part of EmulationServerHost and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -215,9 +218,10 @@ public sealed class EmulationServerHost : IAsyncDisposable
     }
 
     /**
-      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
-      * The method is part of EmulationServerHost and keeps this workflow isolated from the caller.
-      */
+     * Creates the host callbacks result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     * Inputs used by this operation: callbacks.
+     */
     private InternalNetworkCallbacks CreateHostCallbacks(InternalNetworkCallbacks callbacks)
     {
         return new InternalNetworkCallbacks
@@ -238,10 +242,11 @@ public sealed class EmulationServerHost : IAsyncDisposable
     }
 
     /**
-      * Performs the request shutdown async operation for EmulationServerHost.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the request shutdown operation for the shared startup, configuration, and host orchestration workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: sourceServerName, reason.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task RequestShutdownAsync(string sourceServerName, string reason)
     {
         if (Interlocked.Exchange(ref _shutdownRequested, 1) == 1)

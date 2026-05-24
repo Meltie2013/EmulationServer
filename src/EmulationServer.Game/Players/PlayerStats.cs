@@ -16,8 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Players/PlayerStats.cs
+ * Documents the PlayerStats source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Players;
 
+/**
+ * Carries immutable player stats data for the logged-in player state, persistence models, and gameplay records layer.
+ * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+ * Positional fields carried by this record: Health, Power1, Power2, Power3, Power4, Power5, Strength, Agility, Stamina, Intellect, Spirit, Armor.
+ */
 public sealed record PlayerStats(
     uint Health,
     uint Power1,
@@ -32,5 +43,9 @@ public sealed record PlayerStats(
     uint Spirit,
     uint Armor)
 {
+    /**
+     * Exposes the empty value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static PlayerStats Empty { get; } = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }

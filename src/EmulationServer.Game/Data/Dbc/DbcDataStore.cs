@@ -18,11 +18,12 @@
 
 using System.Text;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
-  * This file belongs to the DBC file loading, validation, and raw record access portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
+ * Documents the DbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc;
 
@@ -33,26 +34,27 @@ namespace EmulationServer.Game.Data.Dbc;
 public sealed class DbcDataStore
 {
     /**
-      * Stores the record data dependency or runtime value for DbcDataStore.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private record data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly byte[] _recordData;
     /**
-      * Stores the string block dependency or runtime value for DbcDataStore.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private string block state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly byte[] _stringBlock;
     private readonly Dictionary<uint, int> _recordIndexById;
     /**
-      * Stores the field size dependency or runtime value for DbcDataStore.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private field size state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _fieldSize;
 
     /**
-      * Creates a new DbcDataStore instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new DbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: path, header, recordData, stringBlock, recordIndexById, fieldSize.
+     */
     private DbcDataStore(
         string path,
         DbcHeader header,
@@ -133,9 +135,9 @@ public sealed class DbcDataStore
     }
 
     /**
-      * Performs the enumerate records operation for DbcDataStore.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the enumerate records operation for the DBC loading and strongly typed client data records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
     public IEnumerable<DbcRecord> EnumerateRecords()
     {
         for (int index = 0; index < Header.RecordCount; index++)

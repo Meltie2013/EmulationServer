@@ -16,34 +16,35 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlAction.cs
-  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlAction.cs
+ * Documents the MapServiceControlAction source file in the runtime map-player state tracking area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
 /**
-  * Defines the allowed map service control action values used to keep state and protocol decisions explicit.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Lists the supported map service control action values used by the runtime map-player state tracking layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum MapServiceControlAction
 {
     /**
-      * Represents the start value for MapServiceControlAction.
-      */
+     * Represents the start value for map service control action handling.
+     */
     Start,
     /**
-      * Represents the shutdown value for MapServiceControlAction.
-      */
+     * Represents the shutdown value for map service control action handling.
+     */
     Shutdown,
     /**
-      * Represents the restart value for MapServiceControlAction.
-      */
+     * Represents the restart value for map service control action handling.
+     */
     Restart,
     /**
-      * Represents the info value for MapServiceControlAction.
-      */
+     * Represents the info value for map service control action handling.
+     */
     Info,
 }

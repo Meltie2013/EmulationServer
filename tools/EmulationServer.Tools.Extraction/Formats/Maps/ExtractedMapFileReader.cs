@@ -18,23 +18,40 @@
 
 using System.Text;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/ExtractedMapFileReader.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/ExtractedMapFileReader.cs
+ * Documents the ExtractedMapFileReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps;
 
 /**
-  * Represents the extracted map file reader component in the developer tooling for data extraction, validation, and diagnostics area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the extracted map file reader behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class ExtractedMapFileReader
 {
+    /**
+     * Defines the constant value for map file header size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int MapFileHeaderSize = MapFormatConstants.MapFileHeaderSize;
+    /**
+     * Defines the constant value for area header size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int AreaHeaderSize = 8;
+    /**
+     * Defines the constant value for height header size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int HeightHeaderSize = 16;
+    /**
+     * Defines the constant value for liquid header size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int LiquidHeaderSize = 16;
 
     /**

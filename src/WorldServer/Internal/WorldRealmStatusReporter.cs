@@ -24,94 +24,124 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Configuration;
 
+
 /**
-  * File overview: src/WorldServer/Internal/WorldRealmStatusReporter.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/WorldServer/Internal/WorldRealmStatusReporter.cs
+ * Documents the WorldRealmStatusReporter source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.WorldServer.Internal;
 
 /**
-  * Represents the world realm status reporter component in the project runtime logic and supporting data models area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the world realm status reporter behavior for the world server startup, client networking, gameplay routing, and persistence layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class WorldRealmStatusReporter : IAsyncDisposable
 {
     /**
-      * Stores the settings dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly RealmStatusSettings _settings;
     /**
-      * Stores the registration key dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private registration key state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _registrationKey;
     /**
-      * Stores the send lock dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private send lock state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     /**
-      * Stores the max connections dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private max connections state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _maxConnections;
     /**
-      * Stores the latency report interval dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private latency report interval state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TimeSpan _latencyReportInterval;
     /**
-      * Stores the ping timeout dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private ping timeout state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TimeSpan _pingTimeout;
+    /**
+     * Holds the private receive buffer size state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _receiveBufferSize;
+    /**
+     * Holds the private send buffer size state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _sendBufferSize;
+    /**
+     * Holds the private keep alive state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly bool _keepAlive;
+    /**
+     * Holds the private keep alive time seconds state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _keepAliveTimeSeconds;
+    /**
+     * Holds the private keep alive interval seconds state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _keepAliveIntervalSeconds;
+    /**
+     * Holds the private authentication timeout state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TimeSpan _authenticationTimeout;
     private readonly Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> _characterCountSnapshotLoader;
 
     /**
-      * Stores the stop cancellation dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stop cancellation state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private CancellationTokenSource? _stopCancellation;
     /**
-      * Stores the report task dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private report task state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private Task? _reportTask;
     /**
-      * Stores the client dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private client state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private TcpClient? _client;
     /**
-      * Stores the stream dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stream state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private NetworkStream? _stream;
+    /**
+     * Holds the private reader state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private InternalProtocolReader? _reader;
     /**
-      * Stores the started dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private started state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _started;
     /**
-      * Stores the active connections dependency or runtime value for WorldRealmStatusReporter.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private active connections state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _activeConnections;
 
     /**
-      * Creates a new WorldRealmStatusReporter instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new WorldRealmStatusReporter instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: settings, registrationKey, maxConnections, latencyReportInterval, pingTimeout, receiveBufferSize....
+     */
     public WorldRealmStatusReporter(
         RealmStatusSettings settings,
         string registrationKey,
@@ -188,11 +218,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (!_settings.Enabled)
@@ -243,11 +273,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _started, 0) == 0)
@@ -294,10 +324,10 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-      * Releases owned resources and ensures background work is stopped safely.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -376,8 +406,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-      * Sends the latest per-account character counts to RealmServer in chunked snapshot packets.
-      */
+     * Sends send character count snapshot data to the connected session or internal peer.
+     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task SendCharacterCountSnapshotAsync(CancellationToken cancellationToken)
     {
         if (_stream is null)
@@ -637,6 +670,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"WorldServer sent realm status: {packet}", nameof(WorldRealmStatusReporter));
     }
 
+    /**
+     * Tries to resolve the set tcp keep alive option value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: client, optionName, valueSeconds.
+     */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)
@@ -659,9 +697,9 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-      * Performs the cleanup connection operation for WorldRealmStatusReporter.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the cleanup connection operation for the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
     private void CleanupConnection()
     {
         try

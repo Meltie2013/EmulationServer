@@ -16,17 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Dbc/DbcHeader.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Dbc/DbcHeader.cs
+ * Documents the DbcHeader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Dbc;
 
 /**
   * Represents immutable dbc header data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+ * Positional fields carried by this record: Magic, RecordCount, FieldCount, RecordSize, StringBlockSize.
   */
 public sealed record DbcHeader(
     string Magic,
@@ -35,5 +37,9 @@ public sealed record DbcHeader(
     int RecordSize,
     int StringBlockSize)
 {
+    /**
+     * Defines the constant value for expected magic.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string ExpectedMagic = "WDBC";
 }

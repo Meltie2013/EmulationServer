@@ -16,10 +16,12 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcFileNames.cs
-  * This file defines the DBC file names that feed map, area, trigger, continent, and overlay metadata into the map system.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcFileNames.cs
+ * Documents the MapDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 

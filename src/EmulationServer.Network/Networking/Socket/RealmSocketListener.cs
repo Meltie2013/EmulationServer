@@ -25,56 +25,58 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Socket/RealmSocketListener.cs
-  * This file belongs to the socket listening and connection acceptance portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Socket/RealmSocketListener.cs
+ * Documents the RealmSocketListener source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Socket;
 
 /**
-  * Represents the realm socket listener component in the socket listening and connection acceptance area.
-  * It owns socket listening and converts accepted connections into managed sessions.
-  */
+ * Owns the realm socket listener behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class RealmSocketListener
 {
     /**
-      * Stores the tcp listener dependency or runtime value for RealmSocketListener.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private tcp listener state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TcpListener _tcpListener;
     /**
-      * Stores the session manager dependency or runtime value for RealmSocketListener.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private session manager state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly SessionManager _sessionManager = new();
     /**
-      * Stores the settings dependency or runtime value for RealmSocketListener.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly RealmSocketListenerSettings _settings;
     /**
-      * Stores the session processor factory dependency or runtime value for RealmSocketListener.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private session processor factory state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly Func<IRealmSessionProcessor>? _sessionProcessorFactory;
 
     /**
-      * Stores the started dependency or runtime value for RealmSocketListener.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private started state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _started;
     /**
-      * Stores the stopping dependency or runtime value for RealmSocketListener.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stopping state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _stopping;
 
     /**
-      * Creates a new RealmSocketListener instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new RealmSocketListener instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: settings, sessionProcessorFactory.
+     */
     public RealmSocketListener(RealmSocketListenerSettings settings, Func<IRealmSessionProcessor>? sessionProcessorFactory = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -86,11 +88,11 @@ public sealed class RealmSocketListener
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of RealmSocketListener and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -114,11 +116,11 @@ public sealed class RealmSocketListener
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of RealmSocketListener and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -233,6 +235,11 @@ public sealed class RealmSocketListener
         TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveInterval, settings.KeepAliveIntervalSeconds);
     }
 
+    /**
+     * Tries to resolve the set tcp keep alive option value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: client, optionName, valueSeconds.
+     */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)

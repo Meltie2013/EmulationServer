@@ -22,21 +22,30 @@ using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
+
 /**
-  * File overview: src/MapServer/Configuration/MapServerConfigurationLoader.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/MapServer/Configuration/MapServerConfigurationLoader.cs
+ * Documents the MapServerConfigurationLoader source file in the map service startup, map status reporting, and player location routing area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.MapServer.Configuration;
 
 /**
-  * Represents the map server configuration loader component in the server configuration loading and strongly typed settings area.
-  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
-  */
+ * Owns the map server configuration loader behavior for the map service startup, map status reporting, and player location routing layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class MapServerConfigurationLoader
 {
+    /**
+     * Defines the constant value for map server section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string MapServerSection = "MapServer";
+    /**
+     * Defines the constant value for map services section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string MapServicesSection = "MapServices";
 
     /**

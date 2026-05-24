@@ -16,33 +16,76 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Shared/Logging/Enum/LogType.cs
-  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Shared/Logging/Enum/LogType.cs
+ * Documents the LogType source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Shared.Logging.Enums;
 
 /**
-  * Defines the allowed log type values used to keep state and protocol decisions explicit.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Lists the supported log type values used by the shared configuration, logging, and utility support layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum LogType
 {
+    /**
+     * Represents the network value for log type handling.
+     */
     NETWORK,       // Network code debugging
+    /**
+     * Represents the debug value for log type handling.
+     */
     DEBUG,         // Packet processing
+    /**
+     * Represents the information value for log type handling.
+     */
     INFORMATION,   // General information
+    /**
+     * Represents the user value for log type handling.
+     */
     USER,          // User actions
+    /**
+     * Represents the success value for log type handling.
+     */
     SUCCESS,       // Successful operations
+    /**
+     * Represents the warning value for log type handling.
+     */
     WARNING,       // Warning conditions
+    /**
+     * Represents the failed value for log type handling.
+     */
     FAILED,        // Processing errors
+    /**
+     * Represents the critical value for log type handling.
+     */
     CRITICAL,      // Application errors
+    /**
+     * Represents the database value for log type handling.
+     */
     DATABASE,      // Database operations/errors
+    /**
+     * Represents the alert value for log type handling.
+     */
     ALERT,         // Immediate action required
+    /**
+     * Represents the emerg value for log type handling.
+     */
     EMERG,         // System unusable
+    /**
+     * Represents the func value for log type handling.
+     */
     FUNC,          // Function tracing
+    /**
+     * Represents the notice value for log type handling.
+     */
     NOTICE,        // Significant condition
+    /**
+     * Represents the thread value for log type handling.
+     */
     THREAD,        // Thread tracing
     TRACE          // Fine-grained debugging
 }

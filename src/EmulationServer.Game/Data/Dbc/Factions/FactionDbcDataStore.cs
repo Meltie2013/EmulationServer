@@ -20,10 +20,12 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcDataStore.cs
-  * This file converts raw faction DBC tables into typed metadata for race, reputation, and hostile/friendly validation.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcDataStore.cs
+ * Documents the FactionDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Factions;
 
@@ -32,12 +34,21 @@ namespace EmulationServer.Game.Data.Dbc.Factions;
   */
 public sealed class FactionDbcDataStore
 {
+    /**
+     * Initializes a new FactionDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     */
     private FactionDbcDataStore()
     {
         Factions = new Dictionary<int, FactionDbcRecord>();
         Templates = new Dictionary<int, FactionTemplateDbcRecord>();
     }
 
+    /**
+     * Initializes a new FactionDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: factions, templates.
+     */
     private FactionDbcDataStore(
         IReadOnlyDictionary<int, FactionDbcRecord> factions,
         IReadOnlyDictionary<int, FactionTemplateDbcRecord> templates)
@@ -46,6 +57,10 @@ public sealed class FactionDbcDataStore
         Templates = templates;
     }
 
+    /**
+     * Exposes the empty value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static FactionDbcDataStore Empty { get; } = new();
 
     /**
@@ -92,16 +107,31 @@ public sealed class FactionDbcDataStore
         return data;
     }
 
+    /**
+     * Tries to resolve the get faction value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: factionId, faction.
+     */
     public bool TryGetFaction(int factionId, out FactionDbcRecord faction)
     {
         return Factions.TryGetValue(factionId, out faction!);
     }
 
+    /**
+     * Tries to resolve the get faction template value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: templateId, template.
+     */
     public bool TryGetFactionTemplate(int templateId, out FactionTemplateDbcRecord template)
     {
         return Templates.TryGetValue(templateId, out template!);
     }
 
+    /**
+     * Parses read faction record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static FactionDbcRecord ReadFactionRecord(DbcRecord record)
     {
         int[] raceMasks = Enumerable.Range(2, 4).Select(fieldIndex => DbcRecordReader.ReadInt32(record, fieldIndex)).ToArray();
@@ -121,6 +151,11 @@ public sealed class FactionDbcDataStore
             DbcRecordReader.ReadString(record, 28));
     }
 
+    /**
+     * Parses read faction template record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static FactionTemplateDbcRecord ReadFactionTemplateRecord(DbcRecord record)
     {
         int[] enemyFactionIds = Enumerable.Range(6, 4)

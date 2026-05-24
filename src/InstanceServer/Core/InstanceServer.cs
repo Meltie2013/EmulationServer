@@ -30,44 +30,54 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/InstanceServer/Core/InstanceServer.cs
-  * This file belongs to the server startup, shutdown, and dependency orchestration portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/InstanceServer/Core/InstanceServer.cs
+ * Documents the InstanceServer source file in the instance service startup and internal server coordination area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.InstanceServer.Core;
 
 /**
-  * Represents the instance server component in the server startup, shutdown, and dependency orchestration area.
-  * It owns the server startup, shutdown, and dependency wiring for this process.
-  */
+ * Owns the instance server behavior for the instance service startup and internal server coordination layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class InstanceServer : IAsyncDisposable
 {
     /**
-      * Stores the host dependency or runtime value for InstanceServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private host state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly EmulationServerHost _host;
     /**
-      * Stores the instance services dependency or runtime value for InstanceServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InstanceServerSettings _settings;
+    /**
+     * Holds the private instance services state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private MapServiceManager? _instanceServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
+    /**
+     * Holds the private player tracker state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MapPlayerTracker _playerTracker = new();
     /**
-      * Stores the world capacity limit dependency or runtime value for InstanceServer.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private world capacity limit state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _worldCapacityLimit;
 
     /**
-      * Creates a new InstanceServer instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new InstanceServer instance with the dependencies required by the instance service startup and internal server coordination workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: settings.
+     */
     public InstanceServer(InstanceServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -78,11 +88,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Task hostTask = _host.StartAsync(cancellationToken);
@@ -107,11 +117,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_instanceServices is not null)
@@ -123,10 +133,10 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Releases owned resources and ensures background work is stopped safely.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -153,9 +163,9 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      */
+     * Creates the callbacks result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     */
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -170,10 +180,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on server authenticated async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on server authenticated event for the instance service startup and internal server coordination workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -186,10 +197,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on server disconnected async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on server disconnected event for the instance service startup and internal server coordination workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -202,10 +214,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on peer authenticated async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on peer authenticated event for the instance service startup and internal server coordination workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -218,10 +231,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on peer disconnected async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on peer disconnected event for the instance service startup and internal server coordination workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -234,10 +248,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on peer packet received async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on peer packet received event for the instance service startup and internal server coordination workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -252,10 +267,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-      * Performs the on session packet received async operation for InstanceServer.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on session packet received event for the instance service startup and internal server coordination workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -382,6 +398,11 @@ public sealed class InstanceServer : IAsyncDisposable
         return false;
     }
 
+    /**
+     * Tries to resolve the read player enter route value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: parts, state.
+     */
     private static bool TryReadPlayerEnterRoute(string[] parts, [NotNullWhen(true)] out MapPlayerRuntimeState? state)
     {
         state = null;
@@ -402,6 +423,11 @@ public sealed class InstanceServer : IAsyncDisposable
         return true;
     }
 
+    /**
+     * Tries to resolve the read player movement route value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: parts, accountId, guid, opcode, map, zone....
+     */
     private static bool TryReadPlayerMovementRoute(
         string[] parts,
         out uint accountId,
@@ -442,6 +468,11 @@ public sealed class InstanceServer : IAsyncDisposable
             uint.TryParse(parts[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out clientTime);
     }
 
+    /**
+     * Tries to resolve the parse opcode value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: value, opcode.
+     */
     private static bool TryParseOpcode(string value, out ushort opcode)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))

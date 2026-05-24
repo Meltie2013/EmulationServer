@@ -18,10 +18,24 @@
 
 using EmulationServer.Game.Players;
 
+/**
+ * File overview: src/EmulationServer.Game/WorldData/WorldTemplateDataStore.cs
+ * Documents the WorldTemplateDataStore source file in the world database template loading and cache construction area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.WorldData;
 
+/**
+ * Owns the world template data store behavior for the world database template loading and cache construction layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class WorldTemplateDataStore
 {
+    /**
+     * Exposes the empty value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static WorldTemplateDataStore Empty { get; } = new(
         Array.Empty<PlayerCreateInfoRecord>(),
         Array.Empty<ItemTemplateRecord>(),
@@ -41,6 +55,11 @@ public sealed class WorldTemplateDataStore
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> _playerCreateItems;
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> _playerCreateSpells;
 
+    /**
+     * Initializes a new WorldTemplateDataStore instance with the dependencies required by the world database template loading and cache construction workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: playerCreateInfo, itemTemplates, playerLevelStats, playerClassLevelStats, playerLevelExperience, playerCreateActions....
+     */
     public WorldTemplateDataStore(
         IEnumerable<PlayerCreateInfoRecord> playerCreateInfo,
         IEnumerable<ItemTemplateRecord> itemTemplates,
@@ -109,38 +128,87 @@ public sealed class WorldTemplateDataStore
 
     public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> PlayerCreateSpells => _playerCreateSpells;
 
+    /**
+     * Stores the default player level stats count value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int PlayerLevelStatsCount => _playerLevelStats.Count;
 
+    /**
+     * Stores the default player class level stats count value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int PlayerClassLevelStatsCount => _playerClassLevelStats.Count;
 
+    /**
+     * Stores the default player level experience count value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int PlayerLevelExperienceCount => _playerLevelExperience.Count;
 
+    /**
+     * Stores the default player create action count value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int PlayerCreateActionCount => _playerCreateActions.Values.Sum(records => records.Count);
 
+    /**
+     * Stores the default player create item count value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int PlayerCreateItemCount => _playerCreateItems.Values.Sum(records => records.Count);
 
+    /**
+     * Stores the default player create spell count value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int PlayerCreateSpellCount => _playerCreateSpells.Values.Sum(records => records.Count);
 
+    /**
+     * Tries to resolve the get player create info value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: race, characterClass, createInfo.
+     */
     public bool TryGetPlayerCreateInfo(byte race, byte characterClass, out PlayerCreateInfoRecord createInfo)
     {
         return _playerCreateInfo.TryGetValue((race, characterClass), out createInfo!);
     }
 
+    /**
+     * Tries to resolve the get item template value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: entry, itemTemplate.
+     */
     public bool TryGetItemTemplate(uint entry, out ItemTemplateRecord itemTemplate)
     {
         return _itemTemplates.TryGetValue(entry, out itemTemplate!);
     }
 
+    /**
+     * Tries to resolve the get player level stats value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: race, characterClass, level, levelStats.
+     */
     public bool TryGetPlayerLevelStats(byte race, byte characterClass, byte level, out PlayerLevelStatsRecord levelStats)
     {
         return _playerLevelStats.TryGetValue((race, characterClass, level), out levelStats!);
     }
 
+    /**
+     * Tries to resolve the get player class level stats value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: characterClass, level, classLevelStats.
+     */
     public bool TryGetPlayerClassLevelStats(byte characterClass, byte level, out PlayerClassLevelStatsRecord classLevelStats)
     {
         return _playerClassLevelStats.TryGetValue((characterClass, level), out classLevelStats!);
     }
 
+    /**
+     * Resolves the player create actions value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: race, characterClass.
+     */
     public IReadOnlyList<PlayerCreateActionRecord> GetPlayerCreateActions(byte race, byte characterClass)
     {
         return _playerCreateActions.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateActionRecord>? records)
@@ -148,6 +216,11 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<PlayerCreateActionRecord>();
     }
 
+    /**
+     * Resolves the player create items value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: race, characterClass.
+     */
     public IReadOnlyList<PlayerCreateItemRecord> GetPlayerCreateItems(byte race, byte characterClass)
     {
         return _playerCreateItems.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateItemRecord>? records)
@@ -155,6 +228,11 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<PlayerCreateItemRecord>();
     }
 
+    /**
+     * Resolves the player create spells value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: race, characterClass.
+     */
     public IReadOnlyList<PlayerCreateSpellRecord> GetPlayerCreateSpells(byte race, byte characterClass)
     {
         return _playerCreateSpells.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateSpellRecord>? records)
@@ -162,6 +240,11 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<PlayerCreateSpellRecord>();
     }
 
+    /**
+     * Resolves the next level experience value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: level.
+     */
     public uint GetNextLevelExperience(byte level)
     {
         byte safeLevel = level == 0 ? (byte)1 : level;
@@ -173,6 +256,11 @@ public sealed class WorldTemplateDataStore
         return BuildFallbackNextLevelExperience(safeLevel);
     }
 
+    /**
+     * Builds the build base player stats result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     * Inputs used by this operation: race, characterClass, level.
+     */
     public PlayerStats BuildBasePlayerStats(byte race, byte characterClass, byte level)
     {
         byte safeLevel = level == 0 ? (byte)1 : level;
@@ -222,6 +310,11 @@ public sealed class WorldTemplateDataStore
         return result;
     }
 
+    /**
+     * Builds the build fallback next level experience result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     * Inputs used by this operation: level.
+     */
     private static uint BuildFallbackNextLevelExperience(byte level)
     {
         uint safeLevel = Math.Max((uint)level, 1u);
@@ -241,6 +334,11 @@ public sealed class WorldTemplateDataStore
         };
     }
 
+    /**
+     * Performs the static operation for the world database template loading and cache construction workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: Strength, Agility, Stamina, Intellect, level.
+     */
     private static (uint Strength, uint Agility, uint Stamina, uint Intellect, uint Spirit) ResolveFallbackAttributes(byte playerClass, byte level)
     {
         (uint strength, uint agility, uint stamina, uint intellect, uint spirit) = playerClass switch

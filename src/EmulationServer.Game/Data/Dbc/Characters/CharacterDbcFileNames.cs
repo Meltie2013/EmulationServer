@@ -16,10 +16,12 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharacterDbcFileNames.cs
-  * This file centralizes the DBC files used by character validation and character creation.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharacterDbcFileNames.cs
+ * Documents the CharacterDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
@@ -28,12 +30,40 @@ namespace EmulationServer.Game.Data.Dbc.Characters;
   */
 public static class CharacterDbcFileNames
 {
+    /**
+     * Defines the constant value for char base info.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string CharBaseInfo = "CharBaseInfo.dbc";
+    /**
+     * Defines the constant value for char hair geosets.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string CharHairGeosets = "CharHairGeosets.dbc";
+    /**
+     * Defines the constant value for char sections.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string CharSections = "CharSections.dbc";
+    /**
+     * Defines the constant value for char start outfit.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string CharStartOutfit = "CharStartOutfit.dbc";
+    /**
+     * Defines the constant value for character facial hair styles.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string CharacterFacialHairStyles = "CharacterFacialHairStyles.dbc";
+    /**
+     * Defines the constant value for chr classes.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string ChrClasses = "ChrClasses.dbc";
+    /**
+     * Defines the constant value for chr races.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string ChrRaces = "ChrRaces.dbc";
 
     /**

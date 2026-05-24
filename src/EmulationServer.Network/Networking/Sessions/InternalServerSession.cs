@@ -25,11 +25,12 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/InternalServerSession.cs
-  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Sessions/InternalServerSession.cs
+ * Documents the InternalServerSession source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Sessions;
 
@@ -40,51 +41,55 @@ namespace EmulationServer.Network.Networking.Sessions;
 public sealed class InternalServerSession
 {
     /**
-      * Stores the client dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private client state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TcpClient _client;
     /**
-      * Stores the stream dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stream state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly NetworkStream _stream;
+    /**
+     * Holds the private reader state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InternalProtocolReader _reader;
     /**
-      * Stores the send lock dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private send lock state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     /**
-      * Stores the disconnect cancellation dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private disconnect cancellation state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly CancellationTokenSource _disconnectCancellation = new();
     /**
-      * Stores the settings dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InternalNetworkSettings _settings;
     /**
-      * Stores the callbacks dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private callbacks state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly InternalNetworkCallbacks _callbacks;
     /**
-      * Stores the remote end point dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private remote end point state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _remoteEndPoint;
 
     /**
-      * Stores the last packet received utc ticks dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private last packet received utc ticks state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private long _lastPacketReceivedUtcTicks;
     /**
-      * Stores the disconnect requested dependency or runtime value for InternalServerSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private disconnect requested state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _disconnectRequested;
 
     /**
@@ -112,9 +117,10 @@ public sealed class InternalServerSession
     public bool IsAuthenticated => !string.IsNullOrWhiteSpace(RemoteServerName);
 
     /**
-      * Creates a new InternalServerSession instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new InternalServerSession instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: settings, client, callbacks.
+     */
     public InternalServerSession(
         InternalNetworkSettings settings,
         TcpClient client,
@@ -289,10 +295,10 @@ public sealed class InternalServerSession
     }
 
     /**
-      * Performs the disconnect async operation for InternalServerSession.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the disconnect operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task DisconnectAsync()
     {
         if (Interlocked.Exchange(ref _disconnectRequested, 1) == 1)
@@ -334,11 +340,11 @@ public sealed class InternalServerSession
     }
 
     /**
-      * Performs the request and validate authentication async operation for InternalServerSession.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Performs the request and validate authentication operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task<string> RequestAndValidateAuthenticationAsync(CancellationToken cancellationToken)
     {
         string challengeNonce = InternalProtocol.CreateAuthenticationNonce();
@@ -432,9 +438,9 @@ public sealed class InternalServerSession
     }
 
     /**
-      * Performs the mark packet received operation for InternalServerSession.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the mark packet received operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
     private void MarkPacketReceived()
     {
         Interlocked.Exchange(ref _lastPacketReceivedUtcTicks, DateTimeOffset.UtcNow.Ticks);

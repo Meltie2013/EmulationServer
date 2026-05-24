@@ -18,47 +18,49 @@
 
 using EmulationServer.RealmServer.Configuration;
 
+
 /**
-  * File overview: src/RealmServer/Realms/ConfiguredRealm.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Realms/ConfiguredRealm.cs
+ * Documents the ConfiguredRealm source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Realms;
 
 /**
-  * Represents the configured realm component in the project runtime logic and supporting data models area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the configured realm behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ConfiguredRealm
 {
     /**
-      * Stores the sync root dependency or runtime value for ConfiguredRealm.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private sync root state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly object _syncRoot = new();
 
     /**
-      * Stores the online dependency or runtime value for ConfiguredRealm.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private online state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private bool _online;
     /**
-      * Stores the active connections dependency or runtime value for ConfiguredRealm.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private active connections state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _activeConnections;
     /**
-      * Stores the capacity limit dependency or runtime value for ConfiguredRealm.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private capacity limit state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _capacityLimit;
     private Dictionary<uint, byte> _characterCountsByAccount = [];
 
     /**
-      * Creates a new ConfiguredRealm instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new ConfiguredRealm instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: settings.
+     */
     public ConfiguredRealm(ConfiguredRealmSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);

@@ -18,20 +18,30 @@
 
 using System.Text;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModelWriter.cs
-  * This file writes compact vmap model files produced from client WMO geometry.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModelWriter.cs
+ * Documents the VmapModelWriter source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
 /**
-  * Writes the Emulation Server compact WMO vmap model format.
-  * The format is intentionally simple: model header, group metadata, then group-local vertices and triangle indices.
-  */
+ * Owns the vmap model writer behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class VmapModelWriter
 {
+    /**
+     * Defines the constant value for magic.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string Magic = "ESVMOD1";
+    /**
+     * Defines the constant value for version.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const uint Version = 1;
 
     /**

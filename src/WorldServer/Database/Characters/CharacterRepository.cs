@@ -25,17 +25,52 @@ using EmulationServer.Game.WorldData;
 
 using MySqlConnector;
 
+/**
+ * File overview: src/WorldServer/Database/Characters/CharacterRepository.cs
+ * Documents the CharacterRepository source file in the world database repositories and persisted player/account records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.WorldServer.Database.Characters;
 
+/**
+ * Owns the character repository behavior for the world database repositories and persisted player/account records layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class CharacterRepository
 {
+    /**
+     * Defines the constant value for character equipment slot count.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int CharacterEquipmentSlotCount = 19;
+    /**
+     * Defines the constant value for at login first.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const uint AtLoginFirst = 0x20;
+    /**
+     * Defines the constant value for no equipment slot.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int NoEquipmentSlot = -1;
+    /**
+     * Holds the private database service state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly IDatabaseService _databaseService;
     private readonly Func<uint, ItemTemplateRecord?> _itemTemplateAccessor;
+    /**
+     * Holds the private world template accessor state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
 
+    /**
+     * Initializes a new CharacterRepository instance with the dependencies required by the world database repositories and persisted player/account records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: databaseService, itemTemplateAccessor, worldTemplateAccessor.
+     */
     public CharacterRepository(
         IDatabaseService databaseService,
         Func<uint, ItemTemplateRecord?> itemTemplateAccessor,
@@ -46,6 +81,12 @@ public sealed class CharacterRepository
         _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException(nameof(worldTemplateAccessor));
     }
 
+    /**
+     * Resolves the characters for account value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: accountId, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<IReadOnlyList<CharacterListEntry>> GetCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -148,6 +189,12 @@ public sealed class CharacterRepository
         return availability;
     }
 
+    /**
+     * Performs the character name exists operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: name, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<bool> CharacterNameExistsAsync(string name, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -188,6 +235,12 @@ public sealed class CharacterRepository
         return characterCounts;
     }
 
+    /**
+     * Performs the count characters for account operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: accountId, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<int> CountCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -200,6 +253,12 @@ public sealed class CharacterRepository
         return Convert.ToInt32(result, CultureInfo.InvariantCulture);
     }
 
+    /**
+     * Creates the character result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     * Inputs used by this operation: accountId, request, createInfo, starterItems, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<uint> CreateCharacterAsync(
         uint accountId,
         CharacterCreateRequest request,
@@ -252,6 +311,12 @@ public sealed class CharacterRepository
         }
     }
 
+    /**
+     * Performs the delete character operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: accountId, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<CharacterDeleteRepositoryResult> DeleteCharacterAsync(
         uint accountId,
         uint characterGuid,
@@ -304,6 +369,12 @@ public sealed class CharacterRepository
     }
 
 
+    /**
+     * Resolves the player for login value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: accountId, characterGuid, factionResolver, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<PlayerLoginRecord?> GetPlayerForLoginAsync(
         uint accountId,
         uint characterGuid,
@@ -424,6 +495,12 @@ public sealed class CharacterRepository
             factionResolver(row.Race));
     }
 
+    /**
+     * Resolves the character name query value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task<CharacterNameQueryResult?> GetCharacterNameQueryAsync(uint characterGuid, CancellationToken cancellationToken = default)
     {
         if (characterGuid == 0)
@@ -456,6 +533,12 @@ public sealed class CharacterRepository
             Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture));
     }
 
+    /**
+     * Performs the set character online operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: characterGuid, online, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task SetCharacterOnlineAsync(uint characterGuid, bool online, CancellationToken cancellationToken = default)
     {
         if (characterGuid == 0)
@@ -479,6 +562,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Updates save player state in memory or persistent storage.
+     * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
+     * Inputs used by this operation: player, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task SavePlayerAsync(PlayerLoginRecord player, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -554,6 +643,12 @@ public sealed class CharacterRepository
         }
     }
 
+    /**
+     * Loads load player inventory information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task<IReadOnlyList<PlayerInventoryItem>> LoadPlayerInventoryAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -609,6 +704,12 @@ public sealed class CharacterRepository
         return items;
     }
 
+    /**
+     * Resolves the next id value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: connection, transaction, tableName, columnName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<uint> GetNextIdAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -623,6 +724,12 @@ public sealed class CharacterRepository
         return Convert.ToUInt32(result, CultureInfo.InvariantCulture);
     }
 
+    /**
+     * Performs the insert character operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, accountId, request, createInfo....
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertCharacterAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -679,6 +786,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Performs the insert homebind operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, createInfo, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertHomebindAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -704,6 +817,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Performs the insert character stats operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, stats, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertCharacterStatsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -762,6 +881,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Performs the insert character tutorial operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, accountId, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertCharacterTutorialAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -787,6 +912,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Performs the insert character spells operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, starterSpells, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertCharacterSpellsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -820,6 +951,12 @@ public sealed class CharacterRepository
         }
     }
 
+    /**
+     * Performs the insert character actions operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, starterActions, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertCharacterActionsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -858,6 +995,12 @@ public sealed class CharacterRepository
         }
     }
 
+    /**
+     * Performs the insert item instance operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, itemGuid, ownerGuid, itemTemplate, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertItemInstanceAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -881,6 +1024,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Performs the insert character inventory operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, itemGuid, itemTemplate, storageSlot....
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task InsertCharacterInventoryAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -906,6 +1055,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Loads load character ownership for update information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, transaction, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<CharacterOwnershipRecord?> LoadCharacterOwnershipForUpdateAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -935,6 +1090,12 @@ public sealed class CharacterRepository
             Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture) != 0);
     }
 
+    /**
+     * Determines whether guild leader for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<bool> IsGuildLeaderAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -960,6 +1121,12 @@ public sealed class CharacterRepository
         return result is not null;
     }
 
+    /**
+     * Performs the delete character rows operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task DeleteCharacterRowsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -998,6 +1165,12 @@ public sealed class CharacterRepository
         await DeleteWhereColumnEqualsAsync(connection, transaction, "characters", "guid", characterGuid, cancellationToken);
     }
 
+    /**
+     * Performs the delete where column equals operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, tableName, columnName, value, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task DeleteWhereColumnEqualsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1018,6 +1191,12 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    /**
+     * Performs the table column exists operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, tableName, columnName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<bool> TableColumnExistsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1042,6 +1221,12 @@ public sealed class CharacterRepository
         return result is not null;
     }
 
+    /**
+     * Performs the table exists operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, transaction, tableName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<bool> TableExistsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1063,6 +1248,12 @@ public sealed class CharacterRepository
         return result is not null;
     }
 
+    /**
+     * Performs the table exists operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, tableName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<bool> TableExistsAsync(
         MySqlConnection connection,
         string tableName,
@@ -1082,11 +1273,21 @@ public sealed class CharacterRepository
         return result is not null;
     }
 
+    /**
+     * Creates the default tutorial flags result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     */
     private static uint[] CreateDefaultTutorialFlags()
     {
         return Enumerable.Repeat(uint.MaxValue, 8).ToArray();
     }
 
+    /**
+     * Loads load character stats information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task<PlayerStats?> LoadCharacterStatsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_stats", cancellationToken))
@@ -1125,6 +1326,12 @@ public sealed class CharacterRepository
             Convert.ToUInt32(reader.GetValue(11), CultureInfo.InvariantCulture));
     }
 
+    /**
+     * Loads load character spells information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, characterGuid, race, characterClass, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task<IReadOnlyList<PlayerSpell>> LoadCharacterSpellsAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -1166,6 +1373,12 @@ public sealed class CharacterRepository
             .ToArray();
     }
 
+    /**
+     * Loads load character actions information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, characterGuid, race, characterClass, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task<IReadOnlyList<PlayerActionButton>> LoadCharacterActionsAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -1207,6 +1420,12 @@ public sealed class CharacterRepository
             .ToArray();
     }
 
+    /**
+     * Loads load character tutorial flags information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, accountId, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<uint[]> LoadCharacterTutorialFlagsAsync(MySqlConnection connection, uint accountId, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_tutorial", cancellationToken))
@@ -1238,6 +1457,12 @@ public sealed class CharacterRepository
         return flags;
     }
 
+    /**
+     * Loads load character reputation information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<IReadOnlyList<PlayerReputation>> LoadCharacterReputationAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_reputation", cancellationToken))
@@ -1267,6 +1492,12 @@ public sealed class CharacterRepository
         return reputations;
     }
 
+    /**
+     * Loads load character skills information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: connection, characterGuid, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async Task<IReadOnlyList<PlayerSkill>> LoadCharacterSkillsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_skills", cancellationToken))
@@ -1367,6 +1598,11 @@ public sealed class CharacterRepository
         return result;
     }
 
+    /**
+     * Performs the merge equipment operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: cachedEquipment, inventoryEquipment.
+     */
     private static IReadOnlyList<CharacterEquipmentDisplay> MergeEquipment(
         IReadOnlyList<CharacterEquipmentDisplay> cachedEquipment,
         IReadOnlyList<CharacterEquipmentDisplay> inventoryEquipment)
@@ -1391,6 +1627,10 @@ public sealed class CharacterRepository
         return merged;
     }
 
+    /**
+     * Creates the empty equipment array result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     */
     private static CharacterEquipmentDisplay[] CreateEmptyEquipmentArray()
     {
         return Enumerable
@@ -1399,6 +1639,11 @@ public sealed class CharacterRepository
             .ToArray();
     }
 
+    /**
+     * Performs the map inventory type to equipment slot operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: inventoryType.
+     */
     private static int MapInventoryTypeToEquipmentSlot(byte inventoryType)
     {
         return inventoryType switch
@@ -1432,6 +1677,11 @@ public sealed class CharacterRepository
         };
     }
 
+    /**
+     * Parses read item instance field input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: instanceData, fieldIndex.
+     */
     private static uint ReadItemInstanceField(string instanceData, int fieldIndex)
     {
         if (string.IsNullOrWhiteSpace(instanceData) || fieldIndex < 0)
@@ -1450,6 +1700,11 @@ public sealed class CharacterRepository
             : 0;
     }
 
+    /**
+     * Builds the build item instance data result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     * Inputs used by this operation: itemGuid, ownerGuid, itemTemplate.
+     */
     private static string BuildItemInstanceData(uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
     {
         uint[] fields = new uint[48];
@@ -1467,16 +1722,31 @@ public sealed class CharacterRepository
         return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
     }
 
+    /**
+     * Performs the pack player bytes operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: skin, face, hairStyle, hairColor.
+     */
     private static uint PackPlayerBytes(byte skin, byte face, byte hairStyle, byte hairColor)
     {
         return (uint)(skin | (face << 8) | (hairStyle << 16) | (hairColor << 24));
     }
 
+    /**
+     * Performs the pack player bytes 2 operation for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: facialHair.
+     */
     private static uint PackPlayerBytes2(byte facialHair)
     {
         return facialHair;
     }
 
+    /**
+     * Builds the build equipment cache result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     * Inputs used by this operation: starterItems.
+     */
     private static string BuildEquipmentCache(IReadOnlyList<StarterItemCreateData> starterItems)
     {
         uint[] itemEntries = new uint[CharacterEquipmentSlotCount];
@@ -1503,6 +1773,11 @@ public sealed class CharacterRepository
         }));
     }
 
+    /**
+     * Parses parse equipment cache input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: equipmentCache, itemTemplateAccessor.
+     */
     private static IReadOnlyList<CharacterEquipmentDisplay> ParseEquipmentCache(
         string equipmentCache,
         Func<uint, ItemTemplateRecord?> itemTemplateAccessor)
@@ -1547,6 +1822,11 @@ public sealed class CharacterRepository
         return CreateEmptyEquipmentArray();
     }
 
+    /**
+     * Parses read u int input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: parts, index.
+     */
     private static uint ReadUInt(string[] parts, int index)
     {
         if (index < 0 || index >= parts.Length)
@@ -1560,6 +1840,11 @@ public sealed class CharacterRepository
     }
 
 
+    /**
+     * Resolves the player stats value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: race, playerClass, level, storedStats.
+     */
     private PlayerStats ResolvePlayerStats(byte race, byte playerClass, byte level, PlayerStats storedStats)
     {
         PlayerStats defaults = _worldTemplateAccessor().BuildBasePlayerStats(race, playerClass, level);
@@ -1578,11 +1863,21 @@ public sealed class CharacterRepository
             storedStats.Armor == 0 ? defaults.Armor : storedStats.Armor);
     }
 
+    /**
+     * Normalizes the level for the world database repositories and persisted player/account records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: level.
+     */
     private static byte NormalizeLevel(byte level)
     {
         return level == 0 ? (byte)1 : level;
     }
 
+    /**
+     * Carries immutable character login row data for the world database repositories and persisted player/account records layer.
+     * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+     * Positional fields carried by this record: Guid, AccountId, Name, Race, Class, Gender, Level, Xp, Zone, Map, PositionX, PositionY, PositionZ, Orientation, Money, PlayerBytes, PlayerBytes2, PlayerFlags, AtLogin, Cinematic, TotalTime, LevelTime, Stats.
+     */
     private sealed record CharacterLoginRow(
         uint Guid,
         uint AccountId,
@@ -1608,8 +1903,18 @@ public sealed class CharacterRepository
         uint LevelTime,
         PlayerStats Stats);
 
+    /**
+     * Carries immutable character ownership record data for the world database repositories and persisted player/account records layer.
+     * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+     * Positional fields carried by this record: AccountId, Name, Online.
+     */
     private sealed record CharacterOwnershipRecord(uint AccountId, string Name, bool Online);
 
+    /**
+     * Carries immutable character list row data for the world database repositories and persisted player/account records layer.
+     * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+     * Positional fields carried by this record: Guid, Name, Race, Class, Gender, Level, Xp, Zone, Map, PositionX, PositionY, PositionZ, PlayerFlags, AtLogin, PlayerBytes, PlayerBytes2, EquipmentCache.
+     */
     private sealed record CharacterListRow(
         uint Guid,
         string Name,

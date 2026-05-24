@@ -20,18 +20,19 @@ using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Network.Configuration;
 
 using EmulationServer.Shared.Logging.Configuration;
+
 /**
-  * File overview: src/InstanceServer/Configuration/InstanceServerSettings.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/InstanceServer/Configuration/InstanceServerSettings.cs
+ * Documents the InstanceServerSettings source file in the instance service startup and internal server coordination area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.InstanceServer.Configuration;
 
 /**
-  * Represents the instance server settings component in the server configuration loading and strongly typed settings area.
-  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
-  */
+ * Owns the instance server settings behavior for the instance service startup and internal server coordination layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class InstanceServerSettings
 {
     /**

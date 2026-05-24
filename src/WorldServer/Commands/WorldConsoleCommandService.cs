@@ -19,11 +19,12 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/WorldServer/Commands/WorldConsoleCommandService.cs
-  * This file belongs to the console command parsing and dispatch portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/WorldServer/Commands/WorldConsoleCommandService.cs
+ * Documents the WorldConsoleCommandService source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.WorldServer.Commands;
 
@@ -35,26 +36,26 @@ public sealed class WorldConsoleCommandService
 {
     private readonly Func<string, int, CancellationToken, Task> _executeMapCommandAsync;
     /**
-      * Stores the command task dependency or runtime value for WorldConsoleCommandService.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private command task state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private Task? _commandTask;
 
     /**
-      * Creates a new WorldConsoleCommandService instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Initializes a new WorldConsoleCommandService instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: executeMapCommandAsync.
+     */
     public WorldConsoleCommandService(Func<string, int, CancellationToken, Task> executeMapCommandAsync)
     {
         _executeMapCommandAsync = executeMapCommandAsync ?? throw new ArgumentNullException(nameof(executeMapCommandAsync));
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     */
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -154,9 +155,9 @@ public sealed class WorldConsoleCommandService
     }
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of WorldConsoleCommandService and keeps this workflow isolated from the caller.
-      */
+     * Writes write map help data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     */
     private static void WriteMapHelp()
     {
         Logger.Write(LogType.TRACE, "Map commands:", nameof(WorldConsoleCommandService));

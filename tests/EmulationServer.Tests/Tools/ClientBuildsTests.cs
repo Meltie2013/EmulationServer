@@ -18,40 +18,42 @@
 
 using EmulationServer.Tools.Extraction.Client;
 
+
 /**
-  * File overview: tests/EmulationServer.Tests/Tools/ClientBuildsTests.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tests/EmulationServer.Tests/Tools/ClientBuildsTests.cs
+ * Documents the ClientBuildsTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tests.Tools;
 
 /**
-  * Represents the client builds tests component in the project runtime logic and supporting data models area.
-  * It documents expected behavior with automated assertions so regressions are easier to detect.
-  */
+ * Owns the client builds tests behavior for the automated test coverage for server behavior and data helpers layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ClientBuildsTests
 {
+    /**
+     * Determines whether supported returns true for expected extractor builds for the automated test coverage for server behavior and data helpers workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: build.
+     */
     [Theory]
     [InlineData(5875)]
     [InlineData(6005)]
     [InlineData(6141)]
     [InlineData(8606)]
     [InlineData(12340)]
-    /**
-      * Performs the is supported returns true for expected extractor builds operation for ClientBuildsTests.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
     public void IsSupported_ReturnsTrue_ForExpectedExtractorBuilds(ushort build)
     {
         Assert.True(ClientBuilds.IsSupported(build));
     }
 
-    [Fact]
     /**
-      * Performs the require throws for unsupported build operation for ClientBuildsTests.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Requires throws for unsupported build for the automated test coverage for server behavior and data helpers workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
+    [Fact]
     public void Require_Throws_ForUnsupportedBuild()
     {
         Assert.Throws<NotSupportedException>(() => ClientBuilds.Require(15595));

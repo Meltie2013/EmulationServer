@@ -22,52 +22,57 @@ using System.Net.Sockets;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSession.cs
-  * This file belongs to the network session lifecycle and packet dispatch portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSession.cs
+ * Documents the RealmSession source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Sessions;
 
 /**
-  * Represents the realm session component in the network session lifecycle and packet dispatch area.
-  * It stores per-connection runtime state and provides the operations needed by session handlers.
-  */
+ * Owns the realm session behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class RealmSession
 {
+    /**
+     * Defines the constant value for receive buffer size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int ReceiveBufferSize = 4096;
 
     /**
-      * Stores the client dependency or runtime value for RealmSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private client state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TcpClient _client;
     /**
-      * Stores the stream dependency or runtime value for RealmSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stream state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly NetworkStream _stream;
     /**
-      * Stores the session processor dependency or runtime value for RealmSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private session processor state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly IRealmSessionProcessor? _sessionProcessor;
     /**
-      * Stores the disconnect cancellation dependency or runtime value for RealmSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private disconnect cancellation state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly CancellationTokenSource _disconnectCancellation = new();
     /**
-      * Stores the remote end point dependency or runtime value for RealmSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private remote end point state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _remoteEndPoint;
 
     /**
-      * Stores the disconnect requested dependency or runtime value for RealmSession.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private disconnect requested state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _disconnectRequested;
 
     /**
@@ -77,9 +82,10 @@ public sealed class RealmSession
     public Guid Id { get; } = Guid.NewGuid();
 
     /**
-      * Creates a new RealmSession instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new RealmSession instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: client, sessionProcessor.
+     */
     public RealmSession(TcpClient client, IRealmSessionProcessor? sessionProcessor = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -144,10 +150,10 @@ public sealed class RealmSession
     }
 
     /**
-      * Performs the disconnect async operation for RealmSession.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the disconnect operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task DisconnectAsync()
     {
         if (Interlocked.Exchange(ref _disconnectRequested, 1) == 1)

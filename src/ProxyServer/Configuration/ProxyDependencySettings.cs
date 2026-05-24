@@ -16,18 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/ProxyServer/Configuration/ProxyDependencySettings.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/ProxyServer/Configuration/ProxyDependencySettings.cs
+ * Documents the ProxyDependencySettings source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.ProxyServer.Configuration;
 
 /**
-  * Represents the proxy dependency settings component in the server configuration loading and strongly typed settings area.
-  * It keeps configuration values grouped by responsibility and prevents unrelated server code from reading raw INI keys.
-  */
+ * Owns the proxy dependency settings behavior for the proxy startup, service discovery, and client-routing support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ProxyDependencySettings
 {
     /**

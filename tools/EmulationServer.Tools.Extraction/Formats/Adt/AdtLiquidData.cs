@@ -18,18 +18,19 @@
 
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtLiquidData.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtLiquidData.cs
+ * Documents the AdtLiquidData source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
 /**
-  * Represents the adt liquid data component in the developer tooling for data extraction, validation, and diagnostics area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the adt liquid data behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class AdtLiquidData
 {
     /**
@@ -103,9 +104,10 @@ public sealed class AdtLiquidData
     }
 
     /**
-      * Performs the mark visible operation for AdtLiquidData.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the mark visible operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: y, x.
+     */
     public void MarkVisible(int y, int x)
     {
         if (y < 0 || y >= 128 || x < 0 || x >= 128)

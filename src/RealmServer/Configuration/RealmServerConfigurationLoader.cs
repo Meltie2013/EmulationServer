@@ -23,23 +23,40 @@ using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 using EmulationServer.Shared.Configuration;
 
+
 /**
-  * File overview: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
+ * Documents the RealmServerConfigurationLoader source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Configuration;
 
 /**
-  * Represents the realm server configuration loader component in the server configuration loading and strongly typed settings area.
-  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
-  */
+ * Owns the realm server configuration loader behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class RealmServerConfigurationLoader
 {
+    /**
+     * Defines the constant value for realm server section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string RealmServerSection = "RealmServer";
+    /**
+     * Defines the constant value for database section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string DatabaseSection = "Database";
+    /**
+     * Defines the constant value for realms section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string RealmsSection = "Realms";
+    /**
+     * Defines the constant value for internal network section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string InternalNetworkSection = "InternalNetwork";
 
     /**

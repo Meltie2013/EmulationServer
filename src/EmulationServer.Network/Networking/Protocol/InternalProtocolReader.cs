@@ -20,6 +20,12 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
 
+/**
+ * File overview: src/EmulationServer.Network/Networking/Protocol/InternalProtocolReader.cs
+ * Documents the InternalProtocolReader source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Network.Networking.Protocol;
 
 /**
@@ -28,15 +34,44 @@ namespace EmulationServer.Network.Networking.Protocol;
   */
 public sealed class InternalProtocolReader : IDisposable
 {
+    /**
+     * Defines the constant value for default buffer size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int DefaultBufferSize = 4096;
 
+    /**
+     * Holds the private stream state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly NetworkStream _stream;
+    /**
+     * Holds the private buffer state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly byte[] _buffer;
 
+    /**
+     * Holds the private offset state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _offset;
+    /**
+     * Holds the private available state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _available;
+    /**
+     * Holds the private disposed state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private bool _disposed;
 
+    /**
+     * Initializes a new InternalProtocolReader instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: stream, bufferSize.
+     */
     public InternalProtocolReader(NetworkStream stream, int bufferSize = DefaultBufferSize)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -104,6 +139,10 @@ public sealed class InternalProtocolReader : IDisposable
         }
     }
 
+    /**
+     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     */
     public void Dispose()
     {
         if (_disposed)
@@ -115,6 +154,11 @@ public sealed class InternalProtocolReader : IDisposable
         ArrayPool<byte>.Shared.Return(_buffer);
     }
 
+    /**
+     * Performs the decode line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: lineBuffer.
+     */
     private static string DecodeLine(MemoryStream lineBuffer)
     {
         return Encoding.UTF8.GetString(lineBuffer.GetBuffer(), 0, (int)lineBuffer.Length).Trim();

@@ -16,24 +16,26 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/GameDataPathResolver.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Data/GameDataPathResolver.cs
+ * Documents the GameDataPathResolver source file in the server runtime support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data;
 
 /**
-  * Represents the game data path resolver component in the project runtime logic and supporting data models area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the game data path resolver behavior for the server runtime support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class GameDataPathResolver
 {
     /**
-      * Performs the resolve directory operation for GameDataPathResolver.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Resolves the directory value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: dataDirectory, childDirectory.
+     */
     public static string ResolveDirectory(string dataDirectory, string childDirectory)
     {
         if (string.IsNullOrWhiteSpace(dataDirectory))

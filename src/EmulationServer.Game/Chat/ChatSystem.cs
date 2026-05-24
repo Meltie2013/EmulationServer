@@ -22,10 +22,24 @@ using EmulationServer.Game.Players;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+ * File overview: src/EmulationServer.Game/Chat/ChatSystem.cs
+ * Documents the ChatSystem source file in the chat channel normalization, language handling, and message routing area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Chat;
 
+/**
+ * Owns the chat system behavior for the chat channel normalization, language handling, and message routing layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ChatSystem
 {
+    /**
+     * Exposes the default channels value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static IReadOnlyList<string> DefaultChannels { get; } =
     [
         "General",
@@ -33,13 +47,27 @@ public sealed class ChatSystem
         "LookingForGroup",
     ];
 
+    /**
+     * Holds the private game data accessor state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly Func<WorldGameDataStore> _gameDataAccessor;
 
+    /**
+     * Initializes a new ChatSystem instance with the dependencies required by the chat channel normalization, language handling, and message routing workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: gameDataAccessor.
+     */
     public ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null)
     {
         _gameDataAccessor = gameDataAccessor ?? (() => WorldGameDataStore.Empty);
     }
 
+    /**
+     * Resolves the default channel names value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: player.
+     */
     public IReadOnlyList<string> GetDefaultChannelNames(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -50,6 +78,11 @@ public sealed class ChatSystem
         return dbcChannels.Count == 0 ? DefaultChannels : dbcChannels;
     }
 
+    /**
+     * Resolves the channel name value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: player, channelName.
+     */
     public string ResolveChannelName(PlayerLoginRecord player, string channelName)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -59,6 +92,11 @@ public sealed class ChatSystem
         return NormalizeChannelName(gameData.ChatData.ResolveChannelName(channelName, zoneName));
     }
 
+    /**
+     * Normalizes the incoming message for the chat channel normalization, language handling, and message routing workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: player, message.
+     */
     public ChatIncomingMessage NormalizeIncomingMessage(PlayerLoginRecord player, ChatIncomingMessage message)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -86,6 +124,11 @@ public sealed class ChatSystem
         };
     }
 
+    /**
+     * Resolves the language for player value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: player, requestedLanguage.
+     */
     public ChatLanguage ResolveLanguageForPlayer(PlayerLoginRecord player, ChatLanguage requestedLanguage)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -109,6 +152,11 @@ public sealed class ChatSystem
         return GetDefaultLanguage(player);
     }
 
+    /**
+     * Resolves the default language value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: player.
+     */
     public ChatLanguage GetDefaultLanguage(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -118,6 +166,11 @@ public sealed class ChatSystem
             : ChatLanguage.Orcish;
     }
 
+    /**
+     * Resolves the channel flags value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: player, channelName.
+     */
     public uint ResolveChannelFlags(PlayerLoginRecord player, string channelName)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -128,6 +181,11 @@ public sealed class ChatSystem
         return unchecked((uint)flags);
     }
 
+    /**
+     * Resolves the channel player rank value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: player.
+     */
     public uint ResolveChannelPlayerRank(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -137,6 +195,11 @@ public sealed class ChatSystem
         return 0;
     }
 
+    /**
+     * Determines whether allowed client chat type for the chat channel normalization, language handling, and message routing workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: messageType.
+     */
     private static bool IsAllowedClientChatType(ChatMessageType messageType)
     {
         return messageType is
@@ -151,6 +214,11 @@ public sealed class ChatSystem
             ChatMessageType.Channel;
     }
 
+    /**
+     * Resolves the recipients value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: sender, message, availableSessions.
+     */
     public IReadOnlyList<IChatSession> GetRecipients(
         IChatSession sender,
         ChatIncomingMessage message,
@@ -184,16 +252,31 @@ public sealed class ChatSystem
         };
     }
 
+    /**
+     * Determines whether command message for the chat channel normalization, language handling, and message routing workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: message.
+     */
     public static bool IsCommandMessage(ChatIncomingMessage message)
     {
         return !string.IsNullOrWhiteSpace(message.Text) && message.Text[0] == '.';
     }
 
+    /**
+     * Normalizes the channel name for the chat channel normalization, language handling, and message routing workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: channelName.
+     */
     public static string NormalizeChannelName(string channelName)
     {
         return string.IsNullOrWhiteSpace(channelName) ? "General" : channelName.Trim();
     }
 
+    /**
+     * Applies the join channel state transition to the current runtime session.
+     * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
+     * Inputs used by this operation: session, channelName.
+     */
     public void JoinChannel(IChatSession session, string channelName)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -204,6 +287,11 @@ public sealed class ChatSystem
         Logger.Write(LogType.NETWORK, $"Player '{player.Name}' joined faction-scoped channel '{normalized}'.", nameof(ChatSystem));
     }
 
+    /**
+     * Applies the leave channel state transition to the current runtime session.
+     * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
+     * Inputs used by this operation: session, channelName.
+     */
     public void LeaveChannel(IChatSession session, string channelName)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -214,6 +302,11 @@ public sealed class ChatSystem
         Logger.Write(LogType.NETWORK, $"Player '{player.Name}' left faction-scoped channel '{normalized}'.", nameof(ChatSystem));
     }
 
+    /**
+     * Resolves the zone name value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: gameData, player.
+     */
     private static string ResolveZoneName(WorldGameDataStore gameData, PlayerLoginRecord player)
     {
         if (gameData.MapData.Areas.TryGetValue(unchecked((int)player.Zone), out AreaTableDbcRecord? area))

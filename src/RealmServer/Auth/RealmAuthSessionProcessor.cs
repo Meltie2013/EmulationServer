@@ -25,96 +25,98 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
-  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
+ * Documents the RealmAuthSessionProcessor source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
-  * Represents the realm auth session processor component in the realm authentication, build validation, and realm list packet creation area.
-  * It receives input from a session and drives the next step in the protocol state machine.
-  */
+ * Owns the realm auth session processor behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 {
     /**
-      * Stores the account repository dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private account repository state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly AccountRepository _accountRepository;
     /**
-      * Stores the realm list packet builder dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private realm list packet builder state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly RealmListPacketBuilder _realmListPacketBuilder;
 
     /**
-      * Stores the status dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private status state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private RealmAuthStatus _status = RealmAuthStatus.Challenge;
     /**
-      * Stores the account dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private account state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private AccountLogonRecord? _account;
     /**
-      * Stores the login dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private login state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private string _login = string.Empty;
     /**
-      * Stores the os dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private os state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private string _os = string.Empty;
     /**
-      * Stores the locale name dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private locale name state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private string _localeName = "enUS";
     /**
-      * Stores the locale dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private locale state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private byte _locale;
     /**
-      * Stores the build dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private build state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private ushort _build;
     /**
-      * Stores the salt dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private salt state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private BigInteger _salt;
     /**
-      * Stores the verifier dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private verifier state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private BigInteger _verifier;
     /**
-      * Stores the host private ephemeral dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private host private ephemeral state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private BigInteger _hostPrivateEphemeral;
     /**
-      * Stores the host public ephemeral dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private host public ephemeral state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private BigInteger _hostPublicEphemeral;
     /**
-      * Stores the session key dependency or runtime value for RealmAuthSessionProcessor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private session key state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private byte[] _sessionKey = [];
 
     /**
-      * Creates a new RealmAuthSessionProcessor instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new RealmAuthSessionProcessor instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: accountRepository, realmListPacketBuilder.
+     */
     public RealmAuthSessionProcessor(AccountRepository accountRepository, RealmListPacketBuilder realmListPacketBuilder)
     {
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
@@ -316,11 +318,11 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
     }
 
     /**
-      * Performs the prepare srp challenge async operation for RealmAuthSessionProcessor.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Performs the prepare srp challenge operation for the realm authentication, realm-list handling, and external client login services workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: account, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task PrepareSrpChallengeAsync(AccountLogonRecord account, CancellationToken cancellationToken)
     {
         if (Srp6Utilities.IsValidStoredSrpValue(account.Verifier) && Srp6Utilities.IsValidStoredSrpValue(account.Salt))
@@ -466,9 +468,10 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
     }
 
     /**
-      * Performs the reverse four character string operation for RealmAuthSessionProcessor.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the reverse four character string operation for the realm authentication, realm-list handling, and external client login services workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: value.
+     */
     private static string ReverseFourCharacterString(ReadOnlySpan<byte> value)
     {
         Span<byte> copy = stackalloc byte[4];
@@ -501,6 +504,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
     /**
       * Represents immutable struct data passed between parts of the server.
       * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+     * Positional fields carried by this record: Build, OperatingSystem, LocaleName, Username.
       */
     private readonly record struct LogonChallenge(ushort Build, string OperatingSystem, string LocaleName, string Username);
 }

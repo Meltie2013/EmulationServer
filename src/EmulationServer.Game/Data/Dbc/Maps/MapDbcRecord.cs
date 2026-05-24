@@ -16,15 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcRecord.cs
-  * This file exposes strongly typed Map.dbc rows for map service registration, routing, and validation.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcRecord.cs
+ * Documents the MapDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
 /**
   * Represents one Map.dbc row with the fields needed by WorldServer, MapServer, and InstanceServer.
+ * Positional fields carried by this record: Id, InternalName, InstanceType, IsBattleground, Name, MinLevel, MaxLevel, MaxPlayers, ParentMapId, LoadingScreenId, RaidOffset, ContinentName, BattlefieldMapIconScale.
   */
 public sealed record MapDbcRecord(
     int Id,

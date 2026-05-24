@@ -16,26 +16,27 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceKind.cs
-  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceKind.cs
+ * Documents the MapServiceKind source file in the runtime map-player state tracking area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
 /**
-  * Defines the allowed map service kind values used to keep state and protocol decisions explicit.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Lists the supported map service kind values used by the runtime map-player state tracking layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum MapServiceKind
 {
     /**
-      * Represents the world value for MapServiceKind.
-      */
+     * Represents the world value for map service kind handling.
+     */
     World = 0,
     /**
-      * Represents the instance value for MapServiceKind.
-      */
+     * Represents the instance value for map service kind handling.
+     */
     Instance = 1,
 }

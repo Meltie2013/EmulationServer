@@ -16,24 +16,26 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/MapFormatException.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/MapFormatException.cs
+ * Documents the MapFormatException source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps;
 
 /**
-  * Represents the map format exception component in the developer tooling for data extraction, validation, and diagnostics area.
-  * It identifies a project-specific failure mode so callers can distinguish expected validation errors from unexpected crashes.
-  */
+ * Owns the map format exception behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class MapFormatException : Exception
 {
     /**
-      * Creates a new MapFormatException instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new MapFormatException instance with the dependencies required by the client data extraction and conversion tooling workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: message.
+     */
     public MapFormatException(string message)
         : base(message)
     {

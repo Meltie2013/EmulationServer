@@ -23,11 +23,12 @@ using EmulationServer.Game.Data.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapGridManager.cs
-  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Maps/Runtime/MapGridManager.cs
+ * Documents the MapGridManager source file in the runtime map-player state tracking area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
@@ -38,36 +39,37 @@ namespace EmulationServer.Game.Maps.Runtime;
 public sealed class MapGridManager
 {
     /**
-      * Stores the definition dependency or runtime value for MapGridManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private definition state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MapServiceDefinition _definition;
     /**
-      * Stores the maps directory dependency or runtime value for MapGridManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private maps directory state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _mapsDirectory;
     /**
-      * Stores the loading mode dependency or runtime value for MapGridManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private loading mode state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MapGridLoadingMode _loadingMode;
     /**
-      * Stores the keep loaded dependency or runtime value for MapGridManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private keep loaded state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly bool _keepLoaded;
     /**
-      * Stores the idle unload delay dependency or runtime value for MapGridManager.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private idle unload delay state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TimeSpan _idleUnloadDelay;
     private readonly ConcurrentDictionary<MapTileKey, LoadedMapGrid> _loadedGrids = new();
 
     /**
-      * Creates a new MapGridManager instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new MapGridManager instance with the dependencies required by the runtime map-player state tracking workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: definition, mapsDirectory, loadingMode, keepLoaded, idleUnloadDelay.
+     */
     public MapGridManager(
         MapServiceDefinition definition,
         string mapsDirectory,
@@ -150,9 +152,10 @@ public sealed class MapGridManager
 
 
     /**
-      * Performs the unload all grids operation for MapGridManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the unload all grids operation for the runtime map-player state tracking workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: reason.
+     */
     public int UnloadAllGrids(string reason)
     {
         int unloaded = 0;
@@ -169,9 +172,9 @@ public sealed class MapGridManager
     }
 
     /**
-      * Performs the unload idle grids operation for MapGridManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the unload idle grids operation for the runtime map-player state tracking workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
     public void UnloadIdleGrids()
     {
         if (_keepLoaded || _idleUnloadDelay <= TimeSpan.Zero)
@@ -195,11 +198,11 @@ public sealed class MapGridManager
     }
 
     /**
-      * Performs the preload all tiles for map async operation for MapGridManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Performs the preload all tiles for map operation for the runtime map-player state tracking workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private async Task PreloadAllTilesForMapAsync(CancellationToken cancellationToken)
     {
         int loaded = 0;
@@ -242,9 +245,10 @@ public sealed class MapGridManager
     }
 
     /**
-      * Performs the resolve tile path operation for MapGridManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Resolves the tile path value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: key.
+     */
     private string ResolveTilePath(MapTileKey key)
     {
         string fileName = string.Create(CultureInfo.InvariantCulture, $"{key.MapId:000}{key.TileX:00}{key.TileY:00}.map");
@@ -264,9 +268,9 @@ public sealed class MapGridManager
     }
 
     /**
-      * Performs the enumerate map tile files for map operation for MapGridManager.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the enumerate map tile files for map operation for the runtime map-player state tracking workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
     private IEnumerable<string> EnumerateMapTileFilesForMap()
     {
         string prefix = _definition.MapId.ToString("000", CultureInfo.InvariantCulture);

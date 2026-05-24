@@ -19,10 +19,12 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcTypedRecordLoader.cs
-  * This file provides reusable typed DBC load helpers for character, item, spell, faction, and future stores.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/DbcTypedRecordLoader.cs
+ * Documents the DbcTypedRecordLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc;
 

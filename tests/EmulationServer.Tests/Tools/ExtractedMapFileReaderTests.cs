@@ -20,25 +20,26 @@ using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Validation;
 
+
 /**
-  * File overview: tests/EmulationServer.Tests/Tools/ExtractedMapFileReaderTests.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tests/EmulationServer.Tests/Tools/ExtractedMapFileReaderTests.cs
+ * Documents the ExtractedMapFileReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tests.Tools;
 
 /**
-  * Represents the extracted map file reader tests component in the project runtime logic and supporting data models area.
-  * It documents expected behavior with automated assertions so regressions are easier to detect.
-  */
+ * Owns the extracted map file reader tests behavior for the automated test coverage for server behavior and data helpers layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ExtractedMapFileReaderTests
 {
-    [Fact]
     /**
       * Reads structured input from the supplied source and converts it into the project model.
       * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
       */
+    [Fact]
     public void Read_WithLiquidSection_ReturnsLiquidMetadata()
     {
         string path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.map");
@@ -64,11 +65,11 @@ public sealed class ExtractedMapFileReaderTests
         }
     }
 
-    [Fact]
     /**
       * Verifies that loaded data satisfies the expected format and consistency rules.
       * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
       */
+    [Fact]
     public void Verify_WithLiquidSection_DoesNotReportLiquidErrors()
     {
         string path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.map");
@@ -90,9 +91,10 @@ public sealed class ExtractedMapFileReaderTests
     }
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
+     * Writes write minimal map with liquid data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     * Inputs used by this operation: path.
+     */
     private static void WriteMinimalMapWithLiquid(string path)
     {
         byte[] areaSection = BuildAreaSection();
@@ -184,9 +186,10 @@ public sealed class ExtractedMapFileReaderTests
     }
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
+     * Writes write four cc data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     * Inputs used by this operation: writer, fourCC.
+     */
     private static void WriteFourCC(BinaryWriter writer, string fourCC)
     {
         writer.Write(Encoding.ASCII.GetBytes(fourCC));

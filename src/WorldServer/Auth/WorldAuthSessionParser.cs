@@ -18,10 +18,25 @@
 
 using EmulationServer.WorldServer.Networking.Packets;
 
+/**
+ * File overview: src/WorldServer/Auth/WorldAuthSessionParser.cs
+ * Documents the WorldAuthSessionParser source file in the world authentication parsing and session key handling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.WorldServer.Auth;
 
+/**
+ * Owns the world auth session parser behavior for the world authentication parsing and session key handling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class WorldAuthSessionParser
 {
+    /**
+     * Parses parse input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: payload.
+     */
     public static WorldAuthSessionRequest Parse(byte[] payload)
     {
         WorldPacketReader reader = new(payload);

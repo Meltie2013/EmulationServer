@@ -18,24 +18,26 @@
 
 using EmulationServer.Game.Data.Maps;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/LoadedMapGrid.cs
-  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Maps/Runtime/LoadedMapGrid.cs
+ * Documents the LoadedMapGrid source file in the runtime map-player state tracking area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
 /**
-  * Represents the loaded map grid component in the map service runtime, grid ownership, service state transitions, and health reporting area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the loaded map grid behavior for the runtime map-player state tracking layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class LoadedMapGrid
 {
     /**
-      * Creates a new LoadedMapGrid instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new LoadedMapGrid instance with the dependencies required by the runtime map-player state tracking workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: tile.
+     */
     public LoadedMapGrid(MapTileDataStore tile)
     {
         Tile = tile ?? throw new ArgumentNullException(nameof(tile));
@@ -62,9 +64,9 @@ public sealed class LoadedMapGrid
     public DateTimeOffset LastUsedUtc { get; private set; }
 
     /**
-      * Performs the touch operation for LoadedMapGrid.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the touch operation for the runtime map-player state tracking workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     */
     public void Touch()
     {
         LastUsedUtc = DateTimeOffset.UtcNow;

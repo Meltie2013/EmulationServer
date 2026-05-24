@@ -19,18 +19,19 @@
 using System.Buffers.Binary;
 using System.Text;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunkReader.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunkReader.cs
+ * Documents the AdtChunkReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
 /**
-  * Represents the adt chunk reader component in the developer tooling for data extraction, validation, and diagnostics area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the adt chunk reader behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class AdtChunkReader
 {
     /**

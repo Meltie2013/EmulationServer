@@ -24,11 +24,12 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Health/InternalLatencyMonitor.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Health/InternalLatencyMonitor.cs
+ * Documents the InternalLatencyMonitor source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Health;
 
@@ -39,67 +40,68 @@ namespace EmulationServer.Network.Networking.Health;
 public sealed class InternalLatencyMonitor : IAsyncDisposable
 {
     /**
-      * Stores the local server name dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private local server name state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _localServerName;
     /**
-      * Stores the remote server name dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private remote server name state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _remoteServerName;
     /**
-      * Stores the stream dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stream state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly NetworkStream _stream;
     /**
-      * Stores the send lock dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private send lock state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly SemaphoreSlim _sendLock;
     /**
-      * Stores the report interval dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private report interval state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TimeSpan _reportInterval;
     /**
-      * Stores the ping timeout dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private ping timeout state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly TimeSpan _pingTimeout;
     private readonly ConcurrentDictionary<long, PendingPing> _pendingPings = new();
 
     /**
-      * Stores the stop cancellation dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stop cancellation state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private CancellationTokenSource? _stopCancellation;
     /**
-      * Stores the monitor task dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private monitor task state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private Task? _monitorTask;
     /**
-      * Stores the next ping id dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private next ping id state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private long _nextPingId;
     /**
-      * Stores the started dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private started state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _started;
     /**
-      * Stores the stopping dependency or runtime value for InternalLatencyMonitor.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private stopping state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _stopping;
 
     /**
-      * Creates a new InternalLatencyMonitor instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new InternalLatencyMonitor instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: localServerName, remoteServerName, stream, sendLock, reportInterval, pingTimeout.
+     */
     public InternalLatencyMonitor(
         string localServerName,
         string remoteServerName,
@@ -137,10 +139,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     */
     public void Start(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -153,11 +155,11 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
     }
 
     /**
-      * Stops the component and releases runtime resources in a controlled order.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -192,21 +194,21 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
     }
 
     /**
-      * Releases owned resources and ensures background work is stopped safely.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
     /**
-      * Performs the respond to ping async operation for InternalLatencyMonitor.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Performs the respond to ping operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: pingId, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task RespondToPingAsync(string pingId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(pingId))
@@ -224,9 +226,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
     }
 
     /**
-      * Performs the record pong operation for InternalLatencyMonitor.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the record pong operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: pingId.
+     */
     public void RecordPong(string pingId)
     {
         if (!long.TryParse(pingId, out long id))
@@ -343,6 +346,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
     /**
       * Represents immutable pending ping data passed between parts of the server.
       * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
+     * Positional fields carried by this record: StartTimestamp.
       */
     private sealed record PendingPing(long StartTimestamp);
 }

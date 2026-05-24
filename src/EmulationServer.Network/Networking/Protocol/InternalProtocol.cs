@@ -20,43 +20,132 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalProtocol.cs
-  * This file belongs to the internal server-to-server protocol packet parsing and formatting portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Protocol/InternalProtocol.cs
+ * Documents the InternalProtocol source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Protocol;
 
 /**
-  * Represents the internal protocol component in the internal server-to-server protocol packet parsing and formatting area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the internal protocol behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class InternalProtocol
 {
+    /**
+     * Defines the constant value for maximum authentication line length.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const int MaximumAuthenticationLineLength = 512;
+    /**
+     * Defines the constant value for maximum packet line length.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const int MaximumPacketLineLength = 2048;
 
+    /**
+     * Defines the constant value for authentication nonce byte length.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int AuthenticationNonceByteLength = 32;
+    /**
+     * Defines the constant value for maximum server name length.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int MaximumServerNameLength = 64;
 
+    /**
+     * Defines the constant value for authentication challenge.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string AuthenticationChallenge = "AUTH_CHALLENGE";
+    /**
+     * Defines the constant value for authentication response.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string AuthenticationResponse = "AUTH_RESPONSE";
+    /**
+     * Defines the constant value for authentication accepted.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string AuthenticationAccepted = "AUTH_ACCEPTED";
+    /**
+     * Defines the constant value for authentication rejected.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string AuthenticationRejected = "AUTH_REJECTED";
+    /**
+     * Defines the constant value for ping.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string Ping = "PING";
+    /**
+     * Defines the constant value for pong.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string Pong = "PONG";
+    /**
+     * Defines the constant value for shutdown request.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string ShutdownRequest = "SHUTDOWN_REQUEST";
+    /**
+     * Defines the constant value for world capacity.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string WorldCapacity = "WORLD_CAPACITY";
+    /**
+     * Defines the constant value for map service status.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string MapServiceStatus = "MAP_SERVICE_STATUS";
+    /**
+     * Defines the constant value for realm character count snapshot begin.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string RealmCharacterCountSnapshotBegin = "REALM_CHARACTER_COUNT_SNAPSHOT_BEGIN";
+    /**
+     * Defines the constant value for realm character count snapshot data.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string RealmCharacterCountSnapshotData = "REALM_CHARACTER_COUNT_SNAPSHOT_DATA";
+    /**
+     * Defines the constant value for realm character count snapshot end.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string RealmCharacterCountSnapshotEnd = "REALM_CHARACTER_COUNT_SNAPSHOT_END";
+    /**
+     * Defines the constant value for map service command.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string MapServiceCommand = "MAP_SERVICE_COMMAND";
+    /**
+     * Defines the constant value for map service command result.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
+    /**
+     * Defines the constant value for player enter world.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string PlayerEnterWorld = "PLAYER_ENTER_WORLD";
+    /**
+     * Defines the constant value for player leave world.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string PlayerLeaveWorld = "PLAYER_LEAVE_WORLD";
+    /**
+     * Defines the constant value for player movement.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string PlayerMovement = "PLAYER_MOVEMENT";
+    /**
+     * Defines the constant value for player client packet.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     public const string PlayerClientPacket = "PLAYER_CLIENT_PACKET";
 
     /**
@@ -101,11 +190,11 @@ public static class InternalProtocol
     }
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of InternalProtocol and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Writes write line data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     * Inputs used by this operation: stream, sendLock, line, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public static async Task WriteLineAsync(NetworkStream stream, SemaphoreSlim sendLock, string line, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -222,9 +311,10 @@ public static class InternalProtocol
     }
 
     /**
-      * Performs the registration keys match operation for InternalProtocol.
-      * This remains available for tests and old helpers, but new authentication uses HMAC proofs.
-      */
+     * Performs the registration keys match operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: expected, actual.
+     */
     public static bool RegistrationKeysMatch(string expected, string actual)
     {
         byte[] expectedBytes = Encoding.UTF8.GetBytes(expected);

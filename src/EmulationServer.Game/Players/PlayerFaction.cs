@@ -16,11 +16,30 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Players/PlayerFaction.cs
+ * Documents the PlayerFaction source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Players;
 
+/**
+ * Lists the supported player faction values used by the logged-in player state, persistence models, and gameplay records layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum PlayerFaction
 {
+    /**
+     * Represents the neutral value for player faction handling.
+     */
     Neutral = 0,
+    /**
+     * Represents the alliance value for player faction handling.
+     */
     Alliance = 1,
+    /**
+     * Represents the horde value for player faction handling.
+     */
     Horde = 2,
 }

@@ -16,33 +16,35 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Shared/Configuration/ConfigurationException.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Shared/Configuration/ConfigurationException.cs
+ * Documents the ConfigurationException source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Shared.Configuration;
 
 /**
-  * Represents the configuration exception component in the server configuration loading and strongly typed settings area.
-  * It identifies a project-specific failure mode so callers can distinguish expected validation errors from unexpected crashes.
-  */
+ * Owns the configuration exception behavior for the shared configuration, logging, and utility support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ConfigurationException : Exception
 {
     /**
-      * Creates a new ConfigurationException instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new ConfigurationException instance with the dependencies required by the shared configuration, logging, and utility support workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     */
     public ConfigurationException(string message) : base(message)
     {
 
     }
 
     /**
-      * Creates a new ConfigurationException instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new ConfigurationException instance with the dependencies required by the shared configuration, logging, and utility support workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: message, innerException.
+     */
     public ConfigurationException(string message, Exception innerException) : base(message, innerException)
     {
 

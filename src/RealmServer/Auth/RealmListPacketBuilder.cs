@@ -18,32 +18,38 @@
 
 using EmulationServer.RealmServer.Realms;
 
+
 /**
-  * File overview: src/RealmServer/Auth/RealmListPacketBuilder.cs
-  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Auth/RealmListPacketBuilder.cs
+ * Documents the RealmListPacketBuilder source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
-  * Represents the realm list packet builder component in the realm authentication, build validation, and realm list packet creation area.
-  * It builds structured payloads while keeping binary or text protocol formatting out of the caller.
-  */
+ * Owns the realm list packet builder behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class RealmListPacketBuilder
 {
+    /**
+     * Defines the constant value for offline flag.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const byte OfflineFlag = 0x02;
 
     /**
-      * Stores the realm store dependency or runtime value for RealmListPacketBuilder.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private realm store state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly ConfiguredRealmStore _realmStore;
 
     /**
-      * Creates a new RealmListPacketBuilder instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new RealmListPacketBuilder instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: realmStore.
+     */
     public RealmListPacketBuilder(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException(nameof(realmStore));

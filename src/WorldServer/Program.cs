@@ -22,15 +22,18 @@ using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/WorldServer/Program.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
 
+/**
+ * File overview: src/WorldServer/Program.cs
+ * Documents the Program source file for the world server entry point.
+ * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
+ */
+
+// Create a shared cancellation source so Ctrl+C and shutdown paths use the same token.
 using CancellationTokenSource cancellation = new();
 
 
+// Convert Ctrl+C into cooperative cancellation instead of allowing the process to terminate abruptly.
 Console.CancelKeyPress += (_, eventArgs) =>
 {
     eventArgs.Cancel = true;
@@ -41,6 +44,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
     }
 };
 
+// Run startup inside a guarded block so configuration and runtime failures are logged before the process exits.
 try
 {
     string configurationPath = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "worldserver.ini");
@@ -61,15 +65,18 @@ try
 
     await server.StartAsync(cancellation.Token);
 }
+// Treat cancellation from the shared shutdown token as a normal operator-requested stop.
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
 {
     Logger.Write(LogType.INFORMATION, "Shutdown requested. Stopping WorldServer...", nameof(Program));
 }
+// Configuration errors are reported as critical startup failures with a non-zero exit code.
 catch (ConfigurationException exception)
 {
     Logger.Write(LogType.CRITICAL, $"Configuration error: {exception.Message}");
     Environment.ExitCode = 1;
 }
+// Unexpected failures are logged with full details so startup and runtime crashes can be diagnosed.
 catch (Exception exception)
 {
     Logger.Write(LogType.CRITICAL, exception.ToString());

@@ -24,21 +24,26 @@ using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging.Configuration;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Core/Configuration/ServerConfigurationLoader.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Core/Configuration/ServerConfigurationLoader.cs
+ * Documents the ServerConfigurationLoader source file in the shared startup, configuration, and host orchestration area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Core.Configuration;
 
 /**
-  * Represents the server configuration loader component in the server configuration loading and strongly typed settings area.
-  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
-  */
+ * Owns the server configuration loader behavior for the shared startup, configuration, and host orchestration layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class ServerConfigurationLoader
 {
 
+    /**
+     * Defines the constant value for logging section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string LoggingSection = "Logging";
 
     /**
@@ -88,6 +93,10 @@ public static class ServerConfigurationLoader
         };
     }
 
+    /**
+     * Defines the constant value for database section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string DatabaseSection = "Database";
 
     /**

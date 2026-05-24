@@ -16,8 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Characters/CharacterNameQueryResult.cs
+ * Documents the CharacterNameQueryResult source file in the character creation, listing, and identity transfer models area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Characters;
 
+/**
+ * Carries immutable character name query result data for the character creation, listing, and identity transfer models layer.
+ * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+ * Positional fields carried by this record: Guid, Name, Race, Gender, Class.
+ */
 public sealed record CharacterNameQueryResult(
     uint Guid,
     string Name,

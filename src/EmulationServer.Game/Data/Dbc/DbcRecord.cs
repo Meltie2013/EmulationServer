@@ -19,40 +19,42 @@
 using System.Buffers.Binary;
 using System.Text;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecord.cs
-  * This file belongs to the DBC file loading, validation, and raw record access portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecord.cs
+ * Documents the DbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc;
 
 /**
-  * Represents the dbc record component in the DBC file loading, validation, and raw record access area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the dbc record behavior for the DBC loading and strongly typed client data records layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public readonly struct DbcRecord
 {
     /**
-      * Stores the record data dependency or runtime value for DbcRecord.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private record data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly ReadOnlyMemory<byte> _recordData;
     /**
-      * Stores the string block dependency or runtime value for DbcRecord.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private string block state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly ReadOnlyMemory<byte> _stringBlock;
     /**
-      * Stores the field size dependency or runtime value for DbcRecord.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private field size state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly int _fieldSize;
 
     /**
-      * Creates a new DbcRecord instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new DbcRecord instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: recordData, stringBlock, fieldCount, fieldSize.
+     */
     internal DbcRecord(ReadOnlyMemory<byte> recordData, ReadOnlyMemory<byte> stringBlock, int fieldCount, int fieldSize)
     {
         _recordData = recordData;
@@ -213,9 +215,10 @@ public readonly struct DbcRecord
     }
 
     /**
-      * Performs the ensure field size operation for DbcRecord.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Validates ensure field size state before it is used by another server component.
+     * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
+     * Inputs used by this operation: fieldIndex, minimumFieldSize.
+     */
     private void EnsureFieldSize(int fieldIndex, int minimumFieldSize)
     {
         if (_fieldSize < minimumFieldSize)

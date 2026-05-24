@@ -16,16 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapBounds.cs
-  * This file contains a reusable bounds model for compact vmap model and placement output.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapBounds.cs
+ * Documents the VmapBounds source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
 /**
   * Stores an axis-aligned bounding box using minimum and maximum points.
   * Bounds are written into converted vmap files so runtime code can reject obvious misses before doing detailed triangle tests.
+ * Positional fields carried by this record: Minimum, Maximum.
   */
 public readonly record struct VmapBounds(VmapVector3 Minimum, VmapVector3 Maximum)
 {

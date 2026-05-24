@@ -20,26 +20,55 @@ using EmulationServer.Core.Configuration;
 using EmulationServer.Database.Configuration;
 using EmulationServer.Shared.Configuration;
 
+
 /**
-  * File overview: src/WorldServer/Configuration/WorldServerConfigurationLoader.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/WorldServer/Configuration/WorldServerConfigurationLoader.cs
+ * Documents the WorldServerConfigurationLoader source file in the world server configuration and startup settings area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.WorldServer.Configuration;
 
 /**
-  * Represents the world server configuration loader component in the server configuration loading and strongly typed settings area.
-  * It centralizes INI parsing so startup code can work with strongly typed settings instead of raw strings.
-  */
+ * Owns the world server configuration loader behavior for the world server configuration and startup settings layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class WorldServerConfigurationLoader
 {
+    /**
+     * Defines the constant value for world server section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string WorldServerSection = "WorldServer";
+    /**
+     * Defines the constant value for realm status section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string RealmStatusSection = "RealmStatus";
+    /**
+     * Defines the constant value for game data section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string GameDataSection = "GameData";
+    /**
+     * Defines the constant value for world client section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string WorldClientSection = "WorldClient";
+    /**
+     * Defines the constant value for auth database section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string AuthDatabaseSection = "AuthDatabase";
+    /**
+     * Defines the constant value for character database section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string CharacterDatabaseSection = "CharacterDatabase";
+    /**
+     * Defines the constant value for world database section.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string WorldDatabaseSection = "WorldDatabase";
 
     /**
@@ -114,8 +143,10 @@ public static class WorldServerConfigurationLoader
     }
 
     /**
-      * Loads the three MaNGOS-style database schemas used by WorldServer.
-      */
+     * Loads load world database settings information from configuration, files, or persistent storage.
+     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+     * Inputs used by this operation: configuration.
+     */
     private static WorldDatabaseSettings LoadWorldDatabaseSettings(IniConfiguration configuration)
     {
         DatabaseSettings fallback = ServerConfigurationLoader.LoadDatabaseSettings(configuration);

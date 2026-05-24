@@ -20,26 +20,32 @@ using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Logging.Formatting;
 using EmulationServer.Shared.Logging.Interfaces;
 
+
 /**
-  * File overview: src/EmulationServer.Shared/Logging/Services/ConsoleLogger.cs
-  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Shared/Logging/Services/ConsoleLogger.cs
+ * Documents the ConsoleLogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Shared.Logging.Services;
 
 /**
-  * Represents the console logger component in the logging configuration, formatting, filtering, and output routing area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the console logger behavior for the shared configuration, logging, and utility support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ConsoleLogger : ILogger
 {
+    /**
+     * Stores the default sync root value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     private static readonly object SyncRoot = new();
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of ConsoleLogger and keeps this workflow isolated from the caller.
-      */
+     * Writes write data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     * Inputs used by this operation: type, message, category.
+     */
     public void Write(LogType type, string message, string? category = null)
     {
         lock (SyncRoot)

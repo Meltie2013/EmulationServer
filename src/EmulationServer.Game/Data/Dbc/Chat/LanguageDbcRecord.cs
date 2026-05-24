@@ -16,8 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Chat/LanguageDbcRecord.cs
+ * Documents the LanguageDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Chat;
 
+/**
+ * Carries immutable language dbc record data for the DBC loading and strongly typed client data records layer.
+ * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+ * Positional fields carried by this record: Id, Name.
+ */
 public sealed record LanguageDbcRecord(
     int Id,
     string Name);

@@ -20,10 +20,12 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcDataStore.cs
-  * This file converts raw item DBC tables into typed item metadata used by starter gear and display validation.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcDataStore.cs
+ * Documents the ItemDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
@@ -32,6 +34,10 @@ namespace EmulationServer.Game.Data.Dbc.Items;
   */
 public sealed class ItemDbcDataStore
 {
+    /**
+     * Initializes a new ItemDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     */
     private ItemDbcDataStore()
     {
         Classes = new Dictionary<int, ItemClassDbcRecord>();
@@ -41,6 +47,11 @@ public sealed class ItemDbcDataStore
         BagFamilies = new Dictionary<int, ItemBagFamilyDbcRecord>();
     }
 
+    /**
+     * Initializes a new ItemDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: classes, subClasses, displayInfo, sets, bagFamilies.
+     */
     private ItemDbcDataStore(
         IReadOnlyDictionary<int, ItemClassDbcRecord> classes,
         IReadOnlyDictionary<(int ItemClassId, int SubClassId), ItemSubClassDbcRecord> subClasses,
@@ -167,6 +178,11 @@ public sealed class ItemDbcDataStore
         return DisplayInfo.TryGetValue(displayId, out displayInfo!);
     }
 
+    /**
+     * Parses read item class record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static ItemClassDbcRecord ReadItemClassRecord(DbcRecord record)
     {
         return new ItemClassDbcRecord(
@@ -176,6 +192,11 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadString(record, 3));
     }
 
+    /**
+     * Parses read item sub class record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static ItemSubClassDbcRecord ReadItemSubClassRecord(DbcRecord record)
     {
         return new ItemSubClassDbcRecord(
@@ -189,6 +210,11 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadString(record, 19));
     }
 
+    /**
+     * Parses read item display info record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static ItemDisplayInfoDbcRecord ReadItemDisplayInfoRecord(DbcRecord record)
     {
         string[] textures =
@@ -222,6 +248,11 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadInt32(record, 22));
     }
 
+    /**
+     * Parses read item set record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static ItemSetDbcRecord ReadItemSetRecord(DbcRecord record)
     {
         int[] itemIds = Enumerable.Range(10, 17)
@@ -247,6 +278,11 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadInt32(record, 44));
     }
 
+    /**
+     * Parses read item bag family record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static ItemBagFamilyDbcRecord ReadItemBagFamilyRecord(DbcRecord record)
     {
         return new ItemBagFamilyDbcRecord(

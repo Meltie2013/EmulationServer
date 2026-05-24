@@ -21,11 +21,12 @@ using EmulationServer.Tools.Extraction.Extraction;
 using EmulationServer.Tools.Extraction.Formats.Dbc;
 using EmulationServer.Tools.Extraction.Validation;
 
+
 /**
-  * File overview: tools/MapDataTool/Program.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/MapDataTool/Program.cs
+ * Documents the Program source file for the map data command-line tooling entry point.
+ * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
+ */
 
 if (args.Length == 0 || IsHelp(args[0]))
 {
@@ -33,6 +34,7 @@ if (args.Length == 0 || IsHelp(args[0]))
     return 0;
 }
 
+// Run startup inside a guarded block so configuration and runtime failures are logged before the process exits.
 try
 {
     return args[0].ToLowerInvariant() switch
@@ -50,6 +52,7 @@ try
         _ => UnknownCommand(args[0]),
     };
 }
+// Unexpected failures are logged with full details so startup and runtime crashes can be diagnosed.
 catch (Exception exception)
 {
     Console.Error.WriteLine($"Error: {exception.Message}");
@@ -57,9 +60,9 @@ catch (Exception exception)
 }
 
 /**
-  * Performs the print builds operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Prints builds information to the console for the operator.
+ * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+ */
 static int PrintBuilds()
 {
     foreach (ClientBuildInfo build in ClientBuilds.All.OrderBy(build => build.Build))
@@ -71,9 +74,10 @@ static int PrintBuilds()
 }
 
 /**
-  * Performs the print dbc info operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Prints dbc info information to the console for the operator.
+ * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+ * Inputs used by this helper: args.
+ */
 static int PrintDbcInfo(string[] args)
 {
     string path = RequireOption(args, "--file");
@@ -90,9 +94,10 @@ static int PrintDbcInfo(string[] args)
 }
 
 /**
-  * Extracts data from source files and writes the normalized server format.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Runs the extract command and writes normalized game data into the configured output directory.
+ * Extraction commands centralize option parsing, progress output, and result reporting so server data generation behaves the same for every asset kind.
+ * Inputs used by this helper: args, kind.
+ */
 static int Extract(string[] args, AssetExtractionKind kind)
 {
     AssetExtractionOptions options = CreateExtractionOptions(args);
@@ -112,9 +117,10 @@ static int Extract(string[] args, AssetExtractionKind kind)
 }
 
 /**
-  * Extracts data from source files and writes the normalized server format.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Runs the extract all command and writes normalized game data into the configured output directory.
+ * Extraction commands centralize option parsing, progress output, and result reporting so server data generation behaves the same for every asset kind.
+ * Inputs used by this helper: args.
+ */
 static int ExtractAll(string[] args)
 {
     AssetExtractionOptions options = CreateExtractionOptions(args);
@@ -129,9 +135,10 @@ static int ExtractAll(string[] args)
 }
 
 /**
-  * Creates a new object with validated defaults so callers receive a ready-to-use instance.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Creates the extraction options object from parsed command-line arguments.
+ * Default values are applied here so the extraction commands do not duplicate option and path handling.
+ * Inputs used by this helper: args.
+ */
 static AssetExtractionOptions CreateExtractionOptions(string[] args)
 {
     string clientRoot = GetOption(args, "--client") ?? Directory.GetCurrentDirectory();
@@ -152,9 +159,10 @@ static AssetExtractionOptions CreateExtractionOptions(string[] args)
 }
 
 /**
-  * Performs the print extraction result operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Prints extraction result information to the console for the operator.
+ * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+ * Inputs used by this helper: result.
+ */
 static void PrintExtractionResult(AssetExtractionResult result)
 {
     Console.WriteLine($"[{result.Kind}] extracted={result.ExtractedFiles}, skipped={result.SkippedFiles}");
@@ -162,9 +170,10 @@ static void PrintExtractionResult(AssetExtractionResult result)
 }
 
 /**
-  * Writes the supplied data to the target destination using the project protocol or file format.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Performs the write progress message command-line operation.
+ * The helper keeps top-level startup code focused on dispatching rather than mixing command-specific logic into the entry point.
+ * Inputs used by this helper: message.
+ */
 static void WriteProgressMessage(string message)
 {
     Console.WriteLine(message);
@@ -172,9 +181,10 @@ static void WriteProgressMessage(string message)
 }
 
 /**
-  * Verifies that loaded data satisfies the expected format and consistency rules.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Runs the verify map validation command against extracted data.
+ * Validation commands return process exit codes that can be used by scripts or installers to stop when corrupted data is detected.
+ * Inputs used by this helper: args.
+ */
 static int VerifyMap(string[] args)
 {
     string path = RequireOption(args, "--file");
@@ -185,9 +195,10 @@ static int VerifyMap(string[] args)
 }
 
 /**
-  * Verifies that loaded data satisfies the expected format and consistency rules.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Runs the verify maps validation command against extracted data.
+ * Validation commands return process exit codes that can be used by scripts or installers to stop when corrupted data is detected.
+ * Inputs used by this helper: args.
+ */
 static int VerifyMaps(string[] args)
 {
     string directory = RequireOption(args, "--directory");
@@ -214,9 +225,10 @@ static int VerifyMaps(string[] args)
 }
 
 /**
-  * Runs the main loop for this component until cancellation or shutdown is requested.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Runs the formula test diagnostic command.
+ * The command is kept separate from extraction so temporary verification logic cannot interfere with normal data generation workflows.
+ * Inputs used by this helper: args.
+ */
 static int RunFormulaTest(string[] args)
 {
     float gridHeight = GetFloatOption(args, "--min", -500.0f);
@@ -235,9 +247,10 @@ static int RunFormulaTest(string[] args)
 }
 
 /**
-  * Performs the print validation result operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Prints validation result information to the console for the operator.
+ * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+ * Inputs used by this helper: result.
+ */
 static void PrintValidationResult(MapValidationResult result)
 {
     foreach (ValidationMessage message in result.Messages)
@@ -247,9 +260,10 @@ static void PrintValidationResult(MapValidationResult result)
 }
 
 /**
-  * Performs the unknown command operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Reports an unknown command and returns a failing process exit code.
+ * Keeping the message here gives every entry point the same user-facing behavior when command dispatch fails.
+ * Inputs used by this helper: command.
+ */
 static int UnknownCommand(string command)
 {
     Console.Error.WriteLine($"Unknown command '{command}'.");
@@ -258,9 +272,10 @@ static int UnknownCommand(string command)
 }
 
 /**
-  * Performs the require option operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Resolves the require option value from command-line arguments.
+ * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+ * Inputs used by this helper: args, name.
+ */
 static string RequireOption(string[] args, string name)
 {
     for (int i = 1; i < args.Length - 1; i++)
@@ -275,9 +290,10 @@ static string RequireOption(string[] args, string name)
 }
 
 /**
-  * Returns the current value or snapshot without exposing mutable internal state.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Resolves the get int option value from command-line arguments.
+ * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+ * Inputs used by this helper: args, name, defaultValue.
+ */
 static int GetIntOption(string[] args, string name, int defaultValue)
 {
     string? value = GetOption(args, name);
@@ -285,9 +301,10 @@ static int GetIntOption(string[] args, string name, int defaultValue)
 }
 
 /**
-  * Returns the current value or snapshot without exposing mutable internal state.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Resolves the get float option value from command-line arguments.
+ * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+ * Inputs used by this helper: args, name, defaultValue.
+ */
 static float GetFloatOption(string[] args, string name, float defaultValue)
 {
     string? value = GetOption(args, name);
@@ -295,9 +312,10 @@ static float GetFloatOption(string[] args, string name, float defaultValue)
 }
 
 /**
-  * Returns the current value or snapshot without exposing mutable internal state.
-  * The method is part of this file and keeps this workflow isolated from the caller.
-  */
+ * Resolves the get option value from command-line arguments.
+ * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+ * Inputs used by this helper: args, name.
+ */
 static string? GetOption(string[] args, string name)
 {
     for (int i = 1; i < args.Length - 1; i++)
@@ -312,29 +330,29 @@ static string? GetOption(string[] args, string name)
 }
 
 /**
-  * Performs the has option operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  * The boolean result lets callers branch without throwing for normal negative outcomes.
-  */
+ * Resolves the has option value from command-line arguments.
+ * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+ * Inputs used by this helper: args, name.
+ */
 static bool HasOption(string[] args, string name)
 {
     return args.Any(argument => string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
 }
 
 /**
-  * Performs the is help operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  * The boolean result lets callers branch without throwing for normal negative outcomes.
-  */
+ * Resolves the is help value from command-line arguments.
+ * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+ * Inputs used by this helper: value.
+ */
 static bool IsHelp(string value)
 {
     return value is "-h" or "--help" or "help";
 }
 
 /**
-  * Performs the print usage operation for this file.
-  * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-  */
+ * Prints usage information to the console for the operator.
+ * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+ */
 static void PrintUsage()
 {
     Console.WriteLine("MapDataTool");

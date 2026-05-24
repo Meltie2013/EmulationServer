@@ -20,10 +20,12 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcDataStore.cs
-  * This file converts raw spell and skill DBC tables into typed metadata used by character creation and future spell validation.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcDataStore.cs
+ * Documents the SpellDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
@@ -32,6 +34,10 @@ namespace EmulationServer.Game.Data.Dbc.Spells;
   */
 public sealed class SpellDbcDataStore
 {
+    /**
+     * Initializes a new SpellDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     */
     private SpellDbcDataStore()
     {
         Skills = new Dictionary<int, SkillLineDbcRecord>();
@@ -44,6 +50,11 @@ public sealed class SpellDbcDataStore
         SpellCastTimes = new Dictionary<int, SpellCastTimeDbcRecord>();
     }
 
+    /**
+     * Initializes a new SpellDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: skills, skillAbilities, skillRaceClassInfo, spells, spellIcons, spellDurations....
+     */
     private SpellDbcDataStore(
         IReadOnlyDictionary<int, SkillLineDbcRecord> skills,
         IReadOnlyDictionary<int, SkillLineAbilityDbcRecord> skillAbilities,
@@ -64,6 +75,10 @@ public sealed class SpellDbcDataStore
         SpellCastTimes = spellCastTimes;
     }
 
+    /**
+     * Exposes the empty value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static SpellDbcDataStore Empty { get; } = new();
 
     public IReadOnlyDictionary<int, SkillLineDbcRecord> Skills { get; }
@@ -164,11 +179,21 @@ public sealed class SpellDbcDataStore
         return data;
     }
 
+    /**
+     * Tries to resolve the get spell value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: spellId, spell.
+     */
     public bool TryGetSpell(int spellId, out SpellDbcRecord spell)
     {
         return Spells.TryGetValue(spellId, out spell!);
     }
 
+    /**
+     * Parses read skill line record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SkillLineDbcRecord ReadSkillLineRecord(DbcRecord record)
     {
         return new SkillLineDbcRecord(
@@ -180,6 +205,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 21));
     }
 
+    /**
+     * Parses read skill line ability record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SkillLineAbilityDbcRecord ReadSkillLineAbilityRecord(DbcRecord record)
     {
         return new SkillLineAbilityDbcRecord(
@@ -197,6 +227,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 14));
     }
 
+    /**
+     * Parses read skill race class info record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SkillRaceClassInfoDbcRecord ReadSkillRaceClassInfoRecord(DbcRecord record)
     {
         return new SkillRaceClassInfoDbcRecord(
@@ -210,6 +245,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 7));
     }
 
+    /**
+     * Parses read spell record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SpellDbcRecord ReadSpellRecord(DbcRecord record)
     {
         return new SpellDbcRecord(
@@ -231,6 +271,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadString(record, 138));
     }
 
+    /**
+     * Parses read spell icon record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SpellIconDbcRecord ReadSpellIconRecord(DbcRecord record)
     {
         return new SpellIconDbcRecord(
@@ -238,6 +283,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadString(record, 1));
     }
 
+    /**
+     * Parses read spell duration record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SpellDurationDbcRecord ReadSpellDurationRecord(DbcRecord record)
     {
         return new SpellDurationDbcRecord(
@@ -247,6 +297,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 3));
     }
 
+    /**
+     * Parses read spell range record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SpellRangeDbcRecord ReadSpellRangeRecord(DbcRecord record)
     {
         return new SpellRangeDbcRecord(
@@ -258,6 +313,11 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadString(record, 13));
     }
 
+    /**
+     * Parses read spell cast time record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static SpellCastTimeDbcRecord ReadSpellCastTimeRecord(DbcRecord record)
     {
         return new SpellCastTimeDbcRecord(

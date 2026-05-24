@@ -19,10 +19,12 @@
 using System.Security.Cryptography;
 using System.Text;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModelName.cs
-  * This file centralizes the naming rules used by model conversion and ADT placement conversion.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModelName.cs
+ * Documents the VmapModelName source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -33,8 +35,10 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 public sealed class VmapModelName
 {
     /**
-      * Creates a new normalized model name from a client archive path.
-      */
+     * Initializes a new VmapModelName instance with the dependencies required by the client data extraction and conversion tooling workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: normalizedPath, key, fileName.
+     */
     private VmapModelName(string normalizedPath, string key, string fileName)
     {
         NormalizedPath = normalizedPath;

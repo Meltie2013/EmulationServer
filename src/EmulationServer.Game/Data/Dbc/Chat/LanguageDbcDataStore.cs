@@ -20,19 +20,43 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Chat/LanguageDbcDataStore.cs
+ * Documents the LanguageDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Chat;
 
+/**
+ * Owns the language dbc data store behavior for the DBC loading and strongly typed client data records layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class LanguageDbcDataStore
 {
+    /**
+     * Initializes a new LanguageDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: records.
+     */
     private LanguageDbcDataStore(IReadOnlyDictionary<int, LanguageDbcRecord> records)
     {
         Records = records;
     }
 
+    /**
+     * Exposes the empty value to callers that need this runtime or configuration data.
+     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+     */
     public static LanguageDbcDataStore Empty { get; } = new(new Dictionary<int, LanguageDbcRecord>());
 
     public IReadOnlyDictionary<int, LanguageDbcRecord> Records { get; }
 
+    /**
+     * Performs the from dbc stores operation for the DBC loading and strongly typed client data records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: dbcStores, ownerName.
+     */
     public static LanguageDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -51,11 +75,21 @@ public sealed class LanguageDbcDataStore
         return data;
     }
 
+    /**
+     * Determines whether known language for the DBC loading and strongly typed client data records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: languageId.
+     */
     public bool IsKnownLanguage(int languageId)
     {
         return languageId == 0 || Records.ContainsKey(languageId);
     }
 
+    /**
+     * Resolves the language name value requested by the caller.
+     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+     * Inputs used by this operation: languageId.
+     */
     public string GetLanguageName(int languageId)
     {
         if (languageId == 0)
@@ -68,6 +102,11 @@ public sealed class LanguageDbcDataStore
             : $"Language {languageId}";
     }
 
+    /**
+     * Parses read record input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: record.
+     */
     private static LanguageDbcRecord ReadRecord(DbcRecord record)
     {
         return new LanguageDbcRecord(

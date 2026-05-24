@@ -16,34 +16,35 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/RealmServer/Auth/RealmAuthStatus.cs
-  * This file belongs to the realm authentication, build validation, and realm list packet creation portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Auth/RealmAuthStatus.cs
+ * Documents the RealmAuthStatus source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
-  * Defines the allowed realm auth status values used to keep state and protocol decisions explicit.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Lists the supported realm auth status values used by the realm authentication, realm-list handling, and external client login services layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum RealmAuthStatus
 {
     /**
-      * Represents the challenge value for RealmAuthStatus.
-      */
+     * Represents the challenge value for realm auth status handling.
+     */
     Challenge,
     /**
-      * Represents the logon proof value for RealmAuthStatus.
-      */
+     * Represents the logon proof value for realm auth status handling.
+     */
     LogonProof,
     /**
-      * Represents the authenticated value for RealmAuthStatus.
-      */
+     * Represents the authenticated value for realm auth status handling.
+     */
     Authenticated,
     /**
-      * Represents the closed value for RealmAuthStatus.
-      */
+     * Represents the closed value for realm auth status handling.
+     */
     Closed,
 }

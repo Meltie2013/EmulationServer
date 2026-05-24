@@ -18,29 +18,43 @@
 
 using System.Text;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHash.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHash.cs
+ * Documents the MpqHash source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
-  * Represents the mpq hash component in the developer tooling for data extraction, validation, and diagnostics area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the mpq hash behavior for the client data extraction and conversion tooling layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 internal static class MpqHash
 {
+    /**
+     * Defines the constant value for seed 1 initial.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const uint Seed1Initial = 0x7FED7FED;
+    /**
+     * Defines the constant value for seed 2 initial.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const uint Seed2Initial = 0xEEEEEEEE;
 
+    /**
+     * Stores the default crypt table value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     private static readonly uint[] CryptTable = BuildCryptTable();
 
     /**
-      * Performs the hash string operation for MpqHash.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the hash string operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: value, hashType.
+     */
     public static uint HashString(string value, MpqHashType hashType)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -60,9 +74,10 @@ internal static class MpqHash
     }
 
     /**
-      * Performs the normalize file name operation for MpqHash.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Normalizes the file name for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: fileName.
+     */
     public static string NormalizeFileName(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
@@ -70,9 +85,10 @@ internal static class MpqHash
     }
 
     /**
-      * Performs the normalize display name operation for MpqHash.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Normalizes the display name for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: fileName.
+     */
     public static string NormalizeDisplayName(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
@@ -80,9 +96,10 @@ internal static class MpqHash
     }
 
     /**
-      * Performs the to upper ascii operation for MpqHash.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the to upper ascii operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: value.
+     */
     private static byte ToUpperAscii(byte value)
     {
         return value is >= (byte)'a' and <= (byte)'z'
@@ -119,9 +136,10 @@ internal static class MpqHash
     }
 
     /**
-      * Performs the decrypt block operation for MpqHash.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      */
+     * Performs the decrypt block operation for the client data extraction and conversion tooling workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: data, key.
+     */
     public static void DecryptBlock(Span<byte> data, uint key)
     {
         uint seed = Seed2Initial;

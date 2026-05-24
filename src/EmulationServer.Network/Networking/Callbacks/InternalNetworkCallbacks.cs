@@ -19,18 +19,19 @@
 using EmulationServer.Network.Networking.Peers;
 using EmulationServer.Network.Networking.Sessions;
 
+
 /**
-  * File overview: src/EmulationServer.Network/Networking/Callbacks/InternalNetworkCallbacks.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Network/Networking/Callbacks/InternalNetworkCallbacks.cs
+ * Documents the InternalNetworkCallbacks source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Network.Networking.Callbacks;
 
 /**
-  * Represents the internal network callbacks component in the project runtime logic and supporting data models area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the internal network callbacks behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class InternalNetworkCallbacks
 {
     /**
@@ -56,10 +57,11 @@ public sealed class InternalNetworkCallbacks
     public Func<string, string, CancellationToken, Task>? ShutdownRequestedAsync { get; init; }
 
     /**
-      * Performs the notify server authenticated async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify server authenticated operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -69,10 +71,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify packet received async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify packet received operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -83,10 +86,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify server disconnected async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify server disconnected operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -96,10 +100,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify peer authenticated async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify peer authenticated operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -109,10 +114,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify peer packet received async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify peer packet received operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -123,10 +129,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify peer disconnected async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify peer disconnected operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -136,10 +143,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify peer reconnect timed out async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify peer reconnect timed out operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: remoteServerName, reconnectTimeout, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyPeerReconnectTimedOutAsync(
         string remoteServerName,
         TimeSpan reconnectTimeout,
@@ -149,10 +157,11 @@ public sealed class InternalNetworkCallbacks
     }
 
     /**
-      * Performs the notify shutdown requested async operation for InternalNetworkCallbacks.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Performs the notify shutdown requested operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: sourceServerName, reason, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public Task NotifyShutdownRequestedAsync(
         string sourceServerName,
         string reason,

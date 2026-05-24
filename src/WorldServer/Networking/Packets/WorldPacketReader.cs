@@ -19,26 +19,61 @@
 using System.Buffers.Binary;
 using System.Text;
 
+/**
+ * File overview: src/WorldServer/Networking/Packets/WorldPacketReader.cs
+ * Documents the WorldPacketReader source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.WorldServer.Networking.Packets;
 
+/**
+ * Owns the world packet reader behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class WorldPacketReader
 {
+    /**
+     * Holds the private buffer state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly byte[] _buffer;
+    /**
+     * Holds the private offset state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _offset;
 
+    /**
+     * Initializes a new WorldPacketReader instance with the dependencies required by the World of Warcraft packet opcode, reader, writer, and builder support workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: buffer.
+     */
     public WorldPacketReader(byte[] buffer)
     {
         _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
     }
 
+    /**
+     * Stores the default remaining value used when the caller does not supply an override.
+     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+     */
     public int Remaining => _buffer.Length - _offset;
 
+    /**
+     * Parses read u int 8 input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     */
     public byte ReadUInt8()
     {
         EnsureAvailable(1);
         return _buffer[_offset++];
     }
 
+    /**
+     * Parses read u int 16 input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     */
     public ushort ReadUInt16()
     {
         EnsureAvailable(2);
@@ -47,6 +82,10 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    /**
+     * Parses read u int 32 input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     */
     public uint ReadUInt32()
     {
         EnsureAvailable(4);
@@ -55,6 +94,10 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    /**
+     * Parses read u int 64 input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     */
     public ulong ReadUInt64()
     {
         EnsureAvailable(8);
@@ -63,6 +106,10 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    /**
+     * Parses read float input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     */
     public float ReadFloat()
     {
         EnsureAvailable(4);
@@ -71,6 +118,11 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    /**
+     * Parses read bytes input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: length.
+     */
     public byte[] ReadBytes(int length)
     {
         EnsureAvailable(length);
@@ -79,6 +131,10 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    /**
+     * Parses read c string input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     */
     public string ReadCString()
     {
         int terminator = Array.IndexOf(_buffer, (byte)0, _offset);
@@ -92,6 +148,11 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    /**
+     * Validates ensure available state before it is used by another server component.
+     * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
+     * Inputs used by this operation: count.
+     */
     private void EnsureAvailable(int count)
     {
         if (count < 0 || Remaining < count)

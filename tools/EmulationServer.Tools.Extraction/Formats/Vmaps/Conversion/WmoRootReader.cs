@@ -18,10 +18,12 @@
 
 using System.Buffers.Binary;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoRootReader.cs
-  * This file reads the minimal root WMO metadata required for vmap conversion.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoRootReader.cs
+ * Documents the WmoRootReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 

@@ -24,50 +24,56 @@ using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/RealmServer/Internal/RealmInternalPacketHandler.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Internal/RealmInternalPacketHandler.cs
+ * Documents the RealmInternalPacketHandler source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Internal;
 
 /**
-  * Represents the realm internal packet handler component in the project runtime logic and supporting data models area.
-  * It handles a specific protocol or command path and keeps higher-level server flow readable.
-  */
+ * Owns the realm internal packet handler behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class RealmInternalPacketHandler
 {
+    /**
+     * Defines the constant value for realm status packet.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string RealmStatusPacket = "REALM_STATUS";
 
     /**
-      * Stores the realm store dependency or runtime value for RealmInternalPacketHandler.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private realm store state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly ConfiguredRealmStore _realmStore;
 
     /**
-      * Stores the sync root dependency or runtime value for RealmInternalPacketHandler.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private sync root state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly object _syncRoot = new();
 
     private readonly Dictionary<string, HashSet<uint>> _realmsByServerName = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Dictionary<uint, Dictionary<uint, byte>>> _pendingCharacterCounts = new(StringComparer.OrdinalIgnoreCase);
 
     /**
-      * Creates a new RealmInternalPacketHandler instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new RealmInternalPacketHandler instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: realmStore.
+     */
     public RealmInternalPacketHandler(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException(nameof(realmStore));
     }
 
     /**
-      * Creates a new object with validated defaults so callers receive a ready-to-use instance.
-      * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
-      */
+     * Creates the callbacks result needed by the caller.
+     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+     */
     public InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -79,10 +85,11 @@ public sealed class RealmInternalPacketHandler
     }
 
     /**
-      * Performs the on server authenticated async operation for RealmInternalPacketHandler.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on server authenticated event for the realm authentication, realm-list handling, and external client login services workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -93,10 +100,11 @@ public sealed class RealmInternalPacketHandler
     }
 
     /**
-      * Performs the on packet received async operation for RealmInternalPacketHandler.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on packet received event for the realm authentication, realm-list handling, and external client login services workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -138,10 +146,11 @@ public sealed class RealmInternalPacketHandler
     }
 
     /**
-      * Performs the on server disconnected async operation for RealmInternalPacketHandler.
-      * Keeping this logic in a dedicated method makes the control flow easier to read and test.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+     * Handles the on server disconnected event for the realm authentication, realm-list handling, and external client login services workflow.
+     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+     * Inputs used by this operation: session, remoteServerName, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,

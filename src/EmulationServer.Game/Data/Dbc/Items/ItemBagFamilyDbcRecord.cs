@@ -16,9 +16,16 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemBagFamilyDbcRecord.cs
+ * Documents the ItemBagFamilyDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Items;
 
 /**
   * Represents one ItemBagFamily.dbc row used for bag-family restrictions.
+ * Positional fields carried by this record: Id, ClassName.
   */
 public sealed record ItemBagFamilyDbcRecord(int Id, string ClassName);

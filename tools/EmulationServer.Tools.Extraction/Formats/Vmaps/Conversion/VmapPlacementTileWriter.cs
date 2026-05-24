@@ -18,10 +18,12 @@
 
 using System.Text;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapPlacementTileWriter.cs
-  * This file writes compact vmap tile placement files generated from ADT MODF records.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapPlacementTileWriter.cs
+ * Documents the VmapPlacementTileWriter source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -30,7 +32,15 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
   */
 public static class VmapPlacementTileWriter
 {
+    /**
+     * Defines the constant value for magic.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const string Magic = "ESVTIL1";
+    /**
+     * Defines the constant value for version.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const uint Version = 1;
 
     /**

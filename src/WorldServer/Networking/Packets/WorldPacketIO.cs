@@ -19,10 +19,26 @@
 using System.Buffers.Binary;
 using System.Net.Sockets;
 
+/**
+ * File overview: src/WorldServer/Networking/Packets/WorldPacketIO.cs
+ * Documents the WorldPacketIO source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.WorldServer.Networking.Packets;
 
+/**
+ * Owns the world packet io behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class WorldPacketIO
 {
+    /**
+     * Parses read client packet input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: stream, crypt, maximumPacketSize, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public static async ValueTask<WorldPacket> ReadClientPacketAsync(
         NetworkStream stream,
         WorldHeaderCrypt? crypt,
@@ -55,6 +71,12 @@ public static class WorldPacketIO
         return new WorldPacket((WorldOpcode)opcodeValue, payload);
     }
 
+    /**
+     * Writes write server packet data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     * Inputs used by this operation: stream, opcode, payload, crypt, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public static async ValueTask WriteServerPacketAsync(
         NetworkStream stream,
         WorldOpcode opcode,
@@ -84,6 +106,12 @@ public static class WorldPacketIO
         }
     }
 
+    /**
+     * Parses read exactly input into the strongly typed server representation.
+     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+     * Inputs used by this operation: stream, buffer, cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     private static async ValueTask ReadExactlyAsync(NetworkStream stream, byte[] buffer, CancellationToken cancellationToken)
     {
         int offset = 0;

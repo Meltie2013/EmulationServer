@@ -18,26 +18,28 @@
 
 using System.Globalization;
 
+
 /**
-  * File overview: src/EmulationServer.Shared/Configuration/IniConfiguration.cs
-  * This file belongs to the server configuration loading and strongly typed settings portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Shared/Configuration/IniConfiguration.cs
+ * Documents the IniConfiguration source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Shared.Configuration;
 
 /**
-  * Represents the ini configuration component in the server configuration loading and strongly typed settings area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the ini configuration behavior for the shared configuration, logging, and utility support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class IniConfiguration
 {
     private readonly Dictionary<string, Dictionary<string, string>> _sections;
 
     /**
-      * Creates a new IniConfiguration instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new IniConfiguration instance with the dependencies required by the shared configuration, logging, and utility support workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: sections.
+     */
     private IniConfiguration(Dictionary<string, Dictionary<string, string>> sections)
     {
         _sections = sections;

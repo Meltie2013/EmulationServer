@@ -16,10 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharSectionDbcRecord.cs
+ * Documents the CharSectionDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
 /**
   * Represents one CharSections.dbc row used for character customization validation.
+ * Positional fields carried by this record: Id, RaceId, SexId, SectionType, VariationIndex, ColorIndex, TextureName1, TextureName2, TextureName3, Flags.
   */
 public sealed record CharSectionDbcRecord(
     int Id,

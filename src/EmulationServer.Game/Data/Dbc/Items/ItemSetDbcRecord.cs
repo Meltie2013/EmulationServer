@@ -16,10 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemSetDbcRecord.cs
+ * Documents the ItemSetDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Data.Dbc.Items;
 
 /**
   * Represents one ItemSet.dbc row used for item-set validation and future stat bonus handling.
+ * Positional fields carried by this record: Id, Name, ItemIds, SetSpellIds, SetThresholds, RequiredSkill, RequiredSkillRank.
   */
 public sealed record ItemSetDbcRecord(
     int Id,

@@ -18,18 +18,19 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Shared/Logging/Formatting/LogMessageFormatter.cs
-  * This file belongs to the logging configuration, formatting, filtering, and output routing portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Shared/Logging/Formatting/LogMessageFormatter.cs
+ * Documents the LogMessageFormatter source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Shared.Logging.Formatting;
 
 /**
-  * Represents the log message formatter component in the logging configuration, formatting, filtering, and output routing area.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Owns the log message formatter behavior for the shared configuration, logging, and utility support layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public static class LogMessageFormatter
 {
     /**
@@ -47,6 +48,11 @@ public static class LogMessageFormatter
             $"{message}";
     }
 
+    /**
+     * Performs the format category operation for the shared configuration, logging, and utility support workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: category, message.
+     */
     private static string FormatCategory(string? category, string message)
     {
         if (string.IsNullOrWhiteSpace(category))

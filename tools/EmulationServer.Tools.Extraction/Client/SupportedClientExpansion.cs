@@ -16,30 +16,31 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Client/SupportedClientExpansion.cs
-  * This file belongs to the developer tooling for data extraction, validation, and diagnostics portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Client/SupportedClientExpansion.cs
+ * Documents the SupportedClientExpansion source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Client;
 
 /**
-  * Defines the allowed supported client expansion values used to keep state and protocol decisions explicit.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  */
+ * Lists the supported supported client expansion values used by the client data extraction and conversion tooling layer.
+ * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+ */
 public enum SupportedClientExpansion
 {
     /**
-      * Represents the classic value for SupportedClientExpansion.
-      */
+     * Represents the classic value for supported client expansion handling.
+     */
     Classic = 0,
     /**
-      * Represents the the burning crusade value for SupportedClientExpansion.
-      */
+     * Represents the the burning crusade value for supported client expansion handling.
+     */
     TheBurningCrusade = 1,
     /**
-      * Represents the wrath of the lich king value for SupportedClientExpansion.
-      */
+     * Represents the wrath of the lich king value for supported client expansion handling.
+     */
     WrathOfTheLichKing = 2,
 }

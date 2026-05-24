@@ -18,26 +18,28 @@
 
 using EmulationServer.RealmServer.Configuration;
 
+
 /**
-  * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
-  * This file belongs to the project runtime logic and supporting data models portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
+ * Documents the ConfiguredRealmStore source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Realms;
 
 /**
-  * Represents the configured realm store component in the project runtime logic and supporting data models area.
-  * It owns loaded data in memory and provides lookup access to other systems.
-  */
+ * Owns the configured realm store behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class ConfiguredRealmStore
 {
     private readonly Dictionary<uint, ConfiguredRealm> _realms;
 
     /**
-      * Creates a new ConfiguredRealmStore instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new ConfiguredRealmStore instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: realmSettings.
+     */
     public ConfiguredRealmStore(IEnumerable<ConfiguredRealmSettings> realmSettings)
     {
         ArgumentNullException.ThrowIfNull(realmSettings);

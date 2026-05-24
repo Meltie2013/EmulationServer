@@ -18,10 +18,12 @@
 
 using System.Buffers.Binary;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecordReader.cs
-  * This file centralizes common typed DBC read helpers used by WorldServer runtime data stores.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecordReader.cs
+ * Documents the DbcRecordReader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc;
 
@@ -124,6 +126,11 @@ internal static class DbcRecordReader
         return value.Trim('\0', ' ', '\t', '\r', '\n');
     }
 
+    /**
+     * Validates ensure offset state before it is used by another server component.
+     * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
+     * Inputs used by this operation: data, byteOffset, width.
+     */
     private static void EnsureOffset(ReadOnlySpan<byte> data, int byteOffset, int width)
     {
         if (byteOffset < 0 || width <= 0 || byteOffset + width > data.Length)

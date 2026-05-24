@@ -20,10 +20,12 @@ using System.Buffers.Binary;
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
+
 /**
-  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/AdtWmoPlacementReader.cs
-  * This file reads WMO placement references from ADT files for vmap tile generation.
-  */
+ * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/AdtWmoPlacementReader.cs
+ * Documents the AdtWmoPlacementReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -33,6 +35,10 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
   */
 public static class AdtWmoPlacementReader
 {
+    /**
+     * Defines the constant value for modf record size.
+     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+     */
     private const int ModfRecordSize = 64;
 
     /**
@@ -57,9 +63,6 @@ public static class AdtWmoPlacementReader
         return ReadPlacements(data.AsSpan(modf.Value.DataOffset, modf.Value.Size), modelNames);
     }
 
-    /**
-      * Reads the MWMO string block into an offset-to-name map.
-      */
     private static Dictionary<uint, string> ReadModelNames(ReadOnlySpan<byte> data)
     {
         Dictionary<uint, string> names = [];

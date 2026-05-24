@@ -16,15 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapAreaDbcRecord.cs
-  * This file exposes strongly typed WorldMapArea.dbc rows for map-display area bounds and area-table linking.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapAreaDbcRecord.cs
+ * Documents the WorldMapAreaDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
 /**
   * Represents one WorldMapArea.dbc row and links a world-map rectangle to AreaTable data.
+ * Positional fields carried by this record: Id, WorldMapContinentId, AreaTableId, AreaName, LocationLeft, LocationRight, LocationTop, LocationBottom.
   */
 public sealed record WorldMapAreaDbcRecord(
     int Id,

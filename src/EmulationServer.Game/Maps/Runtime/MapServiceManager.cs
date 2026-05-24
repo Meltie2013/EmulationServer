@@ -22,11 +22,12 @@ using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
-  * This file belongs to the map service runtime, grid ownership, service state transitions, and health reporting portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
+ * Documents the MapServiceManager source file in the runtime map-player state tracking area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
@@ -36,16 +37,48 @@ namespace EmulationServer.Game.Maps.Runtime;
   */
 public sealed class MapServiceManager : IAsyncDisposable
 {
+    /**
+     * Holds the private owner server name state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly string _ownerServerName;
+    /**
+     * Holds the private settings state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MapRuntimeSettings _settings;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
+    /**
+     * Holds the private services state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly List<MapService> _services = [];
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
+    /**
+     * Holds the private map data state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly MapDbcDataStore _mapData;
 
+    /**
+     * Holds the private stop cancellation state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private CancellationTokenSource? _stopCancellation;
+    /**
+     * Holds the private report task state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private Task? _reportTask;
+    /**
+     * Holds the private started state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _started;
+    /**
+     * Holds the private stopping state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private int _stopping;
 
     /**
@@ -172,8 +205,11 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
-      * Stops the status report loop and all registered map services.
-      */
+     * Stops the stop workflow and releases owned runtime resources in a controlled order.
+     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+     * Inputs used by this operation: cancellationToken.
+     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+     */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)

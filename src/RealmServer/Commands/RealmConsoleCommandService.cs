@@ -20,45 +20,47 @@ using EmulationServer.Database.Accounts;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/RealmServer/Commands/RealmConsoleCommandService.cs
-  * This file belongs to the console command parsing and dispatch portion of the Emulation Server project.
-  * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
-  */
+ * File overview: src/RealmServer/Commands/RealmConsoleCommandService.cs
+ * Documents the RealmConsoleCommandService source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.RealmServer.Commands;
 
 /**
-  * Represents the realm console command service component in the console command parsing and dispatch area.
-  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
-  */
+ * Owns the realm console command service behavior for the realm authentication, realm-list handling, and external client login services layer.
+ * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+ */
 public sealed class RealmConsoleCommandService
 {
     /**
-      * Stores the account repository dependency or runtime value for RealmConsoleCommandService.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private account repository state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private readonly AccountRepository _accountRepository;
     /**
-      * Stores the command task dependency or runtime value for RealmConsoleCommandService.
-      * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
-      */
+     * Holds the private command task state used by the owning component.
+     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+     */
     private Task? _commandTask;
 
     /**
-      * Creates a new RealmConsoleCommandService instance and stores the dependencies required by the component.
-      * Constructor validation happens here so invalid dependencies fail during startup instead of later in the runtime loop.
-      */
+     * Initializes a new RealmConsoleCommandService instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+     * Inputs used by this operation: accountRepository.
+     */
     public RealmConsoleCommandService(AccountRepository accountRepository)
     {
         _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
     }
 
     /**
-      * Starts the component and prepares the runtime state required before it can accept work.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+     * Starts the start workflow and prepares the component to accept runtime work.
+     * Startup is ordered so validation and dependency setup finish before services are announced as available.
+     * Inputs used by this operation: cancellationToken.
+     */
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -199,9 +201,9 @@ public sealed class RealmConsoleCommandService
     }
 
     /**
-      * Writes the supplied data to the target destination using the project protocol or file format.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      */
+     * Writes write account help data to the target packet, stream, or persistent store.
+     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+     */
     private static void WriteAccountHelp()
     {
         Logger.Write(LogType.TRACE, "Account commands:", nameof(RealmConsoleCommandService));

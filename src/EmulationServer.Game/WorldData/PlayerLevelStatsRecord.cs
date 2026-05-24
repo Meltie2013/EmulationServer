@@ -16,8 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/WorldData/PlayerLevelStatsRecord.cs
+ * Documents the PlayerLevelStatsRecord source file in the world database template loading and cache construction area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.WorldData;
 
+/**
+ * Carries immutable player level stats record data for the world database template loading and cache construction layer.
+ * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+ * Positional fields carried by this record: Race, Class, Level, Strength, Agility, Stamina, Intellect, Spirit.
+ */
 public sealed record PlayerLevelStatsRecord(
     byte Race,
     byte Class,

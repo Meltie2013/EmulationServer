@@ -16,8 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+/**
+ * File overview: src/EmulationServer.Game/Maps/Runtime/MapPlayerRuntimeState.cs
+ * Documents the MapPlayerRuntimeState source file in the runtime map-player state tracking area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
+
 namespace EmulationServer.Game.Maps.Runtime;
 
+/**
+ * Carries immutable map player runtime state data for the runtime map-player state tracking layer.
+ * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+ * Positional fields carried by this record: AccountId, Guid, Name, Map, Zone, PositionX, PositionY, PositionZ, Orientation, LastMovementOpcode, MovementFlags, ClientMovementTime, LastUpdatedUtc.
+ */
 public sealed record MapPlayerRuntimeState(
     uint AccountId,
     uint Guid,

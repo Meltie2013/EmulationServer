@@ -19,10 +19,12 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
+
 /**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcDataStore.cs
-  * This file converts raw DBC tables into typed map metadata used by map services, routing, status output, and validation.
-  */
+ * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcDataStore.cs
+ * Documents the MapDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+ * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+ */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
@@ -131,8 +133,10 @@ public sealed class MapDbcDataStore
     public IReadOnlyDictionary<int, IReadOnlyList<WorldMapOverlayDbcRecord>> OverlaysByWorldMapArea { get; }
 
     /**
-      * Converts the supplied raw DBC stores into a typed map-data store and validates the expected schemas from the CSV references.
-      */
+     * Performs the from dbc stores operation for the DBC loading and strongly typed client data records workflow.
+     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+     * Inputs used by this operation: dbcStores, ownerName.
+     */
     public static MapDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
