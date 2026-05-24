@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SkillLineAbilityDbcRecord.cs
- * Documents the SkillLineAbilityDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SkillLineAbilityDbcRecord.cs
+  * Documents the SkillLineAbilityDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
 /**
   * Represents one SkillLineAbility.dbc row.
- * Positional fields carried by this record: Id, SkillLineId, SpellId, RaceMask, ClassMask, ExcludeRaceMask, ExcludeClassMask, MinSkillLineRank, SupercededBySpell, AcquireMethod, CharacterPoints, NumSkillUps.
+  * Positional fields carried by this record: Id, SkillLineId, SpellId, RaceMask, ClassMask, ExcludeRaceMask, ExcludeClassMask, MinSkillLineRank, SupercededBySpell, AcquireMethod, CharacterPoints, NumSkillUps.
   */
 public sealed record SkillLineAbilityDbcRecord(
     int Id,

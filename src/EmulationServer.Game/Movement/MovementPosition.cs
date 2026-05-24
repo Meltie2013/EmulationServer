@@ -17,24 +17,24 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Movement/MovementPosition.cs
- * Documents the MovementPosition source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Movement/MovementPosition.cs
+  * Documents the MovementPosition source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Movement;
 
 /**
- * Carries immutable movement position data for the movement packet state and client coordinate tracking layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: X, Y, Z, Orientation.
- */
+  * Carries immutable movement position data for the movement packet state and client coordinate tracking layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: X, Y, Z, Orientation.
+  */
 public sealed record MovementPosition(float X, float Y, float Z, float Orientation)
 {
     /**
-     * Stores the default is finite value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default is finite value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public bool IsFinite =>
         float.IsFinite(X) &&
         float.IsFinite(Y) &&

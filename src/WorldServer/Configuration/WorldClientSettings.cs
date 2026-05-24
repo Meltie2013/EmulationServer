@@ -19,74 +19,74 @@
 using System.Net;
 
 /**
- * File overview: src/WorldServer/Configuration/WorldClientSettings.cs
- * Documents the WorldClientSettings source file in the world server configuration and startup settings area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Configuration/WorldClientSettings.cs
+  * Documents the WorldClientSettings source file in the world server configuration and startup settings area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Configuration;
 
 /**
- * Owns the world client settings behavior for the world server configuration and startup settings layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world client settings behavior for the world server configuration and startup settings layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WorldClientSettings
 {
     /**
-     * Exposes the bind address value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the bind address value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public string BindAddress { get; init; } = "127.0.0.1";
     /**
-     * Exposes the port value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the port value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public ushort Port { get; init; } = 8085;
     /**
-     * Exposes the backlog value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the backlog value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public int Backlog { get; init; } = 128;
     /**
-     * Exposes the receive buffer size value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the receive buffer size value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public int ReceiveBufferSize { get; init; } = 65536;
     /**
-     * Exposes the send buffer size value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the send buffer size value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public int SendBufferSize { get; init; } = 65536;
     /**
-     * Exposes the keep alive value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the keep alive value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public bool KeepAlive { get; init; } = true;
     /**
-     * Exposes the keep alive time seconds value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the keep alive time seconds value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public int KeepAliveTimeSeconds { get; init; } = 30;
     /**
-     * Exposes the keep alive interval seconds value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the keep alive interval seconds value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public int KeepAliveIntervalSeconds { get; init; } = 10;
     /**
-     * Exposes the shutdown grace period value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the shutdown grace period value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
     /**
-     * Exposes the maximum packet size value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the maximum packet size value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public int MaximumPacketSize { get; init; } = 0x8000;
 
     /**
-     * Validates validate state before it is used by another server component.
-     * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-     */
+      * Validates validate state before it is used by another server component.
+      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
+      */
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(BindAddress))
@@ -138,9 +138,9 @@ public sealed class WorldClientSettings
     }
 
     /**
-     * Resolves the bind address value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     */
+      * Resolves the bind address value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      */
     public IPAddress GetBindAddress()
     {
         if (!IPAddress.TryParse(BindAddress, out IPAddress? address))

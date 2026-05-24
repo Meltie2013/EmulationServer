@@ -25,102 +25,101 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
- * Documents the RealmAuthSessionProcessor source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
+  * Documents the RealmAuthSessionProcessor source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
- * Owns the realm auth session processor behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm auth session processor behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 {
     /**
-     * Holds the private account repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly AccountRepository _accountRepository;
     /**
-     * Holds the private realm list packet builder state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private realm list packet builder state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly RealmListPacketBuilder _realmListPacketBuilder;
 
     /**
-     * Holds the private status state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private status state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private RealmAuthStatus _status = RealmAuthStatus.Challenge;
     /**
-     * Holds the private account state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private AccountLogonRecord? _account;
     /**
-     * Holds the private login state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private login state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private string _login = string.Empty;
     /**
-     * Holds the private os state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private os state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private string _os = string.Empty;
     /**
-     * Holds the private locale name state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private locale name state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private string _localeName = "enUS";
     /**
-     * Holds the private locale state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private locale state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private byte _locale;
     /**
-     * Holds the private build state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private build state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private ushort _build;
     /**
-     * Holds the private salt state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private salt state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private BigInteger _salt;
     /**
-     * Holds the private verifier state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private verifier state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private BigInteger _verifier;
     /**
-     * Holds the private host private ephemeral state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private host private ephemeral state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private BigInteger _hostPrivateEphemeral;
     /**
-     * Holds the private host public ephemeral state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private host public ephemeral state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private BigInteger _hostPublicEphemeral;
     /**
-     * Holds the private session key state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private session key state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private byte[] _sessionKey = [];
 
     /**
-     * Initializes a new RealmAuthSessionProcessor instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: accountRepository, realmListPacketBuilder.
-     */
+      * Initializes a new RealmAuthSessionProcessor instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: accountRepository, realmListPacketBuilder.
+      */
     public RealmAuthSessionProcessor(AccountRepository accountRepository, RealmListPacketBuilder realmListPacketBuilder)
     {
-        _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
-        _realmListPacketBuilder = realmListPacketBuilder ?? throw new ArgumentNullException(nameof(realmListPacketBuilder));
+        _accountRepository = accountRepository ?? throw new ArgumentNullException();
+        _realmListPacketBuilder = realmListPacketBuilder ?? throw new ArgumentNullException();
     }
 
     /**
@@ -131,7 +130,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
       */
     public async Task ProcessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NETWORK, $"Realm auth session started for {context.RemoteEndPoint}.", nameof(RealmAuthSessionProcessor));
+        Logger.Write(LogType.NETWORK, $"Realm auth session started for {context.RemoteEndPoint}.", "RealmAuthSessionProcessor");
 
         while (!cancellationToken.IsCancellationRequested && _status != RealmAuthStatus.Closed)
         {
@@ -152,7 +151,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
                     break;
 
                 default:
-                    Logger.Write(LogType.WARNING, $"Received unauthorized RealmServer auth command 0x{command:X2} from {context.RemoteEndPoint} while status is {_status}.", nameof(RealmAuthSessionProcessor));
+                    Logger.Write(LogType.WARNING, $"Received unauthorized RealmServer auth command 0x{command:X2} from {context.RemoteEndPoint} while status is {_status}.", "RealmAuthSessionProcessor");
                     _status = RealmAuthStatus.Closed;
                     break;
             }
@@ -173,12 +172,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 
         if (remaining < 30)
         {
-            Logger.Write(LogType.WARNING, $"Invalid logon challenge size '{remaining}' from {context.RemoteEndPoint}.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Invalid logon challenge size '{remaining}' from {context.RemoteEndPoint}.", "RealmAuthSessionProcessor");
             _status = RealmAuthStatus.Closed;
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"Received auth protocol version 0x{protocolVersion:X2} with logon challenge size {remaining} from {context.RemoteEndPoint}.", nameof(RealmAuthSessionProcessor));
+        Logger.Write(LogType.TRACE, $"Received auth protocol version 0x{protocolVersion:X2} with logon challenge size {remaining} from {context.RemoteEndPoint}.", "RealmAuthSessionProcessor");
 
         byte[] payload = await context.ReadBytesAsync(remaining, cancellationToken);
         if (!TryParseLogonChallenge(payload, out LogonChallenge challenge))
@@ -194,7 +193,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _localeName = challenge.LocaleName;
         _locale = GetLocaleIndex(_localeName);
 
-        Logger.Write(LogType.NETWORK, $"Received logon challenge for account '{_login}' using client build {_build} from {context.RemoteEndPoint}.", nameof(RealmAuthSessionProcessor));
+        Logger.Write(LogType.NETWORK, $"Received logon challenge for account '{_login}' using client build {_build} from {context.RemoteEndPoint}.", "RealmAuthSessionProcessor");
 
         if (!RealmBuilds.IsSupported(_build))
         {
@@ -205,7 +204,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 
         if (await _accountRepository.IsIpBannedAsync(context.RemoteAddress, cancellationToken))
         {
-            Logger.Write(LogType.WARNING, $"Banned IP '{context.RemoteAddress}' attempted to authenticate.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Banned IP '{context.RemoteAddress}' attempted to authenticate.", "RealmAuthSessionProcessor");
             await SendChallengeFailureAsync(context, RealmAuthResult.Banned, cancellationToken);
             _status = RealmAuthStatus.Closed;
             return;
@@ -214,7 +213,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _account = await _accountRepository.GetForLogonAsync(_login, cancellationToken);
         if (_account is null)
         {
-            Logger.Write(LogType.WARNING, $"Unknown account '{_login}' attempted to authenticate.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Unknown account '{_login}' attempted to authenticate.", "RealmAuthSessionProcessor");
             await SendChallengeFailureAsync(context, RealmAuthResult.UnknownAccount, cancellationToken);
             _status = RealmAuthStatus.Closed;
             return;
@@ -222,7 +221,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 
         if (_account.Locked && !string.Equals(_account.LastIp, context.RemoteAddress, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.WARNING, $"Locked account '{_login}' attempted to login from invalid IP '{context.RemoteAddress}'.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Locked account '{_login}' attempted to login from invalid IP '{context.RemoteAddress}'.", "RealmAuthSessionProcessor");
             await SendChallengeFailureAsync(context, RealmAuthResult.LockedEnforced, cancellationToken);
             _status = RealmAuthStatus.Closed;
             return;
@@ -231,7 +230,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         AccountBanStatus banStatus = await _accountRepository.GetAccountBanStatusAsync(_account.Id, cancellationToken);
         if (banStatus.IsBanned)
         {
-            Logger.Write(LogType.WARNING, $"Banned account '{_login}' attempted to authenticate.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Banned account '{_login}' attempted to authenticate.", "RealmAuthSessionProcessor");
             await SendChallengeFailureAsync(context, banStatus.IsPermanent ? RealmAuthResult.Banned : RealmAuthResult.Suspended, cancellationToken);
             _status = RealmAuthStatus.Closed;
             return;
@@ -264,7 +263,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 
         if (clientPublicEphemeral.IsZero || clientPublicEphemeral % Srp6Utilities.N == BigInteger.Zero)
         {
-            Logger.Write(LogType.WARNING, $"Account '{_login}' sent invalid SRP6 client public ephemeral.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Account '{_login}' sent invalid SRP6 client public ephemeral.", "RealmAuthSessionProcessor");
             _status = RealmAuthStatus.Closed;
             return;
         }
@@ -277,7 +276,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 
         if (!Srp6Utilities.FixedTimeEquals(expectedProof, clientProof))
         {
-            Logger.Write(LogType.WARNING, $"Account '{_login}' failed SRP6 proof validation.", nameof(RealmAuthSessionProcessor));
+            Logger.Write(LogType.WARNING, $"Account '{_login}' failed SRP6 proof validation.", "RealmAuthSessionProcessor");
             await _accountRepository.IncrementFailedLoginsAsync(_login, cancellationToken);
             await SendProofFailureAsync(context, cancellationToken);
             _status = RealmAuthStatus.Closed;
@@ -290,7 +289,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         byte[] hostProof = Srp6Utilities.CalculateHostProof(clientPublicEphemeral, clientProof, _sessionKey);
         await SendProofSuccessAsync(context, hostProof, cancellationToken);
 
-        Logger.Write(LogType.SUCCESS, $"Account '{_login}' authenticated successfully from {context.RemoteEndPoint}.", nameof(RealmAuthSessionProcessor));
+        Logger.Write(LogType.SUCCESS, $"Account '{_login}' authenticated successfully from {context.RemoteEndPoint}.", "RealmAuthSessionProcessor");
 
         _status = RealmAuthStatus.Authenticated;
     }
@@ -314,15 +313,15 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         byte[] packet = await _realmListPacketBuilder.BuildRealmListAsync(_build, _account.GmLevel, _account.Id, cancellationToken);
         await context.WriteAsync(packet, cancellationToken);
 
-        Logger.Write(LogType.TRACE, $"Sent realm list to account '{_login}'.", nameof(RealmAuthSessionProcessor));
+        Logger.Write(LogType.TRACE, $"Sent realm list to account '{_login}'.", "RealmAuthSessionProcessor");
     }
 
     /**
-     * Performs the prepare srp challenge operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: account, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the prepare srp challenge operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: account, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task PrepareSrpChallengeAsync(AccountLogonRecord account, CancellationToken cancellationToken)
     {
         if (Srp6Utilities.IsValidStoredSrpValue(account.Verifier) && Srp6Utilities.IsValidStoredSrpValue(account.Salt))
@@ -468,10 +467,10 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
     }
 
     /**
-     * Performs the reverse four character string operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value.
-     */
+      * Performs the reverse four character string operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value.
+      */
     private static string ReverseFourCharacterString(ReadOnlySpan<byte> value)
     {
         Span<byte> copy = stackalloc byte[4];
@@ -504,7 +503,7 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
     /**
       * Represents immutable struct data passed between parts of the server.
       * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-     * Positional fields carried by this record: Build, OperatingSystem, LocaleName, Username.
+      * Positional fields carried by this record: Build, OperatingSystem, LocaleName, Username.
       */
     private readonly record struct LogonChallenge(ushort Build, string OperatingSystem, string LocaleName, string Username);
 }

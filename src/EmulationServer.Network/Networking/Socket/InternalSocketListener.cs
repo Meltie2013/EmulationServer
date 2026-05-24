@@ -25,58 +25,57 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Socket/InternalSocketListener.cs
- * Documents the InternalSocketListener source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Socket/InternalSocketListener.cs
+  * Documents the InternalSocketListener source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Socket;
 
 /**
- * Owns the internal socket listener behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the internal socket listener behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InternalSocketListener
 {
     /**
-     * Holds the private tcp listener state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private tcp listener state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TcpListener _tcpListener;
     /**
-     * Holds the private session manager state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private session manager state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalSessionManager _sessionManager = new();
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalNetworkSettings _settings;
     /**
-     * Holds the private callbacks state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private callbacks state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalNetworkCallbacks _callbacks;
 
     /**
-     * Holds the private started state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private started state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _started;
     /**
-     * Holds the private stopping state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stopping state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _stopping;
 
     /**
-     * Initializes a new InternalSocketListener instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings, callbacks.
-     */
+      * Initializes a new InternalSocketListener instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings, callbacks.
+      */
     public InternalSocketListener(
         InternalNetworkSettings settings,
         InternalNetworkCallbacks? callbacks = null)
@@ -90,11 +89,11 @@ public sealed class InternalSocketListener
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -108,7 +107,7 @@ public sealed class InternalSocketListener
 
             IPEndPoint? endPoint = _tcpListener.LocalEndpoint as IPEndPoint;
 
-            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} internal listener started on {endPoint?.Address}:{endPoint?.Port}", nameof(InternalSocketListener));
+            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} internal listener started on {endPoint?.Address}:{endPoint?.Port}", "InternalSocketListener");
             await AcceptLoopAsync(cancellationToken);
         }
         finally
@@ -118,11 +117,11 @@ public sealed class InternalSocketListener
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -130,17 +129,17 @@ public sealed class InternalSocketListener
             return;
         }
 
-        Logger.Write(LogType.WARNING, $"Stopping {_settings.ServerName} internal network listener...", nameof(InternalSocketListener));
+        Logger.Write(LogType.WARNING, $"Stopping {_settings.ServerName} internal network listener...", "InternalSocketListener");
         _tcpListener.Stop();
 
-        Logger.Write(LogType.NETWORK, $"Disconnecting {_settings.ServerName} internal sessions...", nameof(InternalSocketListener));
+        Logger.Write(LogType.NETWORK, $"Disconnecting {_settings.ServerName} internal sessions...", "InternalSocketListener");
         await _sessionManager.DisconnectAllAsync();
 
         Logger.Write(LogType.NETWORK, $"Waiting up to {_settings.ShutdownGracePeriod.TotalSeconds:0.##} second(s) for {_settings.ServerName} internal sessions to stop...",
-            nameof(InternalSocketListener));
+            "InternalSocketListener");
         await _sessionManager.WaitForAllSessionsAsync(_settings.ShutdownGracePeriod, cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"{_settings.ServerName} internal network listener stopped.", nameof(InternalSocketListener));
+        Logger.Write(LogType.NETWORK, $"{_settings.ServerName} internal network listener stopped.", "InternalSocketListener");
     }
 
     /**
@@ -178,10 +177,9 @@ public sealed class InternalSocketListener
                 break;
             }
 
-
             ConfigureClient(client, _settings);
 
-            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal connection from {client.Client.RemoteEndPoint}", nameof(InternalSocketListener));
+            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal connection from {client.Client.RemoteEndPoint}", "InternalSocketListener");
 
             InternalServerSession session = new(_settings, client, _callbacks);
 
@@ -209,7 +207,7 @@ public sealed class InternalSocketListener
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalSocketListener));
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalSocketListener");
         }
         finally
         {
@@ -239,10 +237,10 @@ public sealed class InternalSocketListener
     }
 
     /**
-     * Tries to resolve the set tcp keep alive option value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: client, optionName, valueSeconds.
-     */
+      * Tries to resolve the set tcp keep alive option value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: client, optionName, valueSeconds.
+      */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)

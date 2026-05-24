@@ -20,12 +20,11 @@ using System.Buffers.Binary;
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/AdtWmoPlacementReader.cs
- * Documents the AdtWmoPlacementReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/AdtWmoPlacementReader.cs
+  * Documents the AdtWmoPlacementReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -36,9 +35,9 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 public static class AdtWmoPlacementReader
 {
     /**
-     * Defines the constant value for modf record size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for modf record size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int ModfRecordSize = 64;
 
     /**

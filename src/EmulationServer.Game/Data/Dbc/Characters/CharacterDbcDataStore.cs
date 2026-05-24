@@ -20,12 +20,11 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharacterDbcDataStore.cs
- * Documents the CharacterDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharacterDbcDataStore.cs
+  * Documents the CharacterDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
@@ -35,19 +34,19 @@ namespace EmulationServer.Game.Data.Dbc.Characters;
 public sealed class CharacterDbcDataStore
 {
     /**
-     * Defines the constant value for char start outfit packed header size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for char start outfit packed header size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CharStartOutfitPackedHeaderSize = 8;
     /**
-     * Defines the constant value for char start outfit item count.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for char start outfit item count.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CharStartOutfitItemCount = 12;
     /**
-     * Defines the constant value for char start outfit required bytes.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for char start outfit required bytes.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CharStartOutfitRequiredBytes = CharStartOutfitPackedHeaderSize + CharStartOutfitItemCount * sizeof(int) * 3;
 
     private readonly HashSet<(int RaceId, int ClassId)> _allowedRaceClasses;
@@ -57,9 +56,9 @@ public sealed class CharacterDbcDataStore
     private readonly Dictionary<(int RaceId, int SexId, int VariationId), CharHairGeosetDbcRecord> _hairGeosetsByCustomizationKey;
 
     /**
-     * Initializes a new CharacterDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     */
+      * Initializes a new CharacterDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      */
     private CharacterDbcDataStore()
     {
         Races = new Dictionary<int, ChrRaceDbcRecord>();
@@ -77,10 +76,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Initializes a new CharacterDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: races, classes, baseInfo, startOutfits, sections, facialHairStyles....
-     */
+      * Initializes a new CharacterDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: races, classes, baseInfo, startOutfits, sections, facialHairStyles....
+      */
     private CharacterDbcDataStore(
         IReadOnlyDictionary<int, ChrRaceDbcRecord> races,
         IReadOnlyDictionary<int, ChrClassDbcRecord> classes,
@@ -199,7 +198,7 @@ public sealed class CharacterDbcDataStore
         Logger.Write(
             LogType.SUCCESS,
             $"{ownerName} typed character DBC data loaded: races={data.Races.Count}, classes={data.Classes.Count}, raceClassPairs={data.BaseInfo.Count}, startOutfits={data.StartOutfits.Count}, sections={data.Sections.Count}, facialHair={data.FacialHairStyles.Count}, hairGeosets={data.HairGeosets.Count}.",
-            nameof(CharacterDbcDataStore));
+            "CharacterDbcDataStore");
 
         return data;
     }
@@ -261,10 +260,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read race record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read race record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static ChrRaceDbcRecord ReadRaceRecord(DbcRecord record)
     {
         return new ChrRaceDbcRecord(
@@ -291,10 +290,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read class record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read class record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static ChrClassDbcRecord ReadClassRecord(DbcRecord record)
     {
         return new ChrClassDbcRecord(
@@ -309,16 +308,16 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Loads load base info records information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: dbcStores, ownerName.
-     */
+      * Loads load base info records information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: dbcStores, ownerName.
+      */
     private static List<CharBaseInfoDbcRecord> LoadBaseInfoRecords(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         List<CharBaseInfoDbcRecord> records = [];
         if (!dbcStores.TryGetValue(CharacterDbcFileNames.CharBaseInfo, out DbcDataStore? store))
         {
-            Logger.Write(LogType.WARNING, $"{ownerName} did not load {CharacterDbcFileNames.CharBaseInfo}; race/class validation will be unavailable.", nameof(CharacterDbcDataStore));
+            Logger.Write(LogType.WARNING, $"{ownerName} did not load {CharacterDbcFileNames.CharBaseInfo}; race/class validation will be unavailable.", "CharacterDbcDataStore");
             return records;
         }
 
@@ -331,10 +330,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read base info record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read base info record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static CharBaseInfoDbcRecord ReadBaseInfoRecord(DbcRecord record)
     {
         ReadOnlySpan<byte> raw = record.GetRawData();
@@ -353,7 +352,7 @@ public sealed class CharacterDbcDataStore
         Dictionary<int, CharStartOutfitDbcRecord> records = [];
         if (!dbcStores.TryGetValue(CharacterDbcFileNames.CharStartOutfit, out DbcDataStore? store))
         {
-            Logger.Write(LogType.WARNING, $"{ownerName} did not load {CharacterDbcFileNames.CharStartOutfit}; starter outfits will be unavailable.", nameof(CharacterDbcDataStore));
+            Logger.Write(LogType.WARNING, $"{ownerName} did not load {CharacterDbcFileNames.CharStartOutfit}; starter outfits will be unavailable.", "CharacterDbcDataStore");
             return records;
         }
 
@@ -369,10 +368,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read start outfit record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read start outfit record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static CharStartOutfitDbcRecord ReadStartOutfitRecord(DbcRecord record)
     {
         int id = DbcRecordReader.ReadInt32AtOffset(record, 0);
@@ -399,10 +398,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read section record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read section record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static CharSectionDbcRecord ReadSectionRecord(DbcRecord record)
     {
         return new CharSectionDbcRecord(
@@ -419,10 +418,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read facial hair style record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read facial hair style record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static CharacterFacialHairStyleDbcRecord ReadFacialHairStyleRecord(DbcRecord record)
     {
         int[] geosets =
@@ -443,10 +442,10 @@ public sealed class CharacterDbcDataStore
     }
 
     /**
-     * Parses read hair geoset record input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: record.
-     */
+      * Parses read hair geoset record input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: record.
+      */
     private static CharHairGeosetDbcRecord ReadHairGeosetRecord(DbcRecord record)
     {
         return new CharHairGeosetDbcRecord(

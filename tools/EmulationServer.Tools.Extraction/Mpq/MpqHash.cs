@@ -18,43 +18,42 @@
 
 using System.Text;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHash.cs
- * Documents the MpqHash source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHash.cs
+  * Documents the MpqHash source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Owns the mpq hash behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the mpq hash behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 internal static class MpqHash
 {
     /**
-     * Defines the constant value for seed 1 initial.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for seed 1 initial.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const uint Seed1Initial = 0x7FED7FED;
     /**
-     * Defines the constant value for seed 2 initial.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for seed 2 initial.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const uint Seed2Initial = 0xEEEEEEEE;
 
     /**
-     * Stores the default crypt table value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default crypt table value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     private static readonly uint[] CryptTable = BuildCryptTable();
 
     /**
-     * Performs the hash string operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value, hashType.
-     */
+      * Performs the hash string operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value, hashType.
+      */
     public static uint HashString(string value, MpqHashType hashType)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -74,10 +73,10 @@ internal static class MpqHash
     }
 
     /**
-     * Normalizes the file name for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: fileName.
-     */
+      * Normalizes the file name for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: fileName.
+      */
     public static string NormalizeFileName(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
@@ -85,10 +84,10 @@ internal static class MpqHash
     }
 
     /**
-     * Normalizes the display name for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: fileName.
-     */
+      * Normalizes the display name for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: fileName.
+      */
     public static string NormalizeDisplayName(string fileName)
     {
         ArgumentNullException.ThrowIfNull(fileName);
@@ -96,10 +95,10 @@ internal static class MpqHash
     }
 
     /**
-     * Performs the to upper ascii operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value.
-     */
+      * Performs the to upper ascii operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value.
+      */
     private static byte ToUpperAscii(byte value)
     {
         return value is >= (byte)'a' and <= (byte)'z'
@@ -136,10 +135,10 @@ internal static class MpqHash
     }
 
     /**
-     * Performs the decrypt block operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: data, key.
-     */
+      * Performs the decrypt block operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: data, key.
+      */
     public static void DecryptBlock(Span<byte> data, uint key)
     {
         uint seed = Seed2Initial;

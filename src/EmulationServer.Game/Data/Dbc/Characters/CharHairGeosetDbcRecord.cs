@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharHairGeosetDbcRecord.cs
- * Documents the CharHairGeosetDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharHairGeosetDbcRecord.cs
+  * Documents the CharHairGeosetDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
 /**
   * Represents one CharHairGeosets.dbc row used for hair-style customization validation.
- * Positional fields carried by this record: Id, RaceId, SexId, VariationId, GeosetId, ShowsScalp.
+  * Positional fields carried by this record: Id, RaceId, SexId, VariationId, GeosetId, ShowsScalp.
   */
 public sealed record CharHairGeosetDbcRecord(
     int Id,

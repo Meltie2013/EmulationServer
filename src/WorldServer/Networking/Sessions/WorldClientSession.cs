@@ -39,73 +39,73 @@ using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.WorldServer.Networking.Movement;
 
 /**
- * File overview: src/WorldServer/Networking/Sessions/WorldClientSession.cs
- * Documents the WorldClientSession source file in the connected world client session lifecycle and packet dispatch area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Sessions/WorldClientSession.cs
+  * Documents the WorldClientSession source file in the connected world client session lifecycle and packet dispatch area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Sessions;
 
 /**
- * Owns the world client session behavior for the connected world client session lifecycle and packet dispatch layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world client session behavior for the connected world client session lifecycle and packet dispatch layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IAsyncDisposable
 {
     /**
-     * Defines the constant value for maximum movement broadcast distance squared.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for maximum movement broadcast distance squared.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const float MaximumMovementBroadcastDistanceSquared = 200.0f * 200.0f;
     /**
-     * Holds the private client state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private client state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TcpClient _client;
     /**
-     * Holds the private realm id state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private realm id state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly uint _realmId;
     /**
-     * Holds the private maximum packet size state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private maximum packet size state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _maximumPacketSize;
     /**
-     * Holds the private account repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldAccountRepository _accountRepository;
     /**
-     * Holds the private character repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private character repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CharacterRepository _characterRepository;
     /**
-     * Holds the private character service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private character service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CharacterCreationService _characterService;
     /**
-     * Holds the private item system state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private item system state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly GameItemSystem _itemSystem;
     /**
-     * Holds the private chat system state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private chat system state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly GameChatSystem _chatSystem;
     /**
-     * Holds the private command service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private command service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly GameInGameCommandService _commandService;
     /**
-     * Holds the private player session registry state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player session registry state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
     private readonly Func<PlayerLoginRecord, MapAvailabilityResult> _mapAvailabilityResolver;
     private readonly Func<PlayerLoginRecord, string, CancellationToken, Task> _playerEnteredWorldAsync;
@@ -113,98 +113,98 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private readonly Func<PlayerLoginRecord, string, PlayerMovementState, CancellationToken, Task> _playerMovementAsync;
     private readonly Func<PlayerLoginRecord, string, WorldPacket, CancellationToken, Task> _playerClientPacketAsync;
     /**
-     * Holds the private player save interval state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player save interval state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _playerSaveInterval;
     /**
-     * Holds the private player save lock state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player save lock state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly SemaphoreSlim _playerSaveLock = new(1, 1);
     /**
-     * Holds the private active player count changed state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private active player count changed state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly Action<int> _activePlayerCountChanged;
     private readonly Func<CancellationToken, Task> _characterCountChangedAsync;
     /**
-     * Holds the private disconnect state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private disconnect state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CancellationTokenSource _disconnect = new();
     /**
-     * Holds the private chat channels state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private chat channels state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly HashSet<string> _chatChannels = new(StringComparer.OrdinalIgnoreCase);
     /**
-     * Holds the private reported unhandled opcodes state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private reported unhandled opcodes state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly HashSet<WorldOpcode> _reportedUnhandledOpcodes = [];
     /**
-     * Holds the private server seed state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private server seed state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly uint _serverSeed;
     /**
-     * Holds the private message of the day state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private message of the day state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _messageOfTheDay;
 
     /**
-     * Holds the private stream state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stream state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private NetworkStream? _stream;
     /**
-     * Holds the private crypt state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private crypt state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private WorldHeaderCrypt? _crypt;
     /**
-     * Holds the private account state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private WorldAccountSessionRecord? _account;
     /**
-     * Holds the private current map owner server name state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private current map owner server name state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private string _currentMapOwnerServerName = string.Empty;
     /**
-     * Holds the private player save cancellation state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player save cancellation state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private CancellationTokenSource? _playerSaveCancellation;
     /**
-     * Holds the private player save loop state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player save loop state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _playerSaveLoop;
     /**
-     * Holds the private player state dirty state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player state dirty state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private bool _playerStateDirty;
     /**
-     * Holds the private last player time save utc state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private last player time save utc state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private DateTimeOffset _lastPlayerTimeSaveUtc;
     /**
-     * Holds the private disposed state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private disposed state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private bool _disposed;
 
     /**
-     * Initializes a new WorldClientSession instance with the dependencies required by the connected world client session lifecycle and packet dispatch workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: client, realmId, maximumPacketSize, accountRepository, characterRepository, characterService....
-     */
+      * Initializes a new WorldClientSession instance with the dependencies required by the connected world client session lifecycle and packet dispatch workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: client, realmId, maximumPacketSize, accountRepository, characterRepository, characterService....
+      */
     public WorldClientSession(
         TcpClient client,
         uint realmId,
@@ -226,21 +226,21 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         Action<int>? activePlayerCountChanged = null,
         Func<CancellationToken, Task>? characterCountChangedAsync = null)
     {
-        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _client = client ?? throw new ArgumentNullException();
         _realmId = realmId;
         _maximumPacketSize = maximumPacketSize;
-        _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
-        _characterRepository = characterRepository ?? throw new ArgumentNullException(nameof(characterRepository));
-        _characterService = characterService ?? throw new ArgumentNullException(nameof(characterService));
-        _itemSystem = itemSystem ?? throw new ArgumentNullException(nameof(itemSystem));
-        _chatSystem = chatSystem ?? throw new ArgumentNullException(nameof(chatSystem));
-        _commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
-        _playerSessionRegistry = playerSessionRegistry ?? throw new ArgumentNullException(nameof(playerSessionRegistry));
-        _mapAvailabilityResolver = mapAvailabilityResolver ?? throw new ArgumentNullException(nameof(mapAvailabilityResolver));
-        _playerEnteredWorldAsync = playerEnteredWorldAsync ?? throw new ArgumentNullException(nameof(playerEnteredWorldAsync));
-        _playerLeftWorldAsync = playerLeftWorldAsync ?? throw new ArgumentNullException(nameof(playerLeftWorldAsync));
-        _playerMovementAsync = playerMovementAsync ?? throw new ArgumentNullException(nameof(playerMovementAsync));
-        _playerClientPacketAsync = playerClientPacketAsync ?? throw new ArgumentNullException(nameof(playerClientPacketAsync));
+        _accountRepository = accountRepository ?? throw new ArgumentNullException();
+        _characterRepository = characterRepository ?? throw new ArgumentNullException();
+        _characterService = characterService ?? throw new ArgumentNullException();
+        _itemSystem = itemSystem ?? throw new ArgumentNullException();
+        _chatSystem = chatSystem ?? throw new ArgumentNullException();
+        _commandService = commandService ?? throw new ArgumentNullException();
+        _playerSessionRegistry = playerSessionRegistry ?? throw new ArgumentNullException();
+        _mapAvailabilityResolver = mapAvailabilityResolver ?? throw new ArgumentNullException();
+        _playerEnteredWorldAsync = playerEnteredWorldAsync ?? throw new ArgumentNullException();
+        _playerLeftWorldAsync = playerLeftWorldAsync ?? throw new ArgumentNullException();
+        _playerMovementAsync = playerMovementAsync ?? throw new ArgumentNullException();
+        _playerClientPacketAsync = playerClientPacketAsync ?? throw new ArgumentNullException();
         _messageOfTheDay = string.IsNullOrWhiteSpace(messageOfTheDay) ? "Welcome to Emulation Server." : messageOfTheDay;
         _playerSaveInterval = playerSaveInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(60) : playerSaveInterval;
         _activePlayerCountChanged = activePlayerCountChanged ?? (_ => { });
@@ -250,53 +250,53 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Exposes the id value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the id value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public Guid Id { get; }
 
     /**
-     * Exposes the current player value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the current player value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public PlayerLoginRecord? CurrentPlayer { get; private set; }
 
     /**
-     * Exposes the current movement value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the current movement value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public PlayerMovementState? CurrentMovement { get; private set; }
 
     /**
-     * Stores the default account gm level value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default account gm level value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public byte AccountGmLevel => _account?.GmLevel ?? 0;
 
     /**
-     * Stores the default active player count value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default active player count value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public int ActivePlayerCount => _playerSessionRegistry.ActivePlayerCount;
 
     /**
-     * Stores the default message of the day value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default message of the day value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public string MessageOfTheDay => _messageOfTheDay;
 
     /**
-     * Stores the default remote end point value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default remote end point value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public string RemoteEndPoint => _client.Client.RemoteEndPoint?.ToString() ?? "unknown";
 
     /**
-     * Performs the process operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: serverCancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the process operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: serverCancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task ProcessAsync(CancellationToken serverCancellationToken)
     {
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -317,19 +317,19 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
         catch (EndOfStreamException)
         {
-            Logger.Write(LogType.NETWORK, $"World client disconnected: {RemoteEndPoint}.", nameof(WorldClientSession));
+            Logger.Write(LogType.NETWORK, $"World client disconnected: {RemoteEndPoint}.", "WorldClientSession");
         }
         catch (IOException exception)
         {
-            Logger.Write(LogType.NETWORK, $"World client socket closed: {RemoteEndPoint}. {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.NETWORK, $"World client socket closed: {RemoteEndPoint}. {exception.Message}", "WorldClientSession");
         }
         catch (SocketException exception)
         {
-            Logger.Write(LogType.NETWORK, $"World client socket failed: {RemoteEndPoint}. {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.NETWORK, $"World client socket failed: {RemoteEndPoint}. {exception.Message}", "WorldClientSession");
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.FAILED, $"World client session failed for {RemoteEndPoint}: {exception}", nameof(WorldClientSession));
+            Logger.Write(LogType.FAILED, $"World client session failed for {RemoteEndPoint}: {exception}", "WorldClientSession");
         }
         finally
         {
@@ -339,10 +339,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Performs the disconnect operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the disconnect operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task DisconnectAsync()
     {
         if (!_disconnect.IsCancellationRequested)
@@ -361,56 +361,56 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Requires current player for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Requires current player for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public PlayerLoginRecord RequireCurrentPlayer()
     {
         return CurrentPlayer ?? throw new InvalidOperationException("World client has not entered the game world.");
     }
 
     /**
-     * Determines whether in chat channel for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: channelName.
-     */
+      * Determines whether in chat channel for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: channelName.
+      */
     public bool IsInChatChannel(string channelName)
     {
         return _chatChannels.Contains(ChatSystem.NormalizeChannelName(channelName));
     }
 
     /**
-     * Applies the join chat channel state transition to the current runtime session.
-     * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-     * Inputs used by this operation: channelName.
-     */
+      * Applies the join chat channel state transition to the current runtime session.
+      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
+      * Inputs used by this operation: channelName.
+      */
     public void JoinChatChannel(string channelName)
     {
         _chatChannels.Add(ChatSystem.NormalizeChannelName(channelName));
     }
 
     /**
-     * Applies the leave chat channel state transition to the current runtime session.
-     * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-     * Inputs used by this operation: channelName.
-     */
+      * Applies the leave chat channel state transition to the current runtime session.
+      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
+      * Inputs used by this operation: channelName.
+      */
     public void LeaveChatChannel(string channelName)
     {
         _chatChannels.Remove(ChatSystem.NormalizeChannelName(channelName));
     }
 
     /**
-     * Performs the authenticate operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the authenticate operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task AuthenticateAsync(CancellationToken cancellationToken)
     {
         WorldPacket packet = await WorldPacketIO.ReadClientPacketAsync(GetStream(), null, _maximumPacketSize, cancellationToken);
         if (packet.Opcode != WorldOpcode.CMSG_AUTH_SESSION)
         {
-            Logger.Write(LogType.WARNING, $"World client {RemoteEndPoint} sent {packet.Opcode} before CMSG_AUTH_SESSION.", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"World client {RemoteEndPoint} sent {packet.Opcode} before CMSG_AUTH_SESSION.", "WorldClientSession");
             await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
             throw new InvalidDataException("World client did not send CMSG_AUTH_SESSION first.");
         }
@@ -420,7 +420,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         WorldAccountSessionRecord? account = await _accountRepository.GetAccountSessionAsync(username, cancellationToken);
         if (account is null || account.Locked)
         {
-            Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account missing or locked.", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account missing or locked.", "WorldClientSession");
             await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
             throw new UnauthorizedAccessException("World account authentication failed.");
         }
@@ -428,7 +428,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         byte[] sessionKey = WorldAuthCryptography.ParseSessionKey(account.SessionKey);
         if (!WorldAuthCryptography.ProofMatches(username, request.ClientSeed, _serverSeed, sessionKey, request.ClientProof))
         {
-            Logger.Write(LogType.WARNING, $"World auth proof failed for '{username}' from {RemoteEndPoint}.", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"World auth proof failed for '{username}' from {RemoteEndPoint}.", "WorldClientSession");
             await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
             throw new UnauthorizedAccessException("World account proof failed.");
         }
@@ -441,15 +441,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Ok), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_ACCOUNT_DATA_TIMES, WorldPacketBuilders.BuildAccountDataTimes(), _crypt, cancellationToken);
 
-        Logger.Write(LogType.SUCCESS, $"World client authenticated account '{account.Username}' ({account.Id}) from {RemoteEndPoint}.", nameof(WorldClientSession));
+        Logger.Write(LogType.SUCCESS, $"World client authenticated account '{account.Username}' ({account.Id}) from {RemoteEndPoint}.", "WorldClientSession");
     }
 
     /**
-     * Performs the process authenticated packets operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the process authenticated packets operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task ProcessAuthenticatedPacketsAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -474,7 +474,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     break;
 
                 case WorldOpcode.CMSG_UPDATE_ACCOUNT_DATA:
-                    Logger.Write(LogType.TRACE, $"Received CMSG_UPDATE_ACCOUNT_DATA from {RemoteEndPoint}; persistence is not implemented yet.", nameof(WorldClientSession));
+                    Logger.Write(LogType.TRACE, $"Received CMSG_UPDATE_ACCOUNT_DATA from {RemoteEndPoint}; persistence is not implemented yet.", "WorldClientSession");
                     break;
 
                 case WorldOpcode.CMSG_CHAR_DELETE:
@@ -547,7 +547,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                 case WorldOpcode.CMSG_STANDSTATECHANGE:
                 case WorldOpcode.CMSG_SET_ACTION_BUTTON:
                 case WorldOpcode.CMSG_SET_ACTIONBAR_TOGGLES:
-                    Logger.Write(LogType.TRACE, $"Accepted client interface opcode {packet.Opcode} from {RemoteEndPoint}; persistence is not implemented yet.", nameof(WorldClientSession));
+                    Logger.Write(LogType.TRACE, $"Accepted client interface opcode {packet.Opcode} from {RemoteEndPoint}; persistence is not implemented yet.", "WorldClientSession");
                     break;
 
                 case WorldOpcode.CMSG_AREATRIGGER:
@@ -570,7 +570,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     // only after a concrete Map/Instance handler exists for them.
                     if (_reportedUnhandledOpcodes.Add(packet.Opcode))
                     {
-                        Logger.Write(LogType.TRACE, $"Unhandled world opcode from {RemoteEndPoint}: {packet.Opcode} (0x{(ushort)packet.Opcode:X4}), payload={packet.Payload.Length} byte(s). Future packets with this opcode will be accepted silently until a handler is implemented.", nameof(WorldClientSession));
+                        Logger.Write(LogType.TRACE, $"Unhandled world opcode from {RemoteEndPoint}: {packet.Opcode} (0x{(ushort)packet.Opcode:X4}), payload={packet.Payload.Length} byte(s). Future packets with this opcode will be accepted silently until a handler is implemented.", "WorldClientSession");
                     }
                     break;
             }
@@ -578,11 +578,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle ping event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle ping event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandlePingAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         WorldPacketReader reader = new(packet.Payload);
@@ -593,11 +593,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle character enum event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle character enum event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleCharacterEnumAsync(CancellationToken cancellationToken)
     {
         WorldAccountSessionRecord account = RequireAccount();
@@ -608,21 +608,21 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             byte[] payload = WorldPacketBuilders.BuildCharacterEnum(characters);
             await SendAsync(WorldOpcode.SMSG_CHAR_ENUM, payload, _crypt, cancellationToken);
 
-            Logger.Write(LogType.NETWORK, $"Sent character list to account '{account.Username}': {characters.Count} character(s), payload={payload.Length} byte(s).", nameof(WorldClientSession));
+            Logger.Write(LogType.NETWORK, $"Sent character list to account '{account.Username}': {characters.Count} character(s), payload={payload.Length} byte(s).", "WorldClientSession");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Logger.Write(LogType.FAILED, $"Failed to build/send character list for account '{account.Username}' ({account.Id}): {exception}", nameof(WorldClientSession));
+            Logger.Write(LogType.FAILED, $"Failed to build/send character list for account '{account.Username}' ({account.Id}): {exception}", "WorldClientSession");
             await SendAsync(WorldOpcode.SMSG_CHAR_ENUM, WorldPacketBuilders.BuildCharacterEnum(Array.Empty<CharacterListEntry>()), _crypt, cancellationToken);
         }
     }
 
     /**
-     * Handles the handle player login event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle player login event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandlePlayerLoginAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         WorldAccountSessionRecord account = RequireAccount();
@@ -637,7 +637,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         if (player is null)
         {
             await SendCharacterLoginFailedAsync(CharacterLoginFailureCode.NotFound, cancellationToken);
-            Logger.Write(LogType.WARNING, $"Player login rejected for account '{account.Username}': guid={characterGuid} was not found or was not owned by the account.", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Player login rejected for account '{account.Username}': guid={characterGuid} was not found or was not owned by the account.", "WorldClientSession");
             return;
         }
 
@@ -645,14 +645,14 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         if (!mapAvailability.IsAvailable)
         {
             await SendCharacterLoginFailedAsync(mapAvailability.RequiresInstanceServer ? CharacterLoginFailureCode.NoInstances : CharacterLoginFailureCode.NoWorld, cancellationToken);
-            Logger.Write(LogType.WARNING, $"Player login rejected for '{player.Name}' ({player.Guid}): map={player.Map} is unavailable. {mapAvailability.Reason}", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Player login rejected for '{player.Name}' ({player.Guid}): map={player.Map} is unavailable. {mapAvailability.Reason}", "WorldClientSession");
             return;
         }
 
         if (!_playerSessionRegistry.TryRegister(player, this))
         {
             await SendCharacterLoginFailedAsync(CharacterLoginFailureCode.DuplicateLogin, cancellationToken);
-            Logger.Write(LogType.WARNING, $"Player login rejected for '{player.Name}' ({player.Guid}): duplicate account or character session.", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Player login rejected for '{player.Name}' ({player.Guid}): duplicate account or character session.", "WorldClientSession");
             return;
         }
 
@@ -669,7 +669,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             await SendWorldEntryPacketsAsync(player, cancellationToken);
 
             _activePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
-            Logger.Write(LogType.SUCCESS, $"Player '{player.Name}' ({player.Guid}) entered world map={player.Map}, zone={player.Zone} through {mapAvailability.OwnerServerName}.", nameof(WorldClientSession));
+            Logger.Write(LogType.SUCCESS, $"Player '{player.Name}' ({player.Guid}) entered world map={player.Map}, zone={player.Zone} through {mapAvailability.OwnerServerName}.", "WorldClientSession");
         }
         catch
         {
@@ -684,11 +684,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Sends send character login failed data to the connected session or internal peer.
-     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-     * Inputs used by this operation: failureCode, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Sends send character login failed data to the connected session or internal peer.
+      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+      * Inputs used by this operation: failureCode, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SendCharacterLoginFailedAsync(CharacterLoginFailureCode failureCode, CancellationToken cancellationToken)
     {
         // Do not follow this with SMSG_CHAR_ENUM. During CMSG_PLAYER_LOGIN the
@@ -699,11 +699,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Sends send world entry packets data to the connected session or internal peer.
-     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-     * Inputs used by this operation: player, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Sends send world entry packets data to the connected session or internal peer.
+      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+      * Inputs used by this operation: player, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SendWorldEntryPacketsAsync(PlayerLoginRecord player, CancellationToken cancellationToken)
     {
         DateTimeOffset localTime = DateTimeOffset.Now;
@@ -726,11 +726,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Performs the forward packet to map service operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the forward packet to map service operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task<bool> ForwardPacketToMapServiceAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -747,17 +747,17 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Logger.Write(LogType.WARNING, $"Failed to forward {packet.Opcode} from player '{player.Name}' ({player.Guid}) to {ownerServerName}: {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Failed to forward {packet.Opcode} from player '{player.Name}' ({player.Guid}) to {ownerServerName}: {exception.Message}", "WorldClientSession");
             return false;
         }
     }
 
     /**
-     * Handles the handle movement packet event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle movement packet event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleMovementPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -771,7 +771,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         {
             if (_reportedUnhandledOpcodes.Add(packet.Opcode))
             {
-                Logger.Write(LogType.TRACE, $"Accepted movement opcode {packet.Opcode} from {RemoteEndPoint}, but no position state could be parsed from payload={packet.Payload.Length} byte(s). Future packets with this opcode will be accepted silently.", nameof(WorldClientSession));
+                Logger.Write(LogType.TRACE, $"Accepted movement opcode {packet.Opcode} from {RemoteEndPoint}, but no position state could be parsed from payload={packet.Payload.Length} byte(s). Future packets with this opcode will be accepted silently.", "WorldClientSession");
             }
 
             await ForwardPacketToMapServiceAsync(packet, cancellationToken);
@@ -787,17 +787,17 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Logger.Write(LogType.WARNING, $"Failed to route movement for player '{updatedPlayer.Name}' ({updatedPlayer.Guid}) to {ownerServerName}: {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Failed to route movement for player '{updatedPlayer.Name}' ({updatedPlayer.Guid}) to {ownerServerName}: {exception.Message}", "WorldClientSession");
         }
 
         await BroadcastMovementToNearbyPlayersAsync(packet, movement, cancellationToken);
     }
 
     /**
-     * Performs the apply movement state operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: movement.
-     */
+      * Performs the apply movement state operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: movement.
+      */
     private void ApplyMovementState(PlayerMovementState movement)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -820,11 +820,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Performs the broadcast movement to nearby players operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: packet, movement, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the broadcast movement to nearby players operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: packet, movement, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task BroadcastMovementToNearbyPlayersAsync(WorldPacket packet, PlayerMovementState movement, CancellationToken cancellationToken)
     {
         if (!WorldMovementOpcode.HasMovementInfoAtPayloadStart(packet.Opcode))
@@ -856,11 +856,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Sends send movement packet data to the connected session or internal peer.
-     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-     * Inputs used by this operation: opcode, payload, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Sends send movement packet data to the connected session or internal peer.
+      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+      * Inputs used by this operation: opcode, payload, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SendMovementPacketAsync(WorldOpcode opcode, byte[] payload, CancellationToken cancellationToken)
     {
         if (_crypt is null)
@@ -872,11 +872,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle zone update event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle zone update event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleZoneUpdateAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -902,9 +902,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Starts the start player save timer workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     */
+      * Starts the start player save timer workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      */
     private void StartPlayerSaveTimer()
     {
         _playerSaveCancellation?.Cancel();
@@ -915,11 +915,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Performs the run player save timer operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the run player save timer operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task RunPlayerSaveTimerAsync(CancellationToken cancellationToken)
     {
         try
@@ -935,15 +935,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.WARNING, $"Player save timer stopped for {RemoteEndPoint}: {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Player save timer stopped for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
         }
     }
 
     /**
-     * Stops the stop player save timer workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop player save timer workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task StopPlayerSaveTimerAsync()
     {
         CancellationTokenSource? saveCancellation = _playerSaveCancellation;
@@ -972,11 +972,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Updates save current player state in memory or persistent storage.
-     * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-     * Inputs used by this operation: force, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Updates save current player state in memory or persistent storage.
+      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
+      * Inputs used by this operation: force, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SaveCurrentPlayerAsync(bool force, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -1007,11 +1007,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             _lastPlayerTimeSaveUtc = now;
             _playerStateDirty = false;
 
-            Logger.Write(LogType.TRACE, $"Saved player '{snapshot.Name}' ({snapshot.Guid}) state: map={snapshot.Map}, zone={snapshot.Zone}, position=({snapshot.PositionX:0.##}, {snapshot.PositionY:0.##}, {snapshot.PositionZ:0.##}).", nameof(WorldClientSession));
+            Logger.Write(LogType.TRACE, $"Saved player '{snapshot.Name}' ({snapshot.Guid}) state: map={snapshot.Map}, zone={snapshot.Zone}, position=({snapshot.PositionX:0.##}, {snapshot.PositionY:0.##}, {snapshot.PositionZ:0.##}).", "WorldClientSession");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Logger.Write(LogType.WARNING, $"Failed to save player state for {player?.Name ?? RemoteEndPoint}: {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Failed to save player state for {player?.Name ?? RemoteEndPoint}: {exception.Message}", "WorldClientSession");
         }
         finally
         {
@@ -1020,10 +1020,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Determines whether within movement broadcast range for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: source, target.
-     */
+      * Determines whether within movement broadcast range for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: source, target.
+      */
     private static bool IsWithinMovementBroadcastRange(PlayerLoginRecord source, PlayerLoginRecord target)
     {
         float deltaX = source.PositionX - target.PositionX;
@@ -1034,10 +1034,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Performs the saturating seconds operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: elapsed.
-     */
+      * Performs the saturating seconds operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: elapsed.
+      */
     private static uint SaturatingSeconds(TimeSpan elapsed)
     {
         if (elapsed <= TimeSpan.Zero)
@@ -1049,10 +1049,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Adds clamped for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value, addition.
-     */
+      * Adds clamped for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value, addition.
+      */
     private static uint AddClamped(uint value, uint addition)
     {
         ulong result = (ulong)value + addition;
@@ -1060,11 +1060,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle item query single event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle item query single event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleItemQuerySingleAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         WorldPacketReader reader = new(packet.Payload);
@@ -1078,11 +1078,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle item name query event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle item name query event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleItemNameQueryAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         WorldPacketReader reader = new(packet.Payload);
@@ -1096,11 +1096,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle name query event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle name query event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleNameQueryAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         uint characterGuid = CharacterGuid.FromClientGuid(ReadClientGuid(packet.Payload));
@@ -1122,11 +1122,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle who event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle who event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleWhoAsync(CancellationToken cancellationToken)
     {
         PlayerLoginRecord player = RequireCurrentPlayer();
@@ -1140,11 +1140,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle logout request event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle logout request event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleLogoutRequestAsync(CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -1160,27 +1160,27 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle played time event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle played time event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandlePlayedTimeAsync(CancellationToken cancellationToken)
     {
         await SendAsync(WorldOpcode.SMSG_PLAYED_TIME, WorldPacketBuilders.BuildPlayedTime(RequireCurrentPlayer()), _crypt, cancellationToken);
     }
 
     /**
-     * Handles the handle message chat event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle message chat event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleMessageChatAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
         {
-            Logger.Write(LogType.WARNING, $"Ignoring CMSG_MESSAGECHAT from {RemoteEndPoint}: player is not in world.", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Ignoring CMSG_MESSAGECHAT from {RemoteEndPoint}: player is not in world.", "WorldClientSession");
             return;
         }
 
@@ -1191,7 +1191,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
         catch (InvalidDataException exception)
         {
-            Logger.Write(LogType.WARNING, $"Ignoring malformed chat packet from '{CurrentPlayer.Name}': {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.WARNING, $"Ignoring malformed chat packet from '{CurrentPlayer.Name}': {exception.Message}", "WorldClientSession");
             return;
         }
 
@@ -1239,15 +1239,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             await SendAsync(WorldOpcode.SMSG_MESSAGECHAT, informPayload, _crypt, cancellationToken);
         }
 
-        Logger.Write(LogType.NETWORK, $"Relayed {message.Type} chat from '{CurrentPlayer.Name}' to {worldRecipients.Length} faction-scoped recipient(s).", nameof(WorldClientSession));
+        Logger.Write(LogType.NETWORK, $"Relayed {message.Type} chat from '{CurrentPlayer.Name}' to {worldRecipients.Length} faction-scoped recipient(s).", "WorldClientSession");
     }
 
     /**
-     * Sends send system message data to the connected session or internal peer.
-     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-     * Inputs used by this operation: message, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Sends send system message data to the connected session or internal peer.
+      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+      * Inputs used by this operation: message, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SendSystemMessageAsync(string message, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -1258,11 +1258,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Applies the join default chat channels state transition to the current runtime session.
-     * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Applies the join default chat channels state transition to the current runtime session.
+      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task JoinDefaultChatChannelsAsync(CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -1277,11 +1277,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle join channel event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle join channel event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleJoinChannelAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -1295,11 +1295,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Applies the join chat channel state transition to the current runtime session.
-     * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-     * Inputs used by this operation: channelName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Applies the join chat channel state transition to the current runtime session.
+      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
+      * Inputs used by this operation: channelName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task JoinChatChannelAsync(string channelName, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -1314,11 +1314,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle leave channel event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle leave channel event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleLeaveChannelAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -1334,11 +1334,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle channel list event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle channel list event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleChannelListAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         if (CurrentPlayer is null)
@@ -1360,11 +1360,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle request account data event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle request account data event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleRequestAccountDataAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         uint accountDataType = 0;
@@ -1378,11 +1378,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Handles the handle character create event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle character create event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleCharacterCreateAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         WorldAccountSessionRecord account = RequireAccount();
@@ -1398,15 +1398,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         Logger.Write(
             result == CharacterCreateResult.Success ? LogType.SUCCESS : LogType.WARNING,
             $"Character create result for account '{account.Username}', name='{request.Name}': {result}.",
-            nameof(WorldClientSession));
+            "WorldClientSession");
     }
 
     /**
-     * Handles the handle character delete event for the connected world client session lifecycle and packet dispatch workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the handle character delete event for the connected world client session lifecycle and packet dispatch workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task HandleCharacterDeleteAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         WorldAccountSessionRecord account = RequireAccount();
@@ -1432,15 +1432,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         Logger.Write(
             result == CharacterDeleteServiceResult.Success ? LogType.SUCCESS : LogType.WARNING,
             $"Character delete result for account '{account.Username}', guid=0x{clientGuid:X16}: {result}.",
-            nameof(WorldClientSession));
+            "WorldClientSession");
     }
 
     /**
-     * Performs the cleanup current player operation for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the cleanup current player operation for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task CleanupCurrentPlayerAsync(CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
@@ -1467,7 +1467,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                Logger.Write(LogType.WARNING, $"Failed to notify map service that player '{player.Name}' ({player.Guid}) left world: {exception.Message}", nameof(WorldClientSession));
+                Logger.Write(LogType.WARNING, $"Failed to notify map service that player '{player.Name}' ({player.Guid}) left world: {exception.Message}", "WorldClientSession");
             }
         }
 
@@ -1480,25 +1480,25 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            Logger.Write(LogType.FAILED, $"Failed to mark player '{player.Name}' ({player.Guid}) offline: {exception.Message}", nameof(WorldClientSession));
+            Logger.Write(LogType.FAILED, $"Failed to mark player '{player.Name}' ({player.Guid}) offline: {exception.Message}", "WorldClientSession");
         }
     }
 
     /**
-     * Parses read character delete guid input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: payload.
-     */
+      * Parses read character delete guid input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: payload.
+      */
     private static ulong ReadCharacterDeleteGuid(byte[] payload)
     {
         return ReadClientGuid(payload);
     }
 
     /**
-     * Parses read client guid input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: payload.
-     */
+      * Parses read client guid input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: payload.
+      */
     private static ulong ReadClientGuid(byte[] payload)
     {
         WorldPacketReader reader = new(payload);
@@ -1506,10 +1506,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Parses read character create request input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: payload.
-     */
+      * Parses read character create request input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: payload.
+      */
     private static CharacterCreateRequest ReadCharacterCreateRequest(byte[] payload)
     {
         WorldPacketReader reader = new(payload);
@@ -1528,10 +1528,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Parses read chat message input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: payload.
-     */
+      * Parses read chat message input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: payload.
+      */
     private static ChatIncomingMessage ReadChatMessage(byte[] payload)
     {
         WorldPacketReader reader = new(payload);
@@ -1549,10 +1549,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Resolves the faction for race value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: race.
-     */
+      * Resolves the faction for race value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: race.
+      */
     private static PlayerFaction ResolveFactionForRace(byte race)
     {
         return race switch
@@ -1564,39 +1564,39 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
-     * Sends send data to the connected session or internal peer.
-     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-     * Inputs used by this operation: opcode, payload, crypt, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Sends send data to the connected session or internal peer.
+      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+      * Inputs used by this operation: opcode, payload, crypt, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SendAsync(WorldOpcode opcode, byte[] payload, WorldHeaderCrypt? crypt, CancellationToken cancellationToken)
     {
         await WorldPacketIO.WriteServerPacketAsync(GetStream(), opcode, payload, crypt, cancellationToken);
     }
 
     /**
-     * Resolves the stream value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     */
+      * Resolves the stream value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      */
     private NetworkStream GetStream()
     {
         return _stream ?? throw new InvalidOperationException("World client stream is not initialized.");
     }
 
     /**
-     * Requires account for the connected world client session lifecycle and packet dispatch workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Requires account for the connected world client session lifecycle and packet dispatch workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     private WorldAccountSessionRecord RequireAccount()
     {
         return _account ?? throw new InvalidOperationException("World client is not authenticated.");
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

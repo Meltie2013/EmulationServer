@@ -20,19 +20,18 @@ using System.Net;
 
 using EmulationServer.Network.Networking.Protocol;
 
-
 /**
- * File overview: src/EmulationServer.Network/Configuration/InternalNetworkSettings.cs
- * Documents the InternalNetworkSettings source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Configuration/InternalNetworkSettings.cs
+  * Documents the InternalNetworkSettings source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Configuration;
 
 /**
- * Owns the internal network settings behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the internal network settings behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InternalNetworkSettings
 {
     /**

@@ -19,52 +19,51 @@
 using EmulationServer.Core.Servers;
 using EmulationServer.ProxyServer.Configuration;
 
-
 /**
- * File overview: src/ProxyServer/Core/ProxyServer.cs
- * Documents the ProxyServer source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/ProxyServer/Core/ProxyServer.cs
+  * Documents the ProxyServer source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.ProxyServer.Core;
 
 /**
- * Owns the proxy server behavior for the proxy startup, service discovery, and client-routing support layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the proxy server behavior for the proxy startup, service discovery, and client-routing support layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ProxyServer : IAsyncDisposable
 {
     /**
-     * Holds the private dependency monitor state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private dependency monitor state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly ProxyDependencyMonitor _dependencyMonitor;
     /**
-     * Holds the private host state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private host state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly EmulationServerHost _host;
 
     /**
-     * Initializes a new ProxyServer instance with the dependencies required by the proxy startup, service discovery, and client-routing support workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new ProxyServer instance with the dependencies required by the proxy startup, service discovery, and client-routing support workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public ProxyServer(ProxyServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
         _dependencyMonitor = new ProxyDependencyMonitor(settings.DependencyPolicy);
-        _host = new EmulationServerHost(nameof(ProxyServer), settings.InternalNetwork, _dependencyMonitor.CreateCallbacks());
+        _host = new EmulationServerHost("ProxyServer", settings.InternalNetwork, _dependencyMonitor.CreateCallbacks());
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Task hostTask = _host.StartAsync(cancellationToken);
@@ -83,11 +82,11 @@ public sealed class ProxyServer : IAsyncDisposable
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _dependencyMonitor.StopAsync(cancellationToken);
@@ -95,10 +94,10 @@ public sealed class ProxyServer : IAsyncDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);

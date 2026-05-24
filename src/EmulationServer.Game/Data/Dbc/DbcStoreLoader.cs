@@ -19,19 +19,18 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/DbcStoreLoader.cs
- * Documents the DbcStoreLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcStoreLoader.cs
+  * Documents the DbcStoreLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc;
 
 /**
- * Owns the dbc store loader behavior for the DBC loading and strongly typed client data records layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the dbc store loader behavior for the DBC loading and strongly typed client data records layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class DbcStoreLoader
 {
     public static Dictionary<string, DbcDataStore> LoadRequiredStores(string dbcDirectory, IEnumerable<string> requiredDbcFiles, string ownerName)
@@ -61,7 +60,7 @@ public static class DbcStoreLoader
             stores[store.Name] = store;
         }
 
-        Logger.Write(LogType.SUCCESS, $"{ownerName} loaded {stores.Count} required DBC file(s) from '{fullDbcDirectory}'.", nameof(DbcStoreLoader));
+        Logger.Write(LogType.SUCCESS, $"{ownerName} loaded {stores.Count} required DBC file(s) from '{fullDbcDirectory}'.", "DbcStoreLoader");
         return stores;
     }
 

@@ -19,19 +19,18 @@
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
-
 /**
- * File overview: tests/EmulationServer.Tests/Tools/AdtChunkReaderTests.cs
- * Documents the AdtChunkReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tests/EmulationServer.Tests/Tools/AdtChunkReaderTests.cs
+  * Documents the AdtChunkReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tests.Tools;
 
 /**
- * Owns the adt chunk reader tests behavior for the automated test coverage for server behavior and data helpers layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the adt chunk reader tests behavior for the automated test coverage for server behavior and data helpers layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class AdtChunkReaderTests
 {
     /**

@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDisplayInfoDbcRecord.cs
- * Documents the ItemDisplayInfoDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDisplayInfoDbcRecord.cs
+  * Documents the ItemDisplayInfoDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
 /**
   * Represents one ItemDisplayInfo.dbc row used for item appearance and character-list equipment display.
- * Positional fields carried by this record: Id, ModelName1, ModelName2, ModelTexture1, ModelTexture2, InventoryIcon1, InventoryIcon2, GeosetGroup1, GeosetGroup2, GeosetGroup3, SpellVisualId, GroupSoundIndex, HelmetGeosetVis1, HelmetGeosetVis2, Textures, ItemVisual.
+  * Positional fields carried by this record: Id, ModelName1, ModelName2, ModelTexture1, ModelTexture2, InventoryIcon1, InventoryIcon2, GeosetGroup1, GeosetGroup2, GeosetGroup3, SpellVisualId, GroupSoundIndex, HelmetGeosetVis1, HelmetGeosetVis2, Textures, ItemVisual.
   */
 public sealed record ItemDisplayInfoDbcRecord(
     int Id,

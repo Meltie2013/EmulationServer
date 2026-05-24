@@ -18,36 +18,35 @@
 
 using MySqlConnector;
 
-
 /**
- * File overview: src/EmulationServer.Database/Interface/IDatabaseService.cs
- * Documents the IDatabaseService source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Database/Interface/IDatabaseService.cs
+  * Documents the IDatabaseService source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Database.Interfaces;
 
 /**
- * Defines the contract for database service behavior in the database access, account persistence, and MySQL connectivity layer.
- * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
- */
+  * Defines the contract for database service behavior in the database access, account persistence, and MySQL connectivity layer.
+  * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
+  */
 public interface IDatabaseService : IAsyncDisposable
 {
     /**
-     * Creates the create connection async resource for the implementing service.
-     * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
-     */
+      * Creates the create connection async resource for the implementing service.
+      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
+      */
     ValueTask<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken = default);
 
     /**
-     * Runs the test connection async check through the implementing service.
-     * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
-     */
+      * Runs the test connection async check through the implementing service.
+      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
+      */
     Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default);
 
     /**
-     * Runs the validate connection async check through the implementing service.
-     * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
-     */
+      * Runs the validate connection async check through the implementing service.
+      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
+      */
     Task ValidateConnectionAsync(CancellationToken cancellationToken = default);
 }

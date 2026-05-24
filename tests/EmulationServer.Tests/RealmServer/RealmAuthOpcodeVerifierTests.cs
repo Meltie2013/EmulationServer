@@ -18,19 +18,18 @@
 
 using EmulationServer.RealmServer.Auth;
 
-
 /**
- * File overview: tests/EmulationServer.Tests/RealmServer/RealmAuthOpcodeVerifierTests.cs
- * Documents the RealmAuthOpcodeVerifierTests source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tests/EmulationServer.Tests/RealmServer/RealmAuthOpcodeVerifierTests.cs
+  * Documents the RealmAuthOpcodeVerifierTests source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tests.RealmServer;
 
 /**
- * Owns the realm auth opcode verifier tests behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm auth opcode verifier tests behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmAuthOpcodeVerifierTests
 {
     /**
@@ -44,9 +43,9 @@ public sealed class RealmAuthOpcodeVerifierTests
     }
 
     /**
-     * Performs the critical realm auth op codes should use expected client protocol values operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the critical realm auth op codes should use expected client protocol values operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [Fact]
     public void CriticalRealmAuthOpCodes_ShouldUseExpectedClientProtocolValues()
     {

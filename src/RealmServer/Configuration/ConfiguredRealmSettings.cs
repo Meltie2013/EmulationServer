@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/RealmServer/Configuration/ConfiguredRealmSettings.cs
- * Documents the ConfiguredRealmSettings source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Configuration/ConfiguredRealmSettings.cs
+  * Documents the ConfiguredRealmSettings source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Configuration;
 
 /**
- * Owns the configured realm settings behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the configured realm settings behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ConfiguredRealmSettings
 {
     /**
@@ -91,7 +90,6 @@ public sealed class ConfiguredRealmSettings
       */
     public int ActiveConnections { get; init; }
 
-
     /**
       * Gets or stores the builds value used by ConfiguredRealmSettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
@@ -136,7 +134,6 @@ public sealed class ConfiguredRealmSettings
         {
             throw new InvalidOperationException($"Realm {Id} active connections cannot be negative.");
         }
-
 
         if (Builds.Count == 0)
         {

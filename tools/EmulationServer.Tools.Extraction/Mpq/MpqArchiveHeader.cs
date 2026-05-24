@@ -18,32 +18,31 @@
 
 using System.Buffers.Binary;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqArchiveHeader.cs
- * Documents the MpqArchiveHeader source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqArchiveHeader.cs
+  * Documents the MpqArchiveHeader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Owns the mpq archive header behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the mpq archive header behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 internal sealed class MpqArchiveHeader
 {
     /**
-     * Defines the constant value for mpq magic.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mpq magic.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const uint MpqMagic = 0x1A51504D;
 
     /**
-     * Initializes a new MpqArchiveHeader instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: headerOffset, headerSize, formatVersion, blockSizePower, archiveSize, hashTableOffset....
-     */
+      * Initializes a new MpqArchiveHeader instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: headerOffset, headerSize, formatVersion, blockSizePower, archiveSize, hashTableOffset....
+      */
     private MpqArchiveHeader(
         long headerOffset,
         uint headerSize,

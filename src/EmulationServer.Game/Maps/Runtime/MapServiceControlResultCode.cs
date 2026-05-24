@@ -16,35 +16,34 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlResultCode.cs
- * Documents the MapServiceControlResultCode source file in the runtime map-player state tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlResultCode.cs
+  * Documents the MapServiceControlResultCode source file in the runtime map-player state tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
 /**
- * Lists the supported map service control result code values used by the runtime map-player state tracking layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported map service control result code values used by the runtime map-player state tracking layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum MapServiceControlResultCode
 {
     /**
-     * Represents the success value for map service control result code handling.
-     */
+      * Represents the success value for map service control result code handling.
+      */
     Success,
     /**
-     * Represents the ignored value for map service control result code handling.
-     */
+      * Represents the ignored value for map service control result code handling.
+      */
     Ignored,
     /**
-     * Represents the not found value for map service control result code handling.
-     */
+      * Represents the not found value for map service control result code handling.
+      */
     NotFound,
     /**
-     * Represents the failed value for map service control result code handling.
-     */
+      * Represents the failed value for map service control result code handling.
+      */
     Failed,
 }

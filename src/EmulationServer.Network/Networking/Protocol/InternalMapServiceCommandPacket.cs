@@ -18,19 +18,18 @@
 
 using System.Globalization;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceCommandPacket.cs
- * Documents the InternalMapServiceCommandPacket source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceCommandPacket.cs
+  * Documents the InternalMapServiceCommandPacket source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Protocol;
 
 /**
   * Represents immutable internal map service command packet data passed between parts of the server.
   * It represents an internal protocol payload exchanged between server processes.
- * Positional fields carried by this record: CommandId, Action, MapId.
+  * Positional fields carried by this record: CommandId, Action, MapId.
   */
 public sealed record InternalMapServiceCommandPacket(
     string CommandId,
@@ -38,9 +37,9 @@ public sealed record InternalMapServiceCommandPacket(
     int MapId)
 {
     /**
-     * Performs the to packet line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the to packet line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public string ToPacketLine()
     {
         return string.Create(

@@ -19,25 +19,24 @@
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Validation;
 
-
 /**
- * File overview: tests/EmulationServer.Tests/Tools/MapHeightCodecTests.cs
- * Documents the MapHeightCodecTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tests/EmulationServer.Tests/Tools/MapHeightCodecTests.cs
+  * Documents the MapHeightCodecTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tests.Tools;
 
 /**
- * Owns the map height codec tests behavior for the automated test coverage for server behavior and data helpers layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the map height codec tests behavior for the automated test coverage for server behavior and data helpers layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MapHeightCodecTests
 {
     /**
-     * Performs the select u int 8 step store matches mangos formula operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the select u int 8 step store matches mangos formula operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [Fact]
     public void SelectUInt8StepStore_MatchesMangosFormula()
     {
@@ -45,9 +44,9 @@ public sealed class MapHeightCodecTests
     }
 
     /**
-     * Performs the select u int 16 step store matches mangos formula operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the select u int 16 step store matches mangos formula operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [Fact]
     public void SelectUInt16StepStore_MatchesMangosFormula()
     {
@@ -55,9 +54,9 @@ public sealed class MapHeightCodecTests
     }
 
     /**
-     * Performs the u int 8 codec round trips endpoints exactly operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the u int 8 codec round trips endpoints exactly operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [Fact]
     public void UInt8Codec_RoundTripsEndpointsExactly()
     {
@@ -74,9 +73,9 @@ public sealed class MapHeightCodecTests
     }
 
     /**
-     * Performs the u int 16 codec round trips endpoints exactly operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the u int 16 codec round trips endpoints exactly operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [Fact]
     public void UInt16Codec_RoundTripsEndpointsExactly()
     {
@@ -93,9 +92,9 @@ public sealed class MapHeightCodecTests
     }
 
     /**
-     * Performs the formula verifier stays within expected quantization error operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the formula verifier stays within expected quantization error operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [Fact]
     public void FormulaVerifier_StaysWithinExpectedQuantizationError()
     {

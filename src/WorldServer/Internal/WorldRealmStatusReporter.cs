@@ -24,124 +24,123 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Configuration;
 
-
 /**
- * File overview: src/WorldServer/Internal/WorldRealmStatusReporter.cs
- * Documents the WorldRealmStatusReporter source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Internal/WorldRealmStatusReporter.cs
+  * Documents the WorldRealmStatusReporter source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Internal;
 
 /**
- * Owns the world realm status reporter behavior for the world server startup, client networking, gameplay routing, and persistence layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world realm status reporter behavior for the world server startup, client networking, gameplay routing, and persistence layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WorldRealmStatusReporter : IAsyncDisposable
 {
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly RealmStatusSettings _settings;
     /**
-     * Holds the private registration key state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private registration key state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _registrationKey;
     /**
-     * Holds the private send lock state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private send lock state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     /**
-     * Holds the private max connections state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private max connections state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _maxConnections;
     /**
-     * Holds the private latency report interval state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private latency report interval state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _latencyReportInterval;
     /**
-     * Holds the private ping timeout state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private ping timeout state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _pingTimeout;
     /**
-     * Holds the private receive buffer size state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private receive buffer size state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _receiveBufferSize;
     /**
-     * Holds the private send buffer size state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private send buffer size state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _sendBufferSize;
     /**
-     * Holds the private keep alive state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private keep alive state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly bool _keepAlive;
     /**
-     * Holds the private keep alive time seconds state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private keep alive time seconds state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _keepAliveTimeSeconds;
     /**
-     * Holds the private keep alive interval seconds state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private keep alive interval seconds state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _keepAliveIntervalSeconds;
     /**
-     * Holds the private authentication timeout state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private authentication timeout state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _authenticationTimeout;
     private readonly Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> _characterCountSnapshotLoader;
 
     /**
-     * Holds the private stop cancellation state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stop cancellation state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
     /**
-     * Holds the private report task state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private report task state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _reportTask;
     /**
-     * Holds the private client state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private client state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private TcpClient? _client;
     /**
-     * Holds the private stream state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stream state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private NetworkStream? _stream;
     /**
-     * Holds the private reader state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private reader state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private InternalProtocolReader? _reader;
     /**
-     * Holds the private started state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private started state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _started;
     /**
-     * Holds the private active connections state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private active connections state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _activeConnections;
 
     /**
-     * Initializes a new WorldRealmStatusReporter instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings, registrationKey, maxConnections, latencyReportInterval, pingTimeout, receiveBufferSize....
-     */
+      * Initializes a new WorldRealmStatusReporter instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings, registrationKey, maxConnections, latencyReportInterval, pingTimeout, receiveBufferSize....
+      */
     public WorldRealmStatusReporter(
         RealmStatusSettings settings,
         string registrationKey,
@@ -156,51 +155,51 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         TimeSpan authenticationTimeout,
         Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> characterCountSnapshotLoader)
     {
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _settings = settings ?? throw new ArgumentNullException();
 
         if (string.IsNullOrWhiteSpace(registrationKey))
         {
-            throw new ArgumentException("Registration key is required.", nameof(registrationKey));
+            throw new ArgumentException("Registration key is required.");
         }
 
         if (maxConnections <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxConnections), "WorldServer max connections must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "WorldServer max connections must be greater than zero.");
         }
 
         if (latencyReportInterval <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(latencyReportInterval), "Latency report interval must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Latency report interval must be greater than zero.");
         }
 
         if (pingTimeout <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(pingTimeout), "Ping timeout must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Ping timeout must be greater than zero.");
         }
 
         if (receiveBufferSize <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), "Receive buffer size must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Receive buffer size must be greater than zero.");
         }
 
         if (sendBufferSize <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(sendBufferSize), "Send buffer size must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Send buffer size must be greater than zero.");
         }
 
         if (keepAliveTimeSeconds < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(keepAliveTimeSeconds), "Keep-alive time cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Keep-alive time cannot be negative.");
         }
 
         if (keepAliveIntervalSeconds < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(keepAliveIntervalSeconds), "Keep-alive interval cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Keep-alive interval cannot be negative.");
         }
 
         if (authenticationTimeout <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(authenticationTimeout), "Authentication timeout must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Authentication timeout must be greater than zero.");
         }
 
         _settings.Validate();
@@ -214,20 +213,20 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _keepAliveTimeSeconds = keepAliveTimeSeconds;
         _keepAliveIntervalSeconds = keepAliveIntervalSeconds;
         _authenticationTimeout = authenticationTimeout;
-        _characterCountSnapshotLoader = characterCountSnapshotLoader ?? throw new ArgumentNullException(nameof(characterCountSnapshotLoader));
+        _characterCountSnapshotLoader = characterCountSnapshotLoader ?? throw new ArgumentNullException();
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (!_settings.Enabled)
         {
-            Logger.Write(LogType.NETWORK, "WorldServer realm status reporting is disabled.", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.NETWORK, "WorldServer realm status reporting is disabled.", "WorldRealmStatusReporter");
             return Task.CompletedTask;
         }
 
@@ -239,7 +238,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _stopCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _reportTask = Task.Run(() => RunAsync(_stopCancellation.Token), CancellationToken.None);
 
-        Logger.Write(LogType.NETWORK, $"WorldServer realm status reporter started for realm {_settings.RealmId}.", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.NETWORK, $"WorldServer realm status reporter started for realm {_settings.RealmId}.", "WorldRealmStatusReporter");
 
         return Task.CompletedTask;
     }
@@ -268,16 +267,16 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or OperationCanceledException)
         {
-            Logger.Write(LogType.WARNING, $"Unable to send immediate character-count snapshot: {exception.Message}", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.WARNING, $"Unable to send immediate character-count snapshot: {exception.Message}", "WorldRealmStatusReporter");
         }
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _started, 0) == 0)
@@ -294,7 +293,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or OperationCanceledException)
         {
-            Logger.Write(LogType.WARNING, $"Unable to send offline realm status before shutdown: {exception.Message}", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.WARNING, $"Unable to send offline realm status before shutdown: {exception.Message}", "WorldRealmStatusReporter");
         }
 
         if (_stopCancellation is not null)
@@ -320,14 +319,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _stopCancellation = null;
         _reportTask = null;
 
-        Logger.Write(LogType.NETWORK, "WorldServer realm status reporter stopped.", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.NETWORK, "WorldServer realm status reporter stopped.", "WorldRealmStatusReporter");
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -371,7 +370,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                Logger.Write(LogType.WARNING, $"WorldServer could not update RealmServer status: {exception.Message}", nameof(WorldRealmStatusReporter));
+                Logger.Write(LogType.WARNING, $"WorldServer could not update RealmServer status: {exception.Message}", "WorldRealmStatusReporter");
                 CleanupConnection();
 
                 try
@@ -406,11 +405,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-     * Sends send character count snapshot data to the connected session or internal peer.
-     * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Sends send character count snapshot data to the connected session or internal peer.
+      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task SendCharacterCountSnapshotAsync(CancellationToken cancellationToken)
     {
         if (_stream is null)
@@ -425,7 +424,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
         catch (Exception exception) when (exception is MySqlConnector.MySqlException or InvalidOperationException or IOException)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer could not load character-count snapshot for RealmServer: {exception.Message}", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.WARNING, $"WorldServer could not load character-count snapshot for RealmServer: {exception.Message}", "WorldRealmStatusReporter");
             return;
         }
 
@@ -460,7 +459,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             $"{InternalProtocol.RealmCharacterCountSnapshotEnd} {realmId}",
             cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"WorldServer sent realm {realmId} character-count snapshot: {characterCounts.Count} account(s).", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.NETWORK, $"WorldServer sent realm {realmId} character-count snapshot: {characterCounts.Count} account(s).", "WorldRealmStatusReporter");
     }
 
     /**
@@ -528,14 +527,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, "WorldServer received PING packet from RealmServer.", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.TRACE, "WorldServer received PING packet from RealmServer.", "WorldRealmStatusReporter");
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, "WorldServer received PONG packet from RealmServer.", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.TRACE, "WorldServer received PONG packet from RealmServer.", "WorldRealmStatusReporter");
             latencyMonitor.RecordPong(parts[1]);
             return;
         }
@@ -543,11 +542,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.ShutdownRequest, StringComparison.OrdinalIgnoreCase))
         {
             string reason = parts.Length == 3 ? parts[2] : "No reason provided.";
-            Logger.Write(LogType.WARNING, $"WorldServer received shutdown request from {parts[1]}: {reason}", nameof(WorldRealmStatusReporter));
+            Logger.Write(LogType.WARNING, $"WorldServer received shutdown request from {parts[1]}: {reason}", "WorldRealmStatusReporter");
             return;
         }
 
-        Logger.Write(LogType.DEBUG, $"WorldServer received RealmServer internal packet: {line}", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.DEBUG, $"WorldServer received RealmServer internal packet: {line}", "WorldRealmStatusReporter");
     }
 
     /**
@@ -574,7 +573,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             TrySetTcpKeepAliveOption(_client, SocketOptionName.TcpKeepAliveInterval, _keepAliveIntervalSeconds);
         }
 
-        Logger.Write(LogType.NETWORK, $"WorldServer connecting to RealmServer internal listener at {_settings.RealmServerHost}:{_settings.RealmServerPort}...", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.NETWORK, $"WorldServer connecting to RealmServer internal listener at {_settings.RealmServerHost}:{_settings.RealmServerPort}...", "WorldRealmStatusReporter");
 
         await _client.ConnectAsync(_settings.RealmServerHost, _settings.RealmServerPort, cancellationToken);
         _stream = _client.GetStream();
@@ -639,7 +638,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             throw new InvalidOperationException($"RealmServer accepted WorldServer authentication as unexpected server '{responseParts[1]}'.");
         }
 
-        Logger.Write(LogType.NETWORK, "WorldServer authenticated with RealmServer internal listener.", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.NETWORK, "WorldServer authenticated with RealmServer internal listener.", "WorldRealmStatusReporter");
     }
 
     /**
@@ -667,14 +666,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             packet,
             cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"WorldServer sent realm status: {packet}", nameof(WorldRealmStatusReporter));
+        Logger.Write(LogType.NETWORK, $"WorldServer sent realm status: {packet}", "WorldRealmStatusReporter");
     }
 
     /**
-     * Tries to resolve the set tcp keep alive option value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: client, optionName, valueSeconds.
-     */
+      * Tries to resolve the set tcp keep alive option value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: client, optionName, valueSeconds.
+      */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)
@@ -697,9 +696,9 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
-     * Performs the cleanup connection operation for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the cleanup connection operation for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     private void CleanupConnection()
     {
         try

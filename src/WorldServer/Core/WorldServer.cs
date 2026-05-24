@@ -46,128 +46,127 @@ using EmulationServer.WorldServer.Networking.Socket;
 using EmulationServer.Game.WorldData;
 using EmulationServer.Game.Movement;
 
-
 /**
- * File overview: src/WorldServer/Core/WorldServer.cs
- * Documents the WorldServer source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Core/WorldServer.cs
+  * Documents the WorldServer source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Core;
 
 /**
- * Owns the world server behavior for the world server startup, client networking, gameplay routing, and persistence layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world server behavior for the world server startup, client networking, gameplay routing, and persistence layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WorldServer : IAsyncDisposable
 {
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldServerSettings _settings;
     /**
-     * Holds the private host state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private host state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly EmulationServerHost _host;
     /**
-     * Holds the private realm status reporter state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private realm status reporter state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldRealmStatusReporter _realmStatusReporter;
     /**
-     * Holds the private command service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private command service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldConsoleCommandService _commandService;
     /**
-     * Holds the private auth database state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private auth database state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MySqlDatabaseService _authDatabase;
     /**
-     * Holds the private character database state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private character database state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MySqlDatabaseService _characterDatabase;
     /**
-     * Holds the private world database state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private world database state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MySqlDatabaseService _worldDatabase;
     /**
-     * Holds the private account repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldAccountRepository _accountRepository;
     /**
-     * Holds the private character repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private character repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CharacterRepository _characterRepository;
     /**
-     * Holds the private world template repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private world template repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldTemplateRepository _worldTemplateRepository;
     /**
-     * Holds the private character creation service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private character creation service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CharacterCreationService _characterCreationService;
     /**
-     * Holds the private item system state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private item system state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly GameItemSystem _itemSystem;
     /**
-     * Holds the private chat system state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private chat system state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly GameChatSystem _chatSystem;
     /**
-     * Holds the private in game command service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private in game command service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly GameInGameCommandService _inGameCommandService;
     /**
-     * Holds the private player session registry state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player session registry state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
     /**
-     * Holds the private client listener state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private client listener state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldClientSocketListener _clientListener;
     /**
-     * Holds the private world template data state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private world template data state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private WorldTemplateDataStore _worldTemplateData = WorldTemplateDataStore.Empty;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
 
     /**
-     * Holds the private game data state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private game data state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private WorldGameDataStore _gameData = WorldGameDataStore.Empty;
 
     /**
-     * Initializes a new WorldServer instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new WorldServer instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public WorldServer(WorldServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
         _settings = settings;
-        _host = new EmulationServerHost(nameof(WorldServer), settings.InternalNetwork, CreateCallbacks());
+        _host = new EmulationServerHost("WorldServer", settings.InternalNetwork, CreateCallbacks());
         _commandService = new WorldConsoleCommandService(ExecuteMapCommandAsync);
 
         _authDatabase = new MySqlDatabaseService(settings.Databases.Auth);
@@ -222,11 +221,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         LoadGameDataIfEnabled();
@@ -254,11 +253,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _realmStatusReporter.StopAsync(cancellationToken);
@@ -267,10 +266,10 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -283,9 +282,9 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Creates the callbacks result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     */
+      * Creates the callbacks result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      */
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -300,18 +299,18 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Handles the on server authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: session, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on server authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: session, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
         _serverSessions[remoteServerName] = session;
-        Logger.Write(LogType.NETWORK, $"WorldServer registered incoming internal session from {remoteServerName}.", nameof(WorldServer));
+        Logger.Write(LogType.NETWORK, $"WorldServer registered incoming internal session from {remoteServerName}.", "WorldServer");
 
         if (string.Equals(remoteServerName, "ProxyServer", StringComparison.OrdinalIgnoreCase))
         {
@@ -320,28 +319,28 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Handles the on server disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: session, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on server disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: session, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
         _serverSessions.TryRemove(remoteServerName, out _);
-        Logger.Write(LogType.NETWORK, $"WorldServer removed incoming internal session from {remoteServerName}.", nameof(WorldServer));
+        Logger.Write(LogType.NETWORK, $"WorldServer removed incoming internal session from {remoteServerName}.", "WorldServer");
 
         return Task.CompletedTask;
     }
 
     /**
-     * Handles the on peer authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on peer authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -356,28 +355,28 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Handles the on peer disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on peer disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
         _peerConnections.TryRemove(remoteServerName, out _);
-        Logger.Write(LogType.NETWORK, $"WorldServer removed outgoing internal peer {remoteServerName}.", nameof(WorldServer));
+        Logger.Write(LogType.NETWORK, $"WorldServer removed outgoing internal peer {remoteServerName}.", "WorldServer");
 
         return Task.CompletedTask;
     }
 
     /**
-     * Handles the on peer packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on peer packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -389,11 +388,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Handles the on session packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on session packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -403,7 +402,6 @@ public sealed class WorldServer : IAsyncDisposable
         HandleMapServicePacket(remoteServerName, packet);
         return Task.CompletedTask;
     }
-
 
     /**
       * Resolves whether the player's current map has an online MapServer or InstanceServer owner.
@@ -449,7 +447,6 @@ public sealed class WorldServer : IAsyncDisposable
         return _peerConnections.ContainsKey(ownerServerName) || _serverSessions.ContainsKey(ownerServerName);
     }
 
-
     /**
       * Notifies the selected map service that a player has entered the game world while the client socket remains on WorldServer.
       */
@@ -472,11 +469,11 @@ public sealed class WorldServer : IAsyncDisposable
         int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
         if (sent == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer could not notify {ownerServerName} that player '{player.Name}' entered map {player.Map}; no active internal connection was available.", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer could not notify {ownerServerName} that player '{player.Name}' entered map {player.Map}; no active internal connection was available.", "WorldServer");
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' entered map {player.Map}.", nameof(WorldServer));
+        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' entered map {player.Map}.", "WorldServer");
     }
 
     /**
@@ -501,13 +498,12 @@ public sealed class WorldServer : IAsyncDisposable
         int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
         if (sent == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer could not notify {ownerServerName} that player '{player.Name}' left map {player.Map}; no active internal connection was available.", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer could not notify {ownerServerName} that player '{player.Name}' left map {player.Map}; no active internal connection was available.", "WorldServer");
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' left map {player.Map}.", nameof(WorldServer));
+        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' left map {player.Map}.", "WorldServer");
     }
-
 
     /**
       * Notifies the selected map service about the latest authoritative player movement state.
@@ -533,13 +529,12 @@ public sealed class WorldServer : IAsyncDisposable
         int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
         if (sent == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer could not route movement for player '{player.Name}' to {ownerServerName}; no active internal connection was available.", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer could not route movement for player '{player.Name}' to {ownerServerName}; no active internal connection was available.", "WorldServer");
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"WorldServer routed movement {movement.Opcode:X4} for player '{player.Name}' to {ownerServerName}: map={movement.Map}, zone={movement.Zone}, position=({movement.PositionX:0.##}, {movement.PositionY:0.##}, {movement.PositionZ:0.##}).", nameof(WorldServer));
+        Logger.Write(LogType.TRACE, $"WorldServer routed movement {movement.Opcode:X4} for player '{player.Name}' to {ownerServerName}: map={movement.Map}, zone={movement.Zone}, position=({movement.PositionX:0.##}, {movement.PositionY:0.##}, {movement.PositionZ:0.##}).", "WorldServer");
     }
-
 
     /**
       * Forwards unhandled in-world client packets to the selected map service while WorldServer keeps owning the socket.
@@ -565,18 +560,18 @@ public sealed class WorldServer : IAsyncDisposable
 
         if (packet.Length > InternalProtocol.MaximumPacketLineLength)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer skipped forwarding {worldPacket.Opcode} for player '{player.Name}' because the routed packet line was too large ({packet.Length} characters).", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer skipped forwarding {worldPacket.Opcode} for player '{player.Name}' because the routed packet line was too large ({packet.Length} characters).", "WorldServer");
             return;
         }
 
         int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
         if (sent == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer could not forward {worldPacket.Opcode} for player '{player.Name}' to {ownerServerName}; no active internal connection was available.", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer could not forward {worldPacket.Opcode} for player '{player.Name}' to {ownerServerName}; no active internal connection was available.", "WorldServer");
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"WorldServer forwarded {worldPacket.Opcode} from player '{player.Name}' to {ownerServerName}.", nameof(WorldServer));
+        Logger.Write(LogType.TRACE, $"WorldServer forwarded {worldPacket.Opcode} from player '{player.Name}' to {ownerServerName}.", "WorldServer");
     }
 
     /**
@@ -599,7 +594,7 @@ public sealed class WorldServer : IAsyncDisposable
         string[] targets = GetMapCommandTargets(mapId);
         if (targets.Length == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer has no connected MapServer or InstanceServer targets for map command '{action}' MapId={mapId}.", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer has no connected MapServer or InstanceServer targets for map command '{action}' MapId={mapId}.", "WorldServer");
             return;
         }
 
@@ -608,11 +603,11 @@ public sealed class WorldServer : IAsyncDisposable
             int sent = await SendPacketToServerAsync(target, packet, cancellationToken);
             if (sent == 0)
             {
-                Logger.Write(LogType.WARNING, $"WorldServer could not send map {action} command for MapId={mapId} to {target}; no active connection was available.", nameof(WorldServer));
+                Logger.Write(LogType.WARNING, $"WorldServer could not send map {action} command for MapId={mapId} to {target}; no active connection was available.", "WorldServer");
                 continue;
             }
 
-            Logger.Write(LogType.NETWORK, $"WorldServer sent map {action} command for MapId={mapId} to {target} ({sent} connection(s)).", nameof(WorldServer));
+            Logger.Write(LogType.NETWORK, $"WorldServer sent map {action} command for MapId={mapId} to {target} ({sent} connection(s)).", "WorldServer");
         }
     }
 
@@ -666,11 +661,11 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-     * Performs the announce world capacity operation for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: sendPacketAsync, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the announce world capacity operation for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: sendPacketAsync, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task AnnounceWorldCapacityAsync(
         Func<string, CancellationToken, Task> sendPacketAsync,
         string remoteServerName,
@@ -679,7 +674,7 @@ public sealed class WorldServer : IAsyncDisposable
         string packet = $"{InternalProtocol.WorldCapacity} {_settings.MaxConnections}";
         await sendPacketAsync(packet, cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"WorldServer announced max connections to {remoteServerName}: {_settings.MaxConnections}.", nameof(WorldServer));
+        Logger.Write(LogType.NETWORK, $"WorldServer announced max connections to {remoteServerName}: {_settings.MaxConnections}.", "WorldServer");
     }
 
     /**
@@ -711,19 +706,19 @@ public sealed class WorldServer : IAsyncDisposable
         switch (result.ResultCode.ToLowerInvariant())
         {
             case "success":
-                Logger.Write(LogType.SUCCESS, message, nameof(WorldServer));
+                Logger.Write(LogType.SUCCESS, message, "WorldServer");
                 break;
 
             case "notfound":
-                Logger.Write(LogType.TRACE, message, nameof(WorldServer));
+                Logger.Write(LogType.TRACE, message, "WorldServer");
                 break;
 
             case "ignored":
-                Logger.Write(LogType.INFORMATION, message, nameof(WorldServer));
+                Logger.Write(LogType.INFORMATION, message, "WorldServer");
                 break;
 
             default:
-                Logger.Write(LogType.WARNING, message, nameof(WorldServer));
+                Logger.Write(LogType.WARNING, message, "WorldServer");
                 break;
         }
     }
@@ -736,7 +731,7 @@ public sealed class WorldServer : IAsyncDisposable
     {
         if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
         {
-            Logger.Write(LogType.WARNING, $"WorldServer received invalid MAP_SERVICE_STATUS packet from {remoteServerName}: {packet}", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer received invalid MAP_SERVICE_STATUS packet from {remoteServerName}: {packet}", "WorldServer");
             return;
         }
 
@@ -746,18 +741,18 @@ public sealed class WorldServer : IAsyncDisposable
 
         if (status.LoadPercent >= 85d)
         {
-            Logger.Write(LogType.WARNING, message, nameof(WorldServer));
+            Logger.Write(LogType.WARNING, message, "WorldServer");
             return;
         }
 
-        Logger.Write(LogType.TRACE, message, nameof(WorldServer));
+        Logger.Write(LogType.TRACE, message, "WorldServer");
     }
 
     /**
-     * Writes write cached map info data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: mapId.
-     */
+      * Writes write cached map info data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: mapId.
+      */
     private void WriteCachedMapInfo(int mapId)
     {
         InternalMapServiceStatusPacket[] statuses = _mapServiceStatuses.Values
@@ -769,25 +764,25 @@ public sealed class WorldServer : IAsyncDisposable
         string dbcDescription = _gameData.MapData.DescribeMap(mapId);
         if (statuses.Length == 0)
         {
-            Logger.Write(LogType.WARNING, $"WorldServer has no cached map service status for MapId={mapId}. {dbcDescription} Sending live info request to connected map services...", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"WorldServer has no cached map service status for MapId={mapId}. {dbcDescription} Sending live info request to connected map services...", "WorldServer");
             return;
         }
 
-        Logger.Write(LogType.TRACE, $"Cached map service info for MapId={mapId}: {dbcDescription}", nameof(WorldServer));
+        Logger.Write(LogType.TRACE, $"Cached map service info for MapId={mapId}: {dbcDescription}", "WorldServer");
         foreach (InternalMapServiceStatusPacket status in statuses)
         {
             Logger.Write(
                 LogType.TRACE,
                 $"  {status.OwnerServerName} {status.Kind}: instance={status.InstanceId}, state={status.State}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.",
-                nameof(WorldServer));
+                "WorldServer");
         }
     }
 
     /**
-     * Determines whether map control server for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: remoteServerName.
-     */
+      * Determines whether map control server for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: remoteServerName.
+      */
     private static bool IsMapControlServer(string remoteServerName)
     {
         return string.Equals(remoteServerName, "MapServer", StringComparison.OrdinalIgnoreCase) ||
@@ -810,16 +805,16 @@ public sealed class WorldServer : IAsyncDisposable
       */
     private async Task ValidateDatabaseConnectionsAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.DATABASE, "WorldServer validating Auth, Character, and World database connections...", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, "WorldServer validating Auth, Character, and World database connections...", "WorldServer");
 
         await _authDatabase.ValidateConnectionAsync(cancellationToken);
-        Logger.Write(LogType.DATABASE, $"WorldServer Auth database is reachable: {_settings.Databases.Auth.Database}.", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, $"WorldServer Auth database is reachable: {_settings.Databases.Auth.Database}.", "WorldServer");
 
         await _characterDatabase.ValidateConnectionAsync(cancellationToken);
-        Logger.Write(LogType.DATABASE, $"WorldServer Character database is reachable: {_settings.Databases.Character.Database}.", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, $"WorldServer Character database is reachable: {_settings.Databases.Character.Database}.", "WorldServer");
 
         await _worldDatabase.ValidateConnectionAsync(cancellationToken);
-        Logger.Write(LogType.DATABASE, $"WorldServer World database is reachable: {_settings.Databases.World.Database}.", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, $"WorldServer World database is reachable: {_settings.Databases.World.Database}.", "WorldServer");
     }
 
     /**
@@ -827,14 +822,14 @@ public sealed class WorldServer : IAsyncDisposable
       */
     private async Task LogCharacterPlayerStateTablesAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.DATABASE, "WorldServer checking character player-state tables used by world login and equipment loading...", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, "WorldServer checking character player-state tables used by world login and equipment loading...", "WorldServer");
 
         IReadOnlyDictionary<string, bool> availability = await _characterRepository.GetPlayerStateTableAvailabilityAsync(cancellationToken);
         foreach (KeyValuePair<string, bool> table in availability.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
         {
             LogType logType = table.Value ? LogType.DATABASE : LogType.WARNING;
             string state = table.Value ? "available" : "missing";
-            Logger.Write(logType, $"Character database table `{table.Key}` is {state}.", nameof(WorldServer));
+            Logger.Write(logType, $"Character database table `{table.Key}` is {state}.", "WorldServer");
         }
     }
 
@@ -846,7 +841,7 @@ public sealed class WorldServer : IAsyncDisposable
         Logger.Write(
             LogType.DATABASE,
             "WorldServer loading MaNGOS world database templates into memory: playercreateinfo, item_template, player level stats, XP, and playercreateinfo_* tables...",
-            nameof(WorldServer));
+            "WorldServer");
 
         _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
 
@@ -870,23 +865,23 @@ public sealed class WorldServer : IAsyncDisposable
         Logger.Write(
             LogType.DATABASE,
             $"WorldServer world database templates are ready in memory: playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}.",
-            nameof(WorldServer));
+            "WorldServer");
     }
 
     /**
-     * Performs the log optional world template count operation for the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: tableName, count, fallbackMessage.
-     */
+      * Performs the log optional world template count operation for the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: tableName, count, fallbackMessage.
+      */
     private static void LogOptionalWorldTemplateCount(string tableName, int count, string fallbackMessage)
     {
         if (count == 0)
         {
-            Logger.Write(LogType.WARNING, $"World database table `{tableName}` was not loaded or is empty; {fallbackMessage}.", nameof(WorldServer));
+            Logger.Write(LogType.WARNING, $"World database table `{tableName}` was not loaded or is empty; {fallbackMessage}.", "WorldServer");
         }
         else
         {
-            Logger.Write(LogType.DATABASE, $"World database table `{tableName}` loaded {count} row(s).", nameof(WorldServer));
+            Logger.Write(LogType.DATABASE, $"World database table `{tableName}` loaded {count} row(s).", "WorldServer");
         }
     }
 
@@ -899,7 +894,7 @@ public sealed class WorldServer : IAsyncDisposable
         GameDataSettings gameDataSettings = _settings.GameData;
         if (!gameDataSettings.Enabled)
         {
-            Logger.Write(LogType.INFORMATION, "WorldServer game data loading is disabled. Enable [GameData] when extracted DBC data is ready.", nameof(WorldServer));
+            Logger.Write(LogType.INFORMATION, "WorldServer game data loading is disabled. Enable [GameData] when extracted DBC data is ready.", "WorldServer");
             return;
         }
 
@@ -910,6 +905,6 @@ public sealed class WorldServer : IAsyncDisposable
             gameDataSettings.DbcDirectory,
             gameDataSettings.RequiredDbcFiles);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}, chatChannels={_gameData.ChatData.Records.Count}.", nameof(WorldServer));
+        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}, chatChannels={_gameData.ChatData.Records.Count}.", "WorldServer");
     }
 }

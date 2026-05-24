@@ -21,25 +21,25 @@ using System.Globalization;
 using EmulationServer.Game.Players;
 
 /**
- * File overview: src/EmulationServer.Game/Commands/InGameCommandService.cs
- * Documents the InGameCommandService source file in the in-game command parsing and command session access area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Commands/InGameCommandService.cs
+  * Documents the InGameCommandService source file in the in-game command parsing and command session access area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Commands;
 
 /**
- * Owns the in game command service behavior for the in-game command parsing and command session access layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the in game command service behavior for the in-game command parsing and command session access layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InGameCommandService
 {
     /**
-     * Performs the execute operation for the in-game command parsing and command session access workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: session, commandText, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the execute operation for the in-game command parsing and command session access workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: session, commandText, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public Task<string> ExecuteAsync(IInGameCommandSession session, string commandText, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);

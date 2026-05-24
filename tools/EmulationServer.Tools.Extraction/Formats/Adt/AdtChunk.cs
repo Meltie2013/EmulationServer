@@ -16,18 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunk.cs
- * Documents the AdtChunk source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunk.cs
+  * Documents the AdtChunk source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
 /**
   * Represents immutable struct data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
- * Positional fields carried by this record: FourCC, Offset, Size, DataOffset.
+  * Positional fields carried by this record: FourCC, Offset, Size, DataOffset.
   */
 public readonly record struct AdtChunk(string FourCC, int Offset, int Size, int DataOffset);

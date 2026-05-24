@@ -18,28 +18,27 @@
 
 using EmulationServer.RealmServer.Configuration;
 
-
 /**
- * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
- * Documents the ConfiguredRealmStore source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
+  * Documents the ConfiguredRealmStore source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Realms;
 
 /**
- * Owns the configured realm store behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the configured realm store behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ConfiguredRealmStore
 {
     private readonly Dictionary<uint, ConfiguredRealm> _realms;
 
     /**
-     * Initializes a new ConfiguredRealmStore instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: realmSettings.
-     */
+      * Initializes a new ConfiguredRealmStore instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: realmSettings.
+      */
     public ConfiguredRealmStore(IEnumerable<ConfiguredRealmSettings> realmSettings)
     {
         ArgumentNullException.ThrowIfNull(realmSettings);

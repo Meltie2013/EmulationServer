@@ -21,37 +21,36 @@ using System.Net.Sockets;
 using EmulationServer.Network.Configuration;
 using EmulationServer.Network.Networking.Protocol;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnection.cs
- * Documents the InternalPeerConnection source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnection.cs
+  * Documents the InternalPeerConnection source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Peers;
 
 /**
- * Owns the internal peer connection behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the internal peer connection behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InternalPeerConnection
 {
     /**
-     * Holds the private stream state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stream state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly NetworkStream _stream;
     /**
-     * Holds the private send lock state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private send lock state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly SemaphoreSlim _sendLock;
 
     /**
-     * Initializes a new InternalPeerConnection instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: localServerName, peer, stream, sendLock.
-     */
+      * Initializes a new InternalPeerConnection instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: localServerName, peer, stream, sendLock.
+      */
     internal InternalPeerConnection(
         string localServerName,
         InternalPeerSettings peer,
@@ -60,13 +59,13 @@ public sealed class InternalPeerConnection
     {
         if (string.IsNullOrWhiteSpace(localServerName))
         {
-            throw new ArgumentException("Local server name is required.", nameof(localServerName));
+            throw new ArgumentException("Local server name is required.");
         }
 
         LocalServerName = localServerName;
-        Peer = peer ?? throw new ArgumentNullException(nameof(peer));
-        _stream = stream ?? throw new ArgumentNullException(nameof(stream));
-        _sendLock = sendLock ?? throw new ArgumentNullException(nameof(sendLock));
+        Peer = peer ?? throw new ArgumentNullException();
+        _stream = stream ?? throw new ArgumentNullException();
+        _sendLock = sendLock ?? throw new ArgumentNullException();
     }
 
     /**

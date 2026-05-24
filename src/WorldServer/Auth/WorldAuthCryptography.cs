@@ -21,24 +21,24 @@ using System.Security.Cryptography;
 using System.Text;
 
 /**
- * File overview: src/WorldServer/Auth/WorldAuthCryptography.cs
- * Documents the WorldAuthCryptography source file in the world authentication parsing and session key handling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Auth/WorldAuthCryptography.cs
+  * Documents the WorldAuthCryptography source file in the world authentication parsing and session key handling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Auth;
 
 /**
- * Owns the world auth cryptography behavior for the world authentication parsing and session key handling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world auth cryptography behavior for the world authentication parsing and session key handling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class WorldAuthCryptography
 {
     /**
-     * Parses parse session key input into the strongly typed server representation.
-     * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-     * Inputs used by this operation: sessionKeyHex.
-     */
+      * Parses parse session key input into the strongly typed server representation.
+      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
+      * Inputs used by this operation: sessionKeyHex.
+      */
     public static byte[] ParseSessionKey(string sessionKeyHex)
     {
         if (string.IsNullOrWhiteSpace(sessionKeyHex))
@@ -56,10 +56,10 @@ public static class WorldAuthCryptography
     }
 
     /**
-     * Performs the calculate vanilla world proof operation for the world authentication parsing and session key handling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: accountName, clientSeed, serverSeed, sessionKey.
-     */
+      * Performs the calculate vanilla world proof operation for the world authentication parsing and session key handling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: accountName, clientSeed, serverSeed, sessionKey.
+      */
     public static byte[] CalculateVanillaWorldProof(
         string accountName,
         uint clientSeed,
@@ -88,10 +88,10 @@ public static class WorldAuthCryptography
     }
 
     /**
-     * Performs the proof matches operation for the world authentication parsing and session key handling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: accountName, clientSeed, serverSeed, sessionKey, clientProof.
-     */
+      * Performs the proof matches operation for the world authentication parsing and session key handling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: accountName, clientSeed, serverSeed, sessionKey, clientProof.
+      */
     public static bool ProofMatches(
         string accountName,
         uint clientSeed,

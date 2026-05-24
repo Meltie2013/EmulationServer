@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapInstanceType.cs
- * Documents the MapInstanceType source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapInstanceType.cs
+  * Documents the MapInstanceType source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
 /**
- * Lists the supported map instance type values used by the DBC loading and strongly typed client data records layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported map instance type values used by the DBC loading and strongly typed client data records layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum MapInstanceType
 {
     /**

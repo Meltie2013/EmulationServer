@@ -22,17 +22,17 @@ using EmulationServer.Network.Configuration;
 using EmulationServer.Shared.Logging.Configuration;
 
 /**
- * File overview: src/MapServer/Configuration/MapServerSettings.cs
- * Documents the MapServerSettings source file in the map service startup, map status reporting, and player location routing area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/MapServer/Configuration/MapServerSettings.cs
+  * Documents the MapServerSettings source file in the map service startup, map status reporting, and player location routing area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.MapServer.Configuration;
 
 /**
- * Owns the map server settings behavior for the map service startup, map status reporting, and player location routing layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the map server settings behavior for the map service startup, map status reporting, and player location routing layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MapServerSettings
 {
     /**

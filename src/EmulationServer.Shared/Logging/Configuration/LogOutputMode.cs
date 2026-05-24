@@ -16,31 +16,30 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Shared/Logging/Configuration/LogOutputMode.cs
- * Documents the LogOutputMode source file in the shared configuration, logging, and utility support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Shared/Logging/Configuration/LogOutputMode.cs
+  * Documents the LogOutputMode source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Shared.Logging.Configuration;
 
 /**
- * Lists the supported log output mode values used by the shared configuration, logging, and utility support layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported log output mode values used by the shared configuration, logging, and utility support layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum LogOutputMode
 {
     /**
-     * Represents the console value for log output mode handling.
-     */
+      * Represents the console value for log output mode handling.
+      */
     Console,
     /**
-     * Represents the file value for log output mode handling.
-     */
+      * Represents the file value for log output mode handling.
+      */
     File,
     /**
-     * Represents the both value for log output mode handling.
-     */
+      * Represents the both value for log output mode handling.
+      */
     Both
 }

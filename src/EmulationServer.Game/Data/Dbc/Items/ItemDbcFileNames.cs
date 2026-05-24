@@ -17,10 +17,10 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcFileNames.cs
- * Documents the ItemDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcFileNames.cs
+  * Documents the ItemDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
@@ -30,40 +30,40 @@ namespace EmulationServer.Game.Data.Dbc.Items;
 public static class ItemDbcFileNames
 {
     /**
-     * Defines the constant value for item bag family.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for item bag family.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const string ItemBagFamily = "ItemBagFamily.dbc";
     /**
-     * Defines the constant value for item class.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for item class.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const string ItemClass = "ItemClass.dbc";
     /**
-     * Defines the constant value for item display info.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for item display info.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const string ItemDisplayInfo = "ItemDisplayInfo.dbc";
     /**
-     * Defines the constant value for item random properties.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for item random properties.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const string ItemRandomProperties = "ItemRandomProperties.dbc";
     /**
-     * Defines the constant value for item set.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for item set.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const string ItemSet = "ItemSet.dbc";
     /**
-     * Defines the constant value for item sub class.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for item sub class.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const string ItemSubClass = "ItemSubClass.dbc";
 
     /**
-     * Exposes the core item dbc files value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the core item dbc files value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public static IReadOnlyList<string> CoreItemDbcFiles { get; } =
     [
         ItemBagFamily,

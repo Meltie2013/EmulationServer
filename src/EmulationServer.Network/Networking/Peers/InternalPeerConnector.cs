@@ -25,113 +25,112 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnector.cs
- * Documents the InternalPeerConnector source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnector.cs
+  * Documents the InternalPeerConnector source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Peers;
 
 /**
- * Owns the internal peer connector behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the internal peer connector behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InternalPeerConnector : IAsyncDisposable
 {
     /**
-     * Holds the private server name state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private server name state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _serverName;
     /**
-     * Holds the private peers state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private peers state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly IReadOnlyList<InternalPeerSettings> _peers;
     /**
-     * Holds the private registration key state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private registration key state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _registrationKey;
     /**
-     * Holds the private latency report interval state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private latency report interval state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _latencyReportInterval;
     /**
-     * Holds the private ping timeout state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private ping timeout state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _pingTimeout;
     /**
-     * Holds the private receive buffer size state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private receive buffer size state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _receiveBufferSize;
     /**
-     * Holds the private send buffer size state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private send buffer size state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _sendBufferSize;
     /**
-     * Holds the private keep alive state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private keep alive state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly bool _keepAlive;
     /**
-     * Holds the private keep alive time seconds state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private keep alive time seconds state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _keepAliveTimeSeconds;
     /**
-     * Holds the private keep alive interval seconds state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private keep alive interval seconds state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _keepAliveIntervalSeconds;
     /**
-     * Holds the private authentication timeout state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private authentication timeout state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TimeSpan _authenticationTimeout;
     /**
-     * Holds the private callbacks state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private callbacks state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalNetworkCallbacks _callbacks;
     /**
-     * Holds the private connection tasks state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private connection tasks state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly List<Task> _connectionTasks = [];
     /**
-     * Holds the private sync root state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private sync root state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly object _syncRoot = new();
 
     /**
-     * Holds the private stop cancellation state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stop cancellation state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
     /**
-     * Holds the private started state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private started state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _started;
     /**
-     * Holds the private stopping state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stopping state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _stopping;
 
     /**
-     * Initializes a new InternalPeerConnector instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: serverName, peers, registrationKey, latencyReportInterval, pingTimeout, receiveBufferSize....
-     */
+      * Initializes a new InternalPeerConnector instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: serverName, peers, registrationKey, latencyReportInterval, pingTimeout, receiveBufferSize....
+      */
     public InternalPeerConnector(
         string serverName,
         IReadOnlyList<InternalPeerSettings> peers,
@@ -148,51 +147,51 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(serverName))
         {
-            throw new ArgumentException("Server name is required.", nameof(serverName));
+            throw new ArgumentException("Server name is required.");
         }
 
         if (string.IsNullOrWhiteSpace(registrationKey))
         {
-            throw new ArgumentException("Registration key is required.", nameof(registrationKey));
+            throw new ArgumentException("Registration key is required.");
         }
 
         if (latencyReportInterval <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(latencyReportInterval), "Latency report interval must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Latency report interval must be greater than zero.");
         }
 
         if (pingTimeout <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(pingTimeout), "Ping timeout must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Ping timeout must be greater than zero.");
         }
 
         if (receiveBufferSize <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(receiveBufferSize), "Receive buffer size must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Receive buffer size must be greater than zero.");
         }
 
         if (sendBufferSize <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(sendBufferSize), "Send buffer size must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Send buffer size must be greater than zero.");
         }
 
         if (keepAliveTimeSeconds < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(keepAliveTimeSeconds), "Keep-alive time cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Keep-alive time cannot be negative.");
         }
 
         if (keepAliveIntervalSeconds < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(keepAliveIntervalSeconds), "Keep-alive interval cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Keep-alive interval cannot be negative.");
         }
 
         if (authenticationTimeout <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(authenticationTimeout), "Authentication timeout must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, "Authentication timeout must be greater than zero.");
         }
 
         _serverName = serverName;
-        _peers = peers ?? throw new ArgumentNullException(nameof(peers));
+        _peers = peers ?? throw new ArgumentNullException();
         _registrationKey = registrationKey;
         _latencyReportInterval = latencyReportInterval;
         _pingTimeout = pingTimeout;
@@ -206,11 +205,11 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -224,7 +223,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
         if (enabledPeers.Count == 0)
         {
-            Logger.Write(LogType.TRACE, $"{_serverName} has no configured outgoing internal peers.", nameof(InternalPeerConnector));
+            Logger.Write(LogType.TRACE, $"{_serverName} has no configured outgoing internal peers.", "InternalPeerConnector");
             return Task.CompletedTask;
         }
 
@@ -239,16 +238,16 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             }
         }
 
-        Logger.Write(LogType.NETWORK, $"{_serverName} internal peer connector started with {enabledPeers.Count} peer(s).", nameof(InternalPeerConnector));
+        Logger.Write(LogType.NETWORK, $"{_serverName} internal peer connector started with {enabledPeers.Count} peer(s).", "InternalPeerConnector");
         return Task.CompletedTask;
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -279,21 +278,21 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             }
             else
             {
-                Logger.Write(LogType.WARNING, $"Stopped waiting for {_serverName} peer connector because shutdown wait timed out.", nameof(InternalPeerConnector));
+                Logger.Write(LogType.WARNING, $"Stopped waiting for {_serverName} peer connector because shutdown wait timed out.", "InternalPeerConnector");
             }
         }
 
         stopCancellation?.Dispose();
         _stopCancellation = null;
 
-        Logger.Write(LogType.NETWORK, $"{_serverName} internal peer connector stopped.", nameof(InternalPeerConnector));
+        Logger.Write(LogType.NETWORK, $"{_serverName} internal peer connector stopped.", "InternalPeerConnector");
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -335,11 +334,11 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                     Logger.Write(
                         LogType.NETWORK,
                         $"{_serverName} reconnecting to internal peer {peer.Name} at {peer.Host}:{peer.Port}. Reconnect window remaining: {remainingReconnectWindow.TotalSeconds:0.##} second(s).",
-                        nameof(InternalPeerConnector));
+                        "InternalPeerConnector");
                 }
                 else if (!loggedInitialWait)
                 {
-                    Logger.Write(LogType.NETWORK, $"{_serverName} waiting for internal peer {peer.Name} at {peer.Host}:{peer.Port} to become available...", nameof(InternalPeerConnector));
+                    Logger.Write(LogType.NETWORK, $"{_serverName} waiting for internal peer {peer.Name} at {peer.Host}:{peer.Port} to become available...", "InternalPeerConnector");
                     loggedInitialWait = true;
                 }
 
@@ -358,12 +357,12 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 everAuthenticated = true;
                 reconnectWindowStartedUtc = null;
 
-                Logger.Write(LogType.NETWORK, $"{_serverName} authenticated with internal peer {peer.Name}.", nameof(InternalPeerConnector));
+                Logger.Write(LogType.NETWORK, $"{_serverName} authenticated with internal peer {peer.Name}.", "InternalPeerConnector");
                 await _callbacks.NotifyPeerAuthenticatedAsync(connection, peer.Name, cancellationToken);
 
                 await ProcessAuthenticatedPeerAsync(connection, reader, stream, sendLock, cancellationToken);
 
-                Logger.Write(LogType.NETWORK, $"{_serverName} disconnected from internal peer {peer.Name}.", nameof(InternalPeerConnector));
+                Logger.Write(LogType.NETWORK, $"{_serverName} disconnected from internal peer {peer.Name}.", "InternalPeerConnector");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -373,7 +372,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             {
                 if (everAuthenticated)
                 {
-                    Logger.Write(LogType.WARNING, $"{_serverName} lost or could not reconnect to internal peer {peer.Name} at {peer.Host}:{peer.Port}: {exception.Message}", nameof(InternalPeerConnector));
+                    Logger.Write(LogType.WARNING, $"{_serverName} lost or could not reconnect to internal peer {peer.Name} at {peer.Host}:{peer.Port}: {exception.Message}", "InternalPeerConnector");
                 }
                 else
                 {
@@ -390,7 +389,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                     }
                     catch (Exception exception)
                     {
-                        Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalPeerConnector));
+                        Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalPeerConnector");
                     }
                 }
             }
@@ -457,10 +456,10 @@ public sealed class InternalPeerConnector : IAsyncDisposable
     }
 
     /**
-     * Tries to resolve the set tcp keep alive option value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: client, optionName, valueSeconds.
-     */
+      * Tries to resolve the set tcp keep alive option value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: client, optionName, valueSeconds.
+      */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)
@@ -506,7 +505,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         Logger.Write(
             LogType.WARNING,
             $"{_serverName} stopped reconnect attempts to internal peer {peer.Name} at {peer.Host}:{peer.Port} after {peer.ReconnectTimeout.TotalSeconds:0.##} second(s). Waiting for {peer.Name} to register again inbound.",
-            nameof(InternalPeerConnector));
+            "InternalPeerConnector");
 
         try
         {
@@ -514,7 +513,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalPeerConnector));
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalPeerConnector");
         }
     }
 
@@ -650,14 +649,14 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_serverName} received PING packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+            Logger.Write(LogType.TRACE, $"{_serverName} received PING packet from {connection.RemoteServerName}.", "InternalPeerConnector");
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_serverName} received PONG packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+            Logger.Write(LogType.TRACE, $"{_serverName} received PONG packet from {connection.RemoteServerName}.", "InternalPeerConnector");
             latencyMonitor.RecordPong(parts[1]);
             return;
         }
@@ -671,23 +670,23 @@ public sealed class InternalPeerConnector : IAsyncDisposable
 
         if (string.Equals(parts[0], InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.NETWORK, $"{_serverName} received world capacity packet from {connection.RemoteServerName}: {line}", nameof(InternalPeerConnector));
+            Logger.Write(LogType.NETWORK, $"{_serverName} received world capacity packet from {connection.RemoteServerName}: {line}", "InternalPeerConnector");
         }
         else if (string.Equals(parts[0], InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_serverName} received map service status packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+            Logger.Write(LogType.TRACE, $"{_serverName} received map service status packet from {connection.RemoteServerName}.", "InternalPeerConnector");
         }
         else if (string.Equals(parts[0], InternalProtocol.MapServiceCommand, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_serverName} received map service command packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+            Logger.Write(LogType.TRACE, $"{_serverName} received map service command packet from {connection.RemoteServerName}.", "InternalPeerConnector");
         }
         else if (string.Equals(parts[0], InternalProtocol.MapServiceCommandResult, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_serverName} received map service command result packet from {connection.RemoteServerName}.", nameof(InternalPeerConnector));
+            Logger.Write(LogType.TRACE, $"{_serverName} received map service command result packet from {connection.RemoteServerName}.", "InternalPeerConnector");
         }
         else
         {
-            Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {connection.RemoteServerName}: {line}", nameof(InternalPeerConnector));
+            Logger.Write(LogType.DEBUG, $"{_serverName} received internal packet from peer {connection.RemoteServerName}: {line}", "InternalPeerConnector");
         }
 
         await _callbacks.NotifyPeerPacketReceivedAsync(connection, connection.RemoteServerName, line, cancellationToken);

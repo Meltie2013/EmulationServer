@@ -21,64 +21,63 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 
-
 /**
- * File overview: src/RealmServer/Auth/Srp6Utilities.cs
- * Documents the Srp6Utilities source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Auth/Srp6Utilities.cs
+  * Documents the Srp6Utilities source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
- * Owns the srp 6 utilities behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the srp 6 utilities behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class Srp6Utilities
 {
     /**
-     * Defines the constant value for salt length.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for salt length.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const int SaltLength = 32;
     /**
-     * Defines the constant value for public key length.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for public key length.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const int PublicKeyLength = 32;
     /**
-     * Defines the constant value for session key length.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for session key length.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const int SessionKeyLength = 40;
     /**
-     * Defines the constant value for proof length.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for proof length.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const int ProofLength = 20;
 
     /**
-     * Defines the constant value for modulus hex.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for modulus hex.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string ModulusHex = "894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7";
 
     /**
-     * Stores the default n value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default n value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public static readonly BigInteger N = FromBigEndianHex(ModulusHex);
     /**
-     * Stores the default g value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default g value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public static readonly BigInteger G = new(7);
 
     /**
-     * Performs the generate random bytes operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: length.
-     */
+      * Performs the generate random bytes operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: length.
+      */
     public static byte[] GenerateRandomBytes(int length)
     {
         byte[] bytes = new byte[length];
@@ -87,18 +86,18 @@ public static class Srp6Utilities
     }
 
     /**
-     * Performs the generate private ephemeral operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the generate private ephemeral operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public static BigInteger GeneratePrivateEphemeral()
     {
         return FromLittleEndian(GenerateRandomBytes(19));
     }
 
     /**
-     * Performs the generate salt operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the generate salt operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public static BigInteger GenerateSalt()
     {
         return FromLittleEndian(GenerateRandomBytes(SaltLength));
@@ -158,10 +157,10 @@ public static class Srp6Utilities
     }
 
     /**
-     * Performs the hash session key operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: sessionSecret.
-     */
+      * Performs the hash session key operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: sessionSecret.
+      */
     public static byte[] HashSessionKey(BigInteger sessionSecret)
     {
         byte[] secret = ToLittleEndian(sessionSecret, PublicKeyLength);
@@ -231,40 +230,40 @@ public static class Srp6Utilities
     }
 
     /**
-     * Performs the from little endian operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: bytes.
-     */
+      * Performs the from little endian operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: bytes.
+      */
     public static BigInteger FromLittleEndian(ReadOnlySpan<byte> bytes)
     {
         return new BigInteger(bytes, isUnsigned: true, isBigEndian: false);
     }
 
     /**
-     * Performs the from big endian operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: bytes.
-     */
+      * Performs the from big endian operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: bytes.
+      */
     public static BigInteger FromBigEndian(ReadOnlySpan<byte> bytes)
     {
         return new BigInteger(bytes, isUnsigned: true, isBigEndian: true);
     }
 
     /**
-     * Performs the from big endian hex operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: hex.
-     */
+      * Performs the from big endian hex operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: hex.
+      */
     public static BigInteger FromBigEndianHex(string hex)
     {
         return FromBigEndian(Convert.FromHexString(NormalizeHex(hex)));
     }
 
     /**
-     * Performs the to little endian operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value, length.
-     */
+      * Performs the to little endian operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value, length.
+      */
     public static byte[] ToLittleEndian(BigInteger value, int length = 0)
     {
         byte[] bytes = value.ToByteArray(isUnsigned: true, isBigEndian: false);
@@ -285,10 +284,10 @@ public static class Srp6Utilities
     }
 
     /**
-     * Performs the to big endian hex operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value, minimumBytes.
-     */
+      * Performs the to big endian hex operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value, minimumBytes.
+      */
     public static string ToBigEndianHex(BigInteger value, int minimumBytes = 0)
     {
         byte[] bytes = value.ToByteArray(isUnsigned: true, isBigEndian: true);
@@ -304,10 +303,10 @@ public static class Srp6Utilities
     }
 
     /**
-     * Determines whether valid stored srp value for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: hex.
-     */
+      * Determines whether valid stored srp value for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: hex.
+      */
     public static bool IsValidStoredSrpValue(string? hex)
     {
         if (string.IsNullOrWhiteSpace(hex) || hex.Length != SaltLength * 2)
@@ -319,20 +318,20 @@ public static class Srp6Utilities
     }
 
     /**
-     * Performs the fixed time equals operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: left, right.
-     */
+      * Performs the fixed time equals operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: left, right.
+      */
     public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
     {
         return CryptographicOperations.FixedTimeEquals(left, right);
     }
 
     /**
-     * Performs the positive mod operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value, modulus.
-     */
+      * Performs the positive mod operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value, modulus.
+      */
     private static BigInteger PositiveMod(BigInteger value, BigInteger modulus)
     {
         BigInteger result = value % modulus;
@@ -340,10 +339,10 @@ public static class Srp6Utilities
     }
 
     /**
-     * Performs the concat operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: arrays.
-     */
+      * Performs the concat operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: arrays.
+      */
     private static byte[] Concat(params byte[][] arrays)
     {
         int length = arrays.Sum(array => array.Length);
@@ -360,10 +359,10 @@ public static class Srp6Utilities
     }
 
     /**
-     * Normalizes the hex for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: hex.
-     */
+      * Normalizes the hex for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: hex.
+      */
     private static string NormalizeHex(string hex)
     {
         string normalized = hex.Trim();

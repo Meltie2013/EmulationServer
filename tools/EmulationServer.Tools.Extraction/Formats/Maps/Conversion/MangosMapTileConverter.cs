@@ -20,74 +20,73 @@ using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MangosMapTileConverter.cs
- * Documents the MangosMapTileConverter source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MangosMapTileConverter.cs
+  * Documents the MangosMapTileConverter source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
 /**
- * Owns the mangos map tile converter behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the mangos map tile converter behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MangosMapTileConverter
 {
     /**
-     * Defines the constant value for cells per grid.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for cells per grid.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CellsPerGrid = MapFormatConstants.AdtCellsPerGrid;
     /**
-     * Defines the constant value for cell size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for cell size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CellSize = 8;
     /**
-     * Defines the constant value for grid size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for grid size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int GridSize = MapFormatConstants.AdtGridSize;
     /**
-     * Defines the constant value for header size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for header size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int HeaderSize = MapFormatConstants.MapFileHeaderSize;
     /**
-     * Defines the constant value for minimum stored height.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for minimum stored height.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const float MinimumStoredHeight = -500.0f;
 
     /**
-     * Holds the private area table state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private area table state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly AreaTableIndex _areaTable;
     /**
-     * Holds the private liquid types state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private liquid types state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly LiquidTypeIndex _liquidTypes;
 
     /**
-     * Initializes a new MangosMapTileConverter instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: areaTable, liquidTypes.
-     */
+      * Initializes a new MangosMapTileConverter instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: areaTable, liquidTypes.
+      */
     public MangosMapTileConverter(AreaTableIndex areaTable, LiquidTypeIndex liquidTypes)
     {
-        _areaTable = areaTable ?? throw new ArgumentNullException(nameof(areaTable));
-        _liquidTypes = liquidTypes ?? throw new ArgumentNullException(nameof(liquidTypes));
+        _areaTable = areaTable ?? throw new ArgumentNullException();
+        _liquidTypes = liquidTypes ?? throw new ArgumentNullException();
     }
 
     /**
-     * Performs the convert operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: adtPath, outputPath, build.
-     */
+      * Performs the convert operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: adtPath, outputPath, build.
+      */
     public MapTileConversionReport Convert(string adtPath, string outputPath, uint build)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(adtPath);
@@ -534,10 +533,10 @@ public sealed class MangosMapTileConverter
     }
 
     /**
-     * Writes write float grid data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, floatvalues, height, width.
-     */
+      * Writes write float grid data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, floatvalues, height, width.
+      */
     private static void WriteFloatGrid(BinaryWriter writer, float[,] values, int height, int width)
     {
         for (int y = 0; y < height; y++)
@@ -550,10 +549,10 @@ public sealed class MangosMapTileConverter
     }
 
     /**
-     * Performs the fill operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: floatvalues, value.
-     */
+      * Performs the fill operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: floatvalues, value.
+      */
     private static void Fill(float[,] values, float value)
     {
         for (int y = 0; y < values.GetLength(0); y++)
@@ -566,10 +565,10 @@ public sealed class MangosMapTileConverter
     }
 
     /**
-     * Performs the fill operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: ushortvalues, value.
-     */
+      * Performs the fill operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: ushortvalues, value.
+      */
     private static void Fill(ushort[,] values, ushort value)
     {
         for (int y = 0; y < values.GetLength(0); y++)
@@ -582,10 +581,10 @@ public sealed class MangosMapTileConverter
     }
 
     /**
-     * Performs the clamp minimum operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: floatvalues, minimum.
-     */
+      * Performs the clamp minimum operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: floatvalues, minimum.
+      */
     private static void ClampMinimum(float[,] values, float minimum)
     {
         for (int y = 0; y < values.GetLength(0); y++)
@@ -601,37 +600,37 @@ public sealed class MangosMapTileConverter
     }
 
     /**
-     * Determines whether valid cell index for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value.
-     */
+      * Determines whether valid cell index for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value.
+      */
     private static bool IsValidCellIndex(int value)
     {
         return value >= 0 && value < CellsPerGrid;
     }
 
     /**
-     * Writes write four cc data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, value.
-     */
+      * Writes write four cc data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, value.
+      */
     private static void WriteFourCC(BinaryWriter writer, string value)
     {
         byte[] bytes = Encoding.ASCII.GetBytes(value);
 
         if (bytes.Length != 4)
         {
-            throw new ArgumentException("FourCC values must be exactly four bytes.", nameof(value));
+            throw new ArgumentException("FourCC values must be exactly four bytes.");
         }
 
         writer.Write(bytes);
     }
 
     /**
-     * Performs the count visible liquid tiles operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: boolvalues.
-     */
+      * Performs the count visible liquid tiles operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: boolvalues.
+      */
     private static int CountVisibleLiquidTiles(bool[,] values)
     {
         int count = 0;
@@ -648,10 +647,10 @@ public sealed class MangosMapTileConverter
     }
 
     /**
-     * Performs the count liquid cells operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: byteflags.
-     */
+      * Performs the count liquid cells operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: byteflags.
+      */
     private static int CountLiquidCells(byte[,] flags)
     {
         int count = 0;
@@ -670,7 +669,7 @@ public sealed class MangosMapTileConverter
     /**
       * Represents immutable tile data data passed between parts of the server.
       * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-     * Positional fields carried by this record: AreaFlags, Holes, V9, V8, LiquidEntry, LiquidFlags, LiquidShow, LiquidHeights.
+      * Positional fields carried by this record: AreaFlags, Holes, V9, V8, LiquidEntry, LiquidFlags, LiquidShow, LiquidHeights.
       */
     private sealed record TileData(
         ushort[,] AreaFlags,

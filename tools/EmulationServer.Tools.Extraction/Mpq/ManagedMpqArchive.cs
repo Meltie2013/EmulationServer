@@ -20,47 +20,46 @@ using System.Buffers.Binary;
 using ICSharpCode.SharpZipLib.BZip2;
 using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/ManagedMpqArchive.cs
- * Documents the ManagedMpqArchive source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/ManagedMpqArchive.cs
+  * Documents the ManagedMpqArchive source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Owns the managed mpq archive behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the managed mpq archive behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 internal sealed class ManagedMpqArchive : IDisposable
 {
     /**
-     * Holds the private stream state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stream state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly FileStream _stream;
     /**
-     * Holds the private header state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private header state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MpqArchiveHeader _header;
     /**
-     * Holds the private hash table state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private hash table state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MpqHashTableEntry[] _hashTable;
     /**
-     * Holds the private block table state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private block table state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MpqBlockTableEntry[] _blockTable;
 
     /**
-     * Initializes a new ManagedMpqArchive instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: stream, header, hashTable, blockTable.
-     */
+      * Initializes a new ManagedMpqArchive instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: stream, header, hashTable, blockTable.
+      */
     private ManagedMpqArchive(
         FileStream stream,
         MpqArchiveHeader header,
@@ -74,10 +73,10 @@ internal sealed class ManagedMpqArchive : IDisposable
     }
 
     /**
-     * Performs the open operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: path.
-     */
+      * Performs the open operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: path.
+      */
     public static ManagedMpqArchive Open(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -118,9 +117,9 @@ internal sealed class ManagedMpqArchive : IDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      */
     public void Dispose()
     {
         _stream.Dispose();
@@ -359,10 +358,10 @@ internal sealed class ManagedMpqArchive : IDisposable
     }
 
     /**
-     * Performs the decompress operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: data, expectedSize.
-     */
+      * Performs the decompress operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: data, expectedSize.
+      */
     private static byte[] Decompress(byte[] data, int expectedSize)
     {
         if (data.Length == expectedSize)
@@ -402,10 +401,10 @@ internal sealed class ManagedMpqArchive : IDisposable
     }
 
     /**
-     * Performs the decompress deflate operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: data, expectedSize.
-     */
+      * Performs the decompress deflate operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: data, expectedSize.
+      */
     private static byte[] DecompressDeflate(byte[] data, int expectedSize)
     {
         using MemoryStream input = new(data);
@@ -416,10 +415,10 @@ internal sealed class ManagedMpqArchive : IDisposable
     }
 
     /**
-     * Performs the decompress b zip 2 operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: data, expectedSize.
-     */
+      * Performs the decompress b zip 2 operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: data, expectedSize.
+      */
     private static byte[] DecompressBZip2(byte[] data, int expectedSize)
     {
         using MemoryStream input = new(data);
@@ -430,10 +429,10 @@ internal sealed class ManagedMpqArchive : IDisposable
     }
 
     /**
-     * Performs the resize to file size operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: data, fileSize.
-     */
+      * Performs the resize to file size operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: data, fileSize.
+      */
     private static byte[] ResizeToFileSize(byte[] data, int fileSize)
     {
         if (data.Length == fileSize)
@@ -459,7 +458,7 @@ internal sealed class ManagedMpqArchive : IDisposable
     {
         if (count < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(count));
+            throw new ArgumentOutOfRangeException();
         }
 
         byte[] data = new byte[count];

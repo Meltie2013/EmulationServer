@@ -24,26 +24,25 @@ using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging.Configuration;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Core/Configuration/ServerConfigurationLoader.cs
- * Documents the ServerConfigurationLoader source file in the shared startup, configuration, and host orchestration area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Core/Configuration/ServerConfigurationLoader.cs
+  * Documents the ServerConfigurationLoader source file in the shared startup, configuration, and host orchestration area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Core.Configuration;
 
 /**
- * Owns the server configuration loader behavior for the shared startup, configuration, and host orchestration layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the server configuration loader behavior for the shared startup, configuration, and host orchestration layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class ServerConfigurationLoader
 {
 
     /**
-     * Defines the constant value for logging section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for logging section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string LoggingSection = "Logging";
 
     /**
@@ -57,12 +56,12 @@ public static class ServerConfigurationLoader
     {
         if (string.IsNullOrWhiteSpace(configurationPath))
         {
-            throw new ArgumentException("Configuration path is required.", nameof(configurationPath));
+            throw new ArgumentException("Configuration path is required.");
         }
 
         if (string.IsNullOrWhiteSpace(serverName))
         {
-            throw new ArgumentException("Server name is required.", nameof(serverName));
+            throw new ArgumentException("Server name is required.");
         }
 
         string configurationDirectory = Path.GetDirectoryName(Path.GetFullPath(configurationPath))
@@ -94,9 +93,9 @@ public static class ServerConfigurationLoader
     }
 
     /**
-     * Defines the constant value for database section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for database section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string DatabaseSection = "Database";
 
     /**
@@ -202,12 +201,12 @@ public static class ServerConfigurationLoader
     {
         if (string.IsNullOrWhiteSpace(sectionName))
         {
-            throw new ArgumentException("Configuration section name is required.", nameof(sectionName));
+            throw new ArgumentException("Configuration section name is required.");
         }
 
         if (string.IsNullOrWhiteSpace(serverName))
         {
-            throw new ArgumentException("Server name is required.", nameof(serverName));
+            throw new ArgumentException("Server name is required.");
         }
 
         return new InternalNetworkSettings

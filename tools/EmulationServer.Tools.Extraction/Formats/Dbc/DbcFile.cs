@@ -18,37 +18,36 @@
 
 using System.Text;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Dbc/DbcFile.cs
- * Documents the DbcFile source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Dbc/DbcFile.cs
+  * Documents the DbcFile source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Dbc;
 
 /**
- * Owns the dbc file behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the dbc file behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class DbcFile
 {
     /**
-     * Holds the private record data state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private record data state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly byte[] _recordData;
     /**
-     * Holds the private string block state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private string block state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly byte[] _stringBlock;
 
     /**
-     * Initializes a new DbcFile instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: header, recordData, stringBlock.
-     */
+      * Initializes a new DbcFile instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: header, recordData, stringBlock.
+      */
     private DbcFile(DbcHeader header, byte[] recordData, byte[] stringBlock)
     {
         Header = header;
@@ -82,7 +81,7 @@ public sealed class DbcFile
     {
         if (index < 0 || index >= Header.RecordCount)
         {
-            throw new ArgumentOutOfRangeException(nameof(index), index, $"Record index must be between 0 and {Header.RecordCount - 1}.");
+            throw new ArgumentOutOfRangeException(null, index, $"Record index must be between 0 and {Header.RecordCount - 1}.");
         }
 
         int offset = index * Header.RecordSize;
@@ -90,9 +89,9 @@ public sealed class DbcFile
     }
 
     /**
-     * Performs the enumerate records operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the enumerate records operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public IEnumerable<DbcRecord> EnumerateRecords()
     {
         for (int index = 0; index < Header.RecordCount; index++)

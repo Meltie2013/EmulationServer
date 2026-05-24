@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Characters/ChrRaceDbcRecord.cs
- * Documents the ChrRaceDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/ChrRaceDbcRecord.cs
+  * Documents the ChrRaceDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
 /**
   * Represents one ChrRaces.dbc row used for race validation and character display setup.
- * Positional fields carried by this record: Id, Flags, FactionId, ExplorationSoundId, MaleDisplayId, FemaleDisplayId, ClientPrefix, Speed, BaseLanguage, CreatureType, LoginEffect, ResSicknessSpellId, SplashSoundEntryId, StartingTaxiMask, ClientFileString, CinematicSequenceId, Name, FacialHairCustomization1, FacialHairCustomization2, HairCustomization.
+  * Positional fields carried by this record: Id, Flags, FactionId, ExplorationSoundId, MaleDisplayId, FemaleDisplayId, ClientPrefix, Speed, BaseLanguage, CreatureType, LoginEffect, ResSicknessSpellId, SplashSoundEntryId, StartingTaxiMask, ClientFileString, CinematicSequenceId, Name, FacialHairCustomization1, FacialHairCustomization2, HairCustomization.
   */
 public sealed record ChrRaceDbcRecord(
     int Id,

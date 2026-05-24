@@ -7,7 +7,6 @@ SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
 
-
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
@@ -165,7 +164,6 @@ CREATE TABLE `playercreateinfo` (
   `position_z` float NOT NULL DEFAULT 0 COMMENT 'The Z position for the characters initial position.',
   `orientation` float NOT NULL DEFAULT 0 COMMENT 'The orientation for the characters initial position.'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
 
 -- --------------------------------------------------------
 

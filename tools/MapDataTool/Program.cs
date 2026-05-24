@@ -21,12 +21,11 @@ using EmulationServer.Tools.Extraction.Extraction;
 using EmulationServer.Tools.Extraction.Formats.Dbc;
 using EmulationServer.Tools.Extraction.Validation;
 
-
 /**
- * File overview: tools/MapDataTool/Program.cs
- * Documents the Program source file for the map data command-line tooling entry point.
- * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
- */
+  * File overview: tools/MapDataTool/Program.cs
+  * Documents the Program source file for the map data command-line tooling entry point.
+  * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
+  */
 
 if (args.Length == 0 || IsHelp(args[0]))
 {
@@ -60,9 +59,9 @@ catch (Exception exception)
 }
 
 /**
- * Prints builds information to the console for the operator.
- * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
- */
+  * Prints builds information to the console for the operator.
+  * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+  */
 static int PrintBuilds()
 {
     foreach (ClientBuildInfo build in ClientBuilds.All.OrderBy(build => build.Build))
@@ -74,10 +73,10 @@ static int PrintBuilds()
 }
 
 /**
- * Prints dbc info information to the console for the operator.
- * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
- * Inputs used by this helper: args.
- */
+  * Prints dbc info information to the console for the operator.
+  * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+  * Inputs used by this helper: args.
+  */
 static int PrintDbcInfo(string[] args)
 {
     string path = RequireOption(args, "--file");
@@ -94,10 +93,10 @@ static int PrintDbcInfo(string[] args)
 }
 
 /**
- * Runs the extract command and writes normalized game data into the configured output directory.
- * Extraction commands centralize option parsing, progress output, and result reporting so server data generation behaves the same for every asset kind.
- * Inputs used by this helper: args, kind.
- */
+  * Runs the extract command and writes normalized game data into the configured output directory.
+  * Extraction commands centralize option parsing, progress output, and result reporting so server data generation behaves the same for every asset kind.
+  * Inputs used by this helper: args, kind.
+  */
 static int Extract(string[] args, AssetExtractionKind kind)
 {
     AssetExtractionOptions options = CreateExtractionOptions(args);
@@ -109,7 +108,7 @@ static int Extract(string[] args, AssetExtractionKind kind)
         AssetExtractionKind.Maps => extractor.ExtractMaps(options),
         AssetExtractionKind.Vmaps => extractor.ExtractVmaps(options),
         AssetExtractionKind.Mmaps => extractor.ExtractMmaps(options),
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown extraction kind."),
+        _ => throw new ArgumentOutOfRangeException(null, kind, "Unknown extraction kind."),
     };
 
     PrintExtractionResult(result);
@@ -117,10 +116,10 @@ static int Extract(string[] args, AssetExtractionKind kind)
 }
 
 /**
- * Runs the extract all command and writes normalized game data into the configured output directory.
- * Extraction commands centralize option parsing, progress output, and result reporting so server data generation behaves the same for every asset kind.
- * Inputs used by this helper: args.
- */
+  * Runs the extract all command and writes normalized game data into the configured output directory.
+  * Extraction commands centralize option parsing, progress output, and result reporting so server data generation behaves the same for every asset kind.
+  * Inputs used by this helper: args.
+  */
 static int ExtractAll(string[] args)
 {
     AssetExtractionOptions options = CreateExtractionOptions(args);
@@ -135,10 +134,10 @@ static int ExtractAll(string[] args)
 }
 
 /**
- * Creates the extraction options object from parsed command-line arguments.
- * Default values are applied here so the extraction commands do not duplicate option and path handling.
- * Inputs used by this helper: args.
- */
+  * Creates the extraction options object from parsed command-line arguments.
+  * Default values are applied here so the extraction commands do not duplicate option and path handling.
+  * Inputs used by this helper: args.
+  */
 static AssetExtractionOptions CreateExtractionOptions(string[] args)
 {
     string clientRoot = GetOption(args, "--client") ?? Directory.GetCurrentDirectory();
@@ -159,10 +158,10 @@ static AssetExtractionOptions CreateExtractionOptions(string[] args)
 }
 
 /**
- * Prints extraction result information to the console for the operator.
- * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
- * Inputs used by this helper: result.
- */
+  * Prints extraction result information to the console for the operator.
+  * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+  * Inputs used by this helper: result.
+  */
 static void PrintExtractionResult(AssetExtractionResult result)
 {
     Console.WriteLine($"[{result.Kind}] extracted={result.ExtractedFiles}, skipped={result.SkippedFiles}");
@@ -170,10 +169,10 @@ static void PrintExtractionResult(AssetExtractionResult result)
 }
 
 /**
- * Performs the write progress message command-line operation.
- * The helper keeps top-level startup code focused on dispatching rather than mixing command-specific logic into the entry point.
- * Inputs used by this helper: message.
- */
+  * Performs the write progress message command-line operation.
+  * The helper keeps top-level startup code focused on dispatching rather than mixing command-specific logic into the entry point.
+  * Inputs used by this helper: message.
+  */
 static void WriteProgressMessage(string message)
 {
     Console.WriteLine(message);
@@ -181,10 +180,10 @@ static void WriteProgressMessage(string message)
 }
 
 /**
- * Runs the verify map validation command against extracted data.
- * Validation commands return process exit codes that can be used by scripts or installers to stop when corrupted data is detected.
- * Inputs used by this helper: args.
- */
+  * Runs the verify map validation command against extracted data.
+  * Validation commands return process exit codes that can be used by scripts or installers to stop when corrupted data is detected.
+  * Inputs used by this helper: args.
+  */
 static int VerifyMap(string[] args)
 {
     string path = RequireOption(args, "--file");
@@ -195,10 +194,10 @@ static int VerifyMap(string[] args)
 }
 
 /**
- * Runs the verify maps validation command against extracted data.
- * Validation commands return process exit codes that can be used by scripts or installers to stop when corrupted data is detected.
- * Inputs used by this helper: args.
- */
+  * Runs the verify maps validation command against extracted data.
+  * Validation commands return process exit codes that can be used by scripts or installers to stop when corrupted data is detected.
+  * Inputs used by this helper: args.
+  */
 static int VerifyMaps(string[] args)
 {
     string directory = RequireOption(args, "--directory");
@@ -225,10 +224,10 @@ static int VerifyMaps(string[] args)
 }
 
 /**
- * Runs the formula test diagnostic command.
- * The command is kept separate from extraction so temporary verification logic cannot interfere with normal data generation workflows.
- * Inputs used by this helper: args.
- */
+  * Runs the formula test diagnostic command.
+  * The command is kept separate from extraction so temporary verification logic cannot interfere with normal data generation workflows.
+  * Inputs used by this helper: args.
+  */
 static int RunFormulaTest(string[] args)
 {
     float gridHeight = GetFloatOption(args, "--min", -500.0f);
@@ -247,10 +246,10 @@ static int RunFormulaTest(string[] args)
 }
 
 /**
- * Prints validation result information to the console for the operator.
- * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
- * Inputs used by this helper: result.
- */
+  * Prints validation result information to the console for the operator.
+  * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+  * Inputs used by this helper: result.
+  */
 static void PrintValidationResult(MapValidationResult result)
 {
     foreach (ValidationMessage message in result.Messages)
@@ -260,10 +259,10 @@ static void PrintValidationResult(MapValidationResult result)
 }
 
 /**
- * Reports an unknown command and returns a failing process exit code.
- * Keeping the message here gives every entry point the same user-facing behavior when command dispatch fails.
- * Inputs used by this helper: command.
- */
+  * Reports an unknown command and returns a failing process exit code.
+  * Keeping the message here gives every entry point the same user-facing behavior when command dispatch fails.
+  * Inputs used by this helper: command.
+  */
 static int UnknownCommand(string command)
 {
     Console.Error.WriteLine($"Unknown command '{command}'.");
@@ -272,10 +271,10 @@ static int UnknownCommand(string command)
 }
 
 /**
- * Resolves the require option value from command-line arguments.
- * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
- * Inputs used by this helper: args, name.
- */
+  * Resolves the require option value from command-line arguments.
+  * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+  * Inputs used by this helper: args, name.
+  */
 static string RequireOption(string[] args, string name)
 {
     for (int i = 1; i < args.Length - 1; i++)
@@ -290,10 +289,10 @@ static string RequireOption(string[] args, string name)
 }
 
 /**
- * Resolves the get int option value from command-line arguments.
- * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
- * Inputs used by this helper: args, name, defaultValue.
- */
+  * Resolves the get int option value from command-line arguments.
+  * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+  * Inputs used by this helper: args, name, defaultValue.
+  */
 static int GetIntOption(string[] args, string name, int defaultValue)
 {
     string? value = GetOption(args, name);
@@ -301,10 +300,10 @@ static int GetIntOption(string[] args, string name, int defaultValue)
 }
 
 /**
- * Resolves the get float option value from command-line arguments.
- * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
- * Inputs used by this helper: args, name, defaultValue.
- */
+  * Resolves the get float option value from command-line arguments.
+  * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+  * Inputs used by this helper: args, name, defaultValue.
+  */
 static float GetFloatOption(string[] args, string name, float defaultValue)
 {
     string? value = GetOption(args, name);
@@ -312,10 +311,10 @@ static float GetFloatOption(string[] args, string name, float defaultValue)
 }
 
 /**
- * Resolves the get option value from command-line arguments.
- * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
- * Inputs used by this helper: args, name.
- */
+  * Resolves the get option value from command-line arguments.
+  * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+  * Inputs used by this helper: args, name.
+  */
 static string? GetOption(string[] args, string name)
 {
     for (int i = 1; i < args.Length - 1; i++)
@@ -330,29 +329,29 @@ static string? GetOption(string[] args, string name)
 }
 
 /**
- * Resolves the has option value from command-line arguments.
- * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
- * Inputs used by this helper: args, name.
- */
+  * Resolves the has option value from command-line arguments.
+  * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+  * Inputs used by this helper: args, name.
+  */
 static bool HasOption(string[] args, string name)
 {
     return args.Any(argument => string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
 }
 
 /**
- * Resolves the is help value from command-line arguments.
- * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
- * Inputs used by this helper: value.
- */
+  * Resolves the is help value from command-line arguments.
+  * Argument helpers keep parsing rules, missing-option behavior, and validation messages consistent across commands.
+  * Inputs used by this helper: value.
+  */
 static bool IsHelp(string value)
 {
     return value is "-h" or "--help" or "help";
 }
 
 /**
- * Prints usage information to the console for the operator.
- * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
- */
+  * Prints usage information to the console for the operator.
+  * Console output is kept in a helper so command handling stays readable and exit codes remain consistent.
+  */
 static void PrintUsage()
 {
     Console.WriteLine("MapDataTool");

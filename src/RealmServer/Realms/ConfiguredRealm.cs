@@ -18,49 +18,48 @@
 
 using EmulationServer.RealmServer.Configuration;
 
-
 /**
- * File overview: src/RealmServer/Realms/ConfiguredRealm.cs
- * Documents the ConfiguredRealm source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Realms/ConfiguredRealm.cs
+  * Documents the ConfiguredRealm source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Realms;
 
 /**
- * Owns the configured realm behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the configured realm behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ConfiguredRealm
 {
     /**
-     * Holds the private sync root state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private sync root state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly object _syncRoot = new();
 
     /**
-     * Holds the private online state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private online state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private bool _online;
     /**
-     * Holds the private active connections state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private active connections state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _activeConnections;
     /**
-     * Holds the private capacity limit state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private capacity limit state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _capacityLimit;
     private Dictionary<uint, byte> _characterCountsByAccount = [];
 
     /**
-     * Initializes a new ConfiguredRealm instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new ConfiguredRealm instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public ConfiguredRealm(ConfiguredRealmSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -194,7 +193,6 @@ public sealed class ConfiguredRealm
             }
         }
     }
-
 
     /**
       * Returns the number of characters this account has on this realm from the latest WorldServer snapshot.

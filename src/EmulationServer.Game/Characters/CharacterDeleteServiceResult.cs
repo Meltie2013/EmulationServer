@@ -17,29 +17,29 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Characters/CharacterDeleteServiceResult.cs
- * Documents the CharacterDeleteServiceResult source file in the character creation, listing, and identity transfer models area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Characters/CharacterDeleteServiceResult.cs
+  * Documents the CharacterDeleteServiceResult source file in the character creation, listing, and identity transfer models area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Characters;
 
 /**
- * Lists the supported character delete service result values used by the character creation, listing, and identity transfer models layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported character delete service result values used by the character creation, listing, and identity transfer models layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum CharacterDeleteServiceResult
 {
     /**
-     * Represents the success value for character delete service result handling.
-     */
+      * Represents the success value for character delete service result handling.
+      */
     Success,
     /**
-     * Represents the failed value for character delete service result handling.
-     */
+      * Represents the failed value for character delete service result handling.
+      */
     Failed,
     /**
-     * Represents the security mismatch value for character delete service result handling.
-     */
+      * Represents the security mismatch value for character delete service result handling.
+      */
     SecurityMismatch,
 }

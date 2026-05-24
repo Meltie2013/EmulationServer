@@ -16,18 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/WowMpqArchiveEntry.cs
- * Documents the WowMpqArchiveEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/WowMpqArchiveEntry.cs
+  * Documents the WowMpqArchiveEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
   * Represents immutable wow mpq archive entry data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
- * Positional fields carried by this record: Path, Priority.
+  * Positional fields carried by this record: Path, Priority.
   */
 public sealed record WowMpqArchiveEntry(string Path, int Priority);

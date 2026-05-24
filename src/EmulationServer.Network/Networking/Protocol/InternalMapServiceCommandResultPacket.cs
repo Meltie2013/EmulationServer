@@ -19,19 +19,18 @@
 using System.Globalization;
 using System.Text;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceCommandResultPacket.cs
- * Documents the InternalMapServiceCommandResultPacket source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceCommandResultPacket.cs
+  * Documents the InternalMapServiceCommandResultPacket source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Protocol;
 
 /**
   * Represents immutable internal map service command result packet data passed between parts of the server.
   * It represents an internal protocol payload exchanged between server processes.
- * Positional fields carried by this record: CommandId, OwnerServerName, Kind, MapId, InstanceId, ResultCode, State, Message.
+  * Positional fields carried by this record: CommandId, OwnerServerName, Kind, MapId, InstanceId, ResultCode, State, Message.
   */
 public sealed record InternalMapServiceCommandResultPacket(
     string CommandId,
@@ -44,9 +43,9 @@ public sealed record InternalMapServiceCommandResultPacket(
     string Message)
 {
     /**
-     * Performs the to packet line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the to packet line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public string ToPacketLine()
     {
         string encodedMessage = Convert.ToBase64String(Encoding.UTF8.GetBytes(Message ?? string.Empty));

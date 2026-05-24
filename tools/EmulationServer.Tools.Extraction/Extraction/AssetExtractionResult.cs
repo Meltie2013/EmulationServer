@@ -16,32 +16,31 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Extraction/AssetExtractionResult.cs
- * Documents the AssetExtractionResult source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Extraction/AssetExtractionResult.cs
+  * Documents the AssetExtractionResult source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Extraction;
 
 /**
- * Owns the asset extraction result behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the asset extraction result behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class AssetExtractionResult
 {
     /**
-     * Holds the private messages state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private messages state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly List<string> _messages = [];
 
     /**
-     * Initializes a new AssetExtractionResult instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: kind.
-     */
+      * Initializes a new AssetExtractionResult instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: kind.
+      */
     public AssetExtractionResult(AssetExtractionKind kind)
     {
         Kind = kind;

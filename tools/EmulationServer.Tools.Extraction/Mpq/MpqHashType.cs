@@ -16,35 +16,34 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHashType.cs
- * Documents the MpqHashType source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHashType.cs
+  * Documents the MpqHashType source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Lists the supported mpq hash type values used by the client data extraction and conversion tooling layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported mpq hash type values used by the client data extraction and conversion tooling layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 internal enum MpqHashType : uint
 {
     /**
-     * Represents the table offset value for mpq hash type handling.
-     */
+      * Represents the table offset value for mpq hash type handling.
+      */
     TableOffset = 0,
     /**
-     * Represents the name a value for mpq hash type handling.
-     */
+      * Represents the name a value for mpq hash type handling.
+      */
     NameA = 1,
     /**
-     * Represents the name b value for mpq hash type handling.
-     */
+      * Represents the name b value for mpq hash type handling.
+      */
     NameB = 2,
     /**
-     * Represents the file key value for mpq hash type handling.
-     */
+      * Represents the file key value for mpq hash type handling.
+      */
     FileKey = 3,
 }

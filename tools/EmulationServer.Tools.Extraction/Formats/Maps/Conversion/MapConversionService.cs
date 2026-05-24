@@ -18,26 +18,25 @@
 
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapConversionService.cs
- * Documents the MapConversionService source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapConversionService.cs
+  * Documents the MapConversionService source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
 /**
- * Owns the map conversion service behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the map conversion service behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MapConversionService
 {
     /**
-     * Performs the convert raw adt directory operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: rawMapDirectory, dbcDirectory, outputDirectory, build, overwrite, progressMessage.
-     */
+      * Performs the convert raw adt directory operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: rawMapDirectory, dbcDirectory, outputDirectory, build, overwrite, progressMessage.
+      */
     public MapConversionResult ConvertRawAdtDirectory(
         string rawMapDirectory,
         string dbcDirectory,

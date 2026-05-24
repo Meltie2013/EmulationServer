@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/WorldServer/Networking/Packets/WorldPacket.cs
- * Documents the WorldPacket source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Packets/WorldPacket.cs
+  * Documents the WorldPacket source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
 /**
- * Carries immutable world packet data for the World of Warcraft packet opcode, reader, writer, and builder support layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: Opcode, Payload.
- */
+  * Carries immutable world packet data for the World of Warcraft packet opcode, reader, writer, and builder support layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: Opcode, Payload.
+  */
 public sealed record WorldPacket(WorldOpcode Opcode, byte[] Payload);

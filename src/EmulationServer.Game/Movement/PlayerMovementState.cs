@@ -19,18 +19,18 @@
 using EmulationServer.Game.Players;
 
 /**
- * File overview: src/EmulationServer.Game/Movement/PlayerMovementState.cs
- * Documents the PlayerMovementState source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Movement/PlayerMovementState.cs
+  * Documents the PlayerMovementState source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Movement;
 
 /**
- * Carries immutable player movement state data for the movement packet state and client coordinate tracking layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: PlayerGuid, AccountId, ClientGuid, Map, Zone, Opcode, Flags, ClientTime, Position, Transport, Pitch, FallTime, Jump, LastUpdatedUtc.
- */
+  * Carries immutable player movement state data for the movement packet state and client coordinate tracking layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: PlayerGuid, AccountId, ClientGuid, Map, Zone, Opcode, Flags, ClientTime, Position, Transport, Pitch, FallTime, Jump, LastUpdatedUtc.
+  */
 public sealed record PlayerMovementState(
     uint PlayerGuid,
     uint AccountId,
@@ -48,34 +48,34 @@ public sealed record PlayerMovementState(
     DateTimeOffset LastUpdatedUtc)
 {
     /**
-     * Stores the default position x value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default position x value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public float PositionX => Position.X;
 
     /**
-     * Stores the default position y value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default position y value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public float PositionY => Position.Y;
 
     /**
-     * Stores the default position z value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default position z value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public float PositionZ => Position.Z;
 
     /**
-     * Stores the default orientation value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default orientation value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public float Orientation => Position.Orientation;
 
     /**
-     * Performs the from player operation for the movement packet state and client coordinate tracking workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: player, opcode.
-     */
+      * Performs the from player operation for the movement packet state and client coordinate tracking workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: player, opcode.
+      */
     public static PlayerMovementState FromPlayer(PlayerLoginRecord player, ushort opcode = 0)
     {
         ArgumentNullException.ThrowIfNull(player);

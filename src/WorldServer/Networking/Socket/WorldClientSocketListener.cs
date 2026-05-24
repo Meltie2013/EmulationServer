@@ -26,67 +26,67 @@ using EmulationServer.WorldServer.Configuration;
 using EmulationServer.WorldServer.Networking.Sessions;
 
 /**
- * File overview: src/WorldServer/Networking/Socket/WorldClientSocketListener.cs
- * Documents the WorldClientSocketListener source file in the world client socket listening and connection acceptance area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Socket/WorldClientSocketListener.cs
+  * Documents the WorldClientSocketListener source file in the world client socket listening and connection acceptance area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Socket;
 
 /**
- * Owns the world client socket listener behavior for the world client socket listening and connection acceptance layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world client socket listener behavior for the world client socket listening and connection acceptance layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WorldClientSocketListener : IAsyncDisposable
 {
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly WorldClientSettings _settings;
     private readonly Func<TcpClient, WorldClientSession> _sessionFactory;
     private readonly ConcurrentDictionary<Guid, WorldClientSession> _sessions = new();
     private readonly ConcurrentDictionary<Guid, Task> _sessionTasks = new();
     /**
-     * Holds the private shutdown state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private shutdown state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CancellationTokenSource _shutdown = new();
 
     /**
-     * Holds the private listener state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private listener state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private TcpListener? _listener;
     /**
-     * Holds the private accept task state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private accept task state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _acceptTask;
     /**
-     * Holds the private disposed state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private disposed state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private bool _disposed;
 
     /**
-     * Initializes a new WorldClientSocketListener instance with the dependencies required by the world client socket listening and connection acceptance workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings, sessionFactory.
-     */
+      * Initializes a new WorldClientSocketListener instance with the dependencies required by the world client socket listening and connection acceptance workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings, sessionFactory.
+      */
     public WorldClientSocketListener(WorldClientSettings settings, Func<TcpClient, WorldClientSession> sessionFactory)
     {
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _settings = settings ?? throw new ArgumentNullException();
         _settings.Validate();
-        _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
+        _sessionFactory = sessionFactory ?? throw new ArgumentNullException();
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (_listener is not null)
@@ -98,17 +98,17 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         _listener = new TcpListener(bindAddress, _settings.Port);
         _listener.Start(_settings.Backlog);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer listening for WoW clients on {bindAddress}:{_settings.Port}.", nameof(WorldClientSocketListener));
+        Logger.Write(LogType.SUCCESS, $"WorldServer listening for WoW clients on {bindAddress}:{_settings.Port}.", "WorldClientSocketListener");
         _acceptTask = AcceptLoopAsync(cancellationToken);
         return _acceptTask;
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (!_shutdown.IsCancellationRequested)
@@ -142,7 +142,7 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
             }
             catch (OperationCanceledException) when (timeout.IsCancellationRequested)
             {
-                Logger.Write(LogType.WARNING, "World client sessions did not all close before the shutdown grace period expired.", nameof(WorldClientSocketListener));
+                Logger.Write(LogType.WARNING, "World client sessions did not all close before the shutdown grace period expired.", "WorldClientSocketListener");
             }
         }
 
@@ -165,11 +165,11 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
     }
 
     /**
-     * Performs the accept loop operation for the world client socket listening and connection acceptance workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: serverCancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the accept loop operation for the world client socket listening and connection acceptance workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: serverCancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task AcceptLoopAsync(CancellationToken serverCancellationToken)
     {
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -190,7 +190,7 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
                 Task task = RunSessionAsync(session, cancellationToken);
                 _sessionTasks[session.Id] = task;
 
-                Logger.Write(LogType.NETWORK, $"Accepted WoW client from {session.RemoteEndPoint}.", nameof(WorldClientSocketListener));
+                Logger.Write(LogType.NETWORK, $"Accepted WoW client from {session.RemoteEndPoint}.", "WorldClientSocketListener");
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -201,16 +201,16 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         }
         catch (SocketException exception) when (cancellationToken.IsCancellationRequested)
         {
-            Logger.Write(LogType.TRACE, $"World client listener stopped: {exception.Message}", nameof(WorldClientSocketListener));
+            Logger.Write(LogType.TRACE, $"World client listener stopped: {exception.Message}", "WorldClientSocketListener");
         }
     }
 
     /**
-     * Performs the run session operation for the world client socket listening and connection acceptance workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: session, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the run session operation for the world client socket listening and connection acceptance workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: session, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task RunSessionAsync(WorldClientSession session, CancellationToken cancellationToken)
     {
         try
@@ -226,10 +226,10 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
     }
 
     /**
-     * Performs the configure client operation for the world client socket listening and connection acceptance workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: client, settings.
-     */
+      * Performs the configure client operation for the world client socket listening and connection acceptance workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: client, settings.
+      */
     private static void ConfigureClient(TcpClient client, WorldClientSettings settings)
     {
         client.NoDelay = true;
@@ -247,10 +247,10 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
     }
 
     /**
-     * Tries to resolve the set tcp keep alive option value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: client, optionName, valueSeconds.
-     */
+      * Tries to resolve the set tcp keep alive option value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: client, optionName, valueSeconds.
+      */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)
@@ -273,10 +273,10 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

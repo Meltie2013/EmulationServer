@@ -16,36 +16,35 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/DbcFormatException.cs
- * Documents the DbcFormatException source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcFormatException.cs
+  * Documents the DbcFormatException source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc;
 
 /**
- * Owns the dbc format exception behavior for the DBC loading and strongly typed client data records layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the dbc format exception behavior for the DBC loading and strongly typed client data records layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class DbcFormatException : IOException
 {
     /**
-     * Initializes a new DbcFormatException instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: message.
-     */
+      * Initializes a new DbcFormatException instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: message.
+      */
     public DbcFormatException(string message)
         : base(message)
     {
     }
 
     /**
-     * Initializes a new DbcFormatException instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: message, innerException.
-     */
+      * Initializes a new DbcFormatException instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: message, innerException.
+      */
     public DbcFormatException(string message, Exception innerException)
         : base(message, innerException)
     {

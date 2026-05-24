@@ -25,58 +25,57 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Socket/RealmSocketListener.cs
- * Documents the RealmSocketListener source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Socket/RealmSocketListener.cs
+  * Documents the RealmSocketListener source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Socket;
 
 /**
- * Owns the realm socket listener behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm socket listener behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmSocketListener
 {
     /**
-     * Holds the private tcp listener state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private tcp listener state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TcpListener _tcpListener;
     /**
-     * Holds the private session manager state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private session manager state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly SessionManager _sessionManager = new();
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly RealmSocketListenerSettings _settings;
     /**
-     * Holds the private session processor factory state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private session processor factory state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly Func<IRealmSessionProcessor>? _sessionProcessorFactory;
 
     /**
-     * Holds the private started state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private started state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _started;
     /**
-     * Holds the private stopping state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stopping state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _stopping;
 
     /**
-     * Initializes a new RealmSocketListener instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings, sessionProcessorFactory.
-     */
+      * Initializes a new RealmSocketListener instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings, sessionProcessorFactory.
+      */
     public RealmSocketListener(RealmSocketListenerSettings settings, Func<IRealmSessionProcessor>? sessionProcessorFactory = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -88,11 +87,11 @@ public sealed class RealmSocketListener
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -106,7 +105,7 @@ public sealed class RealmSocketListener
 
             IPEndPoint? endPoint = _tcpListener.LocalEndpoint as IPEndPoint;
 
-            Logger.Write(LogType.NETWORK, $"RealmServer network listener started on {endPoint?.Address}:{endPoint?.Port}", nameof(RealmSocketListener));
+            Logger.Write(LogType.NETWORK, $"RealmServer network listener started on {endPoint?.Address}:{endPoint?.Port}", "RealmSocketListener");
             await AcceptLoopAsync(cancellationToken);
         }
         finally
@@ -116,11 +115,11 @@ public sealed class RealmSocketListener
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -128,17 +127,17 @@ public sealed class RealmSocketListener
             return;
         }
 
-        Logger.Write(LogType.WARNING, "Stopping RealmServer network listener...", nameof(RealmSocketListener));
+        Logger.Write(LogType.WARNING, "Stopping RealmServer network listener...", "RealmSocketListener");
         _tcpListener.Stop();
 
-        Logger.Write(LogType.NETWORK, "Disconnecting all sessions...", nameof(RealmSocketListener));
+        Logger.Write(LogType.NETWORK, "Disconnecting all sessions...", "RealmSocketListener");
         await _sessionManager.DisconnectAllAsync();
 
         Logger.Write(LogType.NETWORK, $"Waiting up to {_settings.ShutdownGracePeriod.TotalSeconds:0.##} second(s) for sessions to stop...",
-            nameof(RealmSocketListener));
+            "RealmSocketListener");
         await _sessionManager.WaitForAllSessionsAsync(_settings.ShutdownGracePeriod, cancellationToken);
 
-        Logger.Write(LogType.NETWORK, "RealmServer network listener stopped.", nameof(RealmSocketListener));
+        Logger.Write(LogType.NETWORK, "RealmServer network listener stopped.", "RealmSocketListener");
     }
 
     /**
@@ -176,10 +175,9 @@ public sealed class RealmSocketListener
                 break;
             }
 
-
             ConfigureClient(client, _settings);
 
-            Logger.Write(LogType.NETWORK, $"Accepted connection from {client.Client.RemoteEndPoint}", nameof(RealmSocketListener));
+            Logger.Write(LogType.NETWORK, $"Accepted connection from {client.Client.RemoteEndPoint}", "RealmSocketListener");
 
             RealmSession session = new(client, _sessionProcessorFactory?.Invoke());
 
@@ -207,7 +205,7 @@ public sealed class RealmSocketListener
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(RealmSocketListener));
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "RealmSocketListener");
         }
         finally
         {
@@ -236,10 +234,10 @@ public sealed class RealmSocketListener
     }
 
     /**
-     * Tries to resolve the set tcp keep alive option value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: client, optionName, valueSeconds.
-     */
+      * Tries to resolve the set tcp keep alive option value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: client, optionName, valueSeconds.
+      */
     private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
     {
         if (valueSeconds <= 0)

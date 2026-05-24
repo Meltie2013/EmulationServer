@@ -22,12 +22,11 @@ using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
- * Documents the MapServiceManager source file in the runtime map-player state tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
+  * Documents the MapServiceManager source file in the runtime map-player state tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
@@ -38,47 +37,47 @@ namespace EmulationServer.Game.Maps.Runtime;
 public sealed class MapServiceManager : IAsyncDisposable
 {
     /**
-     * Holds the private owner server name state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private owner server name state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _ownerServerName;
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MapRuntimeSettings _settings;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
     /**
-     * Holds the private services state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private services state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly List<MapService> _services = [];
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
     /**
-     * Holds the private map data state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private map data state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MapDbcDataStore _mapData;
 
     /**
-     * Holds the private stop cancellation state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stop cancellation state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
     /**
-     * Holds the private report task state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private report task state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _reportTask;
     /**
-     * Holds the private started state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private started state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _started;
     /**
-     * Holds the private stopping state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stopping state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _stopping;
 
     /**
@@ -91,7 +90,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(ownerServerName))
         {
-            throw new ArgumentException("Owner server name is required.", nameof(ownerServerName));
+            throw new ArgumentException("Owner server name is required.");
         }
 
         ArgumentNullException.ThrowIfNull(settings);
@@ -99,7 +98,7 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         _ownerServerName = ownerServerName;
         _settings = settings;
-        _reportStatusAsync = reportStatusAsync ?? throw new ArgumentNullException(nameof(reportStatusAsync));
+        _reportStatusAsync = reportStatusAsync ?? throw new ArgumentNullException();
 
         if (!settings.Enabled)
         {
@@ -188,7 +187,7 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         if (!_settings.Enabled)
         {
-            Logger.Write(LogType.INFORMATION, $"{_ownerServerName} map services are disabled by configuration.", nameof(MapServiceManager));
+            Logger.Write(LogType.INFORMATION, $"{_ownerServerName} map services are disabled by configuration.", "MapServiceManager");
             return;
         }
 
@@ -201,15 +200,15 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         _reportTask = Task.Run(() => RunStatusReportLoopAsync(_stopCancellation.Token), CancellationToken.None);
 
-        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} map service manager started with {_services.Count} service(s).", nameof(MapServiceManager));
+        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} map service manager started with {_services.Count} service(s).", "MapServiceManager");
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -249,7 +248,7 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         if (_settings.Enabled)
         {
-            Logger.Write(LogType.NETWORK, $"{_ownerServerName} map service manager stopped.", nameof(MapServiceManager));
+            Logger.Write(LogType.NETWORK, $"{_ownerServerName} map service manager stopped.", "MapServiceManager");
         }
     }
 
@@ -263,7 +262,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     {
         if (mapId < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(mapId), "Map ID cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Map ID cannot be negative.");
         }
 
         if (!_settings.Enabled)
@@ -383,7 +382,7 @@ public sealed class MapServiceManager : IAsyncDisposable
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             MapServiceSnapshot snapshot = service.GetSnapshot();
-            Logger.Write(LogType.WARNING, $"{_ownerServerName} failed to execute {action} for map service '{service.Definition.Name}': {exception.Message}", nameof(MapServiceManager));
+            Logger.Write(LogType.WARNING, $"{_ownerServerName} failed to execute {action} for map service '{service.Definition.Name}': {exception.Message}", "MapServiceManager");
 
             return MapServiceControlResult.FromSnapshot(
                 snapshot,
@@ -401,14 +400,14 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         if (!_mapData.TryGetMap(definition.MapId, out MapDbcRecord map))
         {
-            Logger.Write(LogType.WARNING, $"{_ownerServerName} configured map service '{definition.Name}' for MapId={definition.MapId}, but that id was not found in Map.dbc.", nameof(MapServiceManager));
+            Logger.Write(LogType.WARNING, $"{_ownerServerName} configured map service '{definition.Name}' for MapId={definition.MapId}, but that id was not found in Map.dbc.", "MapServiceManager");
             return definition;
         }
 
         MapServiceKind expectedKind = map.IsWorldMap ? MapServiceKind.World : MapServiceKind.Instance;
         if (definition.Kind != expectedKind)
         {
-            Logger.Write(LogType.WARNING, $"{_ownerServerName} configured MapId={definition.MapId} as {definition.Kind}, but Map.dbc identifies '{map.DisplayName}' as {map.Type}.", nameof(MapServiceManager));
+            Logger.Write(LogType.WARNING, $"{_ownerServerName} configured MapId={definition.MapId} as {definition.Kind}, but Map.dbc identifies '{map.DisplayName}' as {map.Type}.", "MapServiceManager");
         }
 
         string configuredDefaultName = definition.Kind == MapServiceKind.Instance
@@ -419,7 +418,7 @@ public sealed class MapServiceManager : IAsyncDisposable
             ? map.DisplayName
             : definition.Name;
 
-        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} registered {definition.Kind} service: {_mapData.DescribeMap(definition.MapId)}.", nameof(MapServiceManager));
+        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} registered {definition.Kind} service: {_mapData.DescribeMap(definition.MapId)}.", "MapServiceManager");
 
         return new MapServiceDefinition
         {
@@ -459,7 +458,7 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(MapServiceManager));
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "MapServiceManager");
         }
     }
 

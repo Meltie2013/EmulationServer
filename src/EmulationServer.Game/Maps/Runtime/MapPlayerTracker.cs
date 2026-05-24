@@ -19,41 +19,41 @@
 using System.Collections.Concurrent;
 
 /**
- * File overview: src/EmulationServer.Game/Maps/Runtime/MapPlayerTracker.cs
- * Documents the MapPlayerTracker source file in the runtime map-player state tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapPlayerTracker.cs
+  * Documents the MapPlayerTracker source file in the runtime map-player state tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
 /**
- * Owns the map player tracker behavior for the runtime map-player state tracking layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the map player tracker behavior for the runtime map-player state tracking layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MapPlayerTracker
 {
     private readonly ConcurrentDictionary<uint, MapPlayerRuntimeState> _players = new();
 
     /**
-     * Stores the default active player count value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default active player count value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public int ActivePlayerCount => _players.Count;
 
     /**
-     * Performs the snapshot players operation for the runtime map-player state tracking workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the snapshot players operation for the runtime map-player state tracking workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public IReadOnlyCollection<MapPlayerRuntimeState> SnapshotPlayers()
     {
         return _players.Values.ToArray();
     }
 
     /**
-     * Performs the player entered operation for the runtime map-player state tracking workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: player.
-     */
+      * Performs the player entered operation for the runtime map-player state tracking workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: player.
+      */
     public void PlayerEntered(MapPlayerRuntimeState player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -61,20 +61,20 @@ public sealed class MapPlayerTracker
     }
 
     /**
-     * Performs the player left operation for the runtime map-player state tracking workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: guid.
-     */
+      * Performs the player left operation for the runtime map-player state tracking workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: guid.
+      */
     public bool PlayerLeft(uint guid)
     {
         return _players.TryRemove(guid, out _);
     }
 
     /**
-     * Performs the player moved operation for the runtime map-player state tracking workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: accountId, guid, map, zone, positionX, positionY....
-     */
+      * Performs the player moved operation for the runtime map-player state tracking workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: accountId, guid, map, zone, positionX, positionY....
+      */
     public MapPlayerRuntimeState PlayerMoved(
         uint accountId,
         uint guid,

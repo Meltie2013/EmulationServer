@@ -19,42 +19,41 @@
 using System.Net;
 using System.Net.Sockets;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSessionContext.cs
- * Documents the RealmSessionContext source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSessionContext.cs
+  * Documents the RealmSessionContext source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Sessions;
 
 /**
- * Owns the realm session context behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm session context behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmSessionContext
 {
     /**
-     * Holds the private client state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private client state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TcpClient _client;
     /**
-     * Holds the private stream state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stream state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly NetworkStream _stream;
 
     /**
-     * Initializes a new RealmSessionContext instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: sessionId, client, stream.
-     */
+      * Initializes a new RealmSessionContext instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: sessionId, client, stream.
+      */
     public RealmSessionContext(Guid sessionId, TcpClient client, NetworkStream stream)
     {
         Id = sessionId;
-        _client = client ?? throw new ArgumentNullException(nameof(client));
-        _stream = stream ?? throw new ArgumentNullException(nameof(stream));
+        _client = client ?? throw new ArgumentNullException();
+        _stream = stream ?? throw new ArgumentNullException();
 
         RemoteEndPoint = _client.Client.RemoteEndPoint?.ToString() ?? "unknown endpoint";
         RemoteAddress = (_client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "0.0.0.0";
@@ -101,7 +100,7 @@ public sealed class RealmSessionContext
     {
         if (length < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(length), "Read length cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Read length cannot be negative.");
         }
 
         byte[] buffer = new byte[length];
@@ -133,11 +132,11 @@ public sealed class RealmSessionContext
     }
 
     /**
-     * Writes write data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: data, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Writes write data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: data, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
         return _stream.WriteAsync(data, cancellationToken);

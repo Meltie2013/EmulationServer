@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionTemplateDbcRecord.cs
- * Documents the FactionTemplateDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionTemplateDbcRecord.cs
+  * Documents the FactionTemplateDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Factions;
 
 /**
   * Represents one FactionTemplate.dbc row used for friendly/enemy faction group rules.
- * Positional fields carried by this record: Id, FactionId, Flags, FactionGroup, FriendGroup, EnemyGroup, EnemyFactionIds, FriendFactionIds.
+  * Positional fields carried by this record: Id, FactionId, Flags, FactionGroup, FriendGroup, EnemyGroup, EnemyFactionIds, FriendFactionIds.
   */
 public sealed record FactionTemplateDbcRecord(
     int Id,

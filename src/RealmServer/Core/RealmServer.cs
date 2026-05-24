@@ -29,67 +29,66 @@ using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/RealmServer/Core/RealmServer.cs
- * Documents the RealmServer source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Core/RealmServer.cs
+  * Documents the RealmServer source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Core;
 
 /**
- * Owns the realm server behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm server behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmServer : IAsyncDisposable
 {
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly RealmServerSettings _settings;
     /**
-     * Holds the private database service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private database service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly IDatabaseService _databaseService;
     /**
-     * Holds the private account repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly AccountRepository _accountRepository;
     /**
-     * Holds the private realm store state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private realm store state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly ConfiguredRealmStore _realmStore;
     /**
-     * Holds the private socket listener state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private socket listener state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly RealmSocketListener _socketListener;
     /**
-     * Holds the private internal socket listener state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private internal socket listener state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalSocketListener _internalSocketListener;
     /**
-     * Holds the private internal peer connector state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private internal peer connector state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalPeerConnector _internalPeerConnector;
     /**
-     * Holds the private command service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private command service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly RealmConsoleCommandService _commandService;
 
     /**
-     * Initializes a new RealmServer instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new RealmServer instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public RealmServer(RealmServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -108,7 +107,7 @@ public sealed class RealmServer : IAsyncDisposable
         RealmInternalPacketHandler internalPacketHandler = new(_realmStore);
         _internalSocketListener = new InternalSocketListener(settings.InternalNetwork, internalPacketHandler.CreateCallbacks());
         _internalPeerConnector = new InternalPeerConnector(
-            nameof(RealmServer),
+            "RealmServer",
             settings.InternalNetwork.Peers,
             settings.InternalNetwork.RegistrationKey,
             settings.InternalNetwork.LatencyReportInterval,
@@ -125,14 +124,14 @@ public sealed class RealmServer : IAsyncDisposable
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NOTICE, "Starting RealmServer...", nameof(RealmServer));
+        Logger.Write(LogType.NOTICE, "Starting RealmServer...", "RealmServer");
         await ValidateStartupAsync(cancellationToken);
 
         _commandService.Start(cancellationToken);
@@ -142,21 +141,21 @@ public sealed class RealmServer : IAsyncDisposable
 
         if (_settings.InternalNetwork.Peers.Count == 0)
         {
-            Logger.Write(LogType.NETWORK, "RealmServer has no outgoing internal peers configured. Waiting for incoming realm status packets.", nameof(RealmServer));
+            Logger.Write(LogType.NETWORK, "RealmServer has no outgoing internal peers configured. Waiting for incoming realm status packets.", "RealmServer");
         }
 
-        Logger.Write(LogType.NETWORK, "RealmServer started successfully. Listening for authentication connections...", nameof(RealmServer));
+        Logger.Write(LogType.NETWORK, "RealmServer started successfully. Listening for authentication connections...", "RealmServer");
         await _socketListener.StartAsync(cancellationToken);
 
-        Logger.Write(LogType.TRACE, "RealmServer stopped.", nameof(RealmServer));
+        Logger.Write(LogType.TRACE, "RealmServer stopped.", "RealmServer");
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _internalPeerConnector.StopAsync(cancellationToken);
@@ -165,10 +164,10 @@ public sealed class RealmServer : IAsyncDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -184,17 +183,17 @@ public sealed class RealmServer : IAsyncDisposable
       */
     private async Task ValidateStartupAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.TRACE, "Validating RealmServer settings...", nameof(RealmServer));
+        Logger.Write(LogType.TRACE, "Validating RealmServer settings...", "RealmServer");
         _settings.Validate();
 
-        Logger.Write(LogType.TRACE, "Validating RealmServer critical authentication opcodes...", nameof(RealmServer));
+        Logger.Write(LogType.TRACE, "Validating RealmServer critical authentication opcodes...", "RealmServer");
         RealmAuthOpcodeVerifier.VerifyCriticalOpCodes();
-        Logger.Write(LogType.TRACE, $"Validated RealmServer critical authentication opcodes...", nameof(RealmServer));
+        Logger.Write(LogType.TRACE, $"Validated RealmServer critical authentication opcodes...", "RealmServer");
 
-        Logger.Write(LogType.NETWORK, "Validating account database connection...", nameof(RealmServer));
+        Logger.Write(LogType.NETWORK, "Validating account database connection...", "RealmServer");
         await _databaseService.ValidateConnectionAsync(cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"Loaded {_settings.Realms.Count} configured realm(s).", nameof(RealmServer));
-        Logger.Write(LogType.NETWORK, "RealmServer settings, authentication opcodes, account database connection, and internal networking validated successfully.", nameof(RealmServer));
+        Logger.Write(LogType.NETWORK, $"Loaded {_settings.Realms.Count} configured realm(s).", "RealmServer");
+        Logger.Write(LogType.NETWORK, "RealmServer settings, authentication opcodes, account database connection, and internal networking validated successfully.", "RealmServer");
     }
 }

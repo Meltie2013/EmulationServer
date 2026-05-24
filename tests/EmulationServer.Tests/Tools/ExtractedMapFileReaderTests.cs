@@ -20,19 +20,18 @@ using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Validation;
 
-
 /**
- * File overview: tests/EmulationServer.Tests/Tools/ExtractedMapFileReaderTests.cs
- * Documents the ExtractedMapFileReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tests/EmulationServer.Tests/Tools/ExtractedMapFileReaderTests.cs
+  * Documents the ExtractedMapFileReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tests.Tools;
 
 /**
- * Owns the extracted map file reader tests behavior for the automated test coverage for server behavior and data helpers layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the extracted map file reader tests behavior for the automated test coverage for server behavior and data helpers layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ExtractedMapFileReaderTests
 {
     /**
@@ -91,10 +90,10 @@ public sealed class ExtractedMapFileReaderTests
     }
 
     /**
-     * Writes write minimal map with liquid data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: path.
-     */
+      * Writes write minimal map with liquid data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: path.
+      */
     private static void WriteMinimalMapWithLiquid(string path)
     {
         byte[] areaSection = BuildAreaSection();
@@ -186,10 +185,10 @@ public sealed class ExtractedMapFileReaderTests
     }
 
     /**
-     * Writes write four cc data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, fourCC.
-     */
+      * Writes write four cc data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, fourCC.
+      */
     private static void WriteFourCC(BinaryWriter writer, string fourCC)
     {
         writer.Write(Encoding.ASCII.GetBytes(fourCC));

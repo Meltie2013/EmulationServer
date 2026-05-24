@@ -20,12 +20,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapConversionService.cs
- * Documents the VmapConversionService source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapConversionService.cs
+  * Documents the VmapConversionService source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -36,19 +35,19 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 public sealed partial class VmapConversionService
 {
     /**
-     * Defines the constant value for models directory name.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for models directory name.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string ModelsDirectoryName = "models";
     /**
-     * Defines the constant value for tiles directory name.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for tiles directory name.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string TilesDirectoryName = "tiles";
     /**
-     * Defines the constant value for manifest file name.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for manifest file name.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string ManifestFileName = "vmap_manifest.txt";
 
     /**
@@ -281,10 +280,10 @@ public sealed partial class VmapConversionService
     }
 
     /**
-     * Resolves the group path value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: rootPath, groupIndex.
-     */
+      * Resolves the group path value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: rootPath, groupIndex.
+      */
     private static string GetGroupPath(string rootPath, int groupIndex)
     {
         string directory = Path.GetDirectoryName(rootPath) ?? string.Empty;

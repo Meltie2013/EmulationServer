@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/WorldServer/Configuration/RealmStatusSettings.cs
- * Documents the RealmStatusSettings source file in the world server configuration and startup settings area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Configuration/RealmStatusSettings.cs
+  * Documents the RealmStatusSettings source file in the world server configuration and startup settings area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Configuration;
 
 /**
- * Owns the realm status settings behavior for the world server configuration and startup settings layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm status settings behavior for the world server configuration and startup settings layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmStatusSettings
 {
     /**
@@ -60,7 +59,6 @@ public sealed class RealmStatusSettings
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
     public TimeSpan UpdateInterval { get; init; } = TimeSpan.FromSeconds(15);
-
 
     /**
       * Validates input and throws a clear exception before invalid state reaches runtime code.

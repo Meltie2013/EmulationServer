@@ -16,18 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Maps/AreaTriggerDbcRecord.cs
- * Documents the AreaTriggerDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/AreaTriggerDbcRecord.cs
+  * Documents the AreaTriggerDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
 /**
   * Represents one AreaTrigger.dbc row including its map id, center point, radius, and optional box volume.
- * Positional fields carried by this record: Id, MapId, LocationX, LocationY, LocationZ, Radius, BoxLength, BoxWidth, BoxHeight, BoxOrientation.
+  * Positional fields carried by this record: Id, MapId, LocationX, LocationY, LocationZ, Radius, BoxLength, BoxWidth, BoxHeight, BoxOrientation.
   */
 public sealed record AreaTriggerDbcRecord(
     int Id,

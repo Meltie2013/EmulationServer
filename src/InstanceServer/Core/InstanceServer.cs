@@ -30,69 +30,68 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/InstanceServer/Core/InstanceServer.cs
- * Documents the InstanceServer source file in the instance service startup and internal server coordination area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/InstanceServer/Core/InstanceServer.cs
+  * Documents the InstanceServer source file in the instance service startup and internal server coordination area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.InstanceServer.Core;
 
 /**
- * Owns the instance server behavior for the instance service startup and internal server coordination layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the instance server behavior for the instance service startup and internal server coordination layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InstanceServer : IAsyncDisposable
 {
     /**
-     * Holds the private host state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private host state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly EmulationServerHost _host;
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InstanceServerSettings _settings;
     /**
-     * Holds the private instance services state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private instance services state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private MapServiceManager? _instanceServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     /**
-     * Holds the private player tracker state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private player tracker state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MapPlayerTracker _playerTracker = new();
     /**
-     * Holds the private world capacity limit state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private world capacity limit state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _worldCapacityLimit;
 
     /**
-     * Initializes a new InstanceServer instance with the dependencies required by the instance service startup and internal server coordination workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new InstanceServer instance with the dependencies required by the instance service startup and internal server coordination workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public InstanceServer(InstanceServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
 
         _settings = settings;
-        _host = new EmulationServerHost(nameof(InstanceServer), settings.InternalNetwork, CreateCallbacks());
+        _host = new EmulationServerHost("InstanceServer", settings.InternalNetwork, CreateCallbacks());
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Task hostTask = _host.StartAsync(cancellationToken);
@@ -117,11 +116,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_instanceServices is not null)
@@ -133,10 +132,10 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -149,7 +148,6 @@ public sealed class InstanceServer : IAsyncDisposable
         await _host.DisposeAsync();
     }
 
-
     /**
       * Creates the instance service manager after the host has finished startup validation.
       * Delaying construction keeps DBC loading, instance registration, and service startup after the server has validated and announced startup.
@@ -157,15 +155,15 @@ public sealed class InstanceServer : IAsyncDisposable
     private MapServiceManager CreateInstanceServiceManager()
     {
         return new MapServiceManager(
-            nameof(InstanceServer),
+            "InstanceServer",
             _settings.InstanceServices,
             ReportInstanceServiceStatusAsync);
     }
 
     /**
-     * Creates the callbacks result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     */
+      * Creates the callbacks result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      */
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -180,11 +178,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Handles the on server authenticated event for the instance service startup and internal server coordination workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: session, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on server authenticated event for the instance service startup and internal server coordination workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: session, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -192,33 +190,33 @@ public sealed class InstanceServer : IAsyncDisposable
     {
         _serverSessions[remoteServerName] = session;
 
-        Logger.Write(LogType.NETWORK, $"InstanceServer registered incoming instance-service control/status session '{remoteServerName}'.", nameof(InstanceServer));
+        Logger.Write(LogType.NETWORK, $"InstanceServer registered incoming instance-service control/status session '{remoteServerName}'.", "InstanceServer");
         await SendInstanceServiceStatusesToSessionAsync(session, cancellationToken);
     }
 
     /**
-     * Handles the on server disconnected event for the instance service startup and internal server coordination workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: session, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on server disconnected event for the instance service startup and internal server coordination workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: session, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
         _serverSessions.TryRemove(remoteServerName, out _);
-        Logger.Write(LogType.NETWORK, $"InstanceServer removed incoming instance-service control/status session '{remoteServerName}'.", nameof(InstanceServer));
+        Logger.Write(LogType.NETWORK, $"InstanceServer removed incoming instance-service control/status session '{remoteServerName}'.", "InstanceServer");
 
         return Task.CompletedTask;
     }
 
     /**
-     * Handles the on peer authenticated event for the instance service startup and internal server coordination workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on peer authenticated event for the instance service startup and internal server coordination workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -226,33 +224,33 @@ public sealed class InstanceServer : IAsyncDisposable
     {
         _peerConnections[remoteServerName] = connection;
 
-        Logger.Write(LogType.NETWORK, $"InstanceServer registered outgoing instance-service status peer '{remoteServerName}'.", nameof(InstanceServer));
+        Logger.Write(LogType.NETWORK, $"InstanceServer registered outgoing instance-service status peer '{remoteServerName}'.", "InstanceServer");
         await SendInstanceServiceStatusesToPeerAsync(connection, cancellationToken);
     }
 
     /**
-     * Handles the on peer disconnected event for the instance service startup and internal server coordination workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on peer disconnected event for the instance service startup and internal server coordination workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
         CancellationToken cancellationToken)
     {
         _peerConnections.TryRemove(remoteServerName, out _);
-        Logger.Write(LogType.NETWORK, $"InstanceServer removed outgoing instance-service status peer '{remoteServerName}'.", nameof(InstanceServer));
+        Logger.Write(LogType.NETWORK, $"InstanceServer removed outgoing instance-service status peer '{remoteServerName}'.", "InstanceServer");
 
         return Task.CompletedTask;
     }
 
     /**
-     * Handles the on peer packet received event for the instance service startup and internal server coordination workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on peer packet received event for the instance service startup and internal server coordination workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -267,11 +265,11 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Handles the on session packet received event for the instance service startup and internal server coordination workflow.
-     * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-     * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Handles the on session packet received event for the instance service startup and internal server coordination workflow.
+      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
+      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -321,13 +319,13 @@ public sealed class InstanceServer : IAsyncDisposable
         int capacityIndex = parts.Length == 3 ? 2 : 1;
         if (parts.Length is not (2 or 3) || !int.TryParse(parts[capacityIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out int capacityLimit) || capacityLimit <= 0)
         {
-            Logger.Write(LogType.WARNING, $"InstanceServer received invalid WorldServer capacity packet from {remoteServerName}: {packet}", nameof(InstanceServer));
+            Logger.Write(LogType.WARNING, $"InstanceServer received invalid WorldServer capacity packet from {remoteServerName}: {packet}", "InstanceServer");
             return;
         }
 
         string capacitySource = parts.Length == 3 ? parts[1] : remoteServerName;
         Volatile.Write(ref _worldCapacityLimit, capacityLimit);
-        Logger.Write(LogType.NETWORK, $"InstanceServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", nameof(InstanceServer));
+        Logger.Write(LogType.NETWORK, $"InstanceServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", "InstanceServer");
     }
 
     /**
@@ -351,11 +349,11 @@ public sealed class InstanceServer : IAsyncDisposable
             if (TryReadPlayerEnterRoute(parts, out MapPlayerRuntimeState? state))
             {
                 _playerTracker.PlayerEntered(state);
-                Logger.Write(LogType.NETWORK, $"InstanceServer tracked player '{state.Name}' ({state.Guid}) entering map={state.Map}, zone={state.Zone} from {remoteServerName}. Active players={_playerTracker.ActivePlayerCount}.", nameof(InstanceServer));
+                Logger.Write(LogType.NETWORK, $"InstanceServer tracked player '{state.Name}' ({state.Guid}) entering map={state.Map}, zone={state.Zone} from {remoteServerName}. Active players={_playerTracker.ActivePlayerCount}.", "InstanceServer");
             }
             else
             {
-                Logger.Write(LogType.WARNING, $"InstanceServer received invalid player enter-world route from {remoteServerName}: {packet}", nameof(InstanceServer));
+                Logger.Write(LogType.WARNING, $"InstanceServer received invalid player enter-world route from {remoteServerName}: {packet}", "InstanceServer");
             }
 
             return true;
@@ -368,7 +366,7 @@ public sealed class InstanceServer : IAsyncDisposable
                 : 0;
 
             bool removed = guid != 0 && _playerTracker.PlayerLeft(guid);
-            Logger.Write(LogType.NETWORK, $"InstanceServer tracked player leave-world route from {remoteServerName}: guid={(guid == 0 ? "unknown" : guid.ToString(CultureInfo.InvariantCulture))}, removed={removed}, active players={_playerTracker.ActivePlayerCount}.", nameof(InstanceServer));
+            Logger.Write(LogType.NETWORK, $"InstanceServer tracked player leave-world route from {remoteServerName}: guid={(guid == 0 ? "unknown" : guid.ToString(CultureInfo.InvariantCulture))}, removed={removed}, active players={_playerTracker.ActivePlayerCount}.", "InstanceServer");
             return true;
         }
 
@@ -377,11 +375,11 @@ public sealed class InstanceServer : IAsyncDisposable
             if (TryReadPlayerMovementRoute(parts, out uint accountId, out uint guid, out ushort opcode, out uint map, out uint zone, out float x, out float y, out float z, out float orientation, out uint flags, out uint clientTime))
             {
                 MapPlayerRuntimeState state = _playerTracker.PlayerMoved(accountId, guid, map, zone, x, y, z, orientation, opcode, flags, clientTime);
-                Logger.Write(LogType.TRACE, $"InstanceServer updated movement for guid={state.Guid}: opcode=0x{state.LastMovementOpcode:X4}, map={state.Map}, zone={state.Zone}, position=({state.PositionX:0.##}, {state.PositionY:0.##}, {state.PositionZ:0.##}), active players={_playerTracker.ActivePlayerCount}.", nameof(InstanceServer));
+                Logger.Write(LogType.TRACE, $"InstanceServer updated movement for guid={state.Guid}: opcode=0x{state.LastMovementOpcode:X4}, map={state.Map}, zone={state.Zone}, position=({state.PositionX:0.##}, {state.PositionY:0.##}, {state.PositionZ:0.##}), active players={_playerTracker.ActivePlayerCount}.", "InstanceServer");
             }
             else
             {
-                Logger.Write(LogType.WARNING, $"InstanceServer received invalid player movement route from {remoteServerName}: {packet}", nameof(InstanceServer));
+                Logger.Write(LogType.WARNING, $"InstanceServer received invalid player movement route from {remoteServerName}: {packet}", "InstanceServer");
             }
 
             return true;
@@ -391,7 +389,7 @@ public sealed class InstanceServer : IAsyncDisposable
         {
             string opcode = parts.Length > 3 ? parts[3] : "unknown";
             int payloadBytes = parts.Length > 4 ? parts[4].Length / 2 : 0;
-            Logger.Write(LogType.TRACE, $"InstanceServer received player client-packet route from {remoteServerName}: account={(parts.Length > 1 ? parts[1] : "unknown")}, guid={(parts.Length > 2 ? parts[2] : "unknown")}, opcode={opcode}, payload={payloadBytes} byte(s).", nameof(InstanceServer));
+            Logger.Write(LogType.TRACE, $"InstanceServer received player client-packet route from {remoteServerName}: account={(parts.Length > 1 ? parts[1] : "unknown")}, guid={(parts.Length > 2 ? parts[2] : "unknown")}, opcode={opcode}, payload={payloadBytes} byte(s).", "InstanceServer");
             return true;
         }
 
@@ -399,10 +397,10 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Tries to resolve the read player enter route value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: parts, state.
-     */
+      * Tries to resolve the read player enter route value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: parts, state.
+      */
     private static bool TryReadPlayerEnterRoute(string[] parts, [NotNullWhen(true)] out MapPlayerRuntimeState? state)
     {
         state = null;
@@ -424,10 +422,10 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Tries to resolve the read player movement route value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: parts, accountId, guid, opcode, map, zone....
-     */
+      * Tries to resolve the read player movement route value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: parts, accountId, guid, opcode, map, zone....
+      */
     private static bool TryReadPlayerMovementRoute(
         string[] parts,
         out uint accountId,
@@ -469,10 +467,10 @@ public sealed class InstanceServer : IAsyncDisposable
     }
 
     /**
-     * Tries to resolve the parse opcode value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: value, opcode.
-     */
+      * Tries to resolve the parse opcode value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: value, opcode.
+      */
     private static bool TryParseOpcode(string value, out ushort opcode)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -498,7 +496,7 @@ public sealed class InstanceServer : IAsyncDisposable
         {
             InternalMapServiceCommandResultPacket invalidResult = new(
                 command.CommandId,
-                nameof(InstanceServer),
+                "InstanceServer",
                 MapServiceKind.Instance.ToString(),
                 command.MapId,
                 0,
@@ -510,14 +508,14 @@ public sealed class InstanceServer : IAsyncDisposable
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"InstanceServer received map {command.Action} command for MapId={command.MapId} from {remoteServerName}.", nameof(InstanceServer));
+        Logger.Write(LogType.NETWORK, $"InstanceServer received map {command.Action} command for MapId={command.MapId} from {remoteServerName}.", "InstanceServer");
 
         MapServiceManager? instanceServices = _instanceServices;
         if (instanceServices is null)
         {
             InternalMapServiceCommandResultPacket unavailableResult = new(
                 command.CommandId,
-                nameof(InstanceServer),
+                "InstanceServer",
                 MapServiceKind.Instance.ToString(),
                 command.MapId,
                 0,
@@ -586,7 +584,7 @@ public sealed class InstanceServer : IAsyncDisposable
 
         if (sentCount > 0)
         {
-            Logger.Write(LogType.TRACE, $"InstanceServer published instance service '{snapshot.Name}' status to {sentCount} status peer(s): state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", nameof(InstanceServer));
+            Logger.Write(LogType.TRACE, $"InstanceServer published instance service '{snapshot.Name}' status to {sentCount} status peer(s): state={snapshot.State}, tick={snapshot.Tick}, load={snapshot.LoadPercent:0.##}%.", "InstanceServer");
         }
     }
 
@@ -615,7 +613,7 @@ public sealed class InstanceServer : IAsyncDisposable
 
         if (sentCount > 0)
         {
-            Logger.Write(LogType.TRACE, $"InstanceServer sent {sentCount} initial instance service status snapshot(s) to {connection.RemoteServerName}.", nameof(InstanceServer));
+            Logger.Write(LogType.TRACE, $"InstanceServer sent {sentCount} initial instance service status snapshot(s) to {connection.RemoteServerName}.", "InstanceServer");
         }
     }
 
@@ -644,7 +642,7 @@ public sealed class InstanceServer : IAsyncDisposable
 
         if (sentCount > 0)
         {
-            Logger.Write(LogType.TRACE, $"InstanceServer sent {sentCount} initial instance service status snapshot(s) to {session.RemoteServerName}.", nameof(InstanceServer));
+            Logger.Write(LogType.TRACE, $"InstanceServer sent {sentCount} initial instance service status snapshot(s) to {session.RemoteServerName}.", "InstanceServer");
         }
     }
 
@@ -663,7 +661,7 @@ public sealed class InstanceServer : IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
         {
-            Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {peer.RemoteServerName}: {exception.Message}", nameof(InstanceServer));
+            Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {peer.RemoteServerName}: {exception.Message}", "InstanceServer");
             return false;
         }
     }
@@ -683,7 +681,7 @@ public sealed class InstanceServer : IAsyncDisposable
         }
         catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
         {
-            Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {session.RemoteServerName}: {exception.Message}", nameof(InstanceServer));
+            Logger.Write(LogType.WARNING, $"InstanceServer could not report instance service '{snapshot.Name}' to {session.RemoteServerName}: {exception.Message}", "InstanceServer");
             return false;
         }
     }

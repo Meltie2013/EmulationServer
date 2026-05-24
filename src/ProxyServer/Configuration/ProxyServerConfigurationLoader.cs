@@ -19,25 +19,24 @@
 using EmulationServer.Core.Configuration;
 using EmulationServer.Shared.Configuration;
 
-
 /**
- * File overview: src/ProxyServer/Configuration/ProxyServerConfigurationLoader.cs
- * Documents the ProxyServerConfigurationLoader source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/ProxyServer/Configuration/ProxyServerConfigurationLoader.cs
+  * Documents the ProxyServerConfigurationLoader source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.ProxyServer.Configuration;
 
 /**
- * Owns the proxy server configuration loader behavior for the proxy startup, service discovery, and client-routing support layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the proxy server configuration loader behavior for the proxy startup, service discovery, and client-routing support layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class ProxyServerConfigurationLoader
 {
     /**
-     * Defines the constant value for proxy server section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for proxy server section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string ProxyServerSection = "ProxyServer";
 
     /**

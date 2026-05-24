@@ -16,35 +16,34 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Extraction/AssetExtractionKind.cs
- * Documents the AssetExtractionKind source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Extraction/AssetExtractionKind.cs
+  * Documents the AssetExtractionKind source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Extraction;
 
 /**
- * Lists the supported asset extraction kind values used by the client data extraction and conversion tooling layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported asset extraction kind values used by the client data extraction and conversion tooling layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum AssetExtractionKind
 {
     /**
-     * Represents the dbc value for asset extraction kind handling.
-     */
+      * Represents the dbc value for asset extraction kind handling.
+      */
     Dbc = 0,
     /**
-     * Represents the maps value for asset extraction kind handling.
-     */
+      * Represents the maps value for asset extraction kind handling.
+      */
     Maps = 1,
     /**
-     * Represents the vmaps value for asset extraction kind handling.
-     */
+      * Represents the vmaps value for asset extraction kind handling.
+      */
     Vmaps = 2,
     /**
-     * Represents the mmaps value for asset extraction kind handling.
-     */
+      * Represents the mmaps value for asset extraction kind handling.
+      */
     Mmaps = 3,
 }

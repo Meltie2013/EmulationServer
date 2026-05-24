@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Database/Accounts/AccountBanStatus.cs
- * Documents the AccountBanStatus source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Database/Accounts/AccountBanStatus.cs
+  * Documents the AccountBanStatus source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Database.Accounts;
 
 /**
   * Represents immutable account ban status data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
- * Positional fields carried by this record: IsBanned, IsPermanent.
+  * Positional fields carried by this record: IsBanned, IsPermanent.
   */
 public sealed record AccountBanStatus(bool IsBanned, bool IsPermanent)
 {

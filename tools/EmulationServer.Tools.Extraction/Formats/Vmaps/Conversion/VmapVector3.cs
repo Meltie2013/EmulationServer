@@ -16,25 +16,24 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapVector3.cs
- * Documents the VmapVector3 source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapVector3.cs
+  * Documents the VmapVector3 source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
 /**
   * Stores a three-component floating point vector from WMO and ADT source files.
   * The same model is used for geometry vertices, placement positions, rotations, and bounding boxes.
- * Positional fields carried by this record: X, Y, Z.
+  * Positional fields carried by this record: X, Y, Z.
   */
 public readonly record struct VmapVector3(float X, float Y, float Z)
 {
     /**
-     * Exposes the zero value to callers that need this runtime or configuration data.
-     * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-     */
+      * Exposes the zero value to callers that need this runtime or configuration data.
+      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
+      */
     public static VmapVector3 Zero { get; } = new(0.0f, 0.0f, 0.0f);
 }

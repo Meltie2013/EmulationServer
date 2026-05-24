@@ -16,18 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoChunk.cs
- * Documents the WmoChunk source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/WmoChunk.cs
+  * Documents the WmoChunk source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
 /**
   * Describes a single WMO chunk location inside a raw WMO file.
   * The converter keeps offsets and sizes instead of copying chunk data until a specific chunk is needed.
- * Positional fields carried by this record: FourCC, Offset, Size, DataOffset.
+  * Positional fields carried by this record: FourCC, Offset, Size, DataOffset.
   */
 public readonly record struct WmoChunk(string FourCC, int Offset, int Size, int DataOffset);

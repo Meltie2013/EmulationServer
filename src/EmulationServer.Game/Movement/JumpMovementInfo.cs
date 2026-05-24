@@ -17,18 +17,18 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Movement/JumpMovementInfo.cs
- * Documents the JumpMovementInfo source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Movement/JumpMovementInfo.cs
+  * Documents the JumpMovementInfo source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Movement;
 
 /**
- * Carries immutable jump movement info data for the movement packet state and client coordinate tracking layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: FallTime, ZSpeed, SinAngle, CosAngle, XySpeed.
- */
+  * Carries immutable jump movement info data for the movement packet state and client coordinate tracking layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: FallTime, ZSpeed, SinAngle, CosAngle, XySpeed.
+  */
 public sealed record JumpMovementInfo(
     uint FallTime,
     float ZSpeed,

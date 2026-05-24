@@ -18,19 +18,18 @@
 
 using EmulationServer.Game.Data.Maps;
 
-
 /**
- * File overview: src/EmulationServer.Game/Maps/Runtime/MapRuntimeSettings.cs
- * Documents the MapRuntimeSettings source file in the runtime map-player state tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapRuntimeSettings.cs
+  * Documents the MapRuntimeSettings source file in the runtime map-player state tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
 /**
- * Owns the map runtime settings behavior for the runtime map-player state tracking layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the map runtime settings behavior for the runtime map-player state tracking layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MapRuntimeSettings
 {
     /**

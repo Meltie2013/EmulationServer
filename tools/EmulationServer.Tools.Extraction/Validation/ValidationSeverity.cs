@@ -16,31 +16,30 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Validation/ValidationSeverity.cs
- * Documents the ValidationSeverity source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Validation/ValidationSeverity.cs
+  * Documents the ValidationSeverity source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Validation;
 
 /**
- * Lists the supported validation severity values used by the client data extraction and conversion tooling layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported validation severity values used by the client data extraction and conversion tooling layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum ValidationSeverity
 {
     /**
-     * Represents the info value for validation severity handling.
-     */
+      * Represents the info value for validation severity handling.
+      */
     Info,
     /**
-     * Represents the warning value for validation severity handling.
-     */
+      * Represents the warning value for validation severity handling.
+      */
     Warning,
     /**
-     * Represents the error value for validation severity handling.
-     */
+      * Represents the error value for validation severity handling.
+      */
     Error,
 }

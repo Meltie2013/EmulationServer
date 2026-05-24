@@ -16,32 +16,31 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/WowMpqArchiveSet.cs
- * Documents the WowMpqArchiveSet source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/WowMpqArchiveSet.cs
+  * Documents the WowMpqArchiveSet source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Owns the wow mpq archive set behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the wow mpq archive set behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WowMpqArchiveSet
 {
     /**
-     * Holds the private archives state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private archives state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly IReadOnlyList<WowMpqArchiveEntry> _archives;
 
     /**
-     * Initializes a new WowMpqArchiveSet instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: archives.
-     */
+      * Initializes a new WowMpqArchiveSet instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: archives.
+      */
     private WowMpqArchiveSet(IReadOnlyList<WowMpqArchiveEntry> archives)
     {
         _archives = archives;
@@ -54,10 +53,10 @@ public sealed class WowMpqArchiveSet
     public IReadOnlyList<WowMpqArchiveEntry> Archives => _archives;
 
     /**
-     * Performs the discover operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: clientRootDirectory, locale.
-     */
+      * Performs the discover operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: clientRootDirectory, locale.
+      */
     public static WowMpqArchiveSet Discover(string clientRootDirectory, string locale)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(clientRootDirectory);
@@ -214,10 +213,10 @@ public sealed class WowMpqArchiveSet
     }
 
     /**
-     * Normalizes the archive path for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: archivePath.
-     */
+      * Normalizes the archive path for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: archivePath.
+      */
     public static string NormalizeArchivePath(string archivePath)
     {
         return archivePath.Replace('\\', '/').TrimStart('/');
@@ -390,20 +389,20 @@ public sealed class WowMpqArchiveSet
     }
 
     /**
-     * Determines whether recoverable mpq archive exception for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: exception.
-     */
+      * Determines whether recoverable mpq archive exception for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: exception.
+      */
     private static bool IsRecoverableMpqArchiveException(Exception exception)
     {
         return exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or NotSupportedException;
     }
 
     /**
-     * Determines whether recoverable mpq file exception for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: exception.
-     */
+      * Determines whether recoverable mpq file exception for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: exception.
+      */
     private static bool IsRecoverableMpqFileException(Exception exception)
     {
         return exception is IOException or InvalidDataException or ArgumentException or KeyNotFoundException or FileNotFoundException or NotSupportedException;
@@ -412,7 +411,7 @@ public sealed class WowMpqArchiveSet
     /**
       * Represents immutable extracted archive file data passed between parts of the server.
       * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-     * Positional fields carried by this record: ArchivePath, ArchivePriority, OriginalName, NormalizedName.
+      * Positional fields carried by this record: ArchivePath, ArchivePriority, OriginalName, NormalizedName.
       */
     private sealed record ExtractedArchiveFile(string ArchivePath, int ArchivePriority, string OriginalName, string NormalizedName);
 }

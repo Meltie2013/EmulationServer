@@ -23,49 +23,49 @@ using EmulationServer.Game.Players;
 using EmulationServer.WorldServer.Networking.Packets;
 
 /**
- * File overview: src/WorldServer/Networking/Movement/WorldMovementPacketParser.cs
- * Documents the WorldMovementPacketParser source file in the world movement opcode parsing and server-side movement state updates area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Movement/WorldMovementPacketParser.cs
+  * Documents the WorldMovementPacketParser source file in the world movement opcode parsing and server-side movement state updates area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Movement;
 
 /**
- * Owns the world movement packet parser behavior for the world movement opcode parsing and server-side movement state updates layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world movement packet parser behavior for the world movement opcode parsing and server-side movement state updates layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class WorldMovementPacketParser
 {
     /**
-     * Defines the constant value for ack movement info offset.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for ack movement info offset.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int AckMovementInfoOffset = 12;
     /**
-     * Defines the constant value for maximum map coordinate.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for maximum map coordinate.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const float MaximumMapCoordinate = 100000.0f;
     /**
-     * Defines the constant value for minimum map height.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for minimum map height.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const float MinimumMapHeight = -5000.0f;
     /**
-     * Defines the constant value for maximum map height.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for maximum map height.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const float MaximumMapHeight = 10000.0f;
     /**
-     * Defines the constant value for maximum transport offset.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for maximum transport offset.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const float MaximumTransportOffset = 500.0f;
 
     /**
-     * Defines the constant value for pitch flags.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for pitch flags.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const MovementFlags PitchFlags =
         MovementFlags.Swimming |
         MovementFlags.Flying |
@@ -75,10 +75,10 @@ public static class WorldMovementPacketParser
         MovementFlags.PitchDown;
 
     /**
-     * Tries to resolve the read movement state value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: player, opcode, payload, state.
-     */
+      * Tries to resolve the read movement state value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: player, opcode, payload, state.
+      */
     public static bool TryReadMovementState(
         PlayerLoginRecord player,
         WorldOpcode opcode,
@@ -175,10 +175,10 @@ public static class WorldMovementPacketParser
     }
 
     /**
-     * Resolves the movement info offset value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: opcode, payloadLength.
-     */
+      * Resolves the movement info offset value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: opcode, payloadLength.
+      */
     private static int ResolveMovementInfoOffset(WorldOpcode opcode, int payloadLength)
     {
         if (WorldMovementOpcode.HasMovementInfoAtPayloadStart(opcode))
@@ -195,10 +195,10 @@ public static class WorldMovementPacketParser
     }
 
     /**
-     * Determines whether valid position for the world movement opcode parsing and server-side movement state updates workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: position.
-     */
+      * Determines whether valid position for the world movement opcode parsing and server-side movement state updates workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: position.
+      */
     private static bool IsValidPosition(MovementPosition position)
     {
         return position.IsFinite &&
@@ -211,10 +211,10 @@ public static class WorldMovementPacketParser
     }
 
     /**
-     * Determines whether valid transport for the world movement opcode parsing and server-side movement state updates workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: transport.
-     */
+      * Determines whether valid transport for the world movement opcode parsing and server-side movement state updates workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: transport.
+      */
     private static bool IsValidTransport(TransportMovementInfo? transport)
     {
         if (transport is null)

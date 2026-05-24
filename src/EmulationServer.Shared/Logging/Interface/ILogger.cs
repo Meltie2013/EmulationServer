@@ -18,24 +18,23 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Shared/Logging/Interface/ILogger.cs
- * Documents the ILogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Shared/Logging/Interface/ILogger.cs
+  * Documents the ILogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Shared.Logging.Interfaces;
 
 /**
- * Defines the contract for logger behavior in the shared configuration, logging, and utility support layer.
- * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
- */
+  * Defines the contract for logger behavior in the shared configuration, logging, and utility support layer.
+  * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
+  */
 public interface ILogger
 {
     /**
-     * Performs the write operation through the implementing contract.
-     * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
-     */
+      * Performs the write operation through the implementing contract.
+      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
+      */
     void Write(LogType type, string message, string? category = null);
 }

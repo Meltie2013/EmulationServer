@@ -23,41 +23,41 @@ using EmulationServer.Database.Interfaces;
 using MySqlConnector;
 
 /**
- * File overview: src/EmulationServer.Game/WorldData/WorldTemplateRepository.cs
- * Documents the WorldTemplateRepository source file in the world database template loading and cache construction area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/WorldData/WorldTemplateRepository.cs
+  * Documents the WorldTemplateRepository source file in the world database template loading and cache construction area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.WorldData;
 
 /**
- * Owns the world template repository behavior for the world database template loading and cache construction layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world template repository behavior for the world database template loading and cache construction layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class WorldTemplateRepository
 {
     /**
-     * Holds the private database service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private database service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly IDatabaseService _databaseService;
 
     /**
-     * Initializes a new WorldTemplateRepository instance with the dependencies required by the world database template loading and cache construction workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: databaseService.
-     */
+      * Initializes a new WorldTemplateRepository instance with the dependencies required by the world database template loading and cache construction workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: databaseService.
+      */
     public WorldTemplateRepository(IDatabaseService databaseService)
     {
-        _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+        _databaseService = databaseService ?? throw new ArgumentNullException();
     }
 
     /**
-     * Loads load information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<WorldTemplateDataStore> LoadAsync(CancellationToken cancellationToken = default)
     {
         IReadOnlyList<PlayerCreateInfoRecord> playerCreateInfo = await LoadPlayerCreateInfoAsync(cancellationToken);
@@ -81,11 +81,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player create info information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player create info information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerCreateInfoRecord>> LoadPlayerCreateInfoAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -115,11 +115,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load item templates information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load item templates information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<ItemTemplateRecord>> LoadItemTemplatesAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -149,11 +149,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player level stats information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player level stats information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerLevelStatsRecord>> LoadPlayerLevelStatsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -187,11 +187,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player class level stats information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player class level stats information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerClassLevelStatsRecord>> LoadPlayerClassLevelStatsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -221,11 +221,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player level experience information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player level experience information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerLevelExperienceRecord>> LoadPlayerLevelExperienceAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -253,11 +253,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player create actions information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player create actions information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerCreateActionRecord>> LoadPlayerCreateActionsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -288,11 +288,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player create items information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player create items information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerCreateItemRecord>> LoadPlayerCreateItemsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -322,11 +322,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Loads load player create spells information from configuration, files, or persistent storage.
-     * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Loads load player create spells information from configuration, files, or persistent storage.
+      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<IReadOnlyList<PlayerCreateSpellRecord>> LoadPlayerCreateSpellsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -356,11 +356,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Resolves the player create info value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: race, characterClass, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Resolves the player create info value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: race, characterClass, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<PlayerCreateInfoRecord?> GetPlayerCreateInfoAsync(byte race, byte characterClass, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -438,11 +438,11 @@ public sealed class WorldTemplateRepository
     }
 
     /**
-     * Performs the table exists operation for the world database template loading and cache construction workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: connection, tableName, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the table exists operation for the world database template loading and cache construction workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: connection, tableName, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private static async Task<bool> TableExistsAsync(MySqlConnection connection, string tableName, CancellationToken cancellationToken)
     {
         using MySqlCommand command = connection.CreateCommand();

@@ -19,12 +19,11 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/DbcTypedRecordLoader.cs
- * Documents the DbcTypedRecordLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcTypedRecordLoader.cs
+  * Documents the DbcTypedRecordLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc;
 
@@ -49,7 +48,7 @@ internal static class DbcTypedRecordLoader
         Dictionary<TKey, TRecord> records = [];
         if (!dbcStores.TryGetValue(fileName, out DbcDataStore? store))
         {
-            Logger.Write(LogType.WARNING, $"{ownerName} did not load {fileName}; typed data from that file will be unavailable.", nameof(DbcTypedRecordLoader));
+            Logger.Write(LogType.WARNING, $"{ownerName} did not load {fileName}; typed data from that file will be unavailable.", "DbcTypedRecordLoader");
             return records;
         }
 
@@ -78,7 +77,7 @@ internal static class DbcTypedRecordLoader
         List<TRecord> records = [];
         if (!dbcStores.TryGetValue(fileName, out DbcDataStore? store))
         {
-            Logger.Write(LogType.WARNING, $"{ownerName} did not load {fileName}; typed data from that file will be unavailable.", nameof(DbcTypedRecordLoader));
+            Logger.Write(LogType.WARNING, $"{ownerName} did not load {fileName}; typed data from that file will be unavailable.", "DbcTypedRecordLoader");
             return records;
         }
 

@@ -27,35 +27,35 @@ using EmulationServer.Game.Players;
 using EmulationServer.Game.WorldData;
 
 /**
- * File overview: src/WorldServer/Networking/Packets/WorldPacketBuilders.cs
- * Documents the WorldPacketBuilders source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Packets/WorldPacketBuilders.cs
+  * Documents the WorldPacketBuilders source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
 /**
- * Owns the world packet builders behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the world packet builders behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class WorldPacketBuilders
 {
     /**
-     * Defines the constant value for character equipment slot count.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for character equipment slot count.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CharacterEquipmentSlotCount = 19;
     /**
-     * Defines the constant value for at login first.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for at login first.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const uint AtLoginFirst = 0x20;
 
     /**
-     * Builds the build auth challenge result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: serverSeed.
-     */
+      * Builds the build auth challenge result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: serverSeed.
+      */
     public static byte[] BuildAuthChallenge(uint serverSeed)
     {
         WorldPacketWriter writer = new();
@@ -64,10 +64,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build auth response result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: code.
-     */
+      * Builds the build auth response result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: code.
+      */
     public static byte[] BuildAuthResponse(AuthResponseCode code)
     {
         WorldPacketWriter writer = new();
@@ -84,10 +84,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build addon info result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: clientAddonInfo.
-     */
+      * Builds the build addon info result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: clientAddonInfo.
+      */
     public static byte[] BuildAddonInfo(ReadOnlySpan<byte> clientAddonInfo)
     {
         if (clientAddonInfo.Length < sizeof(uint))
@@ -155,9 +155,9 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Stores the default addon public key value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default addon public key value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     private static readonly byte[] AddonPublicKey =
     [
         0xC3, 0x5B, 0x50, 0x84, 0xB9, 0x3E, 0x32, 0x42, 0x8C, 0xD0, 0xC7, 0x48, 0xFA, 0x0E, 0x5D, 0x54,
@@ -179,10 +179,10 @@ public static class WorldPacketBuilders
     ];
 
     /**
-     * Builds the build character create result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: result.
-     */
+      * Builds the build character create result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: result.
+      */
     public static byte[] BuildCharacterCreate(CharacterCreateResult result)
     {
         WorldPacketWriter writer = new();
@@ -191,10 +191,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build character delete result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: result.
-     */
+      * Builds the build character delete result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: result.
+      */
     public static byte[] BuildCharacterDelete(CharacterDeleteResult result)
     {
         WorldPacketWriter writer = new();
@@ -203,9 +203,9 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build account data times result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     */
+      * Builds the build account data times result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      */
     public static byte[] BuildAccountDataTimes()
     {
         WorldPacketWriter writer = new();
@@ -223,10 +223,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build update account data result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: accountDataType.
-     */
+      * Builds the build update account data result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: accountDataType.
+      */
     public static byte[] BuildUpdateAccountData(uint accountDataType)
     {
         WorldPacketWriter writer = new();
@@ -237,10 +237,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build character enum result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: characters.
-     */
+      * Builds the build character enum result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: characters.
+      */
     public static byte[] BuildCharacterEnum(IReadOnlyList<CharacterListEntry> characters)
     {
         WorldPacketWriter writer = new();
@@ -289,10 +289,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build character enum flags result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: character.
-     */
+      * Builds the build character enum flags result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: character.
+      */
     private static uint BuildCharacterEnumFlags(CharacterListEntry character)
     {
         // Do not pass the server-side characters.playerFlags value directly here.
@@ -302,12 +302,11 @@ public static class WorldPacketBuilders
         return 0;
     }
 
-
     /**
-     * Builds the build character login failed result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: failureCode.
-     */
+      * Builds the build character login failed result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: failureCode.
+      */
     public static byte[] BuildCharacterLoginFailed(CharacterLoginFailureCode failureCode)
     {
         WorldPacketWriter writer = new();
@@ -316,10 +315,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build transfer aborted result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: mapId, reason.
-     */
+      * Builds the build transfer aborted result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: mapId, reason.
+      */
     public static byte[] BuildTransferAborted(uint mapId, TransferAbortReason reason)
     {
         WorldPacketWriter writer = new();
@@ -329,10 +328,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build login verify world result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build login verify world result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildLoginVerifyWorld(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -347,10 +346,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build tutorial flags result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build tutorial flags result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildTutorialFlags(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -369,10 +368,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build player create update result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build player create update result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildPlayerCreateUpdate(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -402,10 +401,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Writes write player movement block data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, player.
-     */
+      * Writes write player movement block data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, player.
+      */
     private static void WritePlayerMovementBlock(WorldPacketWriter writer, PlayerLoginRecord player)
     {
         const byte updateFlagsSelfAllLiving = 0x31;
@@ -428,10 +427,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Writes write player create update mask data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, player, visibleInventory.
-     */
+      * Writes write player create update mask data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, player, visibleInventory.
+      */
     private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> visibleInventory)
     {
         const int ObjectFieldGuid = 0x0000;
@@ -598,10 +597,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Writes write item create update block data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, player, item.
-     */
+      * Writes write item create update block data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, player, item.
+      */
     private static void WriteItemCreateUpdateBlock(WorldPacketWriter writer, PlayerLoginRecord player, PlayerInventoryItem item)
     {
         writer.WriteUInt8(3); // CREATE_OBJECT2
@@ -612,10 +611,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Writes write item create update mask data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, player, item.
-     */
+      * Writes write item create update mask data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, player, item.
+      */
     private static void WriteItemCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, PlayerInventoryItem item)
     {
         const int ObjectFieldGuid = 0x0000;
@@ -672,10 +671,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Writes write update mask data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, fields.
-     */
+      * Writes write update mask data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, fields.
+      */
     private static void WriteUpdateMask(WorldPacketWriter writer, IReadOnlyDictionary<int, uint> fields)
     {
         if (fields.Count == 0)
@@ -705,12 +704,11 @@ public static class WorldPacketBuilders
         }
     }
 
-
     /**
-     * Builds the build movement broadcast result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: clientGuid, clientMovementPayload.
-     */
+      * Builds the build movement broadcast result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: clientGuid, clientMovementPayload.
+      */
     public static byte[] BuildMovementBroadcast(ulong clientGuid, ReadOnlySpan<byte> clientMovementPayload)
     {
         WorldPacketWriter writer = new();
@@ -720,10 +718,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Writes write packed guid data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: writer, guid.
-     */
+      * Writes write packed guid data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: writer, guid.
+      */
     private static void WritePackedGuid(WorldPacketWriter writer, ulong guid)
     {
         Span<byte> guidBytes = stackalloc byte[8];
@@ -749,20 +747,20 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build unit bytes 0 result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: race, playerClass, gender.
-     */
+      * Builds the build unit bytes 0 result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: race, playerClass, gender.
+      */
     private static uint BuildUnitBytes0(byte race, byte playerClass, byte gender)
     {
         return race | ((uint)playerClass << 8) | ((uint)gender << 16) | ((uint)ResolvePowerType(playerClass) << 24);
     }
 
     /**
-     * Resolves the power type value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: playerClass.
-     */
+      * Resolves the power type value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: playerClass.
+      */
     private static byte ResolvePowerType(byte playerClass)
     {
         return playerClass switch
@@ -774,10 +772,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Resolves the faction template id value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: race.
-     */
+      * Resolves the faction template id value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: race.
+      */
     private static uint ResolveFactionTemplateId(byte race)
     {
         return race switch
@@ -795,10 +793,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Resolves the player display id value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: race, gender.
-     */
+      * Resolves the player display id value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: race, gender.
+      */
     private static uint ResolvePlayerDisplayId(byte race, byte gender)
     {
         bool female = gender == 1;
@@ -817,20 +815,20 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Performs the float to u int 32 operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value.
-     */
+      * Performs the float to u int 32 operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value.
+      */
     private static uint FloatToUInt32(float value)
     {
         return BitConverter.SingleToUInt32Bits(value);
     }
 
     /**
-     * Builds the build next level experience result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: level.
-     */
+      * Builds the build next level experience result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: level.
+      */
     private static uint BuildNextLevelExperience(byte level)
     {
         uint safeLevel = Math.Max((uint)level, 1u);
@@ -851,10 +849,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build login set time speed result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: localTime, gameSpeed.
-     */
+      * Builds the build login set time speed result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: localTime, gameSpeed.
+      */
     public static byte[] BuildLoginSetTimeSpeed(DateTimeOffset localTime, float gameSpeed = 0.01666667f)
     {
         WorldPacketWriter writer = new();
@@ -864,10 +862,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build message of the day result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: message.
-     */
+      * Builds the build message of the day result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: message.
+      */
     public static byte[] BuildMessageOfTheDay(string message)
     {
         WorldPacketWriter writer = new();
@@ -885,10 +883,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build initial spells result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build initial spells result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildInitialSpells(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -908,10 +906,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build action buttons result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build action buttons result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildActionButtons(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -945,12 +943,11 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-
     /**
-     * Resolves the login spell ids value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: player.
-     */
+      * Resolves the login spell ids value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: player.
+      */
     private static IEnumerable<ushort> GetLoginSpellIds(PlayerLoginRecord player)
     {
         SortedSet<ushort> spellIds = [];
@@ -989,10 +986,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Resolves the initial spell ids value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: player.
-     */
+      * Resolves the initial spell ids value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: player.
+      */
     private static IEnumerable<ushort> GetInitialSpellIds(PlayerLoginRecord player)
     {
         SortedSet<ushort> spells =
@@ -1018,10 +1015,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Resolves the language spell ids value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: race, faction.
-     */
+      * Resolves the language spell ids value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: race, faction.
+      */
     private static IEnumerable<ushort> GetLanguageSpellIds(byte race, PlayerFaction faction)
     {
         yield return faction == PlayerFaction.Horde ? (ushort)669 : (ushort)668; // Orcish or Common.
@@ -1043,10 +1040,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Resolves the starter action button spell ids value requested by the caller.
-     * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-     * Inputs used by this operation: playerClass.
-     */
+      * Resolves the starter action button spell ids value requested by the caller.
+      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
+      * Inputs used by this operation: playerClass.
+      */
     private static IEnumerable<ushort> GetStarterActionButtonSpellIds(byte playerClass)
     {
         return playerClass switch
@@ -1065,9 +1062,9 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build initialize factions result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     */
+      * Builds the build initialize factions result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      */
     public static byte[] BuildInitializeFactions()
     {
         WorldPacketWriter writer = new();
@@ -1082,10 +1079,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build bind point update result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build bind point update result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildBindPointUpdate(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -1100,10 +1097,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build set rest start result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: localTime.
-     */
+      * Builds the build set rest start result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: localTime.
+      */
     public static byte[] BuildSetRestStart(DateTimeOffset localTime)
     {
         WorldPacketWriter writer = new();
@@ -1112,10 +1109,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build item query single response result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: itemTemplate.
-     */
+      * Builds the build item query single response result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: itemTemplate.
+      */
     public static byte[] BuildItemQuerySingleResponse(ItemTemplateRecord itemTemplate)
     {
         ArgumentNullException.ThrowIfNull(itemTemplate);
@@ -1205,10 +1202,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build item query single not found result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: itemEntry.
-     */
+      * Builds the build item query single not found result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: itemEntry.
+      */
     public static byte[] BuildItemQuerySingleNotFound(uint itemEntry)
     {
         WorldPacketWriter writer = new();
@@ -1217,10 +1214,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build chat message result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: messageType, language, senderGuid, senderName, text, channelName....
-     */
+      * Builds the build chat message result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: messageType, language, senderGuid, senderName, text, channelName....
+      */
     public static byte[] BuildChatMessage(
         ChatMessageType messageType,
         ChatLanguage language,
@@ -1263,10 +1260,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build name query response result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: character.
-     */
+      * Builds the build name query response result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: character.
+      */
     public static byte[] BuildNameQueryResponse(CharacterNameQueryResult character)
     {
         ArgumentNullException.ThrowIfNull(character);
@@ -1282,10 +1279,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build logout response result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: reason, instantLogout.
-     */
+      * Builds the build logout response result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: reason, instantLogout.
+      */
     public static byte[] BuildLogoutResponse(uint reason = 0, bool instantLogout = true)
     {
         WorldPacketWriter writer = new();
@@ -1295,28 +1292,28 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build logout complete result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     */
+      * Builds the build logout complete result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      */
     public static byte[] BuildLogoutComplete()
     {
         return [];
     }
 
     /**
-     * Builds the build logout cancel ack result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     */
+      * Builds the build logout cancel ack result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      */
     public static byte[] BuildLogoutCancelAck()
     {
         return [];
     }
 
     /**
-     * Builds the build server time result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: localTime.
-     */
+      * Builds the build server time result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: localTime.
+      */
     public static byte[] BuildServerTime(DateTimeOffset localTime)
     {
         WorldPacketWriter writer = new();
@@ -1325,10 +1322,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build played time result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: player.
-     */
+      * Builds the build played time result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
+      */
     public static byte[] BuildPlayedTime(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -1340,10 +1337,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build channel notify result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: notificationType, channelName, channelFlags.
-     */
+      * Builds the build channel notify result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: notificationType, channelName, channelFlags.
+      */
     public static byte[] BuildChannelNotify(byte notificationType, string channelName, uint channelFlags = 0)
     {
         WorldPacketWriter writer = new();
@@ -1361,10 +1358,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build channel list result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: channelName, members, channelFlags.
-     */
+      * Builds the build channel list result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: channelName, members, channelFlags.
+      */
     public static byte[] BuildChannelList(string channelName, IReadOnlyList<PlayerLoginRecord> members, uint channelFlags = 0)
     {
         ArgumentNullException.ThrowIfNull(members);
@@ -1383,10 +1380,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build who response result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: players.
-     */
+      * Builds the build who response result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: players.
+      */
     public static byte[] BuildWhoResponse(IReadOnlyList<PlayerLoginRecord> players)
     {
         ArgumentNullException.ThrowIfNull(players);
@@ -1410,10 +1407,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build item name query response result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: itemTemplate.
-     */
+      * Builds the build item name query response result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: itemTemplate.
+      */
     public static byte[] BuildItemNameQueryResponse(ItemTemplateRecord itemTemplate)
     {
         ArgumentNullException.ThrowIfNull(itemTemplate);
@@ -1426,10 +1423,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build item name query not found result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: itemEntry.
-     */
+      * Builds the build item name query not found result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: itemEntry.
+      */
     public static byte[] BuildItemNameQueryNotFound(uint itemEntry)
     {
         WorldPacketWriter writer = new();
@@ -1438,10 +1435,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Performs the encode packed game time operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: localTime.
-     */
+      * Performs the encode packed game time operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: localTime.
+      */
     private static uint EncodePackedGameTime(DateTimeOffset localTime)
     {
         DateTime dateTime = localTime.DateTime;
@@ -1456,10 +1453,10 @@ public static class WorldPacketBuilders
     }
 
     /**
-     * Builds the build pong result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: sequence.
-     */
+      * Builds the build pong result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: sequence.
+      */
     public static byte[] BuildPong(uint sequence)
     {
         WorldPacketWriter writer = new();

@@ -19,12 +19,11 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcDataStore.cs
- * Documents the MapDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcDataStore.cs
+  * Documents the MapDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
@@ -133,10 +132,10 @@ public sealed class MapDbcDataStore
     public IReadOnlyDictionary<int, IReadOnlyList<WorldMapOverlayDbcRecord>> OverlaysByWorldMapArea { get; }
 
     /**
-     * Performs the from dbc stores operation for the DBC loading and strongly typed client data records workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: dbcStores, ownerName.
-     */
+      * Performs the from dbc stores operation for the DBC loading and strongly typed client data records workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: dbcStores, ownerName.
+      */
     public static MapDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -164,7 +163,7 @@ public sealed class MapDbcDataStore
         Logger.Write(
             LogType.SUCCESS,
             $"{ownerName} typed map DBC data loaded: maps={mapData.Maps.Count}, areas={mapData.Areas.Count}, triggers={mapData.AreaTriggers.Count}, worldMapAreas={mapData.WorldMapAreas.Count}, continents={mapData.WorldMapContinents.Count}, overlays={mapData.WorldMapOverlays.Count}.",
-            nameof(MapDbcDataStore));
+            "MapDbcDataStore");
 
         return mapData;
     }
@@ -238,7 +237,7 @@ public sealed class MapDbcDataStore
         Dictionary<int, TRecord> records = [];
         if (!dbcStores.TryGetValue(fileName, out DbcDataStore? store))
         {
-            Logger.Write(LogType.WARNING, $"{ownerName} did not load {fileName}; typed map data from that file will be unavailable.", nameof(MapDbcDataStore));
+            Logger.Write(LogType.WARNING, $"{ownerName} did not load {fileName}; typed map data from that file will be unavailable.", "MapDbcDataStore");
             return records;
         }
 

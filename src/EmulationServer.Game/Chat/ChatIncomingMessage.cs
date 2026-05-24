@@ -17,18 +17,18 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Chat/ChatIncomingMessage.cs
- * Documents the ChatIncomingMessage source file in the chat channel normalization, language handling, and message routing area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Chat/ChatIncomingMessage.cs
+  * Documents the ChatIncomingMessage source file in the chat channel normalization, language handling, and message routing area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Chat;
 
 /**
- * Carries immutable chat incoming message data for the chat channel normalization, language handling, and message routing layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: Type, Language, Target, Text.
- */
+  * Carries immutable chat incoming message data for the chat channel normalization, language handling, and message routing layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: Type, Language, Target, Text.
+  */
 public sealed record ChatIncomingMessage(
     ChatMessageType Type,
     ChatLanguage Language,

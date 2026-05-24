@@ -20,47 +20,46 @@ using EmulationServer.Database.Accounts;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/RealmServer/Commands/RealmConsoleCommandService.cs
- * Documents the RealmConsoleCommandService source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Commands/RealmConsoleCommandService.cs
+  * Documents the RealmConsoleCommandService source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Commands;
 
 /**
- * Owns the realm console command service behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm console command service behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class RealmConsoleCommandService
 {
     /**
-     * Holds the private account repository state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private account repository state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly AccountRepository _accountRepository;
     /**
-     * Holds the private command task state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private command task state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _commandTask;
 
     /**
-     * Initializes a new RealmConsoleCommandService instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: accountRepository.
-     */
+      * Initializes a new RealmConsoleCommandService instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: accountRepository.
+      */
     public RealmConsoleCommandService(AccountRepository accountRepository)
     {
-        _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+        _accountRepository = accountRepository ?? throw new ArgumentNullException();
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      */
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -79,7 +78,7 @@ public sealed class RealmConsoleCommandService
       */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.TRACE, "RealmServer console commands are available. Type 'account help' for account commands.", nameof(RealmConsoleCommandService));
+        Logger.Write(LogType.TRACE, "RealmServer console commands are available. Type 'account help' for account commands.", "RealmConsoleCommandService");
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -104,7 +103,7 @@ public sealed class RealmConsoleCommandService
             }
             catch (Exception exception)
             {
-                Logger.Write(LogType.FAILED, exception.Message, nameof(RealmConsoleCommandService));
+                Logger.Write(LogType.FAILED, exception.Message, "RealmConsoleCommandService");
             }
         }
     }
@@ -125,7 +124,7 @@ public sealed class RealmConsoleCommandService
 
         if (!string.Equals(parts[0], "account", StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.WARNING, $"Unknown command '{parts[0]}'.", nameof(RealmConsoleCommandService));
+            Logger.Write(LogType.WARNING, $"Unknown command '{parts[0]}'.", "RealmConsoleCommandService");
             return;
         }
 
@@ -147,7 +146,7 @@ public sealed class RealmConsoleCommandService
                 break;
 
             default:
-                Logger.Write(LogType.WARNING, $"Unknown account command '{parts[1]}'.", nameof(RealmConsoleCommandService));
+                Logger.Write(LogType.WARNING, $"Unknown account command '{parts[1]}'.", "RealmConsoleCommandService");
                 WriteAccountHelp();
                 break;
         }
@@ -163,7 +162,7 @@ public sealed class RealmConsoleCommandService
     {
         if (parts.Length < 4)
         {
-            Logger.Write(LogType.WARNING, "Usage: account add <username> <password> [email] [gmlevel]", nameof(RealmConsoleCommandService));
+            Logger.Write(LogType.WARNING, "Usage: account add <username> <password> [email] [gmlevel]", "RealmConsoleCommandService");
             return;
         }
 
@@ -174,12 +173,12 @@ public sealed class RealmConsoleCommandService
 
         if (parts.Length >= 6 && !byte.TryParse(parts[5], out gmLevel))
         {
-            Logger.Write(LogType.WARNING, "gmlevel must be a number between 0 and 3.", nameof(RealmConsoleCommandService));
+            Logger.Write(LogType.WARNING, "gmlevel must be a number between 0 and 3.", "RealmConsoleCommandService");
             return;
         }
 
         AccountCommandResult result = await _accountRepository.CreateAccountAsync(username, password, email, gmLevel, cancellationToken);
-        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, nameof(RealmConsoleCommandService));
+        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
     /**
@@ -192,23 +191,23 @@ public sealed class RealmConsoleCommandService
     {
         if (parts.Length < 3)
         {
-            Logger.Write(LogType.WARNING, "Usage: account remove <username>", nameof(RealmConsoleCommandService));
+            Logger.Write(LogType.WARNING, "Usage: account remove <username>", "RealmConsoleCommandService");
             return;
         }
 
         AccountCommandResult result = await _accountRepository.RemoveAccountAsync(parts[2], cancellationToken);
-        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, nameof(RealmConsoleCommandService));
+        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
     /**
-     * Writes write account help data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     */
+      * Writes write account help data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      */
     private static void WriteAccountHelp()
     {
-        Logger.Write(LogType.TRACE, "Account commands:", nameof(RealmConsoleCommandService));
-        Logger.Write(LogType.TRACE, "  account add <username> <password> [email] [gmlevel]", nameof(RealmConsoleCommandService));
-        Logger.Write(LogType.TRACE, "  account remove <username>", nameof(RealmConsoleCommandService));
+        Logger.Write(LogType.TRACE, "Account commands:", "RealmConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  account add <username> <password> [email] [gmlevel]", "RealmConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  account remove <username>", "RealmConsoleCommandService");
     }
 
     /**

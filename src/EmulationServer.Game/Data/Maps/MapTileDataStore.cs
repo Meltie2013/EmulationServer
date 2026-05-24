@@ -19,12 +19,11 @@
 using System.Globalization;
 using System.Text;
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Maps/MapTileDataStore.cs
- * Documents the MapTileDataStore source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Maps/MapTileDataStore.cs
+  * Documents the MapTileDataStore source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Maps;
 
@@ -35,26 +34,26 @@ namespace EmulationServer.Game.Data.Maps;
 public sealed class MapTileDataStore
 {
     /**
-     * Defines the constant value for map file header size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for map file header size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MapFileHeaderSize = 44;
     /**
-     * Defines the constant value for expected map magic.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for expected map magic.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string ExpectedMapMagic = "MAPS";
     /**
-     * Defines the constant value for expected version magic.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for expected version magic.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string ExpectedVersionMagic = "0000";
 
     /**
-     * Initializes a new MapTileDataStore instance with the dependencies required by the extracted map data loading and map tile lookup workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: path, key, header, data.
-     */
+      * Initializes a new MapTileDataStore instance with the dependencies required by the extracted map data loading and map tile lookup workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: path, key, header, data.
+      */
     private MapTileDataStore(string path, MapTileKey key, MapFileHeader header, byte[] data)
     {
         Path = path;

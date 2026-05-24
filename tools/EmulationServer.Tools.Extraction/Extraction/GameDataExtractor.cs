@@ -20,19 +20,18 @@ using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 using EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 using EmulationServer.Tools.Extraction.Mpq;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Extraction/GameDataExtractor.cs
- * Documents the GameDataExtractor source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Extraction/GameDataExtractor.cs
+  * Documents the GameDataExtractor source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Extraction;
 
 /**
- * Owns the game data extractor behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the game data extractor behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class GameDataExtractor
 {
     /**
@@ -206,10 +205,10 @@ public sealed class GameDataExtractor
     }
 
     /**
-     * Validates ensure map conversion dbc files state before it is used by another server component.
-     * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-     * Inputs used by this operation: archives, dbcOutputDirectory, overwrite, progressMessage.
-     */
+      * Validates ensure map conversion dbc files state before it is used by another server component.
+      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
+      * Inputs used by this operation: archives, dbcOutputDirectory, overwrite, progressMessage.
+      */
     private static void EnsureMapConversionDbcFiles(WowMpqArchiveSet archives, string dbcOutputDirectory, bool overwrite, Action<string>? progressMessage)
     {
         string mapDbcPath = Path.Combine(dbcOutputDirectory, "Map.dbc");
@@ -267,10 +266,10 @@ public sealed class GameDataExtractor
     }
 
     /**
-     * Performs the to result operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: kind, report, outputDirectory, archives.
-     */
+      * Performs the to result operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: kind, report, outputDirectory, archives.
+      */
     private static AssetExtractionResult ToResult(
         AssetExtractionKind kind,
         AssetCopyReport report,
@@ -317,10 +316,10 @@ public sealed class GameDataExtractor
     }
 
     /**
-     * Determines whether dbc file for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: normalizedName.
-     */
+      * Determines whether dbc file for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: normalizedName.
+      */
     private static bool IsDbcFile(string normalizedName)
     {
         return normalizedName.StartsWith("DBFilesClient/", StringComparison.OrdinalIgnoreCase) &&
@@ -328,10 +327,10 @@ public sealed class GameDataExtractor
     }
 
     /**
-     * Determines whether map source file for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: normalizedName.
-     */
+      * Determines whether map source file for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: normalizedName.
+      */
     private static bool IsMapSourceFile(string normalizedName)
     {
         if (!normalizedName.StartsWith("World/Maps/", StringComparison.OrdinalIgnoreCase))
@@ -345,10 +344,10 @@ public sealed class GameDataExtractor
     }
 
     /**
-     * Determines whether vmap source file for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: normalizedName.
-     */
+      * Determines whether vmap source file for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: normalizedName.
+      */
     private static bool IsVmapSourceFile(string normalizedName)
     {
         if (normalizedName.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase))

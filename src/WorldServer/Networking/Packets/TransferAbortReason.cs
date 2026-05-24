@@ -17,37 +17,37 @@
 //
 
 /**
- * File overview: src/WorldServer/Networking/Packets/TransferAbortReason.cs
- * Documents the TransferAbortReason source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Packets/TransferAbortReason.cs
+  * Documents the TransferAbortReason source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
 /**
- * Lists the supported transfer abort reason values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported transfer abort reason values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum TransferAbortReason : byte
 {
     /**
-     * Represents the none value for transfer abort reason handling.
-     */
+      * Represents the none value for transfer abort reason handling.
+      */
     None = 0,
     /**
-     * Represents the map not allowed value for transfer abort reason handling.
-     */
+      * Represents the map not allowed value for transfer abort reason handling.
+      */
     MapNotAllowed = 1,
     /**
-     * Represents the instance not found value for transfer abort reason handling.
-     */
+      * Represents the instance not found value for transfer abort reason handling.
+      */
     InstanceNotFound = 2,
     /**
-     * Represents the instance full value for transfer abort reason handling.
-     */
+      * Represents the instance full value for transfer abort reason handling.
+      */
     InstanceFull = 3,
     /**
-     * Represents the zone in combat value for transfer abort reason handling.
-     */
+      * Represents the zone in combat value for transfer abort reason handling.
+      */
     ZoneInCombat = 6,
 }

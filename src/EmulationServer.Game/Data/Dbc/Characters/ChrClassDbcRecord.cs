@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Characters/ChrClassDbcRecord.cs
- * Documents the ChrClassDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/ChrClassDbcRecord.cs
+  * Documents the ChrClassDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
 /**
   * Represents one ChrClasses.dbc row used for class validation and display setup.
- * Positional fields carried by this record: Id, DisplayPower, PowerType, PetNameToken, ClassName, FileName, ClassMask, IsHybridClass.
+  * Positional fields carried by this record: Id, DisplayPower, PowerType, PetNameToken, ClassName, FileName, ClassMask, IsHybridClass.
   */
 public sealed record ChrClassDbcRecord(
     int Id,

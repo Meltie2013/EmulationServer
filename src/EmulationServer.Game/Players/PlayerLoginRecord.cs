@@ -17,18 +17,18 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Players/PlayerLoginRecord.cs
- * Documents the PlayerLoginRecord source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Players/PlayerLoginRecord.cs
+  * Documents the PlayerLoginRecord source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Players;
 
 /**
- * Carries immutable player login record data for the logged-in player state, persistence models, and gameplay records layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: Guid, AccountId, Name, Race, Class, Gender, Level, Experience, Zone, Map, PositionX, PositionY, PositionZ, Orientation, Money, PlayerBytes, PlayerBytes2, PlayerFlags, AtLogin, Cinematic, TotalTime, LevelTime, Stats, NextLevelExperience, Inventory, Spells, ActionButtons, TutorialFlags, Reputations, Skills, Faction.
- */
+  * Carries immutable player login record data for the logged-in player state, persistence models, and gameplay records layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: Guid, AccountId, Name, Race, Class, Gender, Level, Experience, Zone, Map, PositionX, PositionY, PositionZ, Orientation, Money, PlayerBytes, PlayerBytes2, PlayerFlags, AtLogin, Cinematic, TotalTime, LevelTime, Stats, NextLevelExperience, Inventory, Spells, ActionButtons, TutorialFlags, Reputations, Skills, Faction.
+  */
 public sealed record PlayerLoginRecord(
     uint Guid,
     uint AccountId,
@@ -63,8 +63,8 @@ public sealed record PlayerLoginRecord(
     PlayerFaction Faction)
 {
     /**
-     * Stores the default client guid value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default client guid value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public ulong ClientGuid => CharacterGuid.ToClientGuid(Guid);
 }

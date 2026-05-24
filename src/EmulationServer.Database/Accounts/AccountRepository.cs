@@ -20,35 +20,34 @@ using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
-
 /**
- * File overview: src/EmulationServer.Database/Accounts/AccountRepository.cs
- * Documents the AccountRepository source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Database/Accounts/AccountRepository.cs
+  * Documents the AccountRepository source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Database.Accounts;
 
 /**
- * Owns the account repository behavior for the database access, account persistence, and MySQL connectivity layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the account repository behavior for the database access, account persistence, and MySQL connectivity layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class AccountRepository
 {
     /**
-     * Holds the private database service state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private database service state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly IDatabaseService _databaseService;
 
     /**
-     * Initializes a new AccountRepository instance with the dependencies required by the database access, account persistence, and MySQL connectivity workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: databaseService.
-     */
+      * Initializes a new AccountRepository instance with the dependencies required by the database access, account persistence, and MySQL connectivity workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: databaseService.
+      */
     public AccountRepository(IDatabaseService databaseService)
     {
-        _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
+        _databaseService = databaseService ?? throw new ArgumentNullException();
     }
 
     /**
@@ -88,11 +87,11 @@ public sealed class AccountRepository
     }
 
     /**
-     * Determines whether ip banned for the database access, account persistence, and MySQL connectivity workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: ipAddress, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Determines whether ip banned for the database access, account persistence, and MySQL connectivity workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: ipAddress, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -145,11 +144,11 @@ public sealed class AccountRepository
     }
 
     /**
-     * Updates update verifier state in memory or persistent storage.
-     * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-     * Inputs used by this operation: username, verifier, salt, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Updates update verifier state in memory or persistent storage.
+      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
+      * Inputs used by this operation: username, verifier, salt, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task UpdateVerifierAsync(string username, string verifier, string salt, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -169,11 +168,11 @@ public sealed class AccountRepository
     }
 
     /**
-     * Updates update successful login state in memory or persistent storage.
-     * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-     * Inputs used by this operation: username, sessionKey, lastIp, locale, os, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Updates update successful login state in memory or persistent storage.
+      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
+      * Inputs used by this operation: username, sessionKey, lastIp, locale, os, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task UpdateSuccessfulLoginAsync(
         string username,
         string sessionKey,
@@ -205,11 +204,11 @@ public sealed class AccountRepository
     }
 
     /**
-     * Updates increment failed logins state in memory or persistent storage.
-     * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-     * Inputs used by this operation: username, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Updates increment failed logins state in memory or persistent storage.
+      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
+      * Inputs used by this operation: username, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task IncrementFailedLoginsAsync(string username, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -226,11 +225,11 @@ public sealed class AccountRepository
     }
 
     /**
-     * Creates the account result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: username, password, email, gmLevel, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Creates the account result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: username, password, email, gmLevel, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<AccountCommandResult> CreateAccountAsync(
         string username,
         string password,
@@ -313,10 +312,10 @@ public sealed class AccountRepository
     }
 
     /**
-     * Normalizes the username for the database access, account persistence, and MySQL connectivity workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: username.
-     */
+      * Normalizes the username for the database access, account persistence, and MySQL connectivity workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: username.
+      */
     public static string NormalizeUsername(string username)
     {
         if (string.IsNullOrWhiteSpace(username))

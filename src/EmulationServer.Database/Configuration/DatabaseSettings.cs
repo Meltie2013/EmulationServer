@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Database/Configuration/DatabaseSettings.cs
- * Documents the DatabaseSettings source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Database/Configuration/DatabaseSettings.cs
+  * Documents the DatabaseSettings source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Database.Configuration;
 
 /**
- * Owns the database settings behavior for the database access, account persistence, and MySQL connectivity layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the database settings behavior for the database access, account persistence, and MySQL connectivity layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class DatabaseSettings
 {
     /**

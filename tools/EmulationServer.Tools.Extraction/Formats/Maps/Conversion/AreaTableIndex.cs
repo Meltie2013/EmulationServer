@@ -18,28 +18,27 @@
 
 using EmulationServer.Tools.Extraction.Formats.Dbc;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/AreaTableIndex.cs
- * Documents the AreaTableIndex source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/AreaTableIndex.cs
+  * Documents the AreaTableIndex source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
 /**
- * Owns the area table index behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the area table index behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class AreaTableIndex
 {
     private readonly Dictionary<uint, ushort> _areaFlags;
 
     /**
-     * Initializes a new AreaTableIndex instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: areaFlags.
-     */
+      * Initializes a new AreaTableIndex instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: areaFlags.
+      */
     private AreaTableIndex(Dictionary<uint, ushort> areaFlags)
     {
         _areaFlags = areaFlags;

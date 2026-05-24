@@ -16,25 +16,24 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/RealmServer/Auth/RealmAuthOpcodeVerifier.cs
- * Documents the RealmAuthOpcodeVerifier source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Auth/RealmAuthOpcodeVerifier.cs
+  * Documents the RealmAuthOpcodeVerifier source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
- * Owns the realm auth opcode verifier behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm auth opcode verifier behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class RealmAuthOpcodeVerifier
 {
     /**
-     * Stores the default critical op codes value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default critical op codes value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     private static readonly IReadOnlyList<RealmAuthOpcodeDefinition> CriticalOpCodes =
     [
         new("AUTH_LOGON_CHALLENGE", RealmAuthOpCode.AuthLogonChallenge, 0x00),
@@ -86,7 +85,7 @@ public static class RealmAuthOpcodeVerifier
     /**
       * Represents immutable struct data passed between parts of the server.
       * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-     * Positional fields carried by this record: Name, OpCode, ExpectedValue.
+      * Positional fields carried by this record: Name, OpCode, ExpectedValue.
       */
     private readonly record struct RealmAuthOpcodeDefinition(string Name, RealmAuthOpCode OpCode, byte ExpectedValue)
     {

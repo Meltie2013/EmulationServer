@@ -18,12 +18,11 @@
 
 using System.Text;
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
- * Documents the DbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
+  * Documents the DbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc;
 
@@ -34,27 +33,27 @@ namespace EmulationServer.Game.Data.Dbc;
 public sealed class DbcDataStore
 {
     /**
-     * Holds the private record data state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private record data state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly byte[] _recordData;
     /**
-     * Holds the private string block state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private string block state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly byte[] _stringBlock;
     private readonly Dictionary<uint, int> _recordIndexById;
     /**
-     * Holds the private field size state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private field size state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly int _fieldSize;
 
     /**
-     * Initializes a new DbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: path, header, recordData, stringBlock, recordIndexById, fieldSize.
-     */
+      * Initializes a new DbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: path, header, recordData, stringBlock, recordIndexById, fieldSize.
+      */
     private DbcDataStore(
         string path,
         DbcHeader header,
@@ -110,7 +109,7 @@ public sealed class DbcDataStore
     {
         if (index < 0 || index >= Header.RecordCount)
         {
-            throw new ArgumentOutOfRangeException(nameof(index), index, $"Record index must be between 0 and {Header.RecordCount - 1}.");
+            throw new ArgumentOutOfRangeException(null, index, $"Record index must be between 0 and {Header.RecordCount - 1}.");
         }
 
         int offset = index * Header.RecordSize;
@@ -135,9 +134,9 @@ public sealed class DbcDataStore
     }
 
     /**
-     * Performs the enumerate records operation for the DBC loading and strongly typed client data records workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the enumerate records operation for the DBC loading and strongly typed client data records workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public IEnumerable<DbcRecord> EnumerateRecords()
     {
         for (int index = 0; index < Header.RecordCount; index++)

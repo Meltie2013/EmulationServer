@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemSubClassDbcRecord.cs
- * Documents the ItemSubClassDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemSubClassDbcRecord.cs
+  * Documents the ItemSubClassDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
 /**
   * Represents one ItemSubClass.dbc row used to classify item templates.
- * Positional fields carried by this record: ItemClassId, SubClassId, PrerequisiteProficiency, PostrequisiteProficiency, Flags, DisplayFlags, DisplayName, VerboseName.
+  * Positional fields carried by this record: ItemClassId, SubClassId, PrerequisiteProficiency, PostrequisiteProficiency, Flags, DisplayFlags, DisplayName, VerboseName.
   */
 public sealed record ItemSubClassDbcRecord(
     int ItemClassId,

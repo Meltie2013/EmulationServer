@@ -23,40 +23,39 @@ using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 using EmulationServer.Shared.Configuration;
 
-
 /**
- * File overview: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
- * Documents the RealmServerConfigurationLoader source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
+  * Documents the RealmServerConfigurationLoader source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Configuration;
 
 /**
- * Owns the realm server configuration loader behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the realm server configuration loader behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class RealmServerConfigurationLoader
 {
     /**
-     * Defines the constant value for realm server section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for realm server section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string RealmServerSection = "RealmServer";
     /**
-     * Defines the constant value for database section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for database section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string DatabaseSection = "Database";
     /**
-     * Defines the constant value for realms section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for realms section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string RealmsSection = "Realms";
     /**
-     * Defines the constant value for internal network section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for internal network section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string InternalNetworkSection = "InternalNetwork";
 
     /**

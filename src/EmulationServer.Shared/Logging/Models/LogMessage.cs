@@ -18,19 +18,18 @@
 
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Shared/Logging/Models/LogMessage.cs
- * Documents the LogMessage source file in the shared configuration, logging, and utility support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Shared/Logging/Models/LogMessage.cs
+  * Documents the LogMessage source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Shared.Logging.Models;
 
 /**
- * Owns the log message behavior for the shared configuration, logging, and utility support layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the log message behavior for the shared configuration, logging, and utility support layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class LogMessage
 {
     /**

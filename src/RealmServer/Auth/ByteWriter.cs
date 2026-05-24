@@ -19,25 +19,24 @@
 using System.Buffers.Binary;
 using System.Text;
 
-
 /**
- * File overview: src/RealmServer/Auth/ByteWriter.cs
- * Documents the ByteWriter source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/RealmServer/Auth/ByteWriter.cs
+  * Documents the ByteWriter source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.RealmServer.Auth;
 
 /**
- * Owns the byte writer behavior for the realm authentication, realm-list handling, and external client login services layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the byte writer behavior for the realm authentication, realm-list handling, and external client login services layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ByteWriter
 {
     /**
-     * Holds the private buffer state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private buffer state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly List<byte> _buffer = [];
 
     /**
@@ -47,20 +46,20 @@ public sealed class ByteWriter
     public int Count => _buffer.Count;
 
     /**
-     * Writes write u int 8 data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: value.
-     */
+      * Writes write u int 8 data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: value.
+      */
     public void WriteUInt8(byte value)
     {
         _buffer.Add(value);
     }
 
     /**
-     * Writes write u int 16 data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: value.
-     */
+      * Writes write u int 16 data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: value.
+      */
     public void WriteUInt16(ushort value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -69,10 +68,10 @@ public sealed class ByteWriter
     }
 
     /**
-     * Writes write u int 32 data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: value.
-     */
+      * Writes write u int 32 data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: value.
+      */
     public void WriteUInt32(uint value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -81,10 +80,10 @@ public sealed class ByteWriter
     }
 
     /**
-     * Writes write float data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: value.
-     */
+      * Writes write float data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: value.
+      */
     public void WriteFloat(float value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -93,10 +92,10 @@ public sealed class ByteWriter
     }
 
     /**
-     * Writes write c string data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: value.
-     */
+      * Writes write c string data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: value.
+      */
     public void WriteCString(string value)
     {
         _buffer.AddRange(Encoding.UTF8.GetBytes(value));
@@ -104,19 +103,19 @@ public sealed class ByteWriter
     }
 
     /**
-     * Writes write bytes data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: value.
-     */
+      * Writes write bytes data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: value.
+      */
     public void WriteBytes(ReadOnlySpan<byte> value)
     {
         _buffer.AddRange(value.ToArray());
     }
 
     /**
-     * Performs the to array operation for the realm authentication, realm-list handling, and external client login services workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the to array operation for the realm authentication, realm-list handling, and external client login services workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     public byte[] ToArray()
     {
         return [.. _buffer];

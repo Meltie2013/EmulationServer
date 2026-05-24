@@ -16,26 +16,25 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapPlacementTile.cs
- * Documents the VmapPlacementTile source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapPlacementTile.cs
+  * Documents the VmapPlacementTile source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
 /**
- * Owns the vmap placement tile behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the vmap placement tile behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class VmapPlacementTile
 {
     /**
-     * Initializes a new VmapPlacementTile instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: mapId, tileX, tileY, placements.
-     */
+      * Initializes a new VmapPlacementTile instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: mapId, tileX, tileY, placements.
+      */
     public VmapPlacementTile(uint mapId, int tileX, int tileY, IReadOnlyList<VmapPlacement> placements)
     {
         MapId = mapId;

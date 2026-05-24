@@ -22,19 +22,18 @@ using EmulationServer.Database.Services;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
 
-
 /**
- * File overview: tests/EmulationServer.Tests/Database/MySqlConnectionTests.cs
- * Documents the MySqlConnectionTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tests/EmulationServer.Tests/Database/MySqlConnectionTests.cs
+  * Documents the MySqlConnectionTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tests.Database;
 
 /**
- * Owns the my sql connection tests behavior for the automated test coverage for server behavior and data helpers layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the my sql connection tests behavior for the automated test coverage for server behavior and data helpers layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MySqlConnectionTests
 {
     /**
@@ -71,10 +70,10 @@ public sealed class MySqlConnectionTests
     }
 
     /**
-     * Performs the database connection should succeed operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the database connection should succeed operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     [DatabaseIntegrationFact]
     public async Task DatabaseConnection_ShouldSucceed()
     {
@@ -88,10 +87,10 @@ public sealed class MySqlConnectionTests
     }
 
     /**
-     * Performs the database query should execute operation for the automated test coverage for server behavior and data helpers workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the database query should execute operation for the automated test coverage for server behavior and data helpers workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     [DatabaseIntegrationFact]
     public async Task DatabaseQuery_ShouldExecute()
     {

@@ -16,18 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapDbcEntry.cs
- * Documents the MapDbcEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/MapDbcEntry.cs
+  * Documents the MapDbcEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
 /**
   * Represents immutable map dbc entry data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
- * Positional fields carried by this record: Id, DirectoryName.
+  * Positional fields carried by this record: Id, DirectoryName.
   */
 public sealed record MapDbcEntry(uint Id, string DirectoryName);

@@ -19,12 +19,11 @@
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/WorldServer/Commands/WorldConsoleCommandService.cs
- * Documents the WorldConsoleCommandService source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Commands/WorldConsoleCommandService.cs
+  * Documents the WorldConsoleCommandService source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Commands;
 
@@ -36,26 +35,26 @@ public sealed class WorldConsoleCommandService
 {
     private readonly Func<string, int, CancellationToken, Task> _executeMapCommandAsync;
     /**
-     * Holds the private command task state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private command task state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _commandTask;
 
     /**
-     * Initializes a new WorldConsoleCommandService instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: executeMapCommandAsync.
-     */
+      * Initializes a new WorldConsoleCommandService instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: executeMapCommandAsync.
+      */
     public WorldConsoleCommandService(Func<string, int, CancellationToken, Task> executeMapCommandAsync)
     {
-        _executeMapCommandAsync = executeMapCommandAsync ?? throw new ArgumentNullException(nameof(executeMapCommandAsync));
+        _executeMapCommandAsync = executeMapCommandAsync ?? throw new ArgumentNullException();
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      */
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -74,7 +73,7 @@ public sealed class WorldConsoleCommandService
       */
     private async Task RunAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.TRACE, "WorldServer console commands are available. Type 'map help' for map commands.", nameof(WorldConsoleCommandService));
+        Logger.Write(LogType.TRACE, "WorldServer console commands are available. Type 'map help' for map commands.", "WorldConsoleCommandService");
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -99,7 +98,7 @@ public sealed class WorldConsoleCommandService
             }
             catch (Exception exception)
             {
-                Logger.Write(LogType.FAILED, exception.Message, nameof(WorldConsoleCommandService));
+                Logger.Write(LogType.FAILED, exception.Message, "WorldConsoleCommandService");
             }
         }
     }
@@ -120,7 +119,7 @@ public sealed class WorldConsoleCommandService
 
         if (!string.Equals(parts[0], "map", StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.WARNING, $"Unknown command '{parts[0]}'.", nameof(WorldConsoleCommandService));
+            Logger.Write(LogType.WARNING, $"Unknown command '{parts[0]}'.", "WorldConsoleCommandService");
             return;
         }
 
@@ -133,21 +132,21 @@ public sealed class WorldConsoleCommandService
         string action = parts[1].ToLowerInvariant();
         if (action is not ("start" or "shutdown" or "restart" or "info"))
         {
-            Logger.Write(LogType.WARNING, $"Unknown map command '{parts[1]}'.", nameof(WorldConsoleCommandService));
+            Logger.Write(LogType.WARNING, $"Unknown map command '{parts[1]}'.", "WorldConsoleCommandService");
             WriteMapHelp();
             return;
         }
 
         if (parts.Length < 3)
         {
-            Logger.Write(LogType.WARNING, $"Usage: map {action} #mapid", nameof(WorldConsoleCommandService));
+            Logger.Write(LogType.WARNING, $"Usage: map {action} #mapid", "WorldConsoleCommandService");
             return;
         }
 
         string mapIdText = parts[2].StartsWith('#') ? parts[2][1..] : parts[2];
         if (!int.TryParse(mapIdText, out int mapId) || mapId < 0)
         {
-            Logger.Write(LogType.WARNING, "Map ID must be a non-negative number. Example: map info #0", nameof(WorldConsoleCommandService));
+            Logger.Write(LogType.WARNING, "Map ID must be a non-negative number. Example: map info #0", "WorldConsoleCommandService");
             return;
         }
 
@@ -155,16 +154,16 @@ public sealed class WorldConsoleCommandService
     }
 
     /**
-     * Writes write map help data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     */
+      * Writes write map help data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      */
     private static void WriteMapHelp()
     {
-        Logger.Write(LogType.TRACE, "Map commands:", nameof(WorldConsoleCommandService));
-        Logger.Write(LogType.TRACE, "  map start #mapid", nameof(WorldConsoleCommandService));
-        Logger.Write(LogType.TRACE, "  map shutdown #mapid", nameof(WorldConsoleCommandService));
-        Logger.Write(LogType.TRACE, "  map restart #mapid", nameof(WorldConsoleCommandService));
-        Logger.Write(LogType.TRACE, "  map info #mapid", nameof(WorldConsoleCommandService));
+        Logger.Write(LogType.TRACE, "Map commands:", "WorldConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  map start #mapid", "WorldConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  map shutdown #mapid", "WorldConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  map restart #mapid", "WorldConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  map info #mapid", "WorldConsoleCommandService");
     }
 
     /**

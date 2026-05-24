@@ -21,12 +21,11 @@ using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Logging.Formatting;
 using EmulationServer.Shared.Logging.Interfaces;
 
-
 /**
- * File overview: src/EmulationServer.Shared/Logging/Services/ConfiguredLogger.cs
- * Documents the ConfiguredLogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Shared/Logging/Services/ConfiguredLogger.cs
+  * Documents the ConfiguredLogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Shared.Logging.Services;
 
@@ -37,31 +36,31 @@ namespace EmulationServer.Shared.Logging.Services;
 public sealed class ConfiguredLogger : ILogger, IDisposable
 {
     /**
-     * Holds the private sync root state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private sync root state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly object _syncRoot = new();
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly LoggingSettings _settings;
     /**
-     * Holds the private file writer state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private file writer state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly StreamWriter? _fileWriter;
     /**
-     * Holds the private disposed state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private disposed state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private bool _disposed;
 
     /**
-     * Initializes a new ConfiguredLogger instance with the dependencies required by the shared configuration, logging, and utility support workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new ConfiguredLogger instance with the dependencies required by the shared configuration, logging, and utility support workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public ConfiguredLogger(LoggingSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -87,10 +86,10 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
     }
 
     /**
-     * Writes write data to the target packet, stream, or persistent store.
-     * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-     * Inputs used by this operation: type, message, category.
-     */
+      * Writes write data to the target packet, stream, or persistent store.
+      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
+      * Inputs used by this operation: type, message, category.
+      */
     public void Write(LogType type, string message, string? category = null)
     {
         if (_disposed || !_settings.IsEnabled(type))
@@ -117,9 +116,9 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      */
     public void Dispose()
     {
         lock (_syncRoot)

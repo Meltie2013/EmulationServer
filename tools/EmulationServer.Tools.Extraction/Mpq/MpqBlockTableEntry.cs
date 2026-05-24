@@ -18,26 +18,25 @@
 
 using System.Buffers.Binary;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqBlockTableEntry.cs
- * Documents the MpqBlockTableEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqBlockTableEntry.cs
+  * Documents the MpqBlockTableEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Owns the mpq block table entry behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the mpq block table entry behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 internal readonly struct MpqBlockTableEntry
 {
     /**
-     * Initializes a new MpqBlockTableEntry instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: filePosition, compressedSize, fileSize, flags.
-     */
+      * Initializes a new MpqBlockTableEntry instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: filePosition, compressedSize, fileSize, flags.
+      */
     public MpqBlockTableEntry(uint filePosition, uint compressedSize, uint fileSize, MpqFileFlags flags)
     {
         FilePosition = filePosition;

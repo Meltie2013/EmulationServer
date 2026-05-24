@@ -22,12 +22,11 @@ using EmulationServer.Game.Data.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Game/Maps/Runtime/MapService.cs
- * Documents the MapService source file in the runtime map-player state tracking area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Maps/Runtime/MapService.cs
+  * Documents the MapService source file in the runtime map-player state tracking area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Maps.Runtime;
 
@@ -38,93 +37,93 @@ namespace EmulationServer.Game.Maps.Runtime;
 public sealed class MapService : IAsyncDisposable
 {
     /**
-     * Holds the private owner server name state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private owner server name state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _ownerServerName;
     /**
-     * Holds the private definition state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private definition state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MapServiceDefinition _definition;
     /**
-     * Holds the private sync root state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private sync root state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly object _syncRoot = new();
     /**
-     * Holds the private lifecycle lock state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private lifecycle lock state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
     /**
-     * Holds the private grid manager state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private grid manager state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly MapGridManager? _gridManager;
     /**
-     * Holds the private startup grids state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private startup grids state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly IReadOnlyList<MapTileKey> _startupGrids;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task>? _reportStatusAsync;
 
     /**
-     * Holds the private stop cancellation state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stop cancellation state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private CancellationTokenSource? _stopCancellation;
     /**
-     * Holds the private tick task state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private tick task state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private Task? _tickTask;
     /**
-     * Holds the private state state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private state state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private MapServiceState _state = MapServiceState.Offline;
     /**
-     * Holds the private tick state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private tick state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private long _tick;
     /**
-     * Holds the private active players state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private active players state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _activePlayers;
     /**
-     * Holds the private active grids state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private active grids state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _activeGrids;
     /**
-     * Holds the private last tick milliseconds state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private last tick milliseconds state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private double _lastTickMilliseconds;
     /**
-     * Holds the private average tick milliseconds state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private average tick milliseconds state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private double _averageTickMilliseconds;
     /**
-     * Holds the private started utc state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private started utc state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private DateTimeOffset _startedUtc;
     /**
-     * Holds the private last tick utc state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private last tick utc state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private DateTimeOffset _lastTickUtc;
 
     /**
-     * Initializes a new MapService instance with the dependencies required by the runtime map-player state tracking workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: ownerServerName, definition, gridManager, startupGrids, reportStatusAsync.
-     */
+      * Initializes a new MapService instance with the dependencies required by the runtime map-player state tracking workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: ownerServerName, definition, gridManager, startupGrids, reportStatusAsync.
+      */
     public MapService(
         string ownerServerName,
         MapServiceDefinition definition,
@@ -134,7 +133,7 @@ public sealed class MapService : IAsyncDisposable
     {
         if (string.IsNullOrWhiteSpace(ownerServerName))
         {
-            throw new ArgumentException("Owner server name is required.", nameof(ownerServerName));
+            throw new ArgumentException("Owner server name is required.");
         }
 
         definition.Validate();
@@ -168,11 +167,11 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Starts the start workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await _lifecycleLock.WaitAsync(cancellationToken);
@@ -219,7 +218,7 @@ public sealed class MapService : IAsyncDisposable
             MapServiceState currentState = State;
             if (currentState == MapServiceState.Offline)
             {
-                Logger.Write(LogType.WARNING, $"{FormatService()} restart requested while Offline. Starting service instead.", nameof(MapService));
+                Logger.Write(LogType.WARNING, $"{FormatService()} restart requested while Offline. Starting service instead.", "MapService");
                 await StartCoreAsync(cancellationToken);
                 return;
             }
@@ -249,11 +248,11 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Stops the stop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _lifecycleLock.WaitAsync(cancellationToken);
@@ -268,10 +267,10 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -286,7 +285,7 @@ public sealed class MapService : IAsyncDisposable
     {
         if (activePlayers < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(activePlayers), "Active player count cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Active player count cannot be negative.");
         }
 
         lock (_syncRoot)
@@ -303,7 +302,7 @@ public sealed class MapService : IAsyncDisposable
     {
         if (activeGrids < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(activeGrids), "Active grid count cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Active grid count cannot be negative.");
         }
 
         lock (_syncRoot)
@@ -320,12 +319,12 @@ public sealed class MapService : IAsyncDisposable
     {
         if (activePlayers < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(activePlayers), "Active player count cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Active player count cannot be negative.");
         }
 
         if (activeGrids < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(activeGrids), "Active grid count cannot be negative.");
+            throw new ArgumentOutOfRangeException(null, "Active grid count cannot be negative.");
         }
 
         lock (_syncRoot)
@@ -362,17 +361,17 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Starts the start core workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Starts the start core workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
         MapServiceState currentState = State;
         if (currentState is MapServiceState.Online or MapServiceState.Starting)
         {
-            Logger.Write(LogType.INFORMATION, $"{FormatService()} start requested but service is already {currentState}.", nameof(MapService));
+            Logger.Write(LogType.INFORMATION, $"{FormatService()} start requested but service is already {currentState}.", "MapService");
             await PublishStatusAsync(cancellationToken);
             return;
         }
@@ -411,7 +410,7 @@ public sealed class MapService : IAsyncDisposable
         MapServiceState currentState = State;
         if (currentState == MapServiceState.Offline)
         {
-            Logger.Write(LogType.INFORMATION, $"{FormatService()} shutdown requested but service is already Offline.", nameof(MapService));
+            Logger.Write(LogType.INFORMATION, $"{FormatService()} shutdown requested but service is already Offline.", "MapService");
             await PublishStatusAsync(cancellationToken);
             return;
         }
@@ -423,11 +422,11 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Stops the stop core workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: reason, cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop core workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: reason, cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task StopCoreAsync(string reason, CancellationToken cancellationToken)
     {
         MapServiceState currentState = State;
@@ -444,10 +443,10 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Starts the start tick loop workflow and prepares the component to accept runtime work.
-     * Startup is ordered so validation and dependency setup finish before services are announced as available.
-     * Inputs used by this operation: cancellationToken.
-     */
+      * Starts the start tick loop workflow and prepares the component to accept runtime work.
+      * Startup is ordered so validation and dependency setup finish before services are announced as available.
+      * Inputs used by this operation: cancellationToken.
+      */
     private void StartTickLoop(CancellationToken cancellationToken)
     {
         if (_tickTask is not null && !_tickTask.IsCompleted)
@@ -461,11 +460,11 @@ public sealed class MapService : IAsyncDisposable
     }
 
     /**
-     * Stops the stop tick loop workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the stop tick loop workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task StopTickLoopAsync(CancellationToken cancellationToken)
     {
         CancellationTokenSource? stopCancellation = _stopCancellation;
@@ -485,7 +484,7 @@ public sealed class MapService : IAsyncDisposable
                 }
                 else
                 {
-                    Logger.Write(LogType.WARNING, $"Stopped waiting for {FormatService()} tick loop because shutdown timed out.", nameof(MapService));
+                    Logger.Write(LogType.WARNING, $"Stopped waiting for {FormatService()} tick loop because shutdown timed out.", "MapService");
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -523,7 +522,7 @@ public sealed class MapService : IAsyncDisposable
         catch (Exception exception)
         {
             SetState(MapServiceState.Faulted);
-            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(MapService));
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "MapService");
 
             try
             {
@@ -531,7 +530,7 @@ public sealed class MapService : IAsyncDisposable
             }
             catch (Exception publishException)
             {
-                Logger.Write(LogType.WARNING, $"Could not publish faulted state for {FormatService()}: {publishException.Message}", nameof(MapService));
+                Logger.Write(LogType.WARNING, $"Could not publish faulted state for {FormatService()}: {publishException.Message}", "MapService");
             }
         }
     }
@@ -563,7 +562,7 @@ public sealed class MapService : IAsyncDisposable
 
         if (_definition.LogTicks)
         {
-            Logger.Write(LogType.TRACE, $"{_ownerServerName} ticked map service '{_definition.Name}' (MapId={_definition.MapId}, Tick={tick}, TickTime={tickMilliseconds:0.###} ms).", nameof(MapService));
+            Logger.Write(LogType.TRACE, $"{_ownerServerName} ticked map service '{_definition.Name}' (MapId={_definition.MapId}, Tick={tick}, TickTime={tickMilliseconds:0.###} ms).", "MapService");
         }
     }
 
@@ -576,7 +575,7 @@ public sealed class MapService : IAsyncDisposable
     private async Task SetStateAsync(MapServiceState state, string reason, CancellationToken cancellationToken)
     {
         SetState(state);
-        Logger.Write(LogType.NETWORK, $"{FormatService()} state changed to {state}. {reason}", nameof(MapService));
+        Logger.Write(LogType.NETWORK, $"{FormatService()} state changed to {state}. {reason}", "MapService");
         await PublishStatusAsync(cancellationToken);
     }
 

@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/ProxyServer/Configuration/ProxyDependencySettings.cs
- * Documents the ProxyDependencySettings source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/ProxyServer/Configuration/ProxyDependencySettings.cs
+  * Documents the ProxyDependencySettings source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.ProxyServer.Configuration;
 
 /**
- * Owns the proxy dependency settings behavior for the proxy startup, service discovery, and client-routing support layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the proxy dependency settings behavior for the proxy startup, service discovery, and client-routing support layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class ProxyDependencySettings
 {
     /**
@@ -96,12 +95,12 @@ public sealed class ProxyDependencySettings
 
         foreach (string serverName in CriticalServers)
         {
-            ValidateServerName(serverName, nameof(CriticalServers));
+            ValidateServerName(serverName);
         }
 
         foreach (string serverName in NonCriticalServers)
         {
-            ValidateServerName(serverName, nameof(NonCriticalServers));
+            ValidateServerName(serverName);
 
             if (CriticalServers.Contains(serverName))
             {
@@ -114,11 +113,11 @@ public sealed class ProxyDependencySettings
       * Validates input and throws a clear exception before invalid state reaches runtime code.
       * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
       */
-    private static void ValidateServerName(string serverName, string settingName)
+    private static void ValidateServerName(string serverName)
     {
         if (string.IsNullOrWhiteSpace(serverName))
         {
-            throw new InvalidOperationException($"Proxy dependency setting '{settingName}' contains an empty server name.");
+            throw new InvalidOperationException("Proxy dependency settings contain an empty server name.");
         }
     }
 }

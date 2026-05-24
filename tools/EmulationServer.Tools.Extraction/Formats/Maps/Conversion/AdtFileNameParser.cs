@@ -18,19 +18,18 @@
 
 using System.Text.RegularExpressions;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/AdtFileNameParser.cs
- * Documents the AdtFileNameParser source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/AdtFileNameParser.cs
+  * Documents the AdtFileNameParser source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
 /**
- * Owns the adt file name parser behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the adt file name parser behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static partial class AdtFileNameParser
 {
     /**
@@ -57,9 +56,9 @@ public static partial class AdtFileNameParser
     }
 
     /**
-     * Performs the adt file name regex operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the adt file name regex operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     [GeneratedRegex("^(?<map>.+)_(?<x>\\d{1,2})_(?<y>\\d{1,2})$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex AdtFileNameRegex();
 }

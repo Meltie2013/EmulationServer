@@ -18,19 +18,18 @@
 
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Validation/HeightFormulaVerifier.cs
- * Documents the HeightFormulaVerifier source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Validation/HeightFormulaVerifier.cs
+  * Documents the HeightFormulaVerifier source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Validation;
 
 /**
- * Owns the height formula verifier behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the height formula verifier behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class HeightFormulaVerifier
 {
     /**
@@ -41,12 +40,12 @@ public static class HeightFormulaVerifier
     {
         if (samples <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(samples), samples, "Sample count must be greater than zero.");
+            throw new ArgumentOutOfRangeException(null, samples, "Sample count must be greater than zero.");
         }
 
         if (gridMaxHeight <= gridHeight)
         {
-            throw new ArgumentOutOfRangeException(nameof(gridMaxHeight), gridMaxHeight, "Grid max height must be greater than grid height.");
+            throw new ArgumentOutOfRangeException(null, gridMaxHeight, "Grid max height must be greater than grid height.");
         }
 
         float maxUInt8Error = 0.0f;

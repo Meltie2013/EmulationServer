@@ -16,12 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModel.cs
- * Documents the VmapModel source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModel.cs
+  * Documents the VmapModel source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 
@@ -31,10 +30,10 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 public sealed class VmapModel
 {
     /**
-     * Initializes a new VmapModel instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: name, groups.
-     */
+      * Initializes a new VmapModel instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: name, groups.
+      */
     public VmapModel(VmapModelName name, IReadOnlyList<WmoGroupGeometry> groups)
     {
         Name = name;

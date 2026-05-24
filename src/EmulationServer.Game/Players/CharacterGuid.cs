@@ -17,34 +17,34 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Players/CharacterGuid.cs
- * Documents the CharacterGuid source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Players/CharacterGuid.cs
+  * Documents the CharacterGuid source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Players;
 
 /**
- * Owns the character guid behavior for the logged-in player state, persistence models, and gameplay records layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the character guid behavior for the logged-in player state, persistence models, and gameplay records layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class CharacterGuid
 {
     /**
-     * Performs the to client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: lowGuid.
-     */
+      * Performs the to client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: lowGuid.
+      */
     public static ulong ToClientGuid(uint lowGuid)
     {
         return lowGuid;
     }
 
     /**
-     * Performs the from client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: clientGuid.
-     */
+      * Performs the from client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: clientGuid.
+      */
     public static uint FromClientGuid(ulong clientGuid)
     {
         return (uint)(clientGuid & uint.MaxValue);

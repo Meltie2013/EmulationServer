@@ -18,19 +18,18 @@
 
 using EmulationServer.Tools.Extraction.Formats.Dbc;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/LiquidTypeIndex.cs
- * Documents the LiquidTypeIndex source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/Conversion/LiquidTypeIndex.cs
+  * Documents the LiquidTypeIndex source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
 /**
- * Owns the liquid type index behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the liquid type index behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class LiquidTypeIndex
 {
     /**
@@ -42,10 +41,10 @@ public sealed class LiquidTypeIndex
     private readonly Dictionary<ushort, ushort> _dbcLiquidCategoryById;
 
     /**
-     * Initializes a new LiquidTypeIndex instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: dbcLiquidCategoryById.
-     */
+      * Initializes a new LiquidTypeIndex instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: dbcLiquidCategoryById.
+      */
     private LiquidTypeIndex(Dictionary<ushort, ushort> dbcLiquidCategoryById)
     {
         _dbcLiquidCategoryById = dbcLiquidCategoryById;

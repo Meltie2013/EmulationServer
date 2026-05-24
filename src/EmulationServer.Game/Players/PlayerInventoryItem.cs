@@ -17,18 +17,18 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Players/PlayerInventoryItem.cs
- * Documents the PlayerInventoryItem source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Players/PlayerInventoryItem.cs
+  * Documents the PlayerInventoryItem source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Players;
 
 /**
- * Carries immutable player inventory item data for the logged-in player state, persistence models, and gameplay records layer.
- * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
- * Positional fields carried by this record: ItemGuid, OwnerGuid, TemplateEntry, BagGuid, Slot, InstanceData, InventoryType, DisplayId, EnchantmentId.
- */
+  * Carries immutable player inventory item data for the logged-in player state, persistence models, and gameplay records layer.
+  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
+  * Positional fields carried by this record: ItemGuid, OwnerGuid, TemplateEntry, BagGuid, Slot, InstanceData, InventoryType, DisplayId, EnchantmentId.
+  */
 public sealed record PlayerInventoryItem(
     uint ItemGuid,
     uint OwnerGuid,
@@ -41,8 +41,8 @@ public sealed record PlayerInventoryItem(
     uint EnchantmentId)
 {
     /**
-     * Stores the default is equipped value used when the caller does not supply an override.
-     * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-     */
+      * Stores the default is equipped value used when the caller does not supply an override.
+      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      */
     public bool IsEquipped => BagGuid == 0 && Slot < 19;
 }

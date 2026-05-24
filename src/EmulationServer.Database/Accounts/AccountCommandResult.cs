@@ -16,18 +16,17 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Database/Accounts/AccountCommandResult.cs
- * Documents the AccountCommandResult source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Database/Accounts/AccountCommandResult.cs
+  * Documents the AccountCommandResult source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Database.Accounts;
 
 /**
   * Represents immutable account command result data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
- * Positional fields carried by this record: Succeeded, Message.
+  * Positional fields carried by this record: Succeeded, Message.
   */
 public sealed record AccountCommandResult(bool Succeeded, string Message);

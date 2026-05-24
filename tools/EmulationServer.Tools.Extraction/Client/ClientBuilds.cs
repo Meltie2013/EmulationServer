@@ -18,45 +18,44 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Client/ClientBuilds.cs
- * Documents the ClientBuilds source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Client/ClientBuilds.cs
+  * Documents the ClientBuilds source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Client;
 
 /**
- * Owns the client builds behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the client builds behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class ClientBuilds
 {
     /**
-     * Defines the constant value for classic 1121.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for classic 1121.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const ushort Classic1121 = 5875;
     /**
-     * Defines the constant value for classic 1122.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for classic 1122.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const ushort Classic1122 = 6005;
     /**
-     * Defines the constant value for classic 1123.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for classic 1123.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const ushort Classic1123 = 6141;
     /**
-     * Defines the constant value for the burning crusade 243.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for the burning crusade 243.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const ushort TheBurningCrusade243 = 8606;
     /**
-     * Defines the constant value for wrath 335 a.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for wrath 335 a.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     public const ushort Wrath335a = 12340;
 
     private static readonly IReadOnlyDictionary<ushort, ClientBuildInfo> BuildsByNumber =
@@ -76,10 +75,10 @@ public static class ClientBuilds
     public static IReadOnlyCollection<ClientBuildInfo> All => BuildsByNumber.Values.ToArray();
 
     /**
-     * Determines whether supported for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: build.
-     */
+      * Determines whether supported for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: build.
+      */
     public static bool IsSupported(ushort build)
     {
         return BuildsByNumber.ContainsKey(build);
@@ -96,10 +95,10 @@ public static class ClientBuilds
     }
 
     /**
-     * Performs the require operation for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: build.
-     */
+      * Performs the require operation for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: build.
+      */
     public static ClientBuildInfo Require(ushort build)
     {
         if (TryGet(build, out ClientBuildInfo? buildInfo))

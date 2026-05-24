@@ -22,17 +22,17 @@ using EmulationServer.Network.Configuration;
 using EmulationServer.Shared.Logging.Configuration;
 
 /**
- * File overview: src/InstanceServer/Configuration/InstanceServerSettings.cs
- * Documents the InstanceServerSettings source file in the instance service startup and internal server coordination area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/InstanceServer/Configuration/InstanceServerSettings.cs
+  * Documents the InstanceServerSettings source file in the instance service startup and internal server coordination area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.InstanceServer.Configuration;
 
 /**
- * Owns the instance server settings behavior for the instance service startup and internal server coordination layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the instance server settings behavior for the instance service startup and internal server coordination layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class InstanceServerSettings
 {
     /**

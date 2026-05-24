@@ -20,128 +20,127 @@ using System.Buffers.Binary;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtTileReader.cs
- * Documents the AdtTileReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtTileReader.cs
+  * Documents the AdtTileReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
 /**
- * Owns the adt tile reader behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the adt tile reader behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class AdtTileReader
 {
     /**
-     * Defines the constant value for cells per grid.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for cells per grid.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CellsPerGrid = 16;
     /**
-     * Defines the constant value for cell size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for cell size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int CellSize = 8;
     /**
-     * Defines the constant value for grid size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for grid size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int GridSize = 128;
 
     /**
-     * Defines the constant value for chunk header size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for chunk header size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int ChunkHeaderSize = 8;
     /**
-     * Defines the constant value for mcnk header size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk header size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkHeaderSize = 128;
     /**
-     * Defines the constant value for mcnk offset height.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk offset height.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkOffsetHeight = 0x14;
     /**
-     * Defines the constant value for mcnk offset area id.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk offset area id.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkOffsetAreaId = 0x34;
     /**
-     * Defines the constant value for mcnk offset holes.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk offset holes.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkOffsetHoles = 0x3C;
     /**
-     * Defines the constant value for mcnk offset liquid.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk offset liquid.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkOffsetLiquid = 0x60;
     /**
-     * Defines the constant value for mcnk offset liquid size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk offset liquid size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkOffsetLiquidSize = 0x64;
     /**
-     * Defines the constant value for mcnk offset position.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcnk offset position.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McnkOffsetPosition = 0x68;
 
     /**
-     * Defines the constant value for mcvt height count.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mcvt height count.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int McvtHeightCount = 145;
     /**
-     * Defines the constant value for mclq liquid vertex count.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq liquid vertex count.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqLiquidVertexCount = 9 * 9;
     /**
-     * Defines the constant value for mclq liquid vertex size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq liquid vertex size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqLiquidVertexSize = 8;
     /**
-     * Defines the constant value for mclq height bounds size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq height bounds size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqHeightBoundsSize = 8;
     /**
-     * Defines the constant value for mclq liquid vertex data offset.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq liquid vertex data offset.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqLiquidVertexDataOffset = MclqHeightBoundsSize;
     /**
-     * Defines the constant value for mclq flags offset.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq flags offset.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqFlagsOffset = MclqLiquidVertexDataOffset + MclqLiquidVertexCount * MclqLiquidVertexSize;
     /**
-     * Defines the constant value for mclq flags size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq flags size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqFlagsSize = 8 * 8;
     /**
-     * Defines the constant value for mclq minimum data size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mclq minimum data size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int MclqMinimumDataSize = MclqFlagsOffset + MclqFlagsSize;
 
     /**
-     * Defines the constant value for mh 2 o header size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mh 2 o header size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int Mh2oHeaderSize = 12;
     /**
-     * Defines the constant value for mh 2 o instance size.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for mh 2 o instance size.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const int Mh2oInstanceSize = 24;
 
     /**
@@ -760,10 +759,10 @@ public static class AdtTileReader
     }
 
     /**
-     * Determines whether valid cell index for the client data extraction and conversion tooling workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: value.
-     */
+      * Determines whether valid cell index for the client data extraction and conversion tooling workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: value.
+      */
     private static bool IsValidCellIndex(int value)
     {
         return value >= 0 && value < CellsPerGrid;

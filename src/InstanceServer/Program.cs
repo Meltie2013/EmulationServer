@@ -22,16 +22,14 @@ using EmulationServer.Shared.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/InstanceServer/Program.cs
- * Documents the Program source file for the instance server entry point.
- * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
- */
+  * File overview: src/InstanceServer/Program.cs
+  * Documents the Program source file for the instance server entry point.
+  * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
+  */
 
 // Create a shared cancellation source so Ctrl+C and shutdown paths use the same token.
 using CancellationTokenSource cancellation = new();
-
 
 // Convert Ctrl+C into cooperative cancellation instead of allowing the process to terminate abruptly.
 Console.CancelKeyPress += (_, eventArgs) =>
@@ -68,7 +66,7 @@ try
 // Treat cancellation from the shared shutdown token as a normal operator-requested stop.
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
 {
-    Logger.Write(LogType.INFORMATION, "Shutdown requested. Stopping InstanceServer...", nameof(Program));
+    Logger.Write(LogType.INFORMATION, "Shutdown requested. Stopping InstanceServer...", "Program");
 }
 // Configuration errors are reported as critical startup failures with a non-zero exit code.
 catch (ConfigurationException exception)

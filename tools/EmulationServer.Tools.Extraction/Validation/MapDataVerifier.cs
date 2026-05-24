@@ -19,19 +19,18 @@
 using EmulationServer.Tools.Extraction.Client;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Validation/MapDataVerifier.cs
- * Documents the MapDataVerifier source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Validation/MapDataVerifier.cs
+  * Documents the MapDataVerifier source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Validation;
 
 /**
- * Owns the map data verifier behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the map data verifier behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MapDataVerifier
 {
     /**

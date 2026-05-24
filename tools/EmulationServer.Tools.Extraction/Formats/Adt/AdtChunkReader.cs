@@ -19,19 +19,18 @@
 using System.Buffers.Binary;
 using System.Text;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunkReader.cs
- * Documents the AdtChunkReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Formats/Adt/AdtChunkReader.cs
+  * Documents the AdtChunkReader source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Formats.Adt;
 
 /**
- * Owns the adt chunk reader behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the adt chunk reader behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class AdtChunkReader
 {
     /**
@@ -104,7 +103,7 @@ public static class AdtChunkReader
     {
         if (offset < 0 || offset + 4 > data.Length)
         {
-            throw new ArgumentOutOfRangeException(nameof(offset), offset, "FourCC offset is outside the ADT data.");
+            throw new ArgumentOutOfRangeException(null, offset, "FourCC offset is outside the ADT data.");
         }
 
         Span<byte> bytes = stackalloc byte[4];

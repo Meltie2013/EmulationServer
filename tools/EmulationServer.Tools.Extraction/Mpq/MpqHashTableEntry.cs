@@ -18,26 +18,25 @@
 
 using System.Buffers.Binary;
 
-
 /**
- * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHashTableEntry.cs
- * Documents the MpqHashTableEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: tools/EmulationServer.Tools.Extraction/Mpq/MpqHashTableEntry.cs
+  * Documents the MpqHashTableEntry source file in the client data extraction and conversion tooling area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Tools.Extraction.Mpq;
 
 /**
- * Owns the mpq hash table entry behavior for the client data extraction and conversion tooling layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the mpq hash table entry behavior for the client data extraction and conversion tooling layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 internal readonly struct MpqHashTableEntry
 {
     /**
-     * Initializes a new MpqHashTableEntry instance with the dependencies required by the client data extraction and conversion tooling workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: nameHashA, nameHashB, locale, platform, blockIndex.
-     */
+      * Initializes a new MpqHashTableEntry instance with the dependencies required by the client data extraction and conversion tooling workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: nameHashA, nameHashB, locale, platform, blockIndex.
+      */
     public MpqHashTableEntry(uint nameHashA, uint nameHashB, ushort locale, ushort platform, uint blockIndex)
     {
         NameHashA = nameHashA;

@@ -25,12 +25,11 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-
 /**
- * File overview: src/EmulationServer.Network/Networking/Sessions/InternalServerSession.cs
- * Documents the InternalServerSession source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Network/Networking/Sessions/InternalServerSession.cs
+  * Documents the InternalServerSession source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Network.Networking.Sessions;
 
@@ -41,55 +40,55 @@ namespace EmulationServer.Network.Networking.Sessions;
 public sealed class InternalServerSession
 {
     /**
-     * Holds the private client state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private client state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly TcpClient _client;
     /**
-     * Holds the private stream state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private stream state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly NetworkStream _stream;
     /**
-     * Holds the private reader state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private reader state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalProtocolReader _reader;
     /**
-     * Holds the private send lock state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private send lock state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     /**
-     * Holds the private disconnect cancellation state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private disconnect cancellation state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly CancellationTokenSource _disconnectCancellation = new();
     /**
-     * Holds the private settings state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private settings state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalNetworkSettings _settings;
     /**
-     * Holds the private callbacks state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private callbacks state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly InternalNetworkCallbacks _callbacks;
     /**
-     * Holds the private remote end point state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private remote end point state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _remoteEndPoint;
 
     /**
-     * Holds the private last packet received utc ticks state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private last packet received utc ticks state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private long _lastPacketReceivedUtcTicks;
     /**
-     * Holds the private disconnect requested state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private disconnect requested state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private int _disconnectRequested;
 
     /**
@@ -117,10 +116,10 @@ public sealed class InternalServerSession
     public bool IsAuthenticated => !string.IsNullOrWhiteSpace(RemoteServerName);
 
     /**
-     * Initializes a new InternalServerSession instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings, client, callbacks.
-     */
+      * Initializes a new InternalServerSession instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings, client, callbacks.
+      */
     public InternalServerSession(
         InternalNetworkSettings settings,
         TcpClient client,
@@ -130,7 +129,7 @@ public sealed class InternalServerSession
         settings.Validate();
 
         _settings = settings;
-        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _client = client ?? throw new ArgumentNullException();
         _callbacks = callbacks ?? InternalNetworkCallbacks.Empty;
         _stream = _client.GetStream();
         _reader = new InternalProtocolReader(_stream);
@@ -146,7 +145,7 @@ public sealed class InternalServerSession
       */
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal session from {_remoteEndPoint}. Requesting server pass-key...", nameof(InternalServerSession));
+        Logger.Write(LogType.NETWORK, $"{_settings.ServerName} accepted internal session from {_remoteEndPoint}. Requesting server pass-key...", "InternalServerSession");
 
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken,
@@ -172,7 +171,7 @@ public sealed class InternalServerSession
             RemoteServerName = remoteServerName;
             MarkPacketReceived();
 
-            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} authenticated internal server '{remoteServerName}' from {_remoteEndPoint}.", nameof(InternalServerSession));
+            Logger.Write(LogType.NETWORK, $"{_settings.ServerName} authenticated internal server '{remoteServerName}' from {_remoteEndPoint}.", "InternalServerSession");
 
             await InternalProtocol.WriteLineAsync(
                 _stream,
@@ -200,7 +199,7 @@ public sealed class InternalServerSession
 
                 if (line is null)
                 {
-                    Logger.Write(LogType.NETWORK, $"Internal server '{remoteServerName}' disconnected from {_remoteEndPoint}.", nameof(InternalServerSession));
+                    Logger.Write(LogType.NETWORK, $"Internal server '{remoteServerName}' disconnected from {_remoteEndPoint}.", "InternalServerSession");
                     break;
                 }
 
@@ -216,7 +215,7 @@ public sealed class InternalServerSession
         }
         catch (UnauthorizedAccessException exception)
         {
-            Logger.Write(LogType.WARNING, $"Rejected internal authentication from {_remoteEndPoint}: {exception.Message}", nameof(InternalServerSession));
+            Logger.Write(LogType.WARNING, $"Rejected internal authentication from {_remoteEndPoint}: {exception.Message}", "InternalServerSession");
 
             try
             {
@@ -237,11 +236,11 @@ public sealed class InternalServerSession
         }
         catch (IOException exception)
         {
-            Logger.Write(LogType.NETWORK, $"Internal connection closed for {_remoteEndPoint}: {exception.Message}", nameof(InternalServerSession));
+            Logger.Write(LogType.NETWORK, $"Internal connection closed for {_remoteEndPoint}: {exception.Message}", "InternalServerSession");
         }
         catch (SocketException exception)
         {
-            Logger.Write(LogType.NETWORK, $"Internal socket closed for {_remoteEndPoint}: {exception.SocketErrorCode}", nameof(InternalServerSession));
+            Logger.Write(LogType.NETWORK, $"Internal socket closed for {_remoteEndPoint}: {exception.SocketErrorCode}", "InternalServerSession");
         }
         catch (ObjectDisposedException) when (IsDisconnectRequested)
         {
@@ -249,7 +248,7 @@ public sealed class InternalServerSession
         }
         catch (Exception exception)
         {
-            Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalServerSession));
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalServerSession");
         }
         finally
         {
@@ -266,7 +265,7 @@ public sealed class InternalServerSession
                 }
                 catch (Exception exception)
                 {
-                    Logger.Write(LogType.CRITICAL, exception.ToString(), nameof(InternalServerSession));
+                    Logger.Write(LogType.CRITICAL, exception.ToString(), "InternalServerSession");
                 }
             }
 
@@ -295,10 +294,10 @@ public sealed class InternalServerSession
     }
 
     /**
-     * Performs the disconnect operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the disconnect operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public Task DisconnectAsync()
     {
         if (Interlocked.Exchange(ref _disconnectRequested, 1) == 1)
@@ -306,7 +305,7 @@ public sealed class InternalServerSession
             return Task.CompletedTask;
         }
 
-        Logger.Write(LogType.NETWORK, $"Ending internal session for {_remoteEndPoint}.", nameof(InternalServerSession));
+        Logger.Write(LogType.NETWORK, $"Ending internal session for {_remoteEndPoint}.", "InternalServerSession");
 
         try
         {
@@ -340,11 +339,11 @@ public sealed class InternalServerSession
     }
 
     /**
-     * Performs the request and validate authentication operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the request and validate authentication operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     private async Task<string> RequestAndValidateAuthenticationAsync(CancellationToken cancellationToken)
     {
         string challengeNonce = InternalProtocol.CreateAuthenticationNonce();
@@ -417,14 +416,14 @@ public sealed class InternalServerSession
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Ping, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PING packet from {remoteServerName}.", nameof(InternalServerSession));
+            Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PING packet from {remoteServerName}.", "InternalServerSession");
             await latencyMonitor.RespondToPingAsync(parts[1], cancellationToken);
             return;
         }
 
         if (parts.Length >= 2 && string.Equals(parts[0], InternalProtocol.Pong, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PONG packet from {remoteServerName}.", nameof(InternalServerSession));
+            Logger.Write(LogType.TRACE, $"{_settings.ServerName} received PONG packet from {remoteServerName}.", "InternalServerSession");
             latencyMonitor.RecordPong(parts[1]);
             return;
         }
@@ -438,9 +437,9 @@ public sealed class InternalServerSession
     }
 
     /**
-     * Performs the mark packet received operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     */
+      * Performs the mark packet received operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      */
     private void MarkPacketReceived()
     {
         Interlocked.Exchange(ref _lastPacketReceivedUtcTicks, DateTimeOffset.UtcNow.Ticks);

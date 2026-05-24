@@ -17,16 +17,16 @@
 //
 
 /**
- * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharStartOutfitItemDbcRecord.cs
- * Documents the CharStartOutfitItemDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharStartOutfitItemDbcRecord.cs
+  * Documents the CharStartOutfitItemDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
 /**
   * Represents one starter outfit item slot from CharStartOutfit.dbc.
- * Positional fields carried by this record: Index, ItemId, ItemDisplayId, InventorySlotId.
+  * Positional fields carried by this record: Index, ItemId, ItemDisplayId, InventorySlotId.
   */
 public sealed record CharStartOutfitItemDbcRecord(
     int Index,

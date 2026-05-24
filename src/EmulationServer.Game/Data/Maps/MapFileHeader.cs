@@ -16,19 +16,18 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-
 /**
- * File overview: src/EmulationServer.Game/Data/Maps/MapFileHeader.cs
- * Documents the MapFileHeader source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Game/Data/Maps/MapFileHeader.cs
+  * Documents the MapFileHeader source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Game.Data.Maps;
 
 /**
   * Represents immutable map file header data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
- * Positional fields carried by this record: MapMagic, VersionMagic, Build, AreaMapOffset, AreaMapSize, HeightMapOffset, HeightMapSize, LiquidMapOffset, LiquidMapSize, HolesOffset, HolesSize.
+  * Positional fields carried by this record: MapMagic, VersionMagic, Build, AreaMapOffset, AreaMapSize, HeightMapOffset, HeightMapSize, LiquidMapOffset, LiquidMapSize, HolesOffset, HolesSize.
   */
 public sealed record MapFileHeader(
     string MapMagic,

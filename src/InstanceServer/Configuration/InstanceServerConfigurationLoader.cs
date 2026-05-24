@@ -22,30 +22,29 @@ using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
-
 /**
- * File overview: src/InstanceServer/Configuration/InstanceServerConfigurationLoader.cs
- * Documents the InstanceServerConfigurationLoader source file in the instance service startup and internal server coordination area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/InstanceServer/Configuration/InstanceServerConfigurationLoader.cs
+  * Documents the InstanceServerConfigurationLoader source file in the instance service startup and internal server coordination area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.InstanceServer.Configuration;
 
 /**
- * Owns the instance server configuration loader behavior for the instance service startup and internal server coordination layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the instance server configuration loader behavior for the instance service startup and internal server coordination layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public static class InstanceServerConfigurationLoader
 {
     /**
-     * Defines the constant value for instance server section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for instance server section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string InstanceServerSection = "InstanceServer";
     /**
-     * Defines the constant value for instance services section.
-     * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-     */
+      * Defines the constant value for instance services section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
     private const string InstanceServicesSection = "InstanceServices";
 
     /**

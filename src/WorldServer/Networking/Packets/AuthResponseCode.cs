@@ -17,33 +17,33 @@
 //
 
 /**
- * File overview: src/WorldServer/Networking/Packets/AuthResponseCode.cs
- * Documents the AuthResponseCode source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/WorldServer/Networking/Packets/AuthResponseCode.cs
+  * Documents the AuthResponseCode source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
 /**
- * Lists the supported auth response code values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
- * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
- */
+  * Lists the supported auth response code values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
+  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
+  */
 public enum AuthResponseCode : byte
 {
     /**
-     * Represents the ok value for auth response code handling.
-     */
+      * Represents the ok value for auth response code handling.
+      */
     Ok = 0x0C,
     /**
-     * Represents the failed value for auth response code handling.
-     */
+      * Represents the failed value for auth response code handling.
+      */
     Failed = 0x0D,
     /**
-     * Represents the rejected value for auth response code handling.
-     */
+      * Represents the rejected value for auth response code handling.
+      */
     Rejected = 0x0F,
     /**
-     * Represents the version mismatch value for auth response code handling.
-     */
+      * Represents the version mismatch value for auth response code handling.
+      */
     VersionMismatch = 0x14,
 }

@@ -21,32 +21,31 @@ using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
-
 /**
- * File overview: src/EmulationServer.Database/Services/MySqlDatabaseService.cs
- * Documents the MySqlDatabaseService source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
- * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
- */
+  * File overview: src/EmulationServer.Database/Services/MySqlDatabaseService.cs
+  * Documents the MySqlDatabaseService source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
+  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
+  */
 
 namespace EmulationServer.Database.Services;
 
 /**
- * Owns the my sql database service behavior for the database access, account persistence, and MySQL connectivity layer.
- * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
- */
+  * Owns the my sql database service behavior for the database access, account persistence, and MySQL connectivity layer.
+  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  */
 public sealed class MySqlDatabaseService : IDatabaseService
 {
     /**
-     * Holds the private connection string state used by the owning component.
-     * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-     */
+      * Holds the private connection string state used by the owning component.
+      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
+      */
     private readonly string _connectionString;
 
     /**
-     * Initializes a new MySqlDatabaseService instance with the dependencies required by the database access, account persistence, and MySQL connectivity workflow.
-     * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-     * Inputs used by this operation: settings.
-     */
+      * Initializes a new MySqlDatabaseService instance with the dependencies required by the database access, account persistence, and MySQL connectivity workflow.
+      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
+      * Inputs used by this operation: settings.
+      */
     public MySqlDatabaseService(DatabaseSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -79,11 +78,11 @@ public sealed class MySqlDatabaseService : IDatabaseService
     }
 
     /**
-     * Creates the connection result needed by the caller.
-     * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Creates the connection result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async ValueTask<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken = default)
     {
         MySqlConnection connection = new(_connectionString);
@@ -101,11 +100,11 @@ public sealed class MySqlDatabaseService : IDatabaseService
     }
 
     /**
-     * Performs the test connection operation for the database access, account persistence, and MySQL connectivity workflow.
-     * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-     * Inputs used by this operation: cancellationToken.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Performs the test connection operation for the database access, account persistence, and MySQL connectivity workflow.
+      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Inputs used by this operation: cancellationToken.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -141,10 +140,10 @@ public sealed class MySqlDatabaseService : IDatabaseService
     }
 
     /**
-     * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-     * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-     * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-     */
+      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
+      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
+      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      */
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;
