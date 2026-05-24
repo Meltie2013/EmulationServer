@@ -46,4 +46,12 @@ public enum AuthResponseCode : byte
       * Represents the version mismatch value for auth response code handling.
       */
     VersionMismatch = 0x14,
+    /**
+      * Represents the banned value for auth response code handling.
+      */
+    Banned = 0x1C,
+    /**
+      * Represents the suspended value for auth response code handling.
+      */
+    Suspended = 0x20,
 }

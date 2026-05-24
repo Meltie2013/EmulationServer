@@ -19,6 +19,7 @@
 using System.Net.Sockets;
 using System.Security.Cryptography;
 
+using EmulationServer.Database.Accounts;
 using EmulationServer.Game.Characters;
 using EmulationServer.Game.Chat;
 using EmulationServer.Game.Commands;
@@ -423,6 +424,16 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account missing or locked.", "WorldClientSession");
             await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
             throw new UnauthorizedAccessException("World account authentication failed.");
+        }
+
+        AccountBanStatus banStatus = await _accountRepository.GetAccountBanStatusAsync(account.Id, cancellationToken);
+        if (banStatus.IsBanned)
+        {
+            AuthResponseCode responseCode = banStatus.IsPermanent ? AuthResponseCode.Banned : AuthResponseCode.Suspended;
+            string banType = banStatus.IsPermanent ? "permanently banned" : "temporarily suspended";
+            Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account is {banType}.", "WorldClientSession");
+            await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(responseCode), null, cancellationToken);
+            throw new UnauthorizedAccessException("World account is banned.");
         }
 
         byte[] sessionKey = WorldAuthCryptography.ParseSessionKey(account.SessionKey);

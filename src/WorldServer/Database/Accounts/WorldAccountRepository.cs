@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
@@ -83,6 +84,60 @@ public sealed class WorldAccountRepository
             reader.GetByte(2),
             reader.GetByte(3) != 0,
             reader.IsDBNull(4) ? string.Empty : reader.GetString(4));
+    }
+
+    /**
+      * Returns the active account ban status during world authentication.
+      * The WorldServer repeats this check so bans applied after realm login still block entering the world.
+      */
+    public async Task<AccountBanStatus> GetAccountBanStatusAsync(uint accountId, CancellationToken cancellationToken = default)
+    {
+        await DeactivateExpiredAccountBansAsync(cancellationToken);
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            SELECT `bandate`, `unbandate`
+            FROM `account_banned`
+            WHERE `id` = @id
+              AND `active` = 1
+              AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`)
+            ORDER BY `bandate` DESC
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@id", accountId);
+
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return AccountBanStatus.NotBanned;
+        }
+
+        ulong banDate = reader.GetUInt64(0);
+        ulong unbanDate = reader.GetUInt64(1);
+
+        return new AccountBanStatus(true, banDate == unbanDate);
+    }
+
+    /**
+      * Deactivates expired temporary account bans before auth and list operations read active rows.
+      * Permanent bans are identified by matching bandate and unbandate values and are left active.
+      */
+    private async Task<int> DeactivateExpiredAccountBansAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            UPDATE `account_banned`
+            SET `active` = 0
+            WHERE `active` = 1
+              AND `unbandate` <> `bandate`
+              AND `unbandate` <= UNIX_TIMESTAMP();
+            """;
+
+        return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     /**
