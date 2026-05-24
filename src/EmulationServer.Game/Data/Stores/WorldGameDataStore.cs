@@ -47,6 +47,7 @@ public sealed class WorldGameDataStore
     private readonly SpellDbcDataStore _spellData;
     private readonly FactionDbcDataStore _factionData;
     private readonly ChatChannelDbcDataStore _chatData;
+    private readonly LanguageDbcDataStore _languageData;
 
     /**
       * Creates a new WorldGameDataStore instance and stores the dependencies required by the component.
@@ -59,7 +60,8 @@ public sealed class WorldGameDataStore
         ItemDbcDataStore itemData,
         SpellDbcDataStore spellData,
         FactionDbcDataStore factionData,
-        ChatChannelDbcDataStore chatData)
+        ChatChannelDbcDataStore chatData,
+        LanguageDbcDataStore languageData)
     {
         _dbcStores = dbcStores;
         _mapData = mapData;
@@ -68,6 +70,7 @@ public sealed class WorldGameDataStore
         _spellData = spellData;
         _factionData = factionData;
         _chatData = chatData;
+        _languageData = languageData;
     }
 
     /**
@@ -81,7 +84,8 @@ public sealed class WorldGameDataStore
         ItemDbcDataStore.Empty,
         SpellDbcDataStore.Empty,
         FactionDbcDataStore.Empty,
-        ChatChannelDbcDataStore.Empty);
+        ChatChannelDbcDataStore.Empty,
+        LanguageDbcDataStore.Empty);
 
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
@@ -116,6 +120,11 @@ public sealed class WorldGameDataStore
     public ChatChannelDbcDataStore ChatData => _chatData;
 
     /**
+      * Gets typed language DBC data used to validate client chat language selections.
+      */
+    public LanguageDbcDataStore LanguageData => _languageData;
+
+    /**
       * Attempts the operation without treating a normal failure as an exceptional condition.
       * The method is part of WorldGameDataStore and keeps this workflow isolated from the caller.
       * The boolean result lets callers branch without throwing for normal negative outcomes.
@@ -148,9 +157,10 @@ public sealed class WorldGameDataStore
         SpellDbcDataStore spellData = SpellDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
         FactionDbcDataStore factionData = FactionDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
         ChatChannelDbcDataStore chatData = ChatChannelDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
+        LanguageDbcDataStore languageData = LanguageDbcDataStore.FromDbcStores(dbcStores, nameof(WorldGameDataStore));
 
         Logger.Write(LogType.SUCCESS, $"World game data loaded: {dbcStores.Count} DBC file(s). Map tiles are owned by MapServer and InstanceServer.", nameof(WorldGameDataStore));
 
-        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData, chatData);
+        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData, chatData, languageData);
     }
 }

@@ -58,6 +58,11 @@ public sealed class WorldServerSettings
     public string MessageOfTheDay { get; init; } = "Welcome to Emulation Server.";
 
     /**
+      * Gets how often active in-world player state is persisted while the player remains connected.
+      */
+    public TimeSpan PlayerSaveInterval { get; init; } = TimeSpan.FromSeconds(60);
+
+    /**
       * Gets shared database connection defaults used to inherit host/user/pool settings for the concrete WorldServer schemas.
       * WorldServer does not open this database directly.
       */
@@ -97,6 +102,11 @@ public sealed class WorldServerSettings
         if (MaxConnections <= 0)
         {
             throw new InvalidOperationException("WorldServer max connections must be greater than zero.");
+        }
+
+        if (PlayerSaveInterval <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("WorldServer player save interval must be greater than zero.");
         }
 
         Database.Validate();

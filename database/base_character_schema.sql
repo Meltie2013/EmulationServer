@@ -123,6 +123,147 @@ CREATE TABLE `item_instance` (
   `text` longtext CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL COMMENT 'The Name of the Item'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Item System' ROW_FORMAT=DYNAMIC;
 
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_action`
+--
+
+CREATE TABLE `character_action` (
+  `guid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Global Unique Identifier.',
+  `button` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Action bar button index.',
+  `action` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Spell, item, macro, or action identifier.',
+  `type` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Action type. Vanilla uses 0 for spell, 64 for macro, and 128 for item.',
+  PRIMARY KEY (`guid`,`button`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Action Bar System' ROW_FORMAT=DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_aura`
+--
+
+CREATE TABLE `character_aura` (
+  `guid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Global Unique Identifier.',
+  `caster_guid` bigint(20) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Full caster Global Unique Identifier.',
+  `item_guid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Item instance that applied the aura, if any.',
+  `spell` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Spell identifier.',
+  `effect_mask` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Active effect mask.',
+  `recalculate_mask` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Effects requiring recalculation.',
+  `stackcount` tinyint(3) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Aura stack count.',
+  `remaincharges` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Remaining charges.',
+  `basepoints0` int(11) NOT NULL DEFAULT 0,
+  `basepoints1` int(11) NOT NULL DEFAULT 0,
+  `basepoints2` int(11) NOT NULL DEFAULT 0,
+  `periodictime0` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `periodictime1` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `periodictime2` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `maxduration` int(11) NOT NULL DEFAULT 0,
+  `remaintime` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`guid`,`caster_guid`,`item_guid`,`spell`,`effect_mask`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Aura System' ROW_FORMAT=DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_reputation`
+--
+
+CREATE TABLE `character_reputation` (
+  `guid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Global Unique Identifier.',
+  `faction` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Faction identifier.',
+  `standing` int(11) NOT NULL DEFAULT 0 COMMENT 'Reputation standing value.',
+  `flags` int(11) NOT NULL DEFAULT 0 COMMENT 'Reputation flags.',
+  PRIMARY KEY (`guid`,`faction`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Reputation System' ROW_FORMAT=DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_skills`
+--
+
+CREATE TABLE `character_skills` (
+  `guid` int(11) UNSIGNED NOT NULL COMMENT 'Global Unique Identifier.',
+  `skill` mediumint(9) UNSIGNED NOT NULL COMMENT 'Skill identifier.',
+  `value` mediumint(9) UNSIGNED NOT NULL COMMENT 'Current skill value.',
+  `max` mediumint(9) UNSIGNED NOT NULL COMMENT 'Maximum skill value.',
+  PRIMARY KEY (`guid`,`skill`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Skill System' ROW_FORMAT=DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_spell`
+--
+
+CREATE TABLE `character_spell` (
+  `guid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Global Unique Identifier.',
+  `spell` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Spell identifier.',
+  `active` tinyint(3) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Whether the spell is active.',
+  `disabled` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Whether the spell is disabled.',
+  PRIMARY KEY (`guid`,`spell`),
+  KEY `idx_spell` (`spell`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Spell System' ROW_FORMAT=DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_stats`
+--
+
+CREATE TABLE `character_stats` (
+  `guid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Global Unique Identifier, low part.',
+  `maxhealth` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower1` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower2` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower3` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower4` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower5` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower6` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `maxpower7` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `strength` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `agility` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `stamina` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `intellect` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `spirit` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `armor` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `resHoly` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `resFire` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `resNature` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `resFrost` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `resShadow` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `resArcane` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `blockPct` float NOT NULL DEFAULT 0,
+  `dodgePct` float NOT NULL DEFAULT 0,
+  `parryPct` float NOT NULL DEFAULT 0,
+  `critPct` float NOT NULL DEFAULT 0,
+  `rangedCritPct` float NOT NULL DEFAULT 0,
+  `attackPower` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `rangedAttackPower` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`guid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Stats System' ROW_FORMAT=DYNAMIC;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `character_tutorial`
+--
+
+CREATE TABLE `character_tutorial` (
+  `account` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Realm account identifier.',
+  `tut0` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut1` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut2` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut3` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut4` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut5` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut6` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  `tut7` int(11) UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`account`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Tutorial System' ROW_FORMAT=DYNAMIC;
+
 --
 -- Indexes for dumped tables
 --

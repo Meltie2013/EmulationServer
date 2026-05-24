@@ -63,6 +63,14 @@ public sealed class WorldPacketReader
         return value;
     }
 
+    public float ReadFloat()
+    {
+        EnsureAvailable(4);
+        float value = BinaryPrimitives.ReadSingleLittleEndian(_buffer.AsSpan(_offset, 4));
+        _offset += 4;
+        return value;
+    }
+
     public byte[] ReadBytes(int length)
     {
         EnsureAvailable(length);

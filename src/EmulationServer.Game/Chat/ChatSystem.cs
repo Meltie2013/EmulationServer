@@ -59,6 +59,98 @@ public sealed class ChatSystem
         return NormalizeChannelName(gameData.ChatData.ResolveChannelName(channelName, zoneName));
     }
 
+    public ChatIncomingMessage NormalizeIncomingMessage(PlayerLoginRecord player, ChatIncomingMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(message);
+
+        ChatMessageType messageType = IsAllowedClientChatType(message.Type)
+            ? message.Type
+            : ChatMessageType.Say;
+
+        ChatLanguage language = ResolveLanguageForPlayer(player, message.Language);
+        string target = message.Target.Trim();
+        string text = message.Text.Trim();
+
+        if (messageType == ChatMessageType.Channel)
+        {
+            target = ResolveChannelName(player, target);
+        }
+
+        return message with
+        {
+            Type = messageType,
+            Language = language,
+            Target = target,
+            Text = text,
+        };
+    }
+
+    public ChatLanguage ResolveLanguageForPlayer(PlayerLoginRecord player, ChatLanguage requestedLanguage)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        if (requestedLanguage == ChatLanguage.Universal)
+        {
+            return GetDefaultLanguage(player);
+        }
+
+        WorldGameDataStore gameData = _gameDataAccessor();
+        if (gameData.LanguageData.IsKnownLanguage(unchecked((int)requestedLanguage)))
+        {
+            return requestedLanguage;
+        }
+
+        Logger.Write(
+            LogType.WARNING,
+            $"Player '{player.Name}' attempted to chat with unknown language {(uint)requestedLanguage}; falling back to default faction language.",
+            nameof(ChatSystem));
+
+        return GetDefaultLanguage(player);
+    }
+
+    public ChatLanguage GetDefaultLanguage(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        return player.Faction == PlayerFaction.Alliance
+            ? ChatLanguage.Common
+            : ChatLanguage.Orcish;
+    }
+
+    public uint ResolveChannelFlags(PlayerLoginRecord player, string channelName)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        WorldGameDataStore gameData = _gameDataAccessor();
+        string zoneName = ResolveZoneName(gameData, player);
+        int flags = gameData.ChatData.ResolveChannelFlags(channelName, zoneName);
+        return unchecked((uint)flags);
+    }
+
+    public uint ResolveChannelPlayerRank(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        // MaNGOS sends the player's channel rank before the sender GUID for CHAT_MSG_CHANNEL.
+        // Rank management is not implemented yet, so every joined player is a normal member.
+        return 0;
+    }
+
+    private static bool IsAllowedClientChatType(ChatMessageType messageType)
+    {
+        return messageType is
+            ChatMessageType.Say or
+            ChatMessageType.Party or
+            ChatMessageType.Raid or
+            ChatMessageType.Guild or
+            ChatMessageType.Officer or
+            ChatMessageType.Yell or
+            ChatMessageType.Whisper or
+            ChatMessageType.Emote or
+            ChatMessageType.Channel;
+    }
+
     public IReadOnlyList<IChatSession> GetRecipients(
         IChatSession sender,
         ChatIncomingMessage message,

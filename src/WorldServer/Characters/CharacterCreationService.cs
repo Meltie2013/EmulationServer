@@ -117,7 +117,7 @@ public sealed partial class CharacterCreationService
             return CharacterCreateResult.Failed;
         }
 
-        IReadOnlyList<StarterItemCreateData> starterItems = ResolveStarterItems(outfit, worldTemplates);
+        IReadOnlyList<StarterItemCreateData> starterItems = ResolveStarterItems(request.Race, request.Class, outfit, worldTemplates);
 
         try
         {
@@ -242,9 +242,17 @@ public sealed partial class CharacterCreationService
     }
 
     private static IReadOnlyList<StarterItemCreateData> ResolveStarterItems(
+        byte race,
+        byte characterClass,
         CharStartOutfitDbcRecord outfit,
         WorldTemplateDataStore worldTemplates)
     {
+        IReadOnlyList<PlayerCreateItemRecord> databaseStarterItems = worldTemplates.GetPlayerCreateItems(race, characterClass);
+        if (databaseStarterItems.Count != 0)
+        {
+            return ResolveStarterItemsFromWorldTable(databaseStarterItems, worldTemplates);
+        }
+
         uint[] itemEntries = outfit.Items
             .Where(item => item.ItemId > 0)
             .Select(item => (uint)item.ItemId)
@@ -270,31 +278,87 @@ public sealed partial class CharacterCreationService
             }
 
             byte inventoryType = ResolveInventoryType(item, template);
-            int equipmentSlot = MapInventoryTypeToEquipmentSlot(inventoryType);
-            int storageSlot;
-
-            if (equipmentSlot != NoEquipmentSlot)
-            {
-                storageSlot = equipmentSlot;
-            }
-            else if (inventoryType == 18 && nextBagSlot <= LastBagSlot)
-            {
-                storageSlot = nextBagSlot++;
-            }
-            else if (nextBackpackSlot <= LastBackpackSlot)
-            {
-                storageSlot = nextBackpackSlot++;
-            }
-            else
+            if (!TryAddStarterItem(result, template, inventoryType, ref nextBackpackSlot, ref nextBagSlot))
             {
                 Logger.Write(LogType.WARNING, $"Starter outfit item {entry} could not be placed because the backpack starter slots are full.", nameof(CharacterCreationService));
-                continue;
             }
-
-            result.Add(new StarterItemCreateData(template, (byte)storageSlot, equipmentSlot));
         }
 
         return result;
+    }
+
+    private static IReadOnlyList<StarterItemCreateData> ResolveStarterItemsFromWorldTable(
+        IReadOnlyList<PlayerCreateItemRecord> starterItems,
+        WorldTemplateDataStore worldTemplates)
+    {
+        uint[] itemEntries = starterItems
+            .Where(item => item.ItemId != 0)
+            .Select(item => item.ItemId)
+            .ToArray();
+
+        IReadOnlyDictionary<uint, ItemTemplateRecord> templates = worldTemplates.GetItemTemplates(itemEntries);
+        List<StarterItemCreateData> result = [];
+        int nextBackpackSlot = FirstBackpackSlot;
+        int nextBagSlot = FirstBagSlot;
+
+        foreach (PlayerCreateItemRecord item in starterItems)
+        {
+            if (item.ItemId == 0)
+            {
+                continue;
+            }
+
+            if (!templates.TryGetValue(item.ItemId, out ItemTemplateRecord? template))
+            {
+                Logger.Write(LogType.WARNING, $"playercreateinfo_item entry {item.ItemId} is missing from item_template and will be skipped.", nameof(CharacterCreationService));
+                continue;
+            }
+
+            byte amount = item.Amount == 0 ? (byte)1 : item.Amount;
+            for (byte index = 0; index < amount; index++)
+            {
+                if (!TryAddStarterItem(result, template, template.InventoryType, ref nextBackpackSlot, ref nextBagSlot))
+                {
+                    Logger.Write(LogType.WARNING, $"playercreateinfo_item entry {item.ItemId} could not be placed because the backpack starter slots are full.", nameof(CharacterCreationService));
+                    break;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static bool TryAddStarterItem(
+        List<StarterItemCreateData> result,
+        ItemTemplateRecord template,
+        byte inventoryType,
+        ref int nextBackpackSlot,
+        ref int nextBagSlot)
+    {
+        int equipmentSlot = MapInventoryTypeToEquipmentSlot(inventoryType);
+        int storageSlot;
+
+        if (equipmentSlot != NoEquipmentSlot && result.All(item => item.EquipmentSlot != equipmentSlot))
+        {
+            storageSlot = equipmentSlot;
+        }
+        else if (inventoryType == 18 && nextBagSlot <= LastBagSlot)
+        {
+            storageSlot = nextBagSlot++;
+            equipmentSlot = NoEquipmentSlot;
+        }
+        else if (nextBackpackSlot <= LastBackpackSlot)
+        {
+            storageSlot = nextBackpackSlot++;
+            equipmentSlot = NoEquipmentSlot;
+        }
+        else
+        {
+            return false;
+        }
+
+        result.Add(new StarterItemCreateData(template, (byte)storageSlot, equipmentSlot));
+        return true;
     }
 
     private static byte ResolveInventoryType(CharStartOutfitItemDbcRecord item, ItemTemplateRecord template)

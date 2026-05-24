@@ -103,6 +103,28 @@ public sealed class ChatChannelDbcDataStore
         return safeRequestedName.Replace("%s", safeZoneName, StringComparison.OrdinalIgnoreCase);
     }
 
+    public int ResolveChannelFlags(string requestedName, string zoneName)
+    {
+        string safeRequestedName = string.IsNullOrWhiteSpace(requestedName) ? "General" : requestedName.Trim();
+        string safeZoneName = string.IsNullOrWhiteSpace(zoneName) ? "Local" : zoneName.Trim();
+
+        if (_recordsByShortcut.TryGetValue(safeRequestedName, out ChatChannelDbcRecord? shortcutRecord))
+        {
+            return shortcutRecord.Flags;
+        }
+
+        foreach (ChatChannelDbcRecord record in Records.Values)
+        {
+            string formattedName = FormatChannelName(record, safeZoneName);
+            if (string.Equals(formattedName, safeRequestedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return record.Flags;
+            }
+        }
+
+        return 0;
+    }
+
     private static ChatChannelDbcRecord ReadRecord(DbcRecord record)
     {
         return new ChatChannelDbcRecord(

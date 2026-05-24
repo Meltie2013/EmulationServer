@@ -17,6 +17,7 @@
 //
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using EmulationServer.Core.Servers;
@@ -56,6 +57,7 @@ public sealed class InstanceServer : IAsyncDisposable
     private MapServiceManager? _instanceServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly MapPlayerTracker _playerTracker = new();
     /**
       * Stores the world capacity limit dependency or runtime value for InstanceServer.
       * The field is kept private so all updates can be controlled through the owning type and its synchronization rules.
@@ -315,7 +317,7 @@ public sealed class InstanceServer : IAsyncDisposable
     /**
       * Handles player routing notifications from WorldServer while the client socket stays owned by WorldServer.
       */
-    private static bool HandlePlayerRoutingPacket(string remoteServerName, string packet)
+    private bool HandlePlayerRoutingPacket(string remoteServerName, string packet)
     {
         if (string.IsNullOrWhiteSpace(packet))
         {
@@ -330,23 +332,124 @@ public sealed class InstanceServer : IAsyncDisposable
 
         if (string.Equals(parts[0], InternalProtocol.PlayerEnterWorld, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.NETWORK, $"InstanceServer received player enter-world route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            if (TryReadPlayerEnterRoute(parts, out MapPlayerRuntimeState? state))
+            {
+                _playerTracker.PlayerEntered(state);
+                Logger.Write(LogType.NETWORK, $"InstanceServer tracked player '{state.Name}' ({state.Guid}) entering map={state.Map}, zone={state.Zone} from {remoteServerName}. Active players={_playerTracker.ActivePlayerCount}.", nameof(InstanceServer));
+            }
+            else
+            {
+                Logger.Write(LogType.WARNING, $"InstanceServer received invalid player enter-world route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            }
+
             return true;
         }
 
         if (string.Equals(parts[0], InternalProtocol.PlayerLeaveWorld, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.NETWORK, $"InstanceServer received player leave-world route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            uint guid = parts.Length > 2 && uint.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint parsedGuid)
+                ? parsedGuid
+                : 0;
+
+            bool removed = guid != 0 && _playerTracker.PlayerLeft(guid);
+            Logger.Write(LogType.NETWORK, $"InstanceServer tracked player leave-world route from {remoteServerName}: guid={(guid == 0 ? "unknown" : guid.ToString(CultureInfo.InvariantCulture))}, removed={removed}, active players={_playerTracker.ActivePlayerCount}.", nameof(InstanceServer));
+            return true;
+        }
+
+        if (string.Equals(parts[0], InternalProtocol.PlayerMovement, StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryReadPlayerMovementRoute(parts, out uint accountId, out uint guid, out ushort opcode, out uint map, out uint zone, out float x, out float y, out float z, out float orientation, out uint flags, out uint clientTime))
+            {
+                MapPlayerRuntimeState state = _playerTracker.PlayerMoved(accountId, guid, map, zone, x, y, z, orientation, opcode, flags, clientTime);
+                Logger.Write(LogType.TRACE, $"InstanceServer updated movement for guid={state.Guid}: opcode=0x{state.LastMovementOpcode:X4}, map={state.Map}, zone={state.Zone}, position=({state.PositionX:0.##}, {state.PositionY:0.##}, {state.PositionZ:0.##}), active players={_playerTracker.ActivePlayerCount}.", nameof(InstanceServer));
+            }
+            else
+            {
+                Logger.Write(LogType.WARNING, $"InstanceServer received invalid player movement route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            }
+
             return true;
         }
 
         if (string.Equals(parts[0], InternalProtocol.PlayerClientPacket, StringComparison.OrdinalIgnoreCase))
         {
-            Logger.Write(LogType.TRACE, $"InstanceServer received player client-packet route from {remoteServerName}: {packet}", nameof(InstanceServer));
+            string opcode = parts.Length > 3 ? parts[3] : "unknown";
+            int payloadBytes = parts.Length > 4 ? parts[4].Length / 2 : 0;
+            Logger.Write(LogType.TRACE, $"InstanceServer received player client-packet route from {remoteServerName}: account={(parts.Length > 1 ? parts[1] : "unknown")}, guid={(parts.Length > 2 ? parts[2] : "unknown")}, opcode={opcode}, payload={payloadBytes} byte(s).", nameof(InstanceServer));
             return true;
         }
 
         return false;
+    }
+
+    private static bool TryReadPlayerEnterRoute(string[] parts, [NotNullWhen(true)] out MapPlayerRuntimeState? state)
+    {
+        state = null;
+        if (parts.Length < 10 ||
+            !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint accountId) ||
+            !uint.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint guid) ||
+            !uint.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint map) ||
+            !uint.TryParse(parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint zone) ||
+            !float.TryParse(parts[6], NumberStyles.Float, CultureInfo.InvariantCulture, out float x) ||
+            !float.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out float y) ||
+            !float.TryParse(parts[8], NumberStyles.Float, CultureInfo.InvariantCulture, out float z) ||
+            !float.TryParse(parts[9], NumberStyles.Float, CultureInfo.InvariantCulture, out float orientation))
+        {
+            return false;
+        }
+
+        state = new MapPlayerRuntimeState(accountId, guid, parts[3], map, zone, x, y, z, orientation, 0, 0, 0, DateTimeOffset.UtcNow);
+        return true;
+    }
+
+    private static bool TryReadPlayerMovementRoute(
+        string[] parts,
+        out uint accountId,
+        out uint guid,
+        out ushort opcode,
+        out uint map,
+        out uint zone,
+        out float x,
+        out float y,
+        out float z,
+        out float orientation,
+        out uint flags,
+        out uint clientTime)
+    {
+        accountId = 0;
+        guid = 0;
+        opcode = 0;
+        map = 0;
+        zone = 0;
+        x = 0;
+        y = 0;
+        z = 0;
+        orientation = 0;
+        flags = 0;
+        clientTime = 0;
+
+        return parts.Length >= 12 &&
+            uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out accountId) &&
+            uint.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out guid) &&
+            TryParseOpcode(parts[3], out opcode) &&
+            uint.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out map) &&
+            uint.TryParse(parts[5], NumberStyles.Integer, CultureInfo.InvariantCulture, out zone) &&
+            float.TryParse(parts[6], NumberStyles.Float, CultureInfo.InvariantCulture, out x) &&
+            float.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out y) &&
+            float.TryParse(parts[8], NumberStyles.Float, CultureInfo.InvariantCulture, out z) &&
+            float.TryParse(parts[9], NumberStyles.Float, CultureInfo.InvariantCulture, out orientation) &&
+            uint.TryParse(parts[10], NumberStyles.Integer, CultureInfo.InvariantCulture, out flags) &&
+            uint.TryParse(parts[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out clientTime);
+    }
+
+    private static bool TryParseOpcode(string value, out ushort opcode)
+    {
+        if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return ushort.TryParse(value[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out opcode);
+        }
+
+        return ushort.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out opcode);
     }
 
     /**

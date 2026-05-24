@@ -24,4 +24,10 @@ public sealed record PlayerInventoryItem(
     uint TemplateEntry,
     uint BagGuid,
     byte Slot,
-    string InstanceData);
+    string InstanceData,
+    byte InventoryType,
+    uint DisplayId,
+    uint EnchantmentId)
+{
+    public bool IsEquipped => BagGuid == 0 && Slot < 19;
+}

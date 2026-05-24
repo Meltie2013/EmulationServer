@@ -16,16 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.Game.Data.Dbc.Chat;
+namespace EmulationServer.Game.Maps.Runtime;
 
-public static class ChatDbcFileNames
-{
-    public const string ChatChannels = "ChatChannels.dbc";
-    public const string Languages = "Languages.dbc";
-
-    public static IReadOnlyList<string> CoreChatDbcFiles { get; } =
-    [
-        ChatChannels,
-        Languages,
-    ];
-}
+public sealed record MapPlayerRuntimeState(
+    uint AccountId,
+    uint Guid,
+    string Name,
+    uint Map,
+    uint Zone,
+    float PositionX,
+    float PositionY,
+    float PositionZ,
+    float Orientation,
+    ushort LastMovementOpcode,
+    uint MovementFlags,
+    uint ClientMovementTime,
+    DateTimeOffset LastUpdatedUtc);

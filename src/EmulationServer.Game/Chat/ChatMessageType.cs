@@ -27,6 +27,11 @@ public enum ChatMessageType : uint
     Officer = 4,
     Yell = 5,
     Whisper = 6,
+    WhisperInform = 7,
+    Emote = 8,
+    TextEmote = 9,
     System = 10,
+    RaidLeader = 11,
+    RaidWarning = 12,
     Channel = 17,
 }

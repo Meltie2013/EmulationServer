@@ -16,16 +16,11 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.Game.Data.Dbc.Chat;
+namespace EmulationServer.Game.WorldData;
 
-public static class ChatDbcFileNames
-{
-    public const string ChatChannels = "ChatChannels.dbc";
-    public const string Languages = "Languages.dbc";
-
-    public static IReadOnlyList<string> CoreChatDbcFiles { get; } =
-    [
-        ChatChannels,
-        Languages,
-    ];
-}
+public sealed record PlayerCreateActionRecord(
+    byte Race,
+    byte Class,
+    byte Button,
+    uint Action,
+    byte Type);

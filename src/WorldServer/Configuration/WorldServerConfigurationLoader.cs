@@ -62,6 +62,7 @@ public static class WorldServerConfigurationLoader
                 5002),
             MaxConnections = configuration.GetInt(WorldServerSection, "MaxConnections", 1000, minimum: 1),
             MessageOfTheDay = configuration.GetString(WorldServerSection, "MessageOfTheDay", "Welcome to Emulation Server."),
+            PlayerSaveInterval = configuration.GetTimeSpan(WorldServerSection, "PlayerSaveInterval", TimeSpan.FromSeconds(60)),
             Database = ServerConfigurationLoader.LoadDatabaseSettings(configuration),
             Databases = LoadWorldDatabaseSettings(configuration),
             ClientNetwork = LoadWorldClientSettings(configuration),

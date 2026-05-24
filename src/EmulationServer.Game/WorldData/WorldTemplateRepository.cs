@@ -33,12 +33,26 @@ public sealed class WorldTemplateRepository
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
     }
 
-
     public async Task<WorldTemplateDataStore> LoadAsync(CancellationToken cancellationToken = default)
     {
         IReadOnlyList<PlayerCreateInfoRecord> playerCreateInfo = await LoadPlayerCreateInfoAsync(cancellationToken);
         IReadOnlyList<ItemTemplateRecord> itemTemplates = await LoadItemTemplatesAsync(cancellationToken);
-        return new WorldTemplateDataStore(playerCreateInfo, itemTemplates);
+        IReadOnlyList<PlayerLevelStatsRecord> playerLevelStats = await LoadPlayerLevelStatsAsync(cancellationToken);
+        IReadOnlyList<PlayerClassLevelStatsRecord> playerClassLevelStats = await LoadPlayerClassLevelStatsAsync(cancellationToken);
+        IReadOnlyList<PlayerLevelExperienceRecord> playerLevelExperience = await LoadPlayerLevelExperienceAsync(cancellationToken);
+        IReadOnlyList<PlayerCreateActionRecord> playerCreateActions = await LoadPlayerCreateActionsAsync(cancellationToken);
+        IReadOnlyList<PlayerCreateItemRecord> playerCreateItems = await LoadPlayerCreateItemsAsync(cancellationToken);
+        IReadOnlyList<PlayerCreateSpellRecord> playerCreateSpells = await LoadPlayerCreateSpellsAsync(cancellationToken);
+
+        return new WorldTemplateDataStore(
+            playerCreateInfo,
+            itemTemplates,
+            playerLevelStats,
+            playerClassLevelStats,
+            playerLevelExperience,
+            playerCreateActions,
+            playerCreateItems,
+            playerCreateSpells);
     }
 
     public async Task<IReadOnlyList<PlayerCreateInfoRecord>> LoadPlayerCreateInfoAsync(CancellationToken cancellationToken = default)
@@ -92,6 +106,177 @@ public sealed class WorldTemplateRepository
                 Convert.ToUInt32(reader.GetValue(5), CultureInfo.InvariantCulture),
                 Convert.ToByte(reader.GetValue(6), CultureInfo.InvariantCulture),
                 Convert.ToUInt32(reader.GetValue(7), CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
+
+    public async Task<IReadOnlyList<PlayerLevelStatsRecord>> LoadPlayerLevelStatsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "player_levelstats", cancellationToken))
+        {
+            return Array.Empty<PlayerLevelStatsRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `race`, `class`, `level`, `str`, `agi`, `sta`, `inte`, `spi`
+            FROM `player_levelstats`;
+            """;
+
+        List<PlayerLevelStatsRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(new PlayerLevelStatsRecord(
+                Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(4), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(5), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(6), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(7), CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
+
+    public async Task<IReadOnlyList<PlayerClassLevelStatsRecord>> LoadPlayerClassLevelStatsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "player_classlevelstats", cancellationToken))
+        {
+            return Array.Empty<PlayerClassLevelStatsRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `class`, `level`, `basehp`, `basemana`
+            FROM `player_classlevelstats`;
+            """;
+
+        List<PlayerClassLevelStatsRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(new PlayerClassLevelStatsRecord(
+                Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
+
+    public async Task<IReadOnlyList<PlayerLevelExperienceRecord>> LoadPlayerLevelExperienceAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "player_xp_for_level", cancellationToken))
+        {
+            return Array.Empty<PlayerLevelExperienceRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `lvl`, `xp_for_next_level`
+            FROM `player_xp_for_level`;
+            """;
+
+        List<PlayerLevelExperienceRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(new PlayerLevelExperienceRecord(
+                Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
+
+    public async Task<IReadOnlyList<PlayerCreateActionRecord>> LoadPlayerCreateActionsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "playercreateinfo_action", cancellationToken))
+        {
+            return Array.Empty<PlayerCreateActionRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `race`, `class`, `button`, `action`, `type`
+            FROM `playercreateinfo_action`;
+            """;
+
+        List<PlayerCreateActionRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(new PlayerCreateActionRecord(
+                Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
+
+    public async Task<IReadOnlyList<PlayerCreateItemRecord>> LoadPlayerCreateItemsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "playercreateinfo_item", cancellationToken))
+        {
+            return Array.Empty<PlayerCreateItemRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `race`, `class`, `itemid`, `amount`
+            FROM `playercreateinfo_item`;
+            """;
+
+        List<PlayerCreateItemRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(new PlayerCreateItemRecord(
+                Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(3), CultureInfo.InvariantCulture)));
+        }
+
+        return records;
+    }
+
+    public async Task<IReadOnlyList<PlayerCreateSpellRecord>> LoadPlayerCreateSpellsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "playercreateinfo_spell", cancellationToken))
+        {
+            return Array.Empty<PlayerCreateSpellRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `race`, `class`, `Spell`, `Note`
+            FROM `playercreateinfo_spell`;
+            """;
+
+        List<PlayerCreateSpellRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(new PlayerCreateSpellRecord(
+                Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToByte(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3)));
         }
 
         return records;
@@ -171,5 +356,21 @@ public sealed class WorldTemplateRepository
         }
 
         return result;
+    }
+
+    private static async Task<bool> TableExistsAsync(MySqlConnection connection, string tableName, CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT 1
+            FROM `information_schema`.`TABLES`
+            WHERE `TABLE_SCHEMA` = DATABASE()
+              AND `TABLE_NAME` = @tableName
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@tableName", tableName);
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null;
     }
 }

@@ -22,6 +22,7 @@
   * The comments in this file describe ownership, lifecycle, validation, and protocol responsibilities so future contributors can understand the code before changing it.
   */
 
+using EmulationServer.Game.Data.Dbc.Chat;
 using EmulationServer.Game.Data.Dbc.Characters;
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Data.Dbc.Items;
@@ -81,10 +82,12 @@ public sealed class GameDataSettings
         // Race/faction defaults and hostile/friendly faction templates.
         ..FactionDbcFileNames.CoreFactionDbcFiles,
 
+        // Chat channel templates and player language names used by world chat routing.
+        ..ChatDbcFileNames.CoreChatDbcFiles,
+
         // Additional vanilla global DBCs that will be needed by character/account systems soon.
         "AuctionHouse.dbc",
         "BankBagSlotPrices.dbc",
-        "ChatChannels.dbc",
         "CinematicSequences.dbc",
         "DurabilityCosts.dbc",
         "DurabilityQuality.dbc",

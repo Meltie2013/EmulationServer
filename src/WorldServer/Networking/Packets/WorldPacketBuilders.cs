@@ -18,6 +18,7 @@
 
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using System.Globalization;
 
 using EmulationServer.Game.Characters;
@@ -264,15 +265,18 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    public static byte[] BuildTutorialFlags()
+    public static byte[] BuildTutorialFlags(PlayerLoginRecord player)
     {
-        WorldPacketWriter writer = new();
+        ArgumentNullException.ThrowIfNull(player);
 
-        // Vanilla expects eight tutorial flag blocks after SMSG_LOGIN_VERIFY_WORLD.
-        // All bits set tells the client every tutorial has already been seen.
+        WorldPacketWriter writer = new();
+        uint[] flags = player.TutorialFlags.Length == 8
+            ? player.TutorialFlags
+            : Enumerable.Repeat(uint.MaxValue, 8).ToArray();
+
         for (int index = 0; index < 8; index++)
         {
-            writer.WriteUInt32(uint.MaxValue);
+            writer.WriteUInt32(flags[index]);
         }
 
         return writer.ToArray();
@@ -282,11 +286,16 @@ public static class WorldPacketBuilders
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        // Keep the first world-entry object update conservative. The 1.12
-        // client is very sensitive to malformed item create blocks during
-        // CMSG_PLAYER_LOGIN. Equipment/inventory will be restored in a separate
-        // verified update path once the item field masks are fully validated.
-        PlayerInventoryItem[] visibleInventory = [];
+        // Keep world entry to one player create-object block, but include the
+        // Vanilla visible-item fields for equipped items. This lets the client
+        // render the character's worn equipment without creating separate item
+        // objects during the fragile login transition.
+        PlayerInventoryItem[] visibleInventory = player.Inventory
+            .Where(item => item.IsEquipped && item.TemplateEntry != 0)
+            .GroupBy(item => item.Slot)
+            .Select(group => group.First())
+            .OrderBy(item => item.Slot)
+            .ToArray();
 
         WorldPacketWriter writer = new();
         writer.WriteUInt32(1); // amount_of_objects
@@ -365,7 +374,8 @@ public static class WorldPacketBuilders
         const int PlayerBytes = 0x00C1;
         const int PlayerBytes2 = 0x00C2;
         const int PlayerBytes3 = 0x00C3;
-        const int PlayerFieldInvSlotHead = 0x01E6;
+        const int PlayerVisibleItem1Item0 = 0x0104;
+        const int PlayerVisibleItemFieldCount = 12;
         const int PlayerXp = 0x02CC;
         const int PlayerNextLevelXp = 0x02CD;
         const int PlayerRestStateExperience = 0x0497;
@@ -451,14 +461,26 @@ public static class WorldPacketBuilders
 
         foreach (PlayerInventoryItem item in visibleInventory)
         {
-            int fieldIndex = PlayerFieldInvSlotHead + (item.Slot * 2);
-            ulong itemClientGuid = CharacterGuid.ToClientGuid(item.ItemGuid);
-            fields[fieldIndex] = (uint)(itemClientGuid & uint.MaxValue);
-            fields[fieldIndex + 1] = (uint)(itemClientGuid >> 32);
+            if (item.Slot >= CharacterEquipmentSlotCount)
+            {
+                continue;
+            }
+
+            int visibleItemBase = PlayerVisibleItem1Item0 + (item.Slot * PlayerVisibleItemFieldCount);
+            fields[visibleItemBase] = item.TemplateEntry;
+            if (item.EnchantmentId != 0)
+            {
+                fields[visibleItemBase + 1] = item.EnchantmentId;
+            }
+
+            // The inventory slot GUID fields are intentionally not written in
+            // the initial player create block yet. They require matching item
+            // object updates, and malformed item object updates were causing
+            // Vanilla clients to crash during CMSG_PLAYER_LOGIN.
         }
 
         fields[PlayerXp] = player.Experience;
-        fields[PlayerNextLevelXp] = BuildNextLevelExperience(player.Level);
+        fields[PlayerNextLevelXp] = player.NextLevelExperience == 0 ? BuildNextLevelExperience(player.Level) : player.NextLevelExperience;
         fields[PlayerRestStateExperience] = 0;
         fields[PlayerFieldCoinage] = player.Money;
         for (int index = 0; index < 5; index++)
@@ -565,6 +587,15 @@ public static class WorldPacketBuilders
         {
             writer.WriteUInt32(field.Value);
         }
+    }
+
+
+    public static byte[] BuildMovementBroadcast(ulong clientGuid, ReadOnlySpan<byte> clientMovementPayload)
+    {
+        WorldPacketWriter writer = new();
+        WritePackedGuid(writer, clientGuid);
+        writer.WriteBytes(clientMovementPayload);
+        return writer.ToArray();
     }
 
     private static void WritePackedGuid(WorldPacketWriter writer, ulong guid)
@@ -691,7 +722,7 @@ public static class WorldPacketBuilders
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        ushort[] spellIds = GetInitialSpellIds(player).ToArray();
+        ushort[] spellIds = GetLoginSpellIds(player).ToArray();
         WorldPacketWriter writer = new();
         writer.WriteUInt8(0); // MaNGOS Zero sends zero here for Vanilla.
         writer.WriteUInt16((ushort)spellIds.Length);
@@ -709,16 +740,72 @@ public static class WorldPacketBuilders
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        ushort[] starterSpells = GetStarterActionButtonSpellIds(player.Class).ToArray();
-        WorldPacketWriter writer = new();
-        for (int index = 0; index < 120; index++)
+        uint[] buttons = new uint[120];
+        if (player.ActionButtons.Count != 0)
         {
-            writer.WriteUInt32(index < starterSpells.Length ? starterSpells[index] : 0u);
+            foreach (PlayerActionButton actionButton in player.ActionButtons)
+            {
+                if (actionButton.Button < buttons.Length)
+                {
+                    buttons[actionButton.Button] = actionButton.PackedValue;
+                }
+            }
+        }
+        else
+        {
+            ushort[] starterSpells = GetStarterActionButtonSpellIds(player.Class).ToArray();
+            for (int index = 0; index < starterSpells.Length && index < buttons.Length; index++)
+            {
+                buttons[index] = starterSpells[index];
+            }
+        }
+
+        WorldPacketWriter writer = new();
+        for (int index = 0; index < buttons.Length; index++)
+        {
+            writer.WriteUInt32(buttons[index]);
         }
 
         return writer.ToArray();
     }
 
+
+    private static IEnumerable<ushort> GetLoginSpellIds(PlayerLoginRecord player)
+    {
+        SortedSet<ushort> spellIds = [];
+        foreach (PlayerSpell spell in player.Spells)
+        {
+            if (!spell.Active || spell.Disabled || spell.SpellId == 0 || spell.SpellId > ushort.MaxValue)
+            {
+                continue;
+            }
+
+            spellIds.Add((ushort)spell.SpellId);
+        }
+
+        if (spellIds.Count == 0)
+        {
+            foreach (ushort fallbackSpell in GetInitialSpellIds(player))
+            {
+                spellIds.Add(fallbackSpell);
+            }
+        }
+        else
+        {
+            foreach (ushort languageSpell in GetLanguageSpellIds(player.Race, player.Faction))
+            {
+                spellIds.Add(languageSpell);
+            }
+
+            spellIds.Add(81);   // Dodge
+            spellIds.Add(203);  // Unarmed
+            spellIds.Add(204);  // Defense
+            spellIds.Add(522);  // SPELLDEFENSE client bookkeeping spell
+            spellIds.Add(6603); // Auto Attack
+        }
+
+        return spellIds;
+    }
 
     private static IEnumerable<ushort> GetInitialSpellIds(PlayerLoginRecord player)
     {
@@ -915,23 +1002,37 @@ public static class WorldPacketBuilders
         ulong senderGuid,
         string senderName,
         string text,
-        string channelName = "")
+        string channelName = "",
+        byte chatTag = 0,
+        uint channelPlayerRank = 0)
     {
         WorldPacketWriter writer = new();
         writer.WriteUInt8((byte)messageType);
         writer.WriteUInt32((uint)language);
 
-        if (messageType == ChatMessageType.Channel)
+        switch (messageType)
         {
-            writer.WriteCString(channelName);
+            case ChatMessageType.Say:
+            case ChatMessageType.Party:
+            case ChatMessageType.Yell:
+                writer.WriteUInt64(senderGuid);
+                writer.WriteUInt64(senderGuid);
+                break;
+
+            case ChatMessageType.Channel:
+                writer.WriteCString(channelName);
+                writer.WriteUInt32(channelPlayerRank);
+                writer.WriteUInt64(senderGuid);
+                break;
+
+            default:
+                writer.WriteUInt64(senderGuid);
+                break;
         }
 
-        writer.WriteUInt64(senderGuid);
-        writer.WriteUInt32(0);
-        writer.WriteUInt64(senderGuid);
-        writer.WriteUInt32((uint)(text.Length + 1));
+        writer.WriteUInt32((uint)(Encoding.UTF8.GetByteCount(text) + 1));
         writer.WriteCString(text);
-        writer.WriteUInt8(0);
+        writer.WriteUInt8(chatTag);
         _ = senderName;
         return writer.ToArray();
     }
@@ -985,21 +1086,29 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    public static byte[] BuildChannelNotify(byte notificationType, string channelName)
+    public static byte[] BuildChannelNotify(byte notificationType, string channelName, uint channelFlags = 0)
     {
         WorldPacketWriter writer = new();
         writer.WriteUInt8(notificationType);
         writer.WriteCString(channelName);
+
+        if (notificationType == 0x02) // YOU_JOINED
+        {
+            writer.WriteUInt32(channelFlags);
+            writer.WriteUInt32(0);
+            writer.WriteUInt8(0);
+        }
+
         return writer.ToArray();
     }
 
-    public static byte[] BuildChannelList(string channelName, IReadOnlyList<PlayerLoginRecord> members)
+    public static byte[] BuildChannelList(string channelName, IReadOnlyList<PlayerLoginRecord> members, uint channelFlags = 0)
     {
         ArgumentNullException.ThrowIfNull(members);
 
         WorldPacketWriter writer = new();
         writer.WriteCString(channelName);
-        writer.WriteUInt8(0); // normal channel flags
+        writer.WriteUInt8((byte)(channelFlags & 0xFF));
         writer.WriteUInt32((uint)members.Count);
         foreach (PlayerLoginRecord member in members)
         {

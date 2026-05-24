@@ -42,7 +42,13 @@ public sealed record PlayerLoginRecord(
     uint TotalTime,
     uint LevelTime,
     PlayerStats Stats,
+    uint NextLevelExperience,
     IReadOnlyList<PlayerInventoryItem> Inventory,
+    IReadOnlyList<PlayerSpell> Spells,
+    IReadOnlyList<PlayerActionButton> ActionButtons,
+    uint[] TutorialFlags,
+    IReadOnlyList<PlayerReputation> Reputations,
+    IReadOnlyList<PlayerSkill> Skills,
     PlayerFaction Faction)
 {
     public ulong ClientGuid => CharacterGuid.ToClientGuid(Guid);

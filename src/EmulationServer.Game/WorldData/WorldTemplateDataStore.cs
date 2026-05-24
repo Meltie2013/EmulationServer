@@ -16,21 +16,49 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Game.Players;
+
 namespace EmulationServer.Game.WorldData;
 
 public sealed class WorldTemplateDataStore
 {
-    public static WorldTemplateDataStore Empty { get; } = new([], []);
+    public static WorldTemplateDataStore Empty { get; } = new(
+        Array.Empty<PlayerCreateInfoRecord>(),
+        Array.Empty<ItemTemplateRecord>(),
+        Array.Empty<PlayerLevelStatsRecord>(),
+        Array.Empty<PlayerClassLevelStatsRecord>(),
+        Array.Empty<PlayerLevelExperienceRecord>(),
+        Array.Empty<PlayerCreateActionRecord>(),
+        Array.Empty<PlayerCreateItemRecord>(),
+        Array.Empty<PlayerCreateSpellRecord>());
 
     private readonly Dictionary<(byte Race, byte Class), PlayerCreateInfoRecord> _playerCreateInfo;
     private readonly Dictionary<uint, ItemTemplateRecord> _itemTemplates;
+    private readonly Dictionary<(byte Race, byte Class, byte Level), PlayerLevelStatsRecord> _playerLevelStats;
+    private readonly Dictionary<(byte Class, byte Level), PlayerClassLevelStatsRecord> _playerClassLevelStats;
+    private readonly Dictionary<byte, PlayerLevelExperienceRecord> _playerLevelExperience;
+    private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateActionRecord>> _playerCreateActions;
+    private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> _playerCreateItems;
+    private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> _playerCreateSpells;
 
     public WorldTemplateDataStore(
         IEnumerable<PlayerCreateInfoRecord> playerCreateInfo,
-        IEnumerable<ItemTemplateRecord> itemTemplates)
+        IEnumerable<ItemTemplateRecord> itemTemplates,
+        IEnumerable<PlayerLevelStatsRecord> playerLevelStats,
+        IEnumerable<PlayerClassLevelStatsRecord> playerClassLevelStats,
+        IEnumerable<PlayerLevelExperienceRecord> playerLevelExperience,
+        IEnumerable<PlayerCreateActionRecord> playerCreateActions,
+        IEnumerable<PlayerCreateItemRecord> playerCreateItems,
+        IEnumerable<PlayerCreateSpellRecord> playerCreateSpells)
     {
         ArgumentNullException.ThrowIfNull(playerCreateInfo);
         ArgumentNullException.ThrowIfNull(itemTemplates);
+        ArgumentNullException.ThrowIfNull(playerLevelStats);
+        ArgumentNullException.ThrowIfNull(playerClassLevelStats);
+        ArgumentNullException.ThrowIfNull(playerLevelExperience);
+        ArgumentNullException.ThrowIfNull(playerCreateActions);
+        ArgumentNullException.ThrowIfNull(playerCreateItems);
+        ArgumentNullException.ThrowIfNull(playerCreateSpells);
 
         _playerCreateInfo = playerCreateInfo
             .GroupBy(record => (record.Race, record.Class))
@@ -39,11 +67,59 @@ public sealed class WorldTemplateDataStore
         _itemTemplates = itemTemplates
             .GroupBy(record => record.Entry)
             .ToDictionary(group => group.Key, group => group.First());
+
+        _playerLevelStats = playerLevelStats
+            .GroupBy(record => (record.Race, record.Class, record.Level))
+            .ToDictionary(group => group.Key, group => group.First());
+
+        _playerClassLevelStats = playerClassLevelStats
+            .GroupBy(record => (record.Class, record.Level))
+            .ToDictionary(group => group.Key, group => group.First());
+
+        _playerLevelExperience = playerLevelExperience
+            .GroupBy(record => record.Level)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        _playerCreateActions = playerCreateActions
+            .GroupBy(record => (record.Race, record.Class))
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<PlayerCreateActionRecord>)group.OrderBy(record => record.Button).ToArray());
+
+        _playerCreateItems = playerCreateItems
+            .GroupBy(record => (record.Race, record.Class))
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<PlayerCreateItemRecord>)group.ToArray());
+
+        _playerCreateSpells = playerCreateSpells
+            .GroupBy(record => (record.Race, record.Class))
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<PlayerCreateSpellRecord>)group.OrderBy(record => record.SpellId).ToArray());
     }
 
     public IReadOnlyDictionary<(byte Race, byte Class), PlayerCreateInfoRecord> PlayerCreateInfo => _playerCreateInfo;
 
     public IReadOnlyDictionary<uint, ItemTemplateRecord> ItemTemplates => _itemTemplates;
+
+    public IReadOnlyDictionary<(byte Race, byte Class, byte Level), PlayerLevelStatsRecord> PlayerLevelStats => _playerLevelStats;
+
+    public IReadOnlyDictionary<(byte Class, byte Level), PlayerClassLevelStatsRecord> PlayerClassLevelStats => _playerClassLevelStats;
+
+    public IReadOnlyDictionary<byte, PlayerLevelExperienceRecord> PlayerLevelExperience => _playerLevelExperience;
+
+    public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateActionRecord>> PlayerCreateActions => _playerCreateActions;
+
+    public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> PlayerCreateItems => _playerCreateItems;
+
+    public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> PlayerCreateSpells => _playerCreateSpells;
+
+    public int PlayerLevelStatsCount => _playerLevelStats.Count;
+
+    public int PlayerClassLevelStatsCount => _playerClassLevelStats.Count;
+
+    public int PlayerLevelExperienceCount => _playerLevelExperience.Count;
+
+    public int PlayerCreateActionCount => _playerCreateActions.Values.Sum(records => records.Count);
+
+    public int PlayerCreateItemCount => _playerCreateItems.Values.Sum(records => records.Count);
+
+    public int PlayerCreateSpellCount => _playerCreateSpells.Values.Sum(records => records.Count);
 
     public bool TryGetPlayerCreateInfo(byte race, byte characterClass, out PlayerCreateInfoRecord createInfo)
     {
@@ -53,6 +129,76 @@ public sealed class WorldTemplateDataStore
     public bool TryGetItemTemplate(uint entry, out ItemTemplateRecord itemTemplate)
     {
         return _itemTemplates.TryGetValue(entry, out itemTemplate!);
+    }
+
+    public bool TryGetPlayerLevelStats(byte race, byte characterClass, byte level, out PlayerLevelStatsRecord levelStats)
+    {
+        return _playerLevelStats.TryGetValue((race, characterClass, level), out levelStats!);
+    }
+
+    public bool TryGetPlayerClassLevelStats(byte characterClass, byte level, out PlayerClassLevelStatsRecord classLevelStats)
+    {
+        return _playerClassLevelStats.TryGetValue((characterClass, level), out classLevelStats!);
+    }
+
+    public IReadOnlyList<PlayerCreateActionRecord> GetPlayerCreateActions(byte race, byte characterClass)
+    {
+        return _playerCreateActions.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateActionRecord>? records)
+            ? records
+            : Array.Empty<PlayerCreateActionRecord>();
+    }
+
+    public IReadOnlyList<PlayerCreateItemRecord> GetPlayerCreateItems(byte race, byte characterClass)
+    {
+        return _playerCreateItems.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateItemRecord>? records)
+            ? records
+            : Array.Empty<PlayerCreateItemRecord>();
+    }
+
+    public IReadOnlyList<PlayerCreateSpellRecord> GetPlayerCreateSpells(byte race, byte characterClass)
+    {
+        return _playerCreateSpells.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateSpellRecord>? records)
+            ? records
+            : Array.Empty<PlayerCreateSpellRecord>();
+    }
+
+    public uint GetNextLevelExperience(byte level)
+    {
+        byte safeLevel = level == 0 ? (byte)1 : level;
+        if (_playerLevelExperience.TryGetValue(safeLevel, out PlayerLevelExperienceRecord? record) && record.ExperienceForNextLevel != 0)
+        {
+            return record.ExperienceForNextLevel;
+        }
+
+        return BuildFallbackNextLevelExperience(safeLevel);
+    }
+
+    public PlayerStats BuildBasePlayerStats(byte race, byte characterClass, byte level)
+    {
+        byte safeLevel = level == 0 ? (byte)1 : level;
+        uint health = 80 + ((uint)safeLevel * 20u);
+        uint mana = characterClass is 1 or 4 ? 0u : 100 + ((uint)safeLevel * 30u);
+        uint rage = characterClass == 1 ? 1000u : 0u;
+        uint energy = characterClass == 4 ? 100u : 0u;
+        (uint strength, uint agility, uint stamina, uint intellect, uint spirit) = ResolveFallbackAttributes(characterClass, safeLevel);
+
+        if (TryGetPlayerLevelStats(race, characterClass, safeLevel, out PlayerLevelStatsRecord levelStats))
+        {
+            strength = levelStats.Strength;
+            agility = levelStats.Agility;
+            stamina = levelStats.Stamina;
+            intellect = levelStats.Intellect;
+            spirit = levelStats.Spirit;
+        }
+
+        if (TryGetPlayerClassLevelStats(characterClass, safeLevel, out PlayerClassLevelStatsRecord classLevelStats))
+        {
+            health = classLevelStats.BaseHealth == 0 ? health : classLevelStats.BaseHealth;
+            mana = classLevelStats.BaseMana;
+        }
+
+        uint armor = Math.Max(1u, agility * 2u);
+        return new PlayerStats(health, mana, rage, 0, energy, 0, strength, agility, stamina, intellect, spirit, armor);
     }
 
     public IReadOnlyDictionary<uint, ItemTemplateRecord> GetItemTemplates(IEnumerable<uint> itemEntries)
@@ -74,5 +220,49 @@ public sealed class WorldTemplateDataStore
         }
 
         return result;
+    }
+
+    private static uint BuildFallbackNextLevelExperience(byte level)
+    {
+        uint safeLevel = Math.Max((uint)level, 1u);
+        return safeLevel switch
+        {
+            1 => 400,
+            2 => 900,
+            3 => 1400,
+            4 => 2100,
+            5 => 2800,
+            6 => 3600,
+            7 => 4500,
+            8 => 5400,
+            9 => 6500,
+            10 => 7600,
+            _ => 7600 + ((safeLevel - 10) * 1100u),
+        };
+    }
+
+    private static (uint Strength, uint Agility, uint Stamina, uint Intellect, uint Spirit) ResolveFallbackAttributes(byte playerClass, byte level)
+    {
+        (uint strength, uint agility, uint stamina, uint intellect, uint spirit) = playerClass switch
+        {
+            1 => (23u, 20u, 22u, 20u, 20u),
+            2 => (22u, 20u, 22u, 20u, 20u),
+            3 => (20u, 23u, 21u, 20u, 20u),
+            4 => (21u, 24u, 20u, 20u, 20u),
+            5 => (19u, 20u, 20u, 22u, 23u),
+            7 => (21u, 20u, 21u, 21u, 21u),
+            8 => (19u, 20u, 19u, 24u, 22u),
+            9 => (19u, 20u, 21u, 23u, 22u),
+            11 => (21u, 22u, 21u, 22u, 22u),
+            _ => (20u, 20u, 20u, 20u, 20u),
+        };
+
+        uint levelBonus = Math.Max((uint)level, 1u) - 1u;
+        strength += levelBonus;
+        agility += levelBonus;
+        stamina += levelBonus;
+        intellect += playerClass is 1 or 4 ? 0u : levelBonus;
+        spirit += levelBonus;
+        return (strength, agility, stamina, intellect, spirit);
     }
 }

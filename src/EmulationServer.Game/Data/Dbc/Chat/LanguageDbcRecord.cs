@@ -18,14 +18,6 @@
 
 namespace EmulationServer.Game.Data.Dbc.Chat;
 
-public static class ChatDbcFileNames
-{
-    public const string ChatChannels = "ChatChannels.dbc";
-    public const string Languages = "Languages.dbc";
-
-    public static IReadOnlyList<string> CoreChatDbcFiles { get; } =
-    [
-        ChatChannels,
-        Languages,
-    ];
-}
+public sealed record LanguageDbcRecord(
+    int Id,
+    string Name);

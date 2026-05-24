@@ -44,6 +44,7 @@ using EmulationServer.Game.Players;
 using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
 using EmulationServer.WorldServer.Networking.Socket;
 using EmulationServer.Game.WorldData;
+using EmulationServer.Game.Movement;
 
 /**
   * File overview: src/WorldServer/Core/WorldServer.cs
@@ -121,7 +122,8 @@ public sealed class WorldServer : IAsyncDisposable
         _accountRepository = new WorldAccountRepository(_authDatabase);
         _characterRepository = new CharacterRepository(
             _characterDatabase,
-            entry => _worldTemplateData.TryGetItemTemplate(entry, out ItemTemplateRecord itemTemplate) ? itemTemplate : null);
+            entry => _worldTemplateData.TryGetItemTemplate(entry, out ItemTemplateRecord itemTemplate) ? itemTemplate : null,
+            () => _worldTemplateData);
         _worldTemplateRepository = new WorldTemplateRepository(_worldDatabase);
         _characterCreationService = new CharacterCreationService(_characterRepository, () => _gameData, () => _worldTemplateData);
         _itemSystem = new GameItemSystem(() => _worldTemplateData);
@@ -157,8 +159,10 @@ public sealed class WorldServer : IAsyncDisposable
                 ResolveMapAvailabilityForLogin,
                 NotifyMapServicePlayerEnteredWorldAsync,
                 NotifyMapServicePlayerLeftWorldAsync,
+                NotifyMapServicePlayerMovementAsync,
                 NotifyMapServicePlayerClientPacketAsync,
                 settings.MessageOfTheDay,
+                settings.PlayerSaveInterval,
                 _realmStatusReporter.SetActiveConnections,
                 _realmStatusReporter.SendCharacterCountSnapshotNowAsync));
     }
@@ -173,6 +177,7 @@ public sealed class WorldServer : IAsyncDisposable
     {
         LoadGameDataIfEnabled();
         await ValidateDatabaseConnectionsAsync(cancellationToken);
+        await LogCharacterPlayerStateTablesAsync(cancellationToken);
         await LoadWorldTemplateDataAsync(cancellationToken);
 
         Task hostTask = _host.StartAsync(cancellationToken);
@@ -445,6 +450,38 @@ public sealed class WorldServer : IAsyncDisposable
 
 
     /**
+      * Notifies the selected map service about the latest authoritative player movement state.
+      */
+    private async Task NotifyMapServicePlayerMovementAsync(
+        PlayerLoginRecord player,
+        string ownerServerName,
+        PlayerMovementState movement,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+        ArgumentNullException.ThrowIfNull(movement);
+
+        if (string.IsNullOrWhiteSpace(ownerServerName))
+        {
+            return;
+        }
+
+        string packet = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{InternalProtocol.PlayerMovement} {player.AccountId} {player.Guid} 0x{movement.Opcode:X4} {movement.Map} {movement.Zone} {movement.PositionX:0.###} {movement.PositionY:0.###} {movement.PositionZ:0.###} {movement.Orientation:0.###} {(uint)movement.Flags} {movement.ClientTime}");
+
+        int sent = await SendPacketToServerAsync(ownerServerName, packet, cancellationToken);
+        if (sent == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not route movement for player '{player.Name}' to {ownerServerName}; no active internal connection was available.", nameof(WorldServer));
+            return;
+        }
+
+        Logger.Write(LogType.TRACE, $"WorldServer routed movement {movement.Opcode:X4} for player '{player.Name}' to {ownerServerName}: map={movement.Map}, zone={movement.Zone}, position=({movement.PositionX:0.##}, {movement.PositionY:0.##}, {movement.PositionZ:0.##}).", nameof(WorldServer));
+    }
+
+
+    /**
       * Forwards unhandled in-world client packets to the selected map service while WorldServer keeps owning the socket.
       */
     private async Task NotifyMapServicePlayerClientPacketAsync(
@@ -711,24 +748,43 @@ public sealed class WorldServer : IAsyncDisposable
       */
     private async Task ValidateDatabaseConnectionsAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NOTICE, "WorldServer validating Auth, Character, and World database connections...", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, "WorldServer validating Auth, Character, and World database connections...", nameof(WorldServer));
 
         await _authDatabase.ValidateConnectionAsync(cancellationToken);
-        Logger.Write(LogType.SUCCESS, $"WorldServer Auth database is reachable: {_settings.Databases.Auth.Database}.", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, $"WorldServer Auth database is reachable: {_settings.Databases.Auth.Database}.", nameof(WorldServer));
 
         await _characterDatabase.ValidateConnectionAsync(cancellationToken);
-        Logger.Write(LogType.SUCCESS, $"WorldServer Character database is reachable: {_settings.Databases.Character.Database}.", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, $"WorldServer Character database is reachable: {_settings.Databases.Character.Database}.", nameof(WorldServer));
 
         await _worldDatabase.ValidateConnectionAsync(cancellationToken);
-        Logger.Write(LogType.SUCCESS, $"WorldServer World database is reachable: {_settings.Databases.World.Database}.", nameof(WorldServer));
+        Logger.Write(LogType.DATABASE, $"WorldServer World database is reachable: {_settings.Databases.World.Database}.", nameof(WorldServer));
     }
 
     /**
-      * Loads MaNGOS world database templates needed by the character screen into memory.
+      * Logs the character-side state tables that are loaded during character creation and world login.
+      */
+    private async Task LogCharacterPlayerStateTablesAsync(CancellationToken cancellationToken)
+    {
+        Logger.Write(LogType.DATABASE, "WorldServer checking character player-state tables used by world login and equipment loading...", nameof(WorldServer));
+
+        IReadOnlyDictionary<string, bool> availability = await _characterRepository.GetPlayerStateTableAvailabilityAsync(cancellationToken);
+        foreach (KeyValuePair<string, bool> table in availability.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            LogType logType = table.Value ? LogType.DATABASE : LogType.WARNING;
+            string state = table.Value ? "available" : "missing";
+            Logger.Write(logType, $"Character database table `{table.Key}` is {state}.", nameof(WorldServer));
+        }
+    }
+
+    /**
+      * Loads MaNGOS world database templates needed by character creation and world login into memory.
       */
     private async Task LoadWorldTemplateDataAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.NOTICE, "WorldServer loading MaNGOS world templates into memory: playercreateinfo and item_template...", nameof(WorldServer));
+        Logger.Write(
+            LogType.DATABASE,
+            "WorldServer loading MaNGOS world database templates into memory: playercreateinfo, item_template, player level stats, XP, and playercreateinfo_* tables...",
+            nameof(WorldServer));
 
         _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
 
@@ -739,10 +795,32 @@ public sealed class WorldServer : IAsyncDisposable
 
         if (_worldTemplateData.ItemTemplates.Count == 0)
         {
-            throw new InvalidOperationException("World database table `item_template` is empty. Character creation cannot resolve starter items.");
+            throw new InvalidOperationException("World database table `item_template` is empty. Character creation cannot resolve starter items or equipment display data.");
         }
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer world templates are ready in memory: playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}.", nameof(WorldServer));
+        LogOptionalWorldTemplateCount("player_levelstats", _worldTemplateData.PlayerLevelStatsCount, "base race/class/level stats will fall back to generated defaults");
+        LogOptionalWorldTemplateCount("player_classlevelstats", _worldTemplateData.PlayerClassLevelStatsCount, "base health/mana will fall back to generated defaults");
+        LogOptionalWorldTemplateCount("player_xp_for_level", _worldTemplateData.PlayerLevelExperienceCount, "next-level XP will fall back to generated defaults");
+        LogOptionalWorldTemplateCount("playercreateinfo_action", _worldTemplateData.PlayerCreateActionCount, "new characters will fall back to hardcoded starter action buttons");
+        LogOptionalWorldTemplateCount("playercreateinfo_item", _worldTemplateData.PlayerCreateItemCount, "new characters will fall back to CharStartOutfit.dbc starter items");
+        LogOptionalWorldTemplateCount("playercreateinfo_spell", _worldTemplateData.PlayerCreateSpellCount, "new characters will fall back to hardcoded starter spells");
+
+        Logger.Write(
+            LogType.DATABASE,
+            $"WorldServer world database templates are ready in memory: playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}.",
+            nameof(WorldServer));
+    }
+
+    private static void LogOptionalWorldTemplateCount(string tableName, int count, string fallbackMessage)
+    {
+        if (count == 0)
+        {
+            Logger.Write(LogType.WARNING, $"World database table `{tableName}` was not loaded or is empty; {fallbackMessage}.", nameof(WorldServer));
+        }
+        else
+        {
+            Logger.Write(LogType.DATABASE, $"World database table `{tableName}` loaded {count} row(s).", nameof(WorldServer));
+        }
     }
 
     /**

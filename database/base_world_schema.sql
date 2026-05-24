@@ -166,6 +166,94 @@ CREATE TABLE `playercreateinfo` (
   `orientation` float NOT NULL DEFAULT 0 COMMENT 'The orientation for the characters initial position.'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `player_classlevelstats`
+--
+
+CREATE TABLE `player_classlevelstats` (
+  `class` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Class identifier from ChrClasses.dbc.',
+  `level` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Player level.',
+  `basehp` smallint(5) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base hit points for this class and level.',
+  `basemana` smallint(5) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base mana for this class and level.',
+  PRIMARY KEY (`class`,`level`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Level Stats';
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `player_levelstats`
+--
+
+CREATE TABLE `player_levelstats` (
+  `race` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Race identifier from ChrRaces.dbc.',
+  `class` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Class identifier from ChrClasses.dbc.',
+  `level` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Player level.',
+  `str` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base strength.',
+  `agi` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base agility.',
+  `sta` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base stamina.',
+  `inte` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base intellect.',
+  `spi` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Base spirit.',
+  PRIMARY KEY (`race`,`class`,`level`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Level Stats';
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `player_xp_for_level`
+--
+
+CREATE TABLE `player_xp_for_level` (
+  `lvl` int(3) UNSIGNED NOT NULL COMMENT 'Current level.',
+  `xp_for_next_level` int(10) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Experience required to reach the next level.',
+  PRIMARY KEY (`lvl`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Level Experience';
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `playercreateinfo_action`
+--
+
+CREATE TABLE `playercreateinfo_action` (
+  `race` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Race identifier from ChrRaces.dbc.',
+  `class` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Class identifier from ChrClasses.dbc.',
+  `button` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Action bar button index.',
+  `action` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Spell, item, macro, or action identifier.',
+  `type` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Action type. Vanilla uses 0 for spell, 64 for macro, and 128 for item.',
+  PRIMARY KEY (`race`,`class`,`button`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Create Info';
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `playercreateinfo_item`
+--
+
+CREATE TABLE `playercreateinfo_item` (
+  `race` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Race identifier from ChrRaces.dbc.',
+  `class` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Class identifier from ChrClasses.dbc.',
+  `itemid` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Item template entry.',
+  `amount` tinyint(3) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Amount to create.',
+  KEY `idx_race_class` (`race`,`class`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Create Info';
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `playercreateinfo_spell`
+--
+
+CREATE TABLE `playercreateinfo_spell` (
+  `race` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Race identifier from ChrRaces.dbc.',
+  `class` tinyint(3) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Class identifier from ChrClasses.dbc.',
+  `Spell` int(11) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Spell identifier.',
+  `Note` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL COMMENT 'Informational note.',
+  PRIMARY KEY (`race`,`class`,`Spell`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Player Create Info';
+
 --
 -- Indexes for dumped tables
 --

@@ -56,6 +56,7 @@ public static class InternalProtocol
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
     public const string PlayerEnterWorld = "PLAYER_ENTER_WORLD";
     public const string PlayerLeaveWorld = "PLAYER_LEAVE_WORLD";
+    public const string PlayerMovement = "PLAYER_MOVEMENT";
     public const string PlayerClientPacket = "PLAYER_CLIENT_PACKET";
 
     /**

@@ -16,16 +16,19 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-namespace EmulationServer.Game.Data.Dbc.Chat;
+namespace EmulationServer.Game.Movement;
 
-public static class ChatDbcFileNames
+public sealed record TransportMovementInfo(
+    ulong Guid,
+    float X,
+    float Y,
+    float Z,
+    float Orientation,
+    uint Time)
 {
-    public const string ChatChannels = "ChatChannels.dbc";
-    public const string Languages = "Languages.dbc";
-
-    public static IReadOnlyList<string> CoreChatDbcFiles { get; } =
-    [
-        ChatChannels,
-        Languages,
-    ];
+    public bool IsFinite =>
+        float.IsFinite(X) &&
+        float.IsFinite(Y) &&
+        float.IsFinite(Z) &&
+        float.IsFinite(Orientation);
 }

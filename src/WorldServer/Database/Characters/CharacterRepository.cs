@@ -34,11 +34,16 @@ public sealed class CharacterRepository
     private const int NoEquipmentSlot = -1;
     private readonly IDatabaseService _databaseService;
     private readonly Func<uint, ItemTemplateRecord?> _itemTemplateAccessor;
+    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
 
-    public CharacterRepository(IDatabaseService databaseService, Func<uint, ItemTemplateRecord?> itemTemplateAccessor)
+    public CharacterRepository(
+        IDatabaseService databaseService,
+        Func<uint, ItemTemplateRecord?> itemTemplateAccessor,
+        Func<WorldTemplateDataStore> worldTemplateAccessor)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException(nameof(databaseService));
         _itemTemplateAccessor = itemTemplateAccessor ?? throw new ArgumentNullException(nameof(itemTemplateAccessor));
+        _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException(nameof(worldTemplateAccessor));
     }
 
     public async Task<IReadOnlyList<CharacterListEntry>> GetCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
@@ -117,6 +122,32 @@ public sealed class CharacterRepository
         return result;
     }
 
+    public async Task<IReadOnlyDictionary<string, bool>> GetPlayerStateTableAvailabilityAsync(CancellationToken cancellationToken = default)
+    {
+        string[] tableNames =
+        [
+            "character_action",
+            "character_aura",
+            "character_inventory",
+            "character_reputation",
+            "character_skills",
+            "character_spell",
+            "character_stats",
+            "character_tutorial",
+            "item_instance",
+        ];
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+
+        Dictionary<string, bool> availability = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string tableName in tableNames)
+        {
+            availability[tableName] = await TableExistsAsync(connection, tableName, cancellationToken);
+        }
+
+        return availability;
+    }
+
     public async Task<bool> CharacterNameExistsAsync(string name, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -190,10 +221,14 @@ public sealed class CharacterRepository
             string equipmentCache = BuildEquipmentCache(starterItems);
             uint playerBytes = PackPlayerBytes(request.Skin, request.Face, request.HairStyle, request.HairColor);
             uint playerBytes2 = PackPlayerBytes2(request.FacialHair);
-            PlayerStats initialStats = CreateInitialStats(request.Class, 1);
+            PlayerStats initialStats = ResolvePlayerStats(request.Race, request.Class, 1, PlayerStats.Empty);
 
             await InsertCharacterAsync(connection, transaction, characterGuid, accountId, request, createInfo, playerBytes, playerBytes2, equipmentCache, initialStats, cancellationToken);
             await InsertHomebindAsync(connection, transaction, characterGuid, createInfo, cancellationToken);
+            await InsertCharacterStatsAsync(connection, transaction, characterGuid, initialStats, cancellationToken);
+            await InsertCharacterTutorialAsync(connection, transaction, accountId, cancellationToken);
+            await InsertCharacterSpellsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateSpells(request.Race, request.Class), cancellationToken);
+            await InsertCharacterActionsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateActions(request.Race, request.Class), cancellationToken);
 
             foreach (StarterItemCreateData item in starterItems)
             {
@@ -345,7 +380,15 @@ public sealed class CharacterRepository
             return null;
         }
 
+        byte level = NormalizeLevel(row.Level);
+        PlayerStats? characterStats = await LoadCharacterStatsAsync(connection, row.Guid, cancellationToken);
+        PlayerStats stats = ResolvePlayerStats(row.Race, row.Class, level, characterStats ?? row.Stats);
         IReadOnlyList<PlayerInventoryItem> inventory = await LoadPlayerInventoryAsync(connection, row.Guid, cancellationToken);
+        IReadOnlyList<PlayerSpell> spells = await LoadCharacterSpellsAsync(connection, row.Guid, row.Race, row.Class, cancellationToken);
+        IReadOnlyList<PlayerActionButton> actionButtons = await LoadCharacterActionsAsync(connection, row.Guid, row.Race, row.Class, cancellationToken);
+        uint[] tutorialFlags = await LoadCharacterTutorialFlagsAsync(connection, row.AccountId, cancellationToken);
+        IReadOnlyList<PlayerReputation> reputations = await LoadCharacterReputationAsync(connection, row.Guid, cancellationToken);
+        IReadOnlyList<PlayerSkill> skills = await LoadCharacterSkillsAsync(connection, row.Guid, cancellationToken);
 
         return new PlayerLoginRecord(
             row.Guid,
@@ -354,7 +397,7 @@ public sealed class CharacterRepository
             row.Race,
             row.Class,
             row.Gender,
-            NormalizeLevel(row.Level),
+            level,
             row.Xp,
             row.Zone,
             row.Map,
@@ -370,8 +413,14 @@ public sealed class CharacterRepository
             row.Cinematic,
             row.TotalTime,
             row.LevelTime,
-            NormalizePlayerStats(row.Class, NormalizeLevel(row.Level), row.Stats),
+            stats,
+            _worldTemplateAccessor().GetNextLevelExperience(level),
             inventory,
+            spells,
+            actionButtons,
+            tutorialFlags,
+            reputations,
+            skills,
             factionResolver(row.Race));
     }
 
@@ -430,11 +479,91 @@ public sealed class CharacterRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task<IReadOnlyList<PlayerInventoryItem>> LoadPlayerInventoryAsync(
+    public async Task SavePlayerAsync(PlayerLoginRecord player, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        if (player.Guid == 0)
+        {
+            return;
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            using MySqlCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE `characters`
+                SET `level` = @level,
+                    `xp` = @xp,
+                    `money` = @money,
+                    `zone` = @zone,
+                    `map` = @map,
+                    `position_x` = @x,
+                    `position_y` = @y,
+                    `position_z` = @z,
+                    `orientation` = @o,
+                    `playerBytes` = @playerBytes,
+                    `playerBytes2` = @playerBytes2,
+                    `playerFlags` = @playerFlags,
+                    `totaltime` = @totalTime,
+                    `leveltime` = @levelTime,
+                    `health` = @health,
+                    `power1` = @power1,
+                    `power2` = @power2,
+                    `power3` = @power3,
+                    `power4` = @power4,
+                    `power5` = @power5
+                WHERE `guid` = @guid
+                  AND `account` = @account;
+                """;
+            command.Parameters.AddWithValue("@guid", player.Guid);
+            command.Parameters.AddWithValue("@account", player.AccountId);
+            command.Parameters.AddWithValue("@level", player.Level);
+            command.Parameters.AddWithValue("@xp", player.Experience);
+            command.Parameters.AddWithValue("@money", player.Money);
+            command.Parameters.AddWithValue("@zone", player.Zone);
+            command.Parameters.AddWithValue("@map", player.Map);
+            command.Parameters.AddWithValue("@x", player.PositionX);
+            command.Parameters.AddWithValue("@y", player.PositionY);
+            command.Parameters.AddWithValue("@z", player.PositionZ);
+            command.Parameters.AddWithValue("@o", player.Orientation);
+            command.Parameters.AddWithValue("@playerBytes", player.PlayerBytes);
+            command.Parameters.AddWithValue("@playerBytes2", player.PlayerBytes2);
+            command.Parameters.AddWithValue("@playerFlags", player.PlayerFlags);
+            command.Parameters.AddWithValue("@totalTime", player.TotalTime);
+            command.Parameters.AddWithValue("@levelTime", player.LevelTime);
+            command.Parameters.AddWithValue("@health", player.Stats.Health);
+            command.Parameters.AddWithValue("@power1", player.Stats.Power1);
+            command.Parameters.AddWithValue("@power2", player.Stats.Power2);
+            command.Parameters.AddWithValue("@power3", player.Stats.Power3);
+            command.Parameters.AddWithValue("@power4", player.Stats.Power4);
+            command.Parameters.AddWithValue("@power5", player.Stats.Power5);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await InsertCharacterStatsAsync(connection, transaction, player.Guid, player.Stats, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task<IReadOnlyList<PlayerInventoryItem>> LoadPlayerInventoryAsync(
         MySqlConnection connection,
         uint characterGuid,
         CancellationToken cancellationToken)
     {
+        if (!await TableExistsAsync(connection, "character_inventory", cancellationToken))
+        {
+            return Array.Empty<PlayerInventoryItem>();
+        }
+
         using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `ci`.`item`, `ci`.`guid`, `ci`.`item_template`, `ci`.`bag`, `ci`.`slot`, COALESCE(`ii`.`data`, '')
@@ -445,17 +574,36 @@ public sealed class CharacterRepository
             """;
         command.Parameters.AddWithValue("@guid", characterGuid);
 
+        WorldTemplateDataStore worldTemplates = _worldTemplateAccessor();
         List<PlayerInventoryItem> items = [];
         await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
+            uint itemGuid = Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture);
+            uint ownerGuid = Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture);
+            uint templateEntry = Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture);
+            uint bagGuid = Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture);
+            byte slot = Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture);
+            string instanceData = reader.GetString(5);
+
+            byte inventoryType = 0;
+            uint displayId = 0;
+            if (templateEntry != 0 && worldTemplates.TryGetItemTemplate(templateEntry, out ItemTemplateRecord itemTemplate))
+            {
+                inventoryType = itemTemplate.InventoryType;
+                displayId = itemTemplate.DisplayId;
+            }
+
             items.Add(new PlayerInventoryItem(
-                Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
-                Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
-                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
-                Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
-                Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture),
-                reader.GetString(5)));
+                itemGuid,
+                ownerGuid,
+                templateEntry,
+                bagGuid,
+                slot,
+                instanceData,
+                inventoryType,
+                displayId,
+                ReadItemInstanceField(instanceData, 16)));
         }
 
         return items;
@@ -554,6 +702,160 @@ public sealed class CharacterRepository
         command.Parameters.AddWithValue("@z", createInfo.PositionZ);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task InsertCharacterStatsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint characterGuid,
+        PlayerStats stats,
+        CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, transaction, "character_stats", cancellationToken))
+        {
+            return;
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO `character_stats`
+                (`guid`, `maxhealth`, `maxpower1`, `maxpower2`, `maxpower3`, `maxpower4`, `maxpower5`, `maxpower6`, `maxpower7`,
+                 `strength`, `agility`, `stamina`, `intellect`, `spirit`, `armor`, `resHoly`, `resFire`, `resNature`, `resFrost`, `resShadow`, `resArcane`,
+                 `blockPct`, `dodgePct`, `parryPct`, `critPct`, `rangedCritPct`, `attackPower`, `rangedAttackPower`)
+            VALUES
+                (@guid, @health, @power1, @power2, @power3, @power4, @power5, 0, 0,
+                 @strength, @agility, @stamina, @intellect, @spirit, @armor, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, @attackPower, @rangedAttackPower)
+            ON DUPLICATE KEY UPDATE
+                `maxhealth` = VALUES(`maxhealth`),
+                `maxpower1` = VALUES(`maxpower1`),
+                `maxpower2` = VALUES(`maxpower2`),
+                `maxpower3` = VALUES(`maxpower3`),
+                `maxpower4` = VALUES(`maxpower4`),
+                `maxpower5` = VALUES(`maxpower5`),
+                `strength` = VALUES(`strength`),
+                `agility` = VALUES(`agility`),
+                `stamina` = VALUES(`stamina`),
+                `intellect` = VALUES(`intellect`),
+                `spirit` = VALUES(`spirit`),
+                `armor` = VALUES(`armor`),
+                `attackPower` = VALUES(`attackPower`),
+                `rangedAttackPower` = VALUES(`rangedAttackPower`);
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+        command.Parameters.AddWithValue("@health", stats.Health);
+        command.Parameters.AddWithValue("@power1", stats.Power1);
+        command.Parameters.AddWithValue("@power2", stats.Power2);
+        command.Parameters.AddWithValue("@power3", stats.Power3);
+        command.Parameters.AddWithValue("@power4", stats.Power4);
+        command.Parameters.AddWithValue("@power5", stats.Power5);
+        command.Parameters.AddWithValue("@strength", stats.Strength);
+        command.Parameters.AddWithValue("@agility", stats.Agility);
+        command.Parameters.AddWithValue("@stamina", stats.Stamina);
+        command.Parameters.AddWithValue("@intellect", stats.Intellect);
+        command.Parameters.AddWithValue("@spirit", stats.Spirit);
+        command.Parameters.AddWithValue("@armor", stats.Armor);
+        command.Parameters.AddWithValue("@attackPower", Math.Max(1u, stats.Strength * 2u));
+        command.Parameters.AddWithValue("@rangedAttackPower", stats.Agility);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task InsertCharacterTutorialAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint accountId,
+        CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, transaction, "character_tutorial", cancellationToken))
+        {
+            return;
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT IGNORE INTO `character_tutorial`
+                (`account`, `tut0`, `tut1`, `tut2`, `tut3`, `tut4`, `tut5`, `tut6`, `tut7`)
+            VALUES
+                (@account, @flags, @flags, @flags, @flags, @flags, @flags, @flags, @flags);
+            """;
+        command.Parameters.AddWithValue("@account", accountId);
+        command.Parameters.AddWithValue("@flags", uint.MaxValue);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task InsertCharacterSpellsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint characterGuid,
+        IReadOnlyList<PlayerCreateSpellRecord> starterSpells,
+        CancellationToken cancellationToken)
+    {
+        if (starterSpells.Count == 0 || !await TableExistsAsync(connection, transaction, "character_spell", cancellationToken))
+        {
+            return;
+        }
+
+        foreach (PlayerCreateSpellRecord spell in starterSpells)
+        {
+            if (spell.SpellId == 0)
+            {
+                continue;
+            }
+
+            using MySqlCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT IGNORE INTO `character_spell`
+                    (`guid`, `spell`, `active`, `disabled`)
+                VALUES
+                    (@guid, @spell, 1, 0);
+                """;
+            command.Parameters.AddWithValue("@guid", characterGuid);
+            command.Parameters.AddWithValue("@spell", spell.SpellId);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static async Task InsertCharacterActionsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint characterGuid,
+        IReadOnlyList<PlayerCreateActionRecord> starterActions,
+        CancellationToken cancellationToken)
+    {
+        if (starterActions.Count == 0 || !await TableExistsAsync(connection, transaction, "character_action", cancellationToken))
+        {
+            return;
+        }
+
+        foreach (PlayerCreateActionRecord action in starterActions)
+        {
+            if (action.Button >= 120)
+            {
+                continue;
+            }
+
+            using MySqlCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO `character_action`
+                    (`guid`, `button`, `action`, `type`)
+                VALUES
+                    (@guid, @button, @action, @type)
+                ON DUPLICATE KEY UPDATE
+                    `action` = VALUES(`action`),
+                    `type` = VALUES(`type`);
+                """;
+            command.Parameters.AddWithValue("@guid", characterGuid);
+            command.Parameters.AddWithValue("@button", action.Button);
+            command.Parameters.AddWithValue("@action", action.Action);
+            command.Parameters.AddWithValue("@type", action.Type);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     private static async Task InsertItemInstanceAsync(
@@ -680,6 +982,7 @@ public sealed class CharacterRepository
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_skills", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_social", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_social", "friend", characterGuid, cancellationToken);
+        await DeleteWhereColumnEqualsAsync(connection, transaction, "character_stats", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_spell", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_spell_cooldown", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "corpse", "player", characterGuid, cancellationToken);
@@ -737,6 +1040,260 @@ public sealed class CharacterRepository
 
         object? result = await command.ExecuteScalarAsync(cancellationToken);
         return result is not null;
+    }
+
+    private static async Task<bool> TableExistsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        string tableName,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT 1
+            FROM `information_schema`.`TABLES`
+            WHERE `TABLE_SCHEMA` = DATABASE()
+              AND `TABLE_NAME` = @tableName
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@tableName", tableName);
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null;
+    }
+
+    private static async Task<bool> TableExistsAsync(
+        MySqlConnection connection,
+        string tableName,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT 1
+            FROM `information_schema`.`TABLES`
+            WHERE `TABLE_SCHEMA` = DATABASE()
+              AND `TABLE_NAME` = @tableName
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@tableName", tableName);
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null;
+    }
+
+    private static uint[] CreateDefaultTutorialFlags()
+    {
+        return Enumerable.Repeat(uint.MaxValue, 8).ToArray();
+    }
+
+    private async Task<PlayerStats?> LoadCharacterStatsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, "character_stats", cancellationToken))
+        {
+            return null;
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `maxhealth`, `maxpower1`, `maxpower2`, `maxpower3`, `maxpower4`, `maxpower5`,
+                   `strength`, `agility`, `stamina`, `intellect`, `spirit`, `armor`
+            FROM `character_stats`
+            WHERE `guid` = @guid
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new PlayerStats(
+            Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(4), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(5), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(6), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(7), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(9), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(10), CultureInfo.InvariantCulture),
+            Convert.ToUInt32(reader.GetValue(11), CultureInfo.InvariantCulture));
+    }
+
+    private async Task<IReadOnlyList<PlayerSpell>> LoadCharacterSpellsAsync(
+        MySqlConnection connection,
+        uint characterGuid,
+        byte race,
+        byte characterClass,
+        CancellationToken cancellationToken)
+    {
+        List<PlayerSpell> spells = [];
+        if (await TableExistsAsync(connection, "character_spell", cancellationToken))
+        {
+            using MySqlCommand command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT `spell`, `active`, `disabled`
+                FROM `character_spell`
+                WHERE `guid` = @guid
+                ORDER BY `spell`;
+                """;
+            command.Parameters.AddWithValue("@guid", characterGuid);
+
+            await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                spells.Add(new PlayerSpell(
+                    Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(1), CultureInfo.InvariantCulture) != 0,
+                    Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture) != 0));
+            }
+        }
+
+        if (spells.Count != 0)
+        {
+            return spells;
+        }
+
+        return _worldTemplateAccessor()
+            .GetPlayerCreateSpells(race, characterClass)
+            .Where(spell => spell.SpellId != 0)
+            .Select(spell => new PlayerSpell(spell.SpellId, true, false))
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<PlayerActionButton>> LoadCharacterActionsAsync(
+        MySqlConnection connection,
+        uint characterGuid,
+        byte race,
+        byte characterClass,
+        CancellationToken cancellationToken)
+    {
+        List<PlayerActionButton> actions = [];
+        if (await TableExistsAsync(connection, "character_action", cancellationToken))
+        {
+            using MySqlCommand command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT `button`, `action`, `type`
+                FROM `character_action`
+                WHERE `guid` = @guid
+                ORDER BY `button`;
+                """;
+            command.Parameters.AddWithValue("@guid", characterGuid);
+
+            await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                actions.Add(new PlayerActionButton(
+                    Convert.ToByte(reader.GetValue(0), CultureInfo.InvariantCulture),
+                    Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                    Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture)));
+            }
+        }
+
+        if (actions.Count != 0)
+        {
+            return actions;
+        }
+
+        return _worldTemplateAccessor()
+            .GetPlayerCreateActions(race, characterClass)
+            .Where(action => action.Button < 120)
+            .Select(action => new PlayerActionButton(action.Button, action.Action, action.Type))
+            .ToArray();
+    }
+
+    private static async Task<uint[]> LoadCharacterTutorialFlagsAsync(MySqlConnection connection, uint accountId, CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, "character_tutorial", cancellationToken))
+        {
+            return CreateDefaultTutorialFlags();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `tut0`, `tut1`, `tut2`, `tut3`, `tut4`, `tut5`, `tut6`, `tut7`
+            FROM `character_tutorial`
+            WHERE `account` = @account
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@account", accountId);
+
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return CreateDefaultTutorialFlags();
+        }
+
+        uint[] flags = new uint[8];
+        for (int index = 0; index < flags.Length; index++)
+        {
+            flags[index] = Convert.ToUInt32(reader.GetValue(index), CultureInfo.InvariantCulture);
+        }
+
+        return flags;
+    }
+
+    private static async Task<IReadOnlyList<PlayerReputation>> LoadCharacterReputationAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, "character_reputation", cancellationToken))
+        {
+            return Array.Empty<PlayerReputation>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `faction`, `standing`, `flags`
+            FROM `character_reputation`
+            WHERE `guid` = @guid
+            ORDER BY `faction`;
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        List<PlayerReputation> reputations = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            reputations.Add(new PlayerReputation(
+                Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture)));
+        }
+
+        return reputations;
+    }
+
+    private static async Task<IReadOnlyList<PlayerSkill>> LoadCharacterSkillsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
+    {
+        if (!await TableExistsAsync(connection, "character_skills", cancellationToken))
+        {
+            return Array.Empty<PlayerSkill>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT `skill`, `value`, `max`
+            FROM `character_skills`
+            WHERE `guid` = @guid
+            ORDER BY `skill`;
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+
+        List<PlayerSkill> skills = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            skills.Add(new PlayerSkill(
+                Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture)));
+        }
+
+        return skills;
     }
 
     private async Task<Dictionary<uint, IReadOnlyList<CharacterEquipmentDisplay>>> LoadEquippedInventoryAsync(
@@ -875,6 +1432,24 @@ public sealed class CharacterRepository
         };
     }
 
+    private static uint ReadItemInstanceField(string instanceData, int fieldIndex)
+    {
+        if (string.IsNullOrWhiteSpace(instanceData) || fieldIndex < 0)
+        {
+            return 0;
+        }
+
+        string[] parts = instanceData.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (fieldIndex >= parts.Length)
+        {
+            return 0;
+        }
+
+        return uint.TryParse(parts[fieldIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value)
+            ? value
+            : 0;
+    }
+
     private static string BuildItemInstanceData(uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
     {
         uint[] fields = new uint[48];
@@ -985,9 +1560,9 @@ public sealed class CharacterRepository
     }
 
 
-    private static PlayerStats NormalizePlayerStats(byte playerClass, byte level, PlayerStats storedStats)
+    private PlayerStats ResolvePlayerStats(byte race, byte playerClass, byte level, PlayerStats storedStats)
     {
-        PlayerStats defaults = CreateInitialStats(playerClass, level);
+        PlayerStats defaults = _worldTemplateAccessor().BuildBasePlayerStats(race, playerClass, level);
         return new PlayerStats(
             storedStats.Health == 0 ? defaults.Health : storedStats.Health,
             storedStats.Power1 == 0 ? defaults.Power1 : storedStats.Power1,
@@ -1001,41 +1576,6 @@ public sealed class CharacterRepository
             storedStats.Intellect == 0 ? defaults.Intellect : storedStats.Intellect,
             storedStats.Spirit == 0 ? defaults.Spirit : storedStats.Spirit,
             storedStats.Armor == 0 ? defaults.Armor : storedStats.Armor);
-    }
-
-    private static PlayerStats CreateInitialStats(byte playerClass, byte level)
-    {
-        uint safeLevel = Math.Max((uint)level, 1u);
-        uint health = 80 + (safeLevel * 20);
-        uint mana = playerClass is 1 or 4 ? 0u : 100 + (safeLevel * 30);
-        uint rage = 0;
-        uint energy = playerClass == 4 ? 100u : 0u;
-        (uint strength, uint agility, uint stamina, uint intellect, uint spirit) = ResolveBaseAttributes(playerClass);
-        uint levelBonus = safeLevel - 1;
-        strength += levelBonus;
-        agility += levelBonus;
-        stamina += levelBonus;
-        intellect += playerClass is 1 or 4 ? 0u : levelBonus;
-        spirit += levelBonus;
-        uint armor = Math.Max(1u, agility * 2u);
-        return new PlayerStats(health, mana, rage, 0, energy, 0, strength, agility, stamina, intellect, spirit, armor);
-    }
-
-    private static (uint Strength, uint Agility, uint Stamina, uint Intellect, uint Spirit) ResolveBaseAttributes(byte playerClass)
-    {
-        return playerClass switch
-        {
-            1 => (23u, 20u, 22u, 20u, 20u), // Warrior
-            2 => (22u, 20u, 22u, 20u, 20u), // Paladin
-            3 => (20u, 23u, 21u, 20u, 20u), // Hunter
-            4 => (21u, 24u, 20u, 20u, 20u), // Rogue
-            5 => (19u, 20u, 20u, 22u, 23u), // Priest
-            7 => (21u, 20u, 21u, 21u, 21u), // Shaman
-            8 => (19u, 20u, 19u, 24u, 22u), // Mage
-            9 => (19u, 20u, 21u, 23u, 22u), // Warlock
-            11 => (21u, 22u, 21u, 22u, 22u), // Druid
-            _ => (20u, 20u, 20u, 20u, 20u),
-        };
     }
 
     private static byte NormalizeLevel(byte level)

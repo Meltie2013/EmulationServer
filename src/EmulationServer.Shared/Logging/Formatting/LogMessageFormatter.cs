@@ -43,7 +43,19 @@ public static class LogMessageFormatter
         return
             $"[{timestamp}] " +
             $"[{type}] " +
-            $"{(category is not null ? $"[{category}] " : string.Empty)}" +
+            $"{FormatCategory(category, message)}" +
             $"{message}";
+    }
+
+    private static string FormatCategory(string? category, string message)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return string.Empty;
+        }
+
+        return message.StartsWith(category, StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : $"[{category}] ";
     }
 }
