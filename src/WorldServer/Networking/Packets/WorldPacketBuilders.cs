@@ -315,6 +315,18 @@ public static class WorldPacketBuilders
     }
 
     /**
+      * Builds the build notification result needed by the caller.
+      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: message.
+      */
+    public static byte[] BuildNotification(string message)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteCString(message);
+        return writer.ToArray();
+    }
+
+    /**
       * Builds the build transfer aborted result needed by the caller.
       * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
       * Inputs used by this operation: mapId, reason.

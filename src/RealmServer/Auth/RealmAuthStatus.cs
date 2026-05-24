@@ -39,6 +39,10 @@ public enum RealmAuthStatus
       */
     LogonProof,
     /**
+      * Represents the reconnect proof value for realm auth status handling.
+      */
+    ReconnectProof,
+    /**
       * Represents the authenticated value for realm auth status handling.
       */
     Authenticated,

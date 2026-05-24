@@ -153,11 +153,11 @@ public sealed class RealmSession
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    public Task DisconnectAsync()
+    public async Task DisconnectAsync()
     {
         if (Interlocked.Exchange(ref _disconnectRequested, 1) == 1)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         Logger.Write(LogType.NETWORK, $"Ending session for {_remoteEndPoint}", "RealmSession");
@@ -173,7 +173,16 @@ public sealed class RealmSession
 
         try
         {
-            _client.Client.Shutdown(SocketShutdown.Both);
+            await _stream.FlushAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // Ignore shutdown races.
+        }
+
+        try
+        {
+            _client.Client.Shutdown(SocketShutdown.Send);
         }
         catch (SocketException)
         {
@@ -187,8 +196,6 @@ public sealed class RealmSession
         _stream.Dispose();
         _client.Dispose();
         _disconnectCancellation.Dispose();
-
-        return Task.CompletedTask;
     }
 
     /**

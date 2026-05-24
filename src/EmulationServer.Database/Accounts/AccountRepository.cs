@@ -62,7 +62,7 @@ public sealed class AccountRepository
         using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
-            SELECT `id`, `username`, `sha_pass_hash`, `gmlevel`, `locked`, `last_ip`, `v`, `s`
+            SELECT `id`, `username`, `sha_pass_hash`, `gmlevel`, `locked`, `last_ip`, `v`, `s`, `sessionkey`
             FROM `account`
             WHERE `username` = @username
             LIMIT 1;
@@ -83,7 +83,8 @@ public sealed class AccountRepository
             reader.GetByte(4) != 0,
             reader.GetString(5),
             reader.IsDBNull(6) ? null : reader.GetString(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7));
+            reader.IsDBNull(7) ? null : reader.GetString(7),
+            reader.IsDBNull(8) ? null : reader.GetString(8));
     }
 
     /**

@@ -104,6 +104,8 @@ public static class WorldPacketIO
         {
             await stream.WriteAsync(payload, cancellationToken);
         }
+
+        await stream.FlushAsync(cancellationToken);
     }
 
     /**

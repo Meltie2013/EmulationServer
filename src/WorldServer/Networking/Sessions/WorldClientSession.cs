@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 
@@ -58,6 +59,20 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const float MaximumMovementBroadcastDistanceSquared = 200.0f * 200.0f;
+
+    /**
+      * Defines the short grace window used after terminal auth failures so the vanilla client can render the exact failure text before the socket closes.
+      */
+    private static readonly TimeSpan TerminalAuthFailureDeliveryDelay = TimeSpan.FromMilliseconds(250);
+    /**
+      * Defines how long character-list refresh responses are delayed after a login failure so the client can render the failure dialog.
+      */
+    private static readonly TimeSpan CharacterLoginFailureDeliveryDelay = TimeSpan.FromMilliseconds(1000);
+    /**
+      * Defines how often the session may notify an already-in-world player about map-service delivery problems.
+      */
+    private static readonly TimeSpan MapServiceFailureNotificationCooldown = TimeSpan.FromSeconds(5);
+
     /**
       * Holds the private client state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -196,6 +211,14 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private DateTimeOffset _lastPlayerTimeSaveUtc;
     /**
+      * Tracks the last time an in-world map-service problem was surfaced to the player so movement/packet retries do not spam chat.
+      */
+    private DateTimeOffset _lastMapServiceFailureNotificationUtc = DateTimeOffset.MinValue;
+    /**
+      * Prevents the automatic CMSG_CHAR_ENUM sent by the client after SMSG_CHARACTER_LOGIN_FAILED from hiding the failure dialog immediately.
+      */
+    private DateTimeOffset _delayCharacterEnumUntilUtc = DateTimeOffset.MinValue;
+    /**
       * Holds the private disposed state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -293,6 +316,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     public string RemoteEndPoint => _client.Client.RemoteEndPoint?.ToString() ?? "unknown";
 
     /**
+      * Stores the normalized remote IP address used by account and IP-ban checks.
+      */
+    private string RemoteAddress => (_client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? string.Empty;
+
+    /**
       * Performs the process operation for the connected world client session lifecycle and packet dispatch workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: serverCancellationToken.
@@ -349,6 +377,27 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         if (!_disconnect.IsCancellationRequested)
         {
             await _disconnect.CancelAsync();
+        }
+
+        try
+        {
+            if (_stream is not null)
+            {
+                await _stream.FlushAsync(CancellationToken.None);
+            }
+        }
+        catch
+        {
+            // Ignore shutdown races.
+        }
+
+        try
+        {
+            _client.Client.Shutdown(SocketShutdown.Send);
+        }
+        catch
+        {
+            // Ignore shutdown races.
         }
 
         try
@@ -412,18 +461,25 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         if (packet.Opcode != WorldOpcode.CMSG_AUTH_SESSION)
         {
             Logger.Write(LogType.WARNING, $"World client {RemoteEndPoint} sent {packet.Opcode} before CMSG_AUTH_SESSION.", "WorldClientSession");
-            await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
-            throw new InvalidDataException("World client did not send CMSG_AUTH_SESSION first.");
+            await RejectAuthenticationAsync(AuthResponseCode.Failed, null, "World client did not send CMSG_AUTH_SESSION first.", cancellationToken);
+            return;
         }
 
         WorldAuthSessionRequest request = WorldAuthSessionParser.Parse(packet.Payload);
         string username = WorldAccountRepository.NormalizeUsername(request.Username);
+        if (await _accountRepository.IsIpBannedAsync(RemoteAddress, cancellationToken))
+        {
+            Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: IP address is banned.", "WorldClientSession");
+            await RejectAuthenticationAsync(AuthResponseCode.Banned, null, "World client IP is banned.", cancellationToken);
+            return;
+        }
+
         WorldAccountSessionRecord? account = await _accountRepository.GetAccountSessionAsync(username, cancellationToken);
         if (account is null || account.Locked)
         {
             Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account missing or locked.", "WorldClientSession");
-            await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
-            throw new UnauthorizedAccessException("World account authentication failed.");
+            await RejectAuthenticationAsync(AuthResponseCode.Failed, null, "World account authentication failed.", cancellationToken);
+            return;
         }
 
         AccountBanStatus banStatus = await _accountRepository.GetAccountBanStatusAsync(account.Id, cancellationToken);
@@ -432,16 +488,16 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             AuthResponseCode responseCode = banStatus.IsPermanent ? AuthResponseCode.Banned : AuthResponseCode.Suspended;
             string banType = banStatus.IsPermanent ? "permanently banned" : "temporarily suspended";
             Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account is {banType}.", "WorldClientSession");
-            await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(responseCode), null, cancellationToken);
-            throw new UnauthorizedAccessException("World account is banned.");
+            await RejectAuthenticationAsync(responseCode, null, "World account is banned.", cancellationToken);
+            return;
         }
 
         byte[] sessionKey = WorldAuthCryptography.ParseSessionKey(account.SessionKey);
         if (!WorldAuthCryptography.ProofMatches(username, request.ClientSeed, _serverSeed, sessionKey, request.ClientProof))
         {
             Logger.Write(LogType.WARNING, $"World auth proof failed for '{username}' from {RemoteEndPoint}.", "WorldClientSession");
-            await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(AuthResponseCode.Failed), null, cancellationToken);
-            throw new UnauthorizedAccessException("World account proof failed.");
+            await RejectAuthenticationAsync(AuthResponseCode.Failed, null, "World account proof failed.", cancellationToken);
+            return;
         }
 
         _account = account;
@@ -456,6 +512,57 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
+      * Sends a terminal authentication response and keeps the socket alive long enough for the client to consume it.
+      */
+    private async Task RejectAuthenticationAsync(AuthResponseCode responseCode, WorldHeaderCrypt? crypt, string exceptionMessage, CancellationToken cancellationToken)
+    {
+        await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(responseCode), crypt, cancellationToken);
+        await AllowTerminalResponseDeliveryAsync(cancellationToken);
+        throw new UnauthorizedAccessException(exceptionMessage);
+    }
+
+    /**
+      * Sends the matching in-client auth failure when a ban becomes active after the account has already authenticated.
+      */
+    private async Task<bool> DisconnectIfBanBecameActiveAsync(CancellationToken cancellationToken)
+    {
+        WorldAccountSessionRecord? account = _account;
+        if (account is null || _crypt is null)
+        {
+            return false;
+        }
+
+        bool ipBanned = await _accountRepository.IsIpBannedAsync(RemoteAddress, cancellationToken);
+        AccountBanStatus banStatus = await _accountRepository.GetAccountBanStatusAsync(account.Id, cancellationToken);
+        if (!ipBanned && !banStatus.IsBanned)
+        {
+            return false;
+        }
+
+        AuthResponseCode responseCode = ipBanned || banStatus.IsPermanent ? AuthResponseCode.Banned : AuthResponseCode.Suspended;
+        string banType = ipBanned ? "IP banned" : (banStatus.IsPermanent ? "permanently banned" : "temporarily suspended");
+        Logger.Write(LogType.WARNING, $"World client {RemoteEndPoint} disconnected because account '{account.Username}' is now {banType}.", "WorldClientSession");
+        await SendAsync(WorldOpcode.SMSG_AUTH_RESPONSE, WorldPacketBuilders.BuildAuthResponse(responseCode), _crypt, cancellationToken);
+        await AllowTerminalResponseDeliveryAsync(cancellationToken);
+        return true;
+    }
+
+    /**
+      * Gives terminal authentication packets a brief delivery window before the owning session closes the socket.
+      */
+    private static async Task AllowTerminalResponseDeliveryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TerminalAuthFailureDeliveryDelay, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutdown cancellation should not turn an already-sent auth failure into a noisy session error.
+        }
+    }
+
+    /**
       * Performs the process authenticated packets operation for the connected world client session lifecycle and packet dispatch workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: cancellationToken.
@@ -466,6 +573,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         while (!cancellationToken.IsCancellationRequested)
         {
             WorldPacket packet = await WorldPacketIO.ReadClientPacketAsync(GetStream(), _crypt, _maximumPacketSize, cancellationToken);
+            if (await DisconnectIfBanBecameActiveAsync(cancellationToken))
+            {
+                return;
+            }
+
             switch (packet.Opcode)
             {
                 case WorldOpcode.CMSG_PING:
@@ -604,6 +716,33 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
+      * Delays a character enum response immediately after a failed player-login attempt.
+      * Vanilla clients automatically request a fresh character list after SMSG_CHARACTER_LOGIN_FAILED; answering that request too quickly can clear the visible failure popup.
+      */
+    private async Task DelayCharacterEnumAfterLoginFailureAsync(CancellationToken cancellationToken)
+    {
+        DateTimeOffset delayUntilUtc = _delayCharacterEnumUntilUtc;
+        if (delayUntilUtc <= DateTimeOffset.UtcNow)
+        {
+            return;
+        }
+
+        TimeSpan remainingDelay = delayUntilUtc - DateTimeOffset.UtcNow;
+        try
+        {
+            await Task.Delay(remainingDelay, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutdown cancellation should not turn a deliberately delayed character-list refresh into a noisy session error.
+        }
+        finally
+        {
+            _delayCharacterEnumUntilUtc = DateTimeOffset.MinValue;
+        }
+    }
+
+    /**
       * Handles the handle character enum event for the connected world client session lifecycle and packet dispatch workflow.
       * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
       * Inputs used by this operation: cancellationToken.
@@ -611,6 +750,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private async Task HandleCharacterEnumAsync(CancellationToken cancellationToken)
     {
+        await DelayCharacterEnumAfterLoginFailureAsync(cancellationToken);
+
         WorldAccountSessionRecord account = RequireAccount();
 
         try
@@ -640,30 +781,27 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         uint characterGuid = CharacterGuid.FromClientGuid(ReadClientGuid(packet.Payload));
         if (characterGuid == 0)
         {
-            await SendCharacterLoginFailedAsync(CharacterLoginFailureCode.NotFound, cancellationToken);
+            await SendCharacterLoginFailedWithReasonAsync(CharacterLoginFailureCode.NotFound, $"Player login rejected for account '{account.Username}': client sent an empty character guid.", cancellationToken);
             return;
         }
 
         PlayerLoginRecord? player = await _characterRepository.GetPlayerForLoginAsync(account.Id, characterGuid, ResolveFactionForRace, cancellationToken);
         if (player is null)
         {
-            await SendCharacterLoginFailedAsync(CharacterLoginFailureCode.NotFound, cancellationToken);
-            Logger.Write(LogType.WARNING, $"Player login rejected for account '{account.Username}': guid={characterGuid} was not found or was not owned by the account.", "WorldClientSession");
+            await SendCharacterLoginFailedWithReasonAsync(CharacterLoginFailureCode.NotFound, $"Player login rejected for account '{account.Username}': guid={characterGuid} was not found or was not owned by the account.", cancellationToken);
             return;
         }
 
         MapAvailabilityResult mapAvailability = _mapAvailabilityResolver(player);
         if (!mapAvailability.IsAvailable)
         {
-            await SendCharacterLoginFailedAsync(mapAvailability.RequiresInstanceServer ? CharacterLoginFailureCode.NoInstances : CharacterLoginFailureCode.NoWorld, cancellationToken);
-            Logger.Write(LogType.WARNING, $"Player login rejected for '{player.Name}' ({player.Guid}): map={player.Map} is unavailable. {mapAvailability.Reason}", "WorldClientSession");
+            await SendMapUnavailableLoginFailedAsync(player, mapAvailability, $"Player login rejected for '{player.Name}' ({player.Guid}): map={player.Map} is unavailable. {mapAvailability.Reason}", cancellationToken);
             return;
         }
 
         if (!_playerSessionRegistry.TryRegister(player, this))
         {
-            await SendCharacterLoginFailedAsync(CharacterLoginFailureCode.DuplicateLogin, cancellationToken);
-            Logger.Write(LogType.WARNING, $"Player login rejected for '{player.Name}' ({player.Guid}): duplicate account or character session.", "WorldClientSession");
+            await SendCharacterLoginFailedWithReasonAsync(CharacterLoginFailureCode.DuplicateLogin, $"Player login rejected for '{player.Name}' ({player.Guid}): duplicate account or character session.", cancellationToken);
             return;
         }
 
@@ -682,7 +820,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             _activePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
             Logger.Write(LogType.SUCCESS, $"Player '{player.Name}' ({player.Guid}) entered world map={player.Map}, zone={player.Zone} through {mapAvailability.OwnerServerName}.", "WorldClientSession");
         }
-        catch
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             await StopPlayerSaveTimerAsync();
             CurrentPlayer = null;
@@ -690,7 +828,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             _currentMapOwnerServerName = string.Empty;
             _playerSessionRegistry.Unregister(player, this);
             await _characterRepository.SetCharacterOnlineAsync(player.Guid, false, CancellationToken.None);
-            throw;
+
+            await SendMapUnavailableLoginFailedAsync(player, mapAvailability, $"Player login failed while entering world for '{player.Name}' ({player.Guid}) on map={player.Map} through {mapAvailability.OwnerServerName}: {exception.Message}", cancellationToken);
         }
     }
 
@@ -707,6 +846,84 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         // single login failure result. Sending a character list immediately after
         // the failure can make the client treat the world socket as invalid.
         await SendAsync(WorldOpcode.SMSG_CHARACTER_LOGIN_FAILED, WorldPacketBuilders.BuildCharacterLoginFailed(failureCode), _crypt, cancellationToken);
+        MarkCharacterEnumDelayWindow();
+        await AllowCharacterLoginFailureDeliveryAsync(cancellationToken);
+    }
+
+    /**
+      * Sends a character login failure and records the server-side reason that maps to the client-visible failure text.
+      */
+    private async Task SendCharacterLoginFailedWithReasonAsync(CharacterLoginFailureCode failureCode, string reason, CancellationToken cancellationToken)
+    {
+        Logger.Write(LogType.WARNING, $"{reason} Client failure code: {failureCode}.", "WorldClientSession");
+        await SendCharacterLoginFailedAsync(failureCode, cancellationToken);
+    }
+
+    /**
+      * Sends every client-visible rejection packet available during the character-login transition for missing or unavailable map ownership.
+      */
+    private async Task SendMapUnavailableLoginFailedAsync(PlayerLoginRecord player, MapAvailabilityResult mapAvailability, string reason, CancellationToken cancellationToken)
+    {
+        CharacterLoginFailureCode failureCode = ResolveMapAvailabilityFailureCode(mapAvailability);
+        TransferAbortReason transferAbortReason = ResolveMapAvailabilityTransferAbortReason(mapAvailability);
+        string clientMessage = BuildMapUnavailableClientMessage(player, mapAvailability);
+
+        Logger.Write(LogType.WARNING, $"{reason} Client failure code: {failureCode}; transfer abort reason: {transferAbortReason}.", "WorldClientSession");
+
+        await SendAsync(WorldOpcode.SMSG_TRANSFER_ABORTED, WorldPacketBuilders.BuildTransferAborted(player.Map, transferAbortReason), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_CHARACTER_LOGIN_FAILED, WorldPacketBuilders.BuildCharacterLoginFailed(failureCode), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_NOTIFICATION, WorldPacketBuilders.BuildNotification(clientMessage), _crypt, cancellationToken);
+
+        MarkCharacterEnumDelayWindow();
+        await AllowCharacterLoginFailureDeliveryAsync(cancellationToken);
+    }
+
+    /**
+      * Marks the short window where automatic character-list refreshes should wait behind a login failure popup.
+      */
+    private void MarkCharacterEnumDelayWindow()
+    {
+        _delayCharacterEnumUntilUtc = DateTimeOffset.UtcNow.Add(CharacterLoginFailureDeliveryDelay);
+    }
+
+    /**
+      * Gives character-login failure packets a brief delivery window while keeping the authenticated world socket alive.
+      */
+    private static async Task AllowCharacterLoginFailureDeliveryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(CharacterLoginFailureDeliveryDelay, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutdown cancellation should not turn an already-sent character-login failure into a noisy session error.
+        }
+    }
+
+    /**
+      * Chooses the vanilla character-login failure code that gives the client the closest built-in reason text for map availability failures.
+      */
+    private static CharacterLoginFailureCode ResolveMapAvailabilityFailureCode(MapAvailabilityResult mapAvailability)
+    {
+        return mapAvailability.RequiresInstanceServer ? CharacterLoginFailureCode.NoInstances : CharacterLoginFailureCode.NoWorld;
+    }
+
+    /**
+      * Chooses the closest built-in transfer-abort reason for the unavailable map owner case.
+      */
+    private static TransferAbortReason ResolveMapAvailabilityTransferAbortReason(MapAvailabilityResult mapAvailability)
+    {
+        return mapAvailability.RequiresInstanceServer ? TransferAbortReason.InstanceNotFound : TransferAbortReason.MapNotAllowed;
+    }
+
+    /**
+      * Builds the fallback client notification used when the character-login failure packet is visually swallowed by the character-list refresh.
+      */
+    private static string BuildMapUnavailableClientMessage(PlayerLoginRecord player, MapAvailabilityResult mapAvailability)
+    {
+        string serviceName = mapAvailability.RequiresInstanceServer ? "instance server" : "world server";
+        return $"Unable to enter world: no {serviceName} is currently available for map {player.Map}.";
     }
 
     /**
@@ -759,6 +976,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Logger.Write(LogType.WARNING, $"Failed to forward {packet.Opcode} from player '{player.Name}' ({player.Guid}) to {ownerServerName}: {exception.Message}", "WorldClientSession");
+            await NotifyMapServiceFailureAsync($"The map service for map {player.Map} is not available right now. Some actions may not work until it returns.", cancellationToken);
             return false;
         }
     }
@@ -799,6 +1017,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Logger.Write(LogType.WARNING, $"Failed to route movement for player '{updatedPlayer.Name}' ({updatedPlayer.Guid}) to {ownerServerName}: {exception.Message}", "WorldClientSession");
+            await NotifyMapServiceFailureAsync($"The map service for map {updatedPlayer.Map} is not available right now. Movement may not save until it returns.", cancellationToken);
         }
 
         await BroadcastMovementToNearbyPlayersAsync(packet, movement, cancellationToken);
@@ -1251,6 +1470,29 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         Logger.Write(LogType.NETWORK, $"Relayed {message.Type} chat from '{CurrentPlayer.Name}' to {worldRecipients.Length} faction-scoped recipient(s).", "WorldClientSession");
+    }
+
+    /**
+      * Sends a throttled in-game system message when the world session is alive but the map service cannot receive player packets.
+      */
+    private async Task NotifyMapServiceFailureAsync(string message, CancellationToken cancellationToken)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (now - _lastMapServiceFailureNotificationUtc < MapServiceFailureNotificationCooldown)
+        {
+            return;
+        }
+
+        _lastMapServiceFailureNotificationUtc = now;
+
+        try
+        {
+            await SendSystemMessageAsync(message, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.Write(LogType.TRACE, $"Unable to send map-service failure notification to {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+        }
     }
 
     /**

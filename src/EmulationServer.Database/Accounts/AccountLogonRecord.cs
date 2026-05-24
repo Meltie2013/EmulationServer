@@ -27,7 +27,7 @@ namespace EmulationServer.Database.Accounts;
 /**
   * Represents immutable account logon record data passed between parts of the server.
   * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: Id, Username, ShaPassHash, GmLevel, Locked, LastIp, Verifier, Salt.
+  * Positional fields carried by this record: Id, Username, ShaPassHash, GmLevel, Locked, LastIp, Verifier, Salt, SessionKey.
   */
 public sealed record AccountLogonRecord(
     uint Id,
@@ -37,4 +37,5 @@ public sealed record AccountLogonRecord(
     bool Locked,
     string LastIp,
     string? Verifier,
-    string? Salt);
+    string? Salt,
+    string? SessionKey);

@@ -52,6 +52,28 @@ public sealed class WorldAccountRepository
     }
 
     /**
+      * Returns whether the remote address is currently blocked by the account database IP ban table.
+      * The WorldServer repeats this check because a client can receive a realm list before an IP ban is applied and then attempt to enter the world.
+      */
+    public async Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+
+        command.CommandText = """
+            SELECT 1
+            FROM `ip_banned`
+            WHERE (`unbandate` = `bandate` OR `unbandate` > UNIX_TIMESTAMP())
+              AND `ip` = @ip
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@ip", ipAddress);
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null;
+    }
+
+    /**
       * Resolves the account session value requested by the caller.
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: username, cancellationToken.

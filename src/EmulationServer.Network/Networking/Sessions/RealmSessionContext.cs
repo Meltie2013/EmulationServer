@@ -137,8 +137,30 @@ public sealed class RealmSessionContext
       * Inputs used by this operation: data, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+    public async ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
-        return _stream.WriteAsync(data, cancellationToken);
+        await _stream.WriteAsync(data, cancellationToken);
+        await _stream.FlushAsync(cancellationToken);
+    }
+
+    /**
+      * Gives terminal authentication packets a brief delivery window before the owning session closes the socket.
+      * Vanilla auth failures are small enough to write immediately, but closing the socket in the same scheduler turn can make the client show a generic disconnect instead of the result text.
+      */
+    public static async Task AllowTerminalResponseDeliveryAsync(TimeSpan deliveryDelay, CancellationToken cancellationToken)
+    {
+        if (deliveryDelay <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(deliveryDelay, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutdown cancellation should not turn an already-sent auth failure into a noisy session error.
+        }
     }
 }
