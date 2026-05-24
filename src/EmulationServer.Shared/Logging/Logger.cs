@@ -86,4 +86,66 @@ public static class Logger
             _logger.Write(type, message, category);
         }
     }
+
+    /**
+      * Writes a short server banner without repeating timestamps on every banner line.
+      * Banners are intentionally kept out of the normal formatter so startup output stays readable.
+      */
+    public static void WriteBanner(string serverName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serverName);
+        WriteRaw(LogType.NOTICE, BuildBannerLines(serverName));
+    }
+
+    /**
+      * Writes already-formatted output directly through the active logger.
+      * This is reserved for banners and visual separators; regular status messages should use Write.
+      */
+    public static void WriteRaw(LogType type, IEnumerable<string> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+
+        string[] outputLines = lines
+            .Select(line => line ?? string.Empty)
+            .ToArray();
+
+        lock (SyncRoot)
+        {
+            _logger.WriteRaw(type, outputLines);
+        }
+    }
+
+    /**
+      * Builds the common startup banner used by every executable server.
+      */
+    private static IReadOnlyList<string> BuildBannerLines(string serverName)
+    {
+        const int width = 81;
+        string title = $":: {serverName} ::";
+
+        return
+        [
+            @" _____                 _       _   _              ____                           ",
+            @"| ____|_ __ ___  _   _| | __ _| |_(_) ___  _ __  / ___|  ___ _ ____   _____ _ __ ",
+            @"|  _| | '_ ` _ \| | | | |/ _` | __| |/ _ \| '_ \ \___ \ / _ \ '__\ \ / / _ \ '__|",
+            @"| |___| | | | | | |_| | | (_| | |_| | (_) | | | | ___) |  __/ |   \ V /  __/ |   ",
+            @"|_____|_| |_| |_|\__,_|_|\__,_|\__|_|\___/|_| |_||____/ \___|_|    \_/ \___|_|   ",
+            string.Empty.PadRight(width),
+            Center(title, width),
+        ];
+    }
+
+    /**
+      * Centers one piece of text inside a fixed-width banner row.
+      */
+    private static string Center(string value, int width)
+    {
+        if (value.Length >= width)
+        {
+            return value;
+        }
+
+        int leftPadding = (width - value.Length) / 2;
+        return new string(' ', leftPadding) + value;
+    }
 }

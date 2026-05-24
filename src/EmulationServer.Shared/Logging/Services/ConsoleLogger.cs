@@ -47,11 +47,61 @@ public sealed class ConsoleLogger : ILogger
       */
     public void Write(LogType type, string message, string? category = null)
     {
+        IReadOnlyList<string> lines = LogMessageFormatter.FormatLines(
+            type,
+            message,
+            category,
+            GetConsoleLineLength());
+
         lock (SyncRoot)
         {
             Console.ForegroundColor = GetColor(type);
-            Console.WriteLine(LogMessageFormatter.Format(type, message, category));
+
+            foreach (string line in lines)
+            {
+                Console.WriteLine(line);
+            }
+
             Console.ResetColor();
+        }
+    }
+
+
+    /**
+      * Writes already-formatted lines directly to the console without adding timestamp prefixes.
+      * Startup banners use this path so visual output stays compact.
+      */
+    public void WriteRaw(LogType type, IReadOnlyList<string> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+
+        lock (SyncRoot)
+        {
+            Console.ForegroundColor = GetColor(type);
+
+            foreach (string line in lines)
+            {
+                Console.WriteLine(line);
+            }
+
+            Console.ResetColor();
+        }
+    }
+
+    /**
+      * Returns the active console width so long messages can be wrapped before the terminal wraps them in the middle of a word.
+      */
+    private static int GetConsoleLineLength()
+    {
+        try
+        {
+            return Console.IsOutputRedirected
+                ? LogMessageFormatter.DefaultMaximumLineLength
+                : Math.Max(80, Console.WindowWidth - 1);
+        }
+        catch (IOException)
+        {
+            return LogMessageFormatter.DefaultMaximumLineLength;
         }
     }
 
@@ -76,6 +126,8 @@ public sealed class ConsoleLogger : ILogger
             LogType.INFORMATION => ConsoleColor.White,
             LogType.NOTICE => ConsoleColor.Cyan,
             LogType.THREAD => ConsoleColor.DarkYellow,
+            LogType.USER => ConsoleColor.White,
+            LogType.FUNC => ConsoleColor.DarkGray,
             _ => ConsoleColor.Gray,
         };
     }

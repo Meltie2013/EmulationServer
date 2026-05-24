@@ -100,7 +100,7 @@ public sealed class FactionDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName} typed faction DBC data loaded: factions={data.Factions.Count}, templates={data.Templates.Count}.",
+            $"{ownerName}: faction DBC loaded (factions={data.Factions.Count}, templates={data.Templates.Count}).",
             "FactionDbcDataStore");
 
         return data;

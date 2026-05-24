@@ -97,20 +97,80 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
             return;
         }
 
-        string formattedMessage = LogMessageFormatter.Format(type, message, category);
+        DateTime timestamp = DateTime.UtcNow;
+
+        lock (_syncRoot)
+        {
+            if (_settings.Output is LogOutputMode.Console or LogOutputMode.Both)
+            {
+                IReadOnlyList<string> consoleLines = LogMessageFormatter.FormatLines(
+                    type,
+                    message,
+                    category,
+                    GetConsoleLineLength(),
+                    timestamp);
+
+                Console.ForegroundColor = GetColor(type);
+
+                foreach (string line in consoleLines)
+                {
+                    Console.WriteLine(line);
+                }
+
+                Console.ResetColor();
+            }
+
+            if (_fileWriter is not null)
+            {
+                IReadOnlyList<string> fileLines = LogMessageFormatter.FormatLines(
+                    type,
+                    message,
+                    category,
+                    LogMessageFormatter.DefaultMaximumLineLength,
+                    timestamp);
+
+                foreach (string line in fileLines)
+                {
+                    _fileWriter.WriteLine(line);
+                }
+            }
+        }
+    }
+
+
+    /**
+      * Writes already-formatted lines directly to configured outputs without adding timestamp prefixes.
+      * This is used for startup banners and visual separators only.
+      */
+    public void WriteRaw(LogType type, IReadOnlyList<string> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+
+        if (_disposed || !_settings.IsEnabled(type))
+        {
+            return;
+        }
 
         lock (_syncRoot)
         {
             if (_settings.Output is LogOutputMode.Console or LogOutputMode.Both)
             {
                 Console.ForegroundColor = GetColor(type);
-                Console.WriteLine(formattedMessage);
+
+                foreach (string line in lines)
+                {
+                    Console.WriteLine(line);
+                }
+
                 Console.ResetColor();
             }
 
             if (_fileWriter is not null)
             {
-                _fileWriter.WriteLine(formattedMessage);
+                foreach (string line in lines)
+                {
+                    _fileWriter.WriteLine(line);
+                }
             }
         }
     }
@@ -130,6 +190,23 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
 
             _fileWriter?.Dispose();
             _disposed = true;
+        }
+    }
+
+    /**
+      * Returns the active console width so long messages can be wrapped before the terminal wraps them in the middle of a word.
+      */
+    private static int GetConsoleLineLength()
+    {
+        try
+        {
+            return Console.IsOutputRedirected
+                ? LogMessageFormatter.DefaultMaximumLineLength
+                : Math.Max(80, Console.WindowWidth - 1);
+        }
+        catch (IOException)
+        {
+            return LogMessageFormatter.DefaultMaximumLineLength;
         }
     }
 
@@ -154,6 +231,8 @@ public sealed class ConfiguredLogger : ILogger, IDisposable
             LogType.INFORMATION => ConsoleColor.White,
             LogType.NOTICE => ConsoleColor.Cyan,
             LogType.THREAD => ConsoleColor.DarkYellow,
+            LogType.USER => ConsoleColor.White,
+            LogType.FUNC => ConsoleColor.DarkGray,
             _ => ConsoleColor.Gray,
         };
     }

@@ -172,7 +172,7 @@ public sealed class SpellDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName} typed spell DBC data loaded: skills={data.Skills.Count}, skillAbilities={data.SkillAbilities.Count}, skillRaceClassInfo={data.SkillRaceClassInfo.Count}, spells={data.Spells.Count}, icons={data.SpellIcons.Count}, durations={data.SpellDurations.Count}, ranges={data.SpellRanges.Count}, castTimes={data.SpellCastTimes.Count}.",
+            $"{ownerName}: spell DBC loaded (skillLines={data.Skills.Count}, skillAbilities={data.SkillAbilities.Count}, skillRaceClassInfo={data.SkillRaceClassInfo.Count}, spells={data.Spells.Count}, icons={data.SpellIcons.Count}, durations={data.SpellDurations.Count}, ranges={data.SpellRanges.Count}, castTimes={data.SpellCastTimes.Count}).",
             "SpellDbcDataStore");
 
         return data;

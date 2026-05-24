@@ -188,7 +188,10 @@ public sealed class WorldGameDataStore
         ChatChannelDbcDataStore chatData = ChatChannelDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
         LanguageDbcDataStore languageData = LanguageDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
 
-        Logger.Write(LogType.SUCCESS, $"World game data loaded: {dbcStores.Count} DBC file(s). Map tiles are owned by MapServer and InstanceServer.", "WorldGameDataStore");
+        Logger.Write(
+            LogType.SUCCESS,
+            $"World game data loaded (dbcStores={dbcStores.Count}, mapTileOwners=MapServer/InstanceServer).",
+            "WorldGameDataStore");
 
         return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData, chatData, languageData);
     }

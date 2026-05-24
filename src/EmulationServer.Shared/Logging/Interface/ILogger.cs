@@ -37,4 +37,10 @@ public interface ILogger
       * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
       */
     void Write(LogType type, string message, string? category = null);
+
+    /**
+      * Writes already-formatted lines directly to the output target.
+      * Banner and separator output use this path so visual startup blocks do not get a timestamp repeated on every art line.
+      */
+    void WriteRaw(LogType type, IReadOnlyList<string> lines);
 }

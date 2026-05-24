@@ -162,7 +162,7 @@ public sealed class MapDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName} typed map DBC data loaded: maps={mapData.Maps.Count}, areas={mapData.Areas.Count}, triggers={mapData.AreaTriggers.Count}, worldMapAreas={mapData.WorldMapAreas.Count}, continents={mapData.WorldMapContinents.Count}, overlays={mapData.WorldMapOverlays.Count}.",
+            $"{ownerName}: map DBC loaded (maps={mapData.Maps.Count}, areas={mapData.Areas.Count}, triggers={mapData.AreaTriggers.Count}, worldMapAreas={mapData.WorldMapAreas.Count}, continents={mapData.WorldMapContinents.Count}, overlays={mapData.WorldMapOverlays.Count}).",
             "MapDbcDataStore");
 
         return mapData;

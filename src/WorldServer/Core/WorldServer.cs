@@ -864,7 +864,7 @@ public sealed class WorldServer : IAsyncDisposable
 
         Logger.Write(
             LogType.DATABASE,
-            $"WorldServer world database templates are ready in memory: playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}.",
+            $"World database templates ready (playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}).",
             "WorldServer");
     }
 
@@ -905,6 +905,9 @@ public sealed class WorldServer : IAsyncDisposable
             gameDataSettings.DbcDirectory,
             gameDataSettings.RequiredDbcFiles);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer game data is ready in memory: {_gameData.DbcStores.Count} DBC store(s), maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}, chatChannels={_gameData.ChatData.Records.Count}.", "WorldServer");
+        Logger.Write(
+            LogType.SUCCESS,
+            $"Game data ready (dbcStores={_gameData.DbcStores.Count}, maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}, chatChannels={_gameData.ChatData.Records.Count}).",
+            "WorldServer");
     }
 }

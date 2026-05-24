@@ -88,7 +88,7 @@ public sealed class ChatChannelDbcDataStore
             record => record.Id);
 
         ChatChannelDbcDataStore data = new(channels);
-        Logger.Write(LogType.SUCCESS, $"{ownerName} typed chat-channel DBC data loaded: channels={data.Records.Count}.", "ChatChannelDbcDataStore");
+        Logger.Write(LogType.SUCCESS, $"{ownerName}: chat-channel DBC loaded (channels={data.Records.Count}).", "ChatChannelDbcDataStore");
         return data;
     }
 

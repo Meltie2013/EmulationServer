@@ -197,7 +197,7 @@ public sealed class CharacterDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName} typed character DBC data loaded: races={data.Races.Count}, classes={data.Classes.Count}, raceClassPairs={data.BaseInfo.Count}, startOutfits={data.StartOutfits.Count}, sections={data.Sections.Count}, facialHair={data.FacialHairStyles.Count}, hairGeosets={data.HairGeosets.Count}.",
+            $"{ownerName}: character DBC loaded (races={data.Races.Count}, classes={data.Classes.Count}, raceClassPairs={data.BaseInfo.Count}, startOutfits={data.StartOutfits.Count}, sections={data.Sections.Count}, facialHairStyles={data.FacialHairStyles.Count}, hairGeosets={data.HairGeosets.Count}).",
             "CharacterDbcDataStore");
 
         return data;

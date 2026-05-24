@@ -51,13 +51,7 @@ try
 
     Logger.Configure(settings.Logging);
 
-    Logger.Write(LogType.NOTICE, @" _____                 _       _   _              ____                           ");
-    Logger.Write(LogType.NOTICE, @"| ____|_ __ ___  _   _| | __ _| |_(_) ___  _ __  / ___|  ___ _ ____   _____ _ __ ");
-    Logger.Write(LogType.NOTICE, @"|  _| | '_ ` _ \| | | | |/ _` | __| |/ _ \| '_ \ \___ \ / _ \ '__\ \ / / _ \ '__|");
-    Logger.Write(LogType.NOTICE, @"| |___| | | | | | |_| | | (_| | |_| | (_) | | | | ___) |  __/ |   \ V /  __/ |   ");
-    Logger.Write(LogType.NOTICE, @"|_____|_| |_| |_|\__,_|_|\__,_|\__|_|\___/|_| |_||____/ \___|_|    \_/ \___|_|   ");
-    Logger.Write(LogType.NOTICE, @"                                                                                 ");
-    Logger.Write(LogType.NOTICE, @"                          :: World Server ::");
+    Logger.WriteBanner("World Server");
 
     await using WorldServer server = new(settings);
 

@@ -147,7 +147,7 @@ public sealed class ItemDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName} typed item DBC data loaded: classes={data.Classes.Count}, subclasses={data.SubClasses.Count}, displayInfo={data.DisplayInfo.Count}, itemSets={data.Sets.Count}, bagFamilies={data.BagFamilies.Count}.",
+            $"{ownerName}: item DBC loaded (classes={data.Classes.Count}, subclasses={data.SubClasses.Count}, displays={data.DisplayInfo.Count}, sets={data.Sets.Count}, bagFamilies={data.BagFamilies.Count}).",
             "ItemDbcDataStore");
 
         return data;

@@ -71,7 +71,7 @@ public sealed class LanguageDbcDataStore
             record => record.Id);
 
         LanguageDbcDataStore data = new(languages);
-        Logger.Write(LogType.SUCCESS, $"{ownerName} typed language DBC data loaded: languages={data.Records.Count}.", "LanguageDbcDataStore");
+        Logger.Write(LogType.SUCCESS, $"{ownerName}: language DBC loaded (languages={data.Records.Count}).", "LanguageDbcDataStore");
         return data;
     }
 

@@ -60,7 +60,7 @@ public static class DbcStoreLoader
             stores[store.Name] = store;
         }
 
-        Logger.Write(LogType.SUCCESS, $"{ownerName} loaded {stores.Count} required DBC file(s) from '{fullDbcDirectory}'.", "DbcStoreLoader");
+        Logger.Write(LogType.SUCCESS, $"{ownerName}: loaded required DBC files (count={stores.Count}, path='{fullDbcDirectory}').", "DbcStoreLoader");
         return stores;
     }
 
