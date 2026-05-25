@@ -79,7 +79,7 @@ public sealed class WorldAccountRepository
       * Inputs used by this operation: username, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    public async Task<WorldAccountSessionRecord?> GetAccountSessionAsync(string username, CancellationToken cancellationToken = default)
+    public async Task<WorldAccountSessionRecord?> GetAccountSessionAsync(string username, uint realmId, CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
 
@@ -87,7 +87,7 @@ public sealed class WorldAccountRepository
         using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
-            SELECT `id`, `username`, `gmlevel`, `locked`, `sessionkey`
+            SELECT `id`, `username`, `locked`, `sessionkey`
             FROM `account`
             WHERE `username` = @username
             LIMIT 1;
@@ -100,12 +100,20 @@ public sealed class WorldAccountRepository
             return null;
         }
 
+        uint accountId = reader.GetUInt32(0);
+        string accountUsername = reader.GetString(1);
+        bool locked = reader.GetByte(2) != 0;
+        string sessionKey = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+        await reader.DisposeAsync();
+
+        RbacPermissionSet permissions = await RbacPermissionResolver.LoadForAccountAsync(connection, accountId, unchecked((int)realmId), cancellationToken);
         return new WorldAccountSessionRecord(
-            reader.GetUInt32(0),
-            reader.GetString(1),
-            reader.GetByte(2),
-            reader.GetByte(3) != 0,
-            reader.IsDBNull(4) ? string.Empty : reader.GetString(4));
+            accountId,
+            accountUsername,
+            permissions.SecurityLevel,
+            permissions,
+            locked,
+            sessionKey);
     }
 
     /**

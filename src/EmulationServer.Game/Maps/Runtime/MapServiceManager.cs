@@ -498,6 +498,74 @@ public sealed class MapServiceManager : IAsyncDisposable
       */
     private string FormatInfoMessage(MapServiceSnapshot snapshot)
     {
-        return $"{snapshot.OwnerServerName} {snapshot.Kind} map service '{snapshot.Name}' is {snapshot.State}: map={snapshot.MapId}, instance={snapshot.InstanceId}, tick={snapshot.Tick}, players={snapshot.ActivePlayers}, grids={snapshot.ActiveGrids}, load={snapshot.LoadPercent:0.##}%, avgTick={snapshot.AverageTickMilliseconds:0.###} ms. {_mapData.DescribeMap(snapshot.MapId)}";
+        List<string> lines = [
+            $"Map service: {snapshot.Name}",
+            $"Owner: {snapshot.OwnerServerName}",
+            $"Kind: {snapshot.Kind}",
+            $"Map ID: {snapshot.MapId}",
+            $"Instance ID: {snapshot.InstanceId}",
+            $"State: {snapshot.State}",
+            $"Uptime: {FormatUptime(snapshot.State, snapshot.StartedUtc)}",
+            $"Tick: {snapshot.Tick}",
+            $"Players: {snapshot.ActivePlayers}",
+            $"Grids: {snapshot.ActiveGrids}",
+            $"Load: {snapshot.LoadPercent:0.##}%",
+            $"Average Tick: {snapshot.AverageTickMilliseconds:0.###} ms"
+        ];
+
+        AppendMapMetadata(lines, snapshot.MapId);
+        return string.Join('\n', lines);
+    }
+
+    /**
+      * Appends DBC-backed metadata as short chat-safe lines.
+      */
+    private void AppendMapMetadata(List<string> lines, int mapId)
+    {
+        if (!_mapData.TryGetMap(mapId, out MapDbcRecord map))
+        {
+            lines.Add($"DBC: MapId={mapId} is not present in Map.dbc.");
+            return;
+        }
+
+        lines.Add($"Name: {map.DisplayName}");
+        lines.Add($"Type: {map.Type}");
+        lines.Add($"Areas: {_mapData.GetAreasForMap(mapId).Count}");
+        lines.Add($"Triggers: {_mapData.GetTriggersForMap(mapId).Count}");
+        lines.Add($"Continents: {_mapData.GetContinentsForMap(mapId).Count}");
+    }
+
+    /**
+      * Formats an online uptime counter while keeping offline and unknown values explicit.
+      */
+    private static string FormatUptime(MapServiceState state, DateTimeOffset startedUtc)
+    {
+        if (state != MapServiceState.Online)
+        {
+            return "offline";
+        }
+
+        if (startedUtc <= DateTimeOffset.UnixEpoch)
+        {
+            return "unknown";
+        }
+
+        TimeSpan uptime = DateTimeOffset.UtcNow - startedUtc;
+        if (uptime < TimeSpan.Zero)
+        {
+            uptime = TimeSpan.Zero;
+        }
+
+        return FormatDuration(uptime);
+    }
+
+    /**
+      * Formats a compact day/hour/minute/second duration for in-game chat output.
+      */
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalDays >= 1
+            ? $"{duration.Days}d {duration.Hours:D2}h {duration.Minutes:D2}m {duration.Seconds:D2}s"
+            : $"{duration.Hours:D2}h {duration.Minutes:D2}m {duration.Seconds:D2}s";
     }
 }

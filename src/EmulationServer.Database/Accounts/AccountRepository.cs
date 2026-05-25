@@ -62,7 +62,7 @@ public sealed class AccountRepository
         using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
-            SELECT `id`, `username`, `sha_pass_hash`, `gmlevel`, `locked`, `last_ip`, `v`, `s`, `sessionkey`
+            SELECT `id`, `username`, `sha_pass_hash`, `locked`, `last_ip`, `v`, `s`, `sessionkey`
             FROM `account`
             WHERE `username` = @username
             LIMIT 1;
@@ -75,16 +75,28 @@ public sealed class AccountRepository
             return null;
         }
 
+        uint accountId = reader.GetUInt32(0);
+        string accountUsername = reader.GetString(1);
+        string shaPassHash = reader.GetString(2);
+        bool locked = reader.GetByte(3) != 0;
+        string lastIp = reader.GetString(4);
+        string? verifier = reader.IsDBNull(5) ? null : reader.GetString(5);
+        string? salt = reader.IsDBNull(6) ? null : reader.GetString(6);
+        string? sessionKey = reader.IsDBNull(7) ? null : reader.GetString(7);
+        await reader.DisposeAsync();
+
+        RbacPermissionSet permissions = await RbacPermissionResolver.LoadForAccountAsync(connection, accountId, -1, cancellationToken);
         return new AccountLogonRecord(
-            reader.GetUInt32(0),
-            reader.GetString(1),
-            reader.GetString(2),
-            reader.GetByte(3),
-            reader.GetByte(4) != 0,
-            reader.GetString(5),
-            reader.IsDBNull(6) ? null : reader.GetString(6),
-            reader.IsDBNull(7) ? null : reader.GetString(7),
-            reader.IsDBNull(8) ? null : reader.GetString(8));
+            accountId,
+            accountUsername,
+            shaPassHash,
+            permissions.SecurityLevel,
+            permissions,
+            locked,
+            lastIp,
+            verifier,
+            salt,
+            sessionKey);
     }
 
     /**
@@ -231,14 +243,13 @@ public sealed class AccountRepository
     /**
       * Creates the account result needed by the caller.
       * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: username, password, email, gmLevel, cancellationToken.
+      * Inputs used by this operation: username, password, email, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
     public async Task<AccountCommandResult> CreateAccountAsync(
         string username,
         string password,
         string email = "",
-        byte gmLevel = 0,
         CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
@@ -262,13 +273,12 @@ public sealed class AccountRepository
 
             command.CommandText = """
                 INSERT INTO `account`
-                    (`username`, `sha_pass_hash`, `gmlevel`, `sessionkey`, `v`, `s`, `email`, `joindate`, `last_ip`, `failed_logins`, `locked`, `last_login`, `active_realm_id`, `expansion`, `mutetime`, `locale`, `os`, `playerBot`)
+                    (`username`, `sha_pass_hash`, `sessionkey`, `v`, `s`, `email`, `joindate`, `last_ip`, `failed_logins`, `locked`, `last_login`, `active_realm_id`, `expansion`, `mutetime`, `locale`, `os`, `playerBot`)
                 VALUES
-                    (@username, @hash, @gmLevel, '', '0', '0', @email, NOW(), '0.0.0.0', 0, 0, NOW(), 0, 0, 0, 0, '', b'0');
+                    (@username, @hash, '', '0', '0', @email, NOW(), '0.0.0.0', 0, 0, NOW(), 0, 0, 0, 0, '', b'0');
                 """;
             command.Parameters.AddWithValue("@username", username);
             command.Parameters.AddWithValue("@hash", hash);
-            command.Parameters.AddWithValue("@gmLevel", gmLevel);
             command.Parameters.AddWithValue("@email", email ?? string.Empty);
 
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -313,6 +323,121 @@ public sealed class AccountRepository
         }
 
         return new AccountCommandResult(true, $"Account '{username}' was removed.");
+    }
+
+    /**
+      * Grants a direct RBAC permission to an account for all realms unless a specific realm id is supplied.
+      * The command updates the account-specific permission override table and leaves role template rows unchanged.
+      */
+    public async Task<AccountCommandResult> SetAccountPermissionAsync(
+        string username,
+        uint permissionId,
+        int realmId = -1,
+        CancellationToken cancellationToken = default)
+    {
+        username = NormalizeUsername(username);
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return new AccountCommandResult(false, "Username is required.");
+        }
+
+        if (permissionId == 0)
+        {
+            return new AccountCommandResult(false, "Permission id must be greater than zero.");
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        uint? accountId = await GetAccountIdAsync(connection, transaction, username, cancellationToken);
+        if (accountId is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return new AccountCommandResult(false, $"Account '{username}' was not found.");
+        }
+
+        if (!await PermissionExistsAsync(connection, transaction, permissionId, cancellationToken))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return new AccountCommandResult(false, $"RBAC permission {permissionId} does not exist.");
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO `rbac_account_permissions`
+                (`accountId`, `permissionId`, `granted`, `realmId`)
+            VALUES
+                (@accountId, @permissionId, 1, @realmId)
+            ON DUPLICATE KEY UPDATE
+                `granted` = VALUES(`granted`);
+            """;
+        command.Parameters.AddWithValue("@accountId", accountId.Value);
+        command.Parameters.AddWithValue("@permissionId", permissionId);
+        command.Parameters.AddWithValue("@realmId", realmId);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        string scope = realmId < 0 ? "globally" : $"for realm {realmId}";
+        return new AccountCommandResult(true, $"Permission {permissionId} was granted to account '{username}' {scope}.");
+    }
+
+    /**
+      * Removes a direct RBAC permission override from an account.
+      * Linked/default permissions are not modified; the account may still inherit the same permission through a role.
+      */
+    public async Task<AccountCommandResult> RemoveAccountPermissionAsync(
+        string username,
+        uint permissionId,
+        int realmId = -1,
+        CancellationToken cancellationToken = default)
+    {
+        username = NormalizeUsername(username);
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return new AccountCommandResult(false, "Username is required.");
+        }
+
+        if (permissionId == 0)
+        {
+            return new AccountCommandResult(false, "Permission id must be greater than zero.");
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        uint? accountId = await GetAccountIdAsync(connection, transaction, username, cancellationToken);
+        if (accountId is null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return new AccountCommandResult(false, $"Account '{username}' was not found.");
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM `rbac_account_permissions`
+            WHERE `accountId` = @accountId
+              AND `permissionId` = @permissionId
+              AND `realmId` = @realmId;
+            """;
+        command.Parameters.AddWithValue("@accountId", accountId.Value);
+        command.Parameters.AddWithValue("@permissionId", permissionId);
+        command.Parameters.AddWithValue("@realmId", realmId);
+
+        int removed = await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        if (removed == 0)
+        {
+            return new AccountCommandResult(false, $"Permission {permissionId} was not directly assigned to account '{username}'.");
+        }
+
+        string scope = realmId < 0 ? "globally" : $"for realm {realmId}";
+        return new AccountCommandResult(true, $"Permission {permissionId} was removed from account '{username}' {scope}.");
     }
 
     /**
@@ -556,6 +681,24 @@ public sealed class AccountRepository
             """;
 
         return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /**
+      * Returns whether an RBAC permission id exists before account override rows reference it.
+      */
+    private static async Task<bool> PermissionExistsAsync(
+        MySqlConnection connection,
+        MySqlTransaction? transaction,
+        uint permissionId,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT 1 FROM `rbac_permissions` WHERE `id` = @permissionId LIMIT 1;";
+        command.Parameters.AddWithValue("@permissionId", permissionId);
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null;
     }
 
     /**

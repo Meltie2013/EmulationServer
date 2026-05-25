@@ -237,6 +237,7 @@ public sealed class MapService : IAsyncDisposable
                 await _gridManager.InitializeAsync(_startupGrids, cancellationToken);
             }
 
+            ResetRuntimeCounters(DateTimeOffset.UtcNow);
             await SetStateAsync(MapServiceState.RespawningObjects, "respawning runtime objects", cancellationToken);
             StartTickLoop(cancellationToken);
             await SetStateAsync(MapServiceState.Online, "restart complete", cancellationToken);
@@ -360,6 +361,22 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
+
+    /**
+      * Resets service timing counters whenever the map transitions into a fresh online runtime.
+      */
+    private void ResetRuntimeCounters(DateTimeOffset startedUtc)
+    {
+        lock (_syncRoot)
+        {
+            _tick = 0;
+            _lastTickMilliseconds = 0;
+            _averageTickMilliseconds = 0;
+            _startedUtc = startedUtc;
+            _lastTickUtc = startedUtc;
+        }
+    }
+
     /**
       * Starts the start core workflow and prepares the component to accept runtime work.
       * Startup is ordered so validation and dependency setup finish before services are announced as available.
@@ -371,7 +388,7 @@ public sealed class MapService : IAsyncDisposable
         MapServiceState currentState = State;
         if (currentState is MapServiceState.Online or MapServiceState.Starting)
         {
-            Logger.Write(LogType.INFORMATION, $"{FormatService()} start requested but service is already {currentState}.", "MapService");
+            Logger.Write(LogType.WARNING, $"{FormatService()} start requested but service is already {currentState}.", "MapService");
             await PublishStatusAsync(cancellationToken);
             return;
         }
@@ -379,14 +396,7 @@ public sealed class MapService : IAsyncDisposable
         _stopCancellation?.Dispose();
         _stopCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-        lock (_syncRoot)
-        {
-            _tick = 0;
-            _lastTickMilliseconds = 0;
-            _averageTickMilliseconds = 0;
-            _startedUtc = DateTimeOffset.UtcNow;
-            _lastTickUtc = _startedUtc;
-        }
+        ResetRuntimeCounters(DateTimeOffset.UtcNow);
 
         await SetStateAsync(MapServiceState.Starting, "registering map service and loading startup data", cancellationToken);
 
@@ -410,7 +420,7 @@ public sealed class MapService : IAsyncDisposable
         MapServiceState currentState = State;
         if (currentState == MapServiceState.Offline)
         {
-            Logger.Write(LogType.INFORMATION, $"{FormatService()} shutdown requested but service is already Offline.", "MapService");
+            Logger.Write(LogType.WARNING, $"{FormatService()} shutdown requested but service is already Offline.", "MapService");
             await PublishStatusAsync(cancellationToken);
             return;
         }

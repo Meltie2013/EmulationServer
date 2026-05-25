@@ -95,6 +95,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Keeps only the newest World -> Map/Instance movement sample when the internal route is busy.
       */
     private const int MapServiceMovementQueueCapacity = 1;
+    /**
+      * Keeps generated system-chat lines short enough to stay readable in the vanilla client chat frame.
+      */
+    private const int SystemChatLineLength = 160;
 
     /**
       * Holds the compact queued movement packet sent by the per-session movement writer.
@@ -407,10 +411,42 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     public string CurrentMapOwnerServerName => _currentMapOwnerServerName;
 
     /**
-      * Stores the default account gm level value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
+      * Exposes the authenticated account id to command handlers.
       */
-    public byte AccountGmLevel => _account?.GmLevel ?? 0;
+    public uint AccountId => _account?.Id ?? 0;
+
+    /**
+      * Exposes the authenticated account name to command handlers.
+      */
+    public string AccountName => _account?.Username ?? string.Empty;
+
+    /**
+      * Exposes the RBAC-derived account security level to command handlers.
+      */
+    public AccountSecurityLevel AccountSecurityLevel => _account?.SecurityLevel ?? AccountSecurityLevel.Player;
+
+    /**
+      * Checks the final RBAC permission set for a command or role permission id.
+      */
+    public bool HasPermission(uint permissionId)
+    {
+        return _account?.Permissions.HasPermission(permissionId) == true;
+    }
+
+    /**
+      * Reloads this session's RBAC data from the account database.
+      */
+    public async Task ReloadPermissionsAsync(CancellationToken cancellationToken)
+    {
+        WorldAccountSessionRecord account = RequireAccount();
+        WorldAccountSessionRecord? reloaded = await _accountRepository.GetAccountSessionAsync(account.Username, _realmId, cancellationToken);
+        if (reloaded is null)
+        {
+            throw new InvalidOperationException($"Account '{account.Username}' could not be reloaded.");
+        }
+
+        _account = reloaded;
+    }
 
     /**
       * Stores the default active player count value used when the caller does not supply an override.
@@ -686,7 +722,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return;
         }
 
-        WorldAccountSessionRecord? account = await _accountRepository.GetAccountSessionAsync(username, cancellationToken);
+        WorldAccountSessionRecord? account = await _accountRepository.GetAccountSessionAsync(username, _realmId, cancellationToken);
         if (account is null || account.Locked)
         {
             Logger.Write(LogType.WARNING, $"World auth rejected for '{username}' from {RemoteEndPoint}: account missing or locked.", "WorldClientSession");
@@ -2060,8 +2096,60 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         PlayerLoginRecord? player = CurrentPlayer;
         ulong senderGuid = player?.ClientGuid ?? 0;
         string senderName = player?.Name ?? "Server";
-        byte[] payload = WorldPacketBuilders.BuildChatMessage(ChatMessageType.System, ChatLanguage.Universal, senderGuid, senderName, message);
-        await SendAsync(WorldOpcode.SMSG_MESSAGECHAT, payload, _crypt, cancellationToken);
+
+        foreach (string line in SplitSystemMessageLines(message))
+        {
+            byte[] payload = WorldPacketBuilders.BuildChatMessage(ChatMessageType.System, ChatLanguage.Universal, senderGuid, senderName, line);
+            await SendAsync(WorldOpcode.SMSG_MESSAGECHAT, payload, _crypt, cancellationToken);
+        }
+    }
+
+    /**
+      * Splits multiline command output into short chat-frame-safe system messages.
+      */
+    private static IEnumerable<string> SplitSystemMessageLines(string message)
+    {
+        string normalized = string.IsNullOrWhiteSpace(message)
+            ? string.Empty
+            : message.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+
+        foreach (string rawLine in normalized.Split('\n', StringSplitOptions.None))
+        {
+            string line = rawLine.TrimEnd();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            foreach (string chunk in SplitSystemMessageLine(line))
+            {
+                yield return chunk;
+            }
+        }
+    }
+
+    /**
+      * Wraps long generated system-chat lines without splitting words when possible.
+      */
+    private static IEnumerable<string> SplitSystemMessageLine(string line)
+    {
+        string remaining = line;
+        while (remaining.Length > SystemChatLineLength)
+        {
+            int splitIndex = remaining.LastIndexOf(' ', SystemChatLineLength);
+            if (splitIndex <= 0)
+            {
+                splitIndex = SystemChatLineLength;
+            }
+
+            yield return remaining[..splitIndex].TrimEnd();
+            remaining = remaining[splitIndex..].TrimStart();
+        }
+
+        if (!string.IsNullOrWhiteSpace(remaining))
+        {
+            yield return remaining;
+        }
     }
 
     /**

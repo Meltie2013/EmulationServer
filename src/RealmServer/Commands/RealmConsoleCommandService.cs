@@ -182,22 +182,15 @@ public sealed class RealmConsoleCommandService
     {
         if (parts.Length < 4)
         {
-            Logger.Write(LogType.WARNING, "Usage: account add <username> <password> [email] [gmlevel]", "RealmConsoleCommandService");
+            Logger.Write(LogType.WARNING, "Usage: account add <username> <password> [email]", "RealmConsoleCommandService");
             return;
         }
 
         string username = parts[2];
         string password = parts[3];
         string email = parts.Length >= 5 ? parts[4] : string.Empty;
-        byte gmLevel = 0;
 
-        if (parts.Length >= 6 && !byte.TryParse(parts[5], out gmLevel))
-        {
-            Logger.Write(LogType.WARNING, "gmlevel must be a number between 0 and 3.", "RealmConsoleCommandService");
-            return;
-        }
-
-        AccountCommandResult result = await _accountRepository.CreateAccountAsync(username, password, email, gmLevel, cancellationToken);
+        AccountCommandResult result = await _accountRepository.CreateAccountAsync(username, password, email, cancellationToken);
         Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
@@ -322,7 +315,7 @@ public sealed class RealmConsoleCommandService
     private static void WriteAccountHelp()
     {
         Logger.Write(LogType.TRACE, "Account commands:", "RealmConsoleCommandService");
-        Logger.Write(LogType.TRACE, "  account add <username> <password> [email] [gmlevel]", "RealmConsoleCommandService");
+        Logger.Write(LogType.TRACE, "  account add <username> <password> [email]", "RealmConsoleCommandService");
         Logger.Write(LogType.TRACE, "  account remove <username>", "RealmConsoleCommandService");
         Logger.Write(LogType.TRACE, "  account ban <username> <duration|permanent> <reason...>", "RealmConsoleCommandService");
         Logger.Write(LogType.TRACE, "  account unban <username>", "RealmConsoleCommandService");

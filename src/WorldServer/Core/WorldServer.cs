@@ -22,13 +22,15 @@ using System.Globalization;
 using EmulationServer.Core.Servers;
 using EmulationServer.Database.Services;
 using EmulationServer.Game.Data.Stores;
+using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Peers;
 using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
-using WorldConsoleCommandService = EmulationServer.WorldServer.Commands.WorldConsoleCommandService;
+using EmulationServer.Database.Accounts;
+using EmulationServer.Game.Commands;
 using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
 using EmulationServer.WorldServer.Characters;
 using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
@@ -58,7 +60,7 @@ namespace EmulationServer.WorldServer.Core;
   * Owns the world server behavior for the world server startup, client networking, gameplay routing, and persistence layer.
   * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
   */
-public sealed class WorldServer : IAsyncDisposable
+public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandExecutor, IInGameServerCommandExecutor, IAsyncDisposable
 {
     /**
       * Holds the private settings state used by the owning component.
@@ -75,11 +77,6 @@ public sealed class WorldServer : IAsyncDisposable
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly WorldRealmStatusReporter _realmStatusReporter;
-    /**
-      * Holds the private command service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
-    private readonly WorldConsoleCommandService _commandService;
     /**
       * Holds the private auth database state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -148,6 +145,7 @@ public sealed class WorldServer : IAsyncDisposable
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
+    private int _serverControlRequested;
 
     /**
       * Holds the private game data state used by the owning component.
@@ -167,7 +165,6 @@ public sealed class WorldServer : IAsyncDisposable
 
         _settings = settings;
         _host = new EmulationServerHost("WorldServer", settings.InternalNetwork, CreateCallbacks());
-        _commandService = new WorldConsoleCommandService(ExecuteMapCommandAsync);
 
         _authDatabase = new MySqlDatabaseService(settings.Databases.Auth);
         _characterDatabase = new MySqlDatabaseService(settings.Databases.Character);
@@ -182,7 +179,13 @@ public sealed class WorldServer : IAsyncDisposable
         _itemSystem = new GameItemSystem(() => _worldTemplateData);
         _playerSessionRegistry = new WorldPlayerSessionRegistry();
         _chatSystem = new GameChatSystem(() => _gameData);
-        _inGameCommandService = new GameInGameCommandService();
+        _inGameCommandService = new GameInGameCommandService(new InGameCommandDependencies
+        {
+            AccountCommands = new DatabaseInGameAccountCommandExecutor(new AccountRepository(_authDatabase)),
+            MapCommands = this,
+            RbacCommands = this,
+            ServerCommands = this,
+        });
         _realmStatusReporter = new WorldRealmStatusReporter(
             settings.RealmStatus,
             settings.InternalNetwork.RegistrationKey,
@@ -240,7 +243,6 @@ public sealed class WorldServer : IAsyncDisposable
         {
             await _host.StartupCompleted.WaitAsync(cancellationToken);
 
-            _commandService.Start(cancellationToken);
             await _realmStatusReporter.StartAsync(cancellationToken);
 
             await Task.WhenAll(hostTask, clientTask);
@@ -589,18 +591,39 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Executes the requested command after parsing and validation are complete.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
+      * Executes a map control command from the in-game RBAC command system and returns chat-safe feedback.
       */
-    private async Task ExecuteMapCommandAsync(string action, int mapId, CancellationToken cancellationToken)
+    public async Task<string> ExecuteMapCommandAsync(string action, int mapId, CancellationToken cancellationToken)
     {
-        if (string.Equals(action, "info", StringComparison.OrdinalIgnoreCase))
+        string normalizedAction = (action ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalizedAction is not ("info" or "start" or "shutdown" or "restart"))
         {
-            WriteCachedMapInfo(mapId);
+            return $"Unknown map command action '{action}'.";
         }
 
+        string info = string.Equals(normalizedAction, "info", StringComparison.OrdinalIgnoreCase)
+            ? FormatCachedMapInfo(mapId)
+            : string.Empty;
+
+        MapCommandDispatchResult dispatch = await SendMapCommandToTargetsAsync(normalizedAction, mapId, cancellationToken);
+        if (dispatch.TargetCount == 0)
+        {
+            string message = $"No connected MapServer or InstanceServer targets are available for map {mapId}.";
+            return string.IsNullOrWhiteSpace(info) ? message : $"{info}\n{message}";
+        }
+
+        string dispatchMessage = dispatch.SentConnections == 0
+            ? $"Map {normalizedAction} command for map {mapId} could not be delivered to any active connection."
+            : $"Map {normalizedAction} command for map {mapId} was sent to {dispatch.SentConnections} connection(s) across {dispatch.TargetCount} target(s).";
+
+        return string.IsNullOrWhiteSpace(info) ? dispatchMessage : $"{info}\n{dispatchMessage}";
+    }
+
+    /**
+      * Sends the internal map service command packet to the best available MapServer or InstanceServer targets.
+      */
+    private async Task<MapCommandDispatchResult> SendMapCommandToTargetsAsync(string action, int mapId, CancellationToken cancellationToken)
+    {
         string commandId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         InternalMapServiceCommandPacket command = new(commandId, action, mapId);
         string packet = command.ToPacketLine();
@@ -609,9 +632,10 @@ public sealed class WorldServer : IAsyncDisposable
         if (targets.Length == 0)
         {
             Logger.Write(LogType.WARNING, $"WorldServer has no connected MapServer or InstanceServer targets for map command '{action}' MapId={mapId}.", "WorldServer");
-            return;
+            return new MapCommandDispatchResult(0, 0);
         }
 
+        int sentConnections = 0;
         foreach (string target in targets)
         {
             int sent = await SendPacketToServerAsync(target, packet, cancellationToken);
@@ -621,8 +645,11 @@ public sealed class WorldServer : IAsyncDisposable
                 continue;
             }
 
+            sentConnections += sent;
             Logger.Write(LogType.NETWORK, $"WorldServer sent map {action} command for MapId={mapId} to {target} ({sent} connection(s)).", "WorldServer");
         }
+
+        return new MapCommandDispatchResult(targets.Length, sentConnections);
     }
 
     /**
@@ -853,11 +880,9 @@ public sealed class WorldServer : IAsyncDisposable
     }
 
     /**
-      * Writes write cached map info data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: mapId.
+      * Formats cached map service status for an in-game map info response.
       */
-    private void WriteCachedMapInfo(int mapId)
+    private string FormatCachedMapInfo(int mapId)
     {
         InternalMapServiceStatusPacket[] statuses = _mapServiceStatuses.Values
             .Where(status => status.MapId == mapId)
@@ -866,19 +891,220 @@ public sealed class WorldServer : IAsyncDisposable
             .ToArray();
 
         string dbcDescription = _gameData.MapData.DescribeMap(mapId);
+        List<string> lines = [$"Map {mapId} info:"];
+        AppendMapMetadataLines(lines, mapId);
+
         if (statuses.Length == 0)
         {
             Logger.Write(LogType.WARNING, $"WorldServer has no cached map service status for MapId={mapId}. {dbcDescription} Sending live info request to connected map services...", "WorldServer");
-            return;
+            lines.Add("Cached services: 0");
+            lines.Add("No cached service status is available yet.");
+            return string.Join('\n', lines);
         }
 
         Logger.Write(LogType.TRACE, $"Cached map service info for MapId={mapId}: {dbcDescription}", "WorldServer");
+
+        lines.Add($"Cached services: {statuses.Length}");
         foreach (InternalMapServiceStatusPacket status in statuses)
         {
-            Logger.Write(
-                LogType.TRACE,
-                $"  {status.OwnerServerName} {status.Kind}: instance={status.InstanceId}, state={status.State}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.",
-                "WorldServer");
+            lines.Add($"{status.OwnerServerName} {status.Kind} service:");
+            lines.Add($"  Instance: {status.InstanceId}");
+            lines.Add($"  State: {status.State}");
+            lines.Add($"  Uptime: {FormatCachedMapUptime(status)}");
+            lines.Add($"  Tick: {status.Tick}");
+            lines.Add($"  Players: {status.ActivePlayers}");
+            lines.Add($"  Grids: {status.ActiveGrids}");
+            lines.Add($"  Load: {status.LoadPercent:0.##}%");
+            lines.Add($"  Average Tick: {status.AverageTickMilliseconds:0.###} ms");
+
+            Logger.Write(LogType.TRACE, $"Cached map service info for MapId={mapId}: owner={status.OwnerServerName}, kind={status.Kind}, instance={status.InstanceId}, state={status.State}, uptime={FormatCachedMapUptime(status)}, tick={status.Tick}, players={status.ActivePlayers}, grids={status.ActiveGrids}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.", "WorldServer");
+        }
+
+        return string.Join('\n', lines);
+    }
+
+    /**
+      * Appends map DBC metadata as short chat-safe lines.
+      */
+    private void AppendMapMetadataLines(List<string> lines, int mapId)
+    {
+        if (!_gameData.MapData.TryGetMap(mapId, out MapDbcRecord map))
+        {
+            lines.Add($"DBC: MapId={mapId} is not present in Map.dbc.");
+            return;
+        }
+
+        lines.Add($"Name: {map.DisplayName}");
+        lines.Add($"Type: {map.Type}");
+        lines.Add($"Areas: {_gameData.MapData.GetAreasForMap(mapId).Count}");
+        lines.Add($"Triggers: {_gameData.MapData.GetTriggersForMap(mapId).Count}");
+        lines.Add($"Continents: {_gameData.MapData.GetContinentsForMap(mapId).Count}");
+    }
+
+    /**
+      * Formats the uptime for one cached map service status line.
+      */
+    private static string FormatCachedMapUptime(InternalMapServiceStatusPacket status)
+    {
+        if (!IsMapServiceOnline(status.State))
+        {
+            return "offline";
+        }
+
+        if (status.StartedUtc <= DateTimeOffset.UnixEpoch)
+        {
+            return "unknown";
+        }
+
+        TimeSpan uptime = DateTimeOffset.UtcNow - status.StartedUtc;
+        if (uptime < TimeSpan.Zero)
+        {
+            uptime = TimeSpan.Zero;
+        }
+
+        return FormatDuration(uptime);
+    }
+
+    /**
+      * Formats a compact day/hour/minute/second duration for in-game chat output.
+      */
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalDays >= 1
+            ? $"{duration.Days}d {duration.Hours:D2}h {duration.Minutes:D2}m {duration.Seconds:D2}s"
+            : $"{duration.Hours:D2}h {duration.Minutes:D2}m {duration.Seconds:D2}s";
+    }
+
+    /**
+      * Reloads RBAC data for every active in-world session so permission changes apply without forcing a relog.
+      */
+    public async Task<string> ReloadRbacAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<WorldClientSession> sessions = _playerSessionRegistry.SnapshotSessions();
+        int reloaded = 0;
+        int failed = 0;
+
+        foreach (WorldClientSession session in sessions)
+        {
+            try
+            {
+                await session.ReloadPermissionsAsync(cancellationToken);
+                reloaded++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                failed++;
+                Logger.Write(LogType.WARNING, $"WorldServer failed to reload RBAC for session {session.Id}: {exception.Message}", "WorldServer");
+            }
+        }
+
+        return failed == 0
+            ? $"RBAC data was reloaded for {reloaded} active session(s)."
+            : $"RBAC data was reloaded for {reloaded} active session(s); {failed} session(s) failed.";
+    }
+
+    /**
+      * Schedules a shutdown request for the realm connection, connected internal services, and this WorldServer.
+      */
+    public Task<string> ScheduleShutdownAsync(TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
+    {
+        return ScheduleServerControlAsync("shutdown", delay, requestedBy, cancellationToken);
+    }
+
+    /**
+      * Schedules a restart request for the realm connection, connected internal services, and this WorldServer.
+      * The internal protocol carries this as a shutdown request with a restart reason so an external supervisor can bring services back up.
+      */
+    public Task<string> ScheduleRestartAsync(TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
+    {
+        return ScheduleServerControlAsync("restart", delay, requestedBy, cancellationToken);
+    }
+
+    /**
+      * Creates one delayed server-control task and prevents overlapping shutdown/restart requests.
+      */
+    private Task<string> ScheduleServerControlAsync(string action, TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (Interlocked.Exchange(ref _serverControlRequested, 1) == 1)
+        {
+            return Task.FromResult("A server shutdown or restart is already scheduled.");
+        }
+
+        string safeRequestedBy = string.IsNullOrWhiteSpace(requestedBy) ? "Unknown" : requestedBy.Trim();
+        _ = Task.Run(() => ExecuteScheduledServerControlAsync(action, delay, safeRequestedBy), CancellationToken.None);
+
+        string when = delay <= TimeSpan.Zero ? "immediately" : $"in {CommandArgumentParser.FormatDuration(delay)}";
+        string restartNote = string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
+            ? " Restart is delivered as a shutdown request with a restart reason for the service supervisor."
+            : string.Empty;
+
+        return Task.FromResult($"Server {action} scheduled {when} by {safeRequestedBy}.{restartNote}");
+    }
+
+    /**
+      * Performs the delayed server-control operation outside the chat packet handler.
+      */
+    private async Task ExecuteScheduledServerControlAsync(string action, TimeSpan delay, string requestedBy)
+    {
+        try
+        {
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, CancellationToken.None);
+            }
+
+            string reason = string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
+                ? $"RestartRequestedBy:{requestedBy}"
+                : $"ShutdownRequestedBy:{requestedBy}";
+
+            Logger.Write(LogType.WARNING, $"WorldServer executing scheduled server {action}. Reason={reason}", "WorldServer");
+            await BroadcastServerControlRequestAsync(reason, CancellationToken.None);
+            await StopAsync(CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.FAILED, $"Scheduled server {action} failed: {exception.Message}", "WorldServer");
+        }
+    }
+
+    /**
+      * Sends shutdown/restart intent to RealmServer through the realm status connection and to connected internal peers/sessions.
+      */
+    private async Task BroadcastServerControlRequestAsync(string reason, CancellationToken cancellationToken)
+    {
+        string packet = $"{InternalProtocol.ShutdownRequest} WorldServer {reason}";
+
+        bool realmNotified = await _realmStatusReporter.SendShutdownRequestAsync(reason, cancellationToken);
+        Logger.Write(
+            realmNotified ? LogType.NETWORK : LogType.WARNING,
+            realmNotified
+                ? $"WorldServer sent shutdown request to RealmServer. Reason={reason}"
+                : $"WorldServer could not send shutdown request to RealmServer; realm status connection is not active. Reason={reason}",
+            "WorldServer");
+
+        string[] targets = _peerConnections.Keys
+            .Concat(_serverSessions.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (string target in targets)
+        {
+            try
+            {
+                int sent = await SendPacketToServerAsync(target, packet, cancellationToken);
+                Logger.Write(
+                    sent > 0 ? LogType.NETWORK : LogType.WARNING,
+                    sent > 0
+                        ? $"WorldServer sent shutdown request to {target} ({sent} connection(s)). Reason={reason}"
+                        : $"WorldServer could not send shutdown request to {target}; no active connection was available. Reason={reason}",
+                    "WorldServer");
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                Logger.Write(LogType.WARNING, $"WorldServer could not send shutdown request to {target}: {exception.Message}", "WorldServer");
+            }
         }
     }
 
@@ -911,6 +1137,11 @@ public sealed class WorldServer : IAsyncDisposable
             CultureInfo.InvariantCulture,
             $"{status.OwnerServerName}|{status.Kind}|{status.MapId}|{status.InstanceId}");
     }
+
+    /**
+      * Summarizes internal map command packet delivery for command feedback.
+      */
+    private readonly record struct MapCommandDispatchResult(int TargetCount, int SentConnections);
 
     /**
       * Validates the MaNGOS-compatible auth, character, and world database connections before the realm is advertised.
@@ -1006,7 +1237,7 @@ public sealed class WorldServer : IAsyncDisposable
         GameDataSettings gameDataSettings = _settings.GameData;
         if (!gameDataSettings.Enabled)
         {
-            Logger.Write(LogType.INFORMATION, "WorldServer game data loading is disabled. Enable [GameData] when extracted DBC data is ready.", "WorldServer");
+            Logger.Write(LogType.WARNING, "WorldServer game data loading is disabled. Enable [GameData] when extracted DBC data is ready.", "WorldServer");
             return;
         }
 

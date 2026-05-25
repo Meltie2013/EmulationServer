@@ -731,7 +731,8 @@ public sealed class InstanceServer : IAsyncDisposable
             snapshot.ActiveGrids,
             snapshot.LastTickMilliseconds,
             snapshot.AverageTickMilliseconds,
-            snapshot.LoadPercent);
+            snapshot.LoadPercent,
+            snapshot.StartedUtc);
 
         return status.ToPacketLine();
     }

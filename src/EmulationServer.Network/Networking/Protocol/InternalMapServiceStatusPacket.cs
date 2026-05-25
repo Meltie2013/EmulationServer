@@ -29,7 +29,7 @@ namespace EmulationServer.Network.Networking.Protocol;
 /**
   * Represents immutable internal map service status packet data passed between parts of the server.
   * It represents an internal protocol payload exchanged between server processes.
-  * Positional fields carried by this record: OwnerServerName, Kind, MapId, InstanceId, State, Tick, ActivePlayers, ActiveGrids, LastTickMilliseconds, AverageTickMilliseconds, LoadPercent.
+  * Positional fields carried by this record: OwnerServerName, Kind, MapId, InstanceId, State, Tick, ActivePlayers, ActiveGrids, LastTickMilliseconds, AverageTickMilliseconds, LoadPercent, StartedUtc.
   */
 public sealed record InternalMapServiceStatusPacket(
     string OwnerServerName,
@@ -42,7 +42,8 @@ public sealed record InternalMapServiceStatusPacket(
     int ActiveGrids,
     double LastTickMilliseconds,
     double AverageTickMilliseconds,
-    double LoadPercent)
+    double LoadPercent,
+    DateTimeOffset StartedUtc)
 {
     /**
       * Performs the to packet line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
@@ -50,9 +51,13 @@ public sealed record InternalMapServiceStatusPacket(
       */
     public string ToPacketLine()
     {
+        long startedUnixTimeSeconds = StartedUtc <= DateTimeOffset.UnixEpoch
+            ? 0
+            : StartedUtc.ToUnixTimeSeconds();
+
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"{InternalProtocol.MapServiceStatus} {OwnerServerName} {Kind} {MapId} {InstanceId} {State} {Tick} {ActivePlayers} {ActiveGrids} {LastTickMilliseconds:0.###} {AverageTickMilliseconds:0.###} {LoadPercent:0.##}");
+            $"{InternalProtocol.MapServiceStatus} {OwnerServerName} {Kind} {MapId} {InstanceId} {State} {Tick} {ActivePlayers} {ActiveGrids} {LastTickMilliseconds:0.###} {AverageTickMilliseconds:0.###} {LoadPercent:0.##} {startedUnixTimeSeconds}");
     }
 
     /**
@@ -70,7 +75,7 @@ public sealed record InternalMapServiceStatusPacket(
         }
 
         string[] parts = packet.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 12 || !string.Equals(parts[0], InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
+        if ((parts.Length != 12 && parts.Length != 13) || !string.Equals(parts[0], InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -115,6 +120,26 @@ public sealed record InternalMapServiceStatusPacket(
             return false;
         }
 
+        DateTimeOffset startedUtc = DateTimeOffset.UnixEpoch;
+        if (parts.Length == 13)
+        {
+            if (!long.TryParse(parts[12], NumberStyles.Integer, CultureInfo.InvariantCulture, out long startedUnixTimeSeconds) || startedUnixTimeSeconds < 0)
+            {
+                return false;
+            }
+
+            try
+            {
+                startedUtc = startedUnixTimeSeconds == 0
+                    ? DateTimeOffset.UnixEpoch
+                    : DateTimeOffset.FromUnixTimeSeconds(startedUnixTimeSeconds);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return false;
+            }
+        }
+
         status = new InternalMapServiceStatusPacket(
             parts[1],
             parts[2],
@@ -126,7 +151,8 @@ public sealed record InternalMapServiceStatusPacket(
             activeGrids,
             lastTickMilliseconds,
             averageTickMilliseconds,
-            loadPercent);
+            loadPercent,
+            startedUtc);
 
         return true;
     }
@@ -146,5 +172,6 @@ public sealed record InternalMapServiceStatusPacket(
         0,
         0,
         0,
-        0);
+        0,
+        DateTimeOffset.UnixEpoch);
 }

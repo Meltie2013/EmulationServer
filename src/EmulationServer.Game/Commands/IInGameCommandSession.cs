@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Database.Accounts;
 using EmulationServer.Game.Players;
 
 /**
@@ -27,32 +28,48 @@ using EmulationServer.Game.Players;
 namespace EmulationServer.Game.Commands;
 
 /**
-  * Defines the contract for in game command session behavior in the in-game command parsing and command session access layer.
-  * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
+  * Defines the data and permission checks chat commands can use without depending on a concrete WorldClientSession.
+  * Command handlers should use this interface for account, player, and RBAC information so each command stays isolated in its own file.
   */
 public interface IInGameCommandSession
 {
     /**
-      * Exposes the account gm level value required by in game command session callers.
-      * The property keeps implementations aligned on the data the shared workflow needs to read without tying callers to a concrete session or service type.
+      * Account id used by permission checks and later command audit logging.
       */
-    byte AccountGmLevel { get; }
+    uint AccountId { get; }
 
     /**
-      * Exposes the active player count value required by in game command session callers.
-      * The property keeps implementations aligned on the data the shared workflow needs to read without tying callers to a concrete session or service type.
+      * Account name used in diagnostics and command responses.
+      */
+    string AccountName { get; }
+
+    /**
+      * RBAC-derived account security level.
+      */
+    AccountSecurityLevel AccountSecurityLevel { get; }
+
+    /**
+      * Active world player count exposed for command handlers.
       */
     int ActivePlayerCount { get; }
 
     /**
-      * Exposes the message of the day value required by in game command session callers.
-      * The property keeps implementations aligned on the data the shared workflow needs to read without tying callers to a concrete session or service type.
+      * Configured message of the day exposed for command handlers.
       */
     string MessageOfTheDay { get; }
 
     /**
-      * Requires the current player value and throws when the implementing session cannot provide it.
-      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
+      * Checks the final RBAC permission set for a command or role permission id.
+      */
+    bool HasPermission(uint permissionId);
+
+    /**
+      * Reloads the current account RBAC data from the account database.
+      */
+    Task ReloadPermissionsAsync(CancellationToken cancellationToken);
+
+    /**
+      * Requires the current in-world player and throws when the command was executed before entering the world.
       */
     PlayerLoginRecord RequireCurrentPlayer();
 }

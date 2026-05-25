@@ -386,6 +386,28 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
+      * Sends a shutdown request to RealmServer over the realm-status internal connection.
+      */
+    public async Task<bool> SendShutdownRequestAsync(string reason, CancellationToken cancellationToken = default)
+    {
+        if (_stream is null)
+        {
+            return false;
+        }
+
+        string safeReason = string.IsNullOrWhiteSpace(reason) ? "No reason provided." : reason.Trim();
+        string packet = $"{InternalProtocol.ShutdownRequest} WorldServer {safeReason}";
+
+        await InternalProtocol.WriteLineAsync(
+            _stream,
+            _sendLock,
+            packet,
+            cancellationToken);
+
+        return true;
+    }
+
+    /**
       * Sends a protocol message or status update to a connected peer.
       * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
       * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.

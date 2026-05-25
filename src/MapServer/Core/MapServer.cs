@@ -731,7 +731,8 @@ public sealed class MapServer : IAsyncDisposable
             snapshot.ActiveGrids,
             snapshot.LastTickMilliseconds,
             snapshot.AverageTickMilliseconds,
-            snapshot.LoadPercent);
+            snapshot.LoadPercent,
+            snapshot.StartedUtc);
 
         return status.ToPacketLine();
     }

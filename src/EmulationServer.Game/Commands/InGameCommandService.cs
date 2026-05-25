@@ -16,62 +16,61 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using System.Globalization;
-
-using EmulationServer.Game.Players;
-
-/**
-  * File overview: src/EmulationServer.Game/Commands/InGameCommandService.cs
-  * Documents the InGameCommandService source file in the in-game command parsing and command session access area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Commands;
 
 /**
-  * Owns the in game command service behavior for the in-game command parsing and command session access layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  * Parses in-game chat command text, resolves the matching handler, checks RBAC permissions, and executes the command.
+  * Command behavior is owned by individual command files; this service only handles common routing and validation.
   */
 public sealed class InGameCommandService
 {
+    private readonly InGameCommandRegistry _registry;
+    private readonly InGameCommandDependencies _dependencies;
+
+    public InGameCommandService(InGameCommandDependencies? dependencies = null, InGameCommandRegistry? registry = null)
+    {
+        _registry = registry ?? InGameCommandRegistry.CreateDefault();
+        _dependencies = dependencies ?? InGameCommandDependencies.Empty;
+    }
+
     /**
-      * Performs the execute operation for the in-game command parsing and command session access workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: session, commandText, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
+      * Executes an in-game command and returns the system message text that should be sent back to the player.
       */
-    public Task<string> ExecuteAsync(IInGameCommandSession session, string commandText, CancellationToken cancellationToken)
+    public async Task<string> ExecuteAsync(IInGameCommandSession session, string commandText, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
         cancellationToken.ThrowIfCancellationRequested();
 
-        PlayerLoginRecord player = session.RequireCurrentPlayer();
-        if (session.AccountGmLevel == 0)
-        {
-            return Task.FromResult("You do not have permission to use commands.");
-        }
-
-        string normalized = commandText.Trim();
-        if (normalized.StartsWith(".", StringComparison.Ordinal))
-        {
-            normalized = normalized[1..].Trim();
-        }
-
+        string normalized = NormalizeCommandText(commandText);
         if (string.IsNullOrWhiteSpace(normalized))
         {
-            return Task.FromResult("Command text is empty.");
+            return "Command text is empty.";
         }
 
         string[] parts = normalized.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        string command = parts[0].ToLowerInvariant();
+        string commandName = parts[0];
+        string arguments = parts.Length > 1 ? parts[1] : string.Empty;
 
-        return Task.FromResult(command switch
+        if (!_registry.TryGetCommand(commandName, out IChatCommand command))
         {
-            "help" or "commands" => "Available commands: .help, .where, .gps, .online, .motd",
-            "where" or "gps" => string.Create(CultureInfo.InvariantCulture, $"{player.Name}: map={player.Map}, zone={player.Zone}, x={player.PositionX:0.###}, y={player.PositionY:0.###}, z={player.PositionZ:0.###}, o={player.Orientation:0.###}"),
-            "online" => string.Create(CultureInfo.InvariantCulture, $"Active world players: {session.ActivePlayerCount}"),
-            "motd" => session.MessageOfTheDay,
-            _ => $"Unknown command '{command}'. Type .help for available commands.",
-        });
+            return $"Unknown command '{commandName}'. Type .help for available commands.";
+        }
+
+        if (!session.HasPermission(command.RequiredPermission))
+        {
+            return "You do not have permission to use that command.";
+        }
+
+        ChatCommandContext context = new(session, normalized, commandName, arguments, _registry, _dependencies);
+        return await command.ExecuteAsync(context, cancellationToken);
+    }
+
+    /**
+      * Removes the leading chat command prefix before token parsing.
+      */
+    private static string NormalizeCommandText(string commandText)
+    {
+        string normalized = (commandText ?? string.Empty).Trim();
+        return normalized.StartsWith(".", StringComparison.Ordinal) ? normalized[1..].Trim() : normalized;
     }
 }
