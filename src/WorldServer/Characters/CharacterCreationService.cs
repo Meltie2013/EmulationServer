@@ -71,7 +71,6 @@ public sealed partial class CharacterCreationService
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const int NoEquipmentSlot = -1;
-
     /**
       * Holds the private character repository state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -181,6 +180,7 @@ public sealed partial class CharacterCreationService
         }
 
         IReadOnlyList<StarterItemCreateData> starterItems = ResolveStarterItems(request.Race, request.Class, outfit, worldTemplates);
+        Logger.Write(LogType.DATABASE, $"Resolved {starterItems.Count} starter item(s) for new character '{request.Name}' race={request.Race}, class={request.Class}, outfit={request.OutfitId}.", "CharacterCreationService");
 
         try
         {
@@ -257,7 +257,7 @@ public sealed partial class CharacterCreationService
     private static uint ExtractCharacterGuid(ulong clientGuid)
     {
         // Vanilla clients send the full ObjectGuid back to CMSG_CHAR_DELETE.
-        // The MaNGOS character table stores the low counter in characters.guid.
+        // The character table stores the low counter in characters.guid.
         // This also supports the current milestone enum packet, which sends the
         // low guid directly until the full object-guid builder is implemented.
         return (uint)(clientGuid & uint.MaxValue);
@@ -350,10 +350,6 @@ public sealed partial class CharacterCreationService
         WorldTemplateDataStore worldTemplates)
     {
         IReadOnlyList<PlayerCreateItemRecord> databaseStarterItems = worldTemplates.GetPlayerCreateItems(race, characterClass);
-        if (databaseStarterItems.Count != 0)
-        {
-            return ResolveStarterItemsFromWorldTable(databaseStarterItems, worldTemplates);
-        }
 
         uint[] itemEntries = outfit.Items
             .Where(item => item.ItemId > 0)
@@ -386,7 +382,62 @@ public sealed partial class CharacterCreationService
             }
         }
 
+        AddPlayerCreateInfoStarterItems(databaseStarterItems, worldTemplates, result, ref nextBackpackSlot, ref nextBagSlot);
         return result;
+    }
+
+    /**
+      * Adds world database starter items after the DBC outfit has been placed.
+      * The world table is treated as additive so an incomplete playercreateinfo_item table cannot suppress equipped starter gear.
+      */
+    private static void AddPlayerCreateInfoStarterItems(
+        IReadOnlyList<PlayerCreateItemRecord> starterItems,
+        WorldTemplateDataStore worldTemplates,
+        List<StarterItemCreateData> result,
+        ref int nextBackpackSlot,
+        ref int nextBagSlot)
+    {
+        if (starterItems.Count == 0)
+        {
+            return;
+        }
+
+        uint[] itemEntries = starterItems
+            .Where(item => item.ItemId != 0)
+            .Select(item => item.ItemId)
+            .Distinct()
+            .ToArray();
+
+        IReadOnlyDictionary<uint, ItemTemplateRecord> templates = worldTemplates.GetItemTemplates(itemEntries);
+
+        foreach (PlayerCreateItemRecord item in starterItems)
+        {
+            if (item.ItemId == 0)
+            {
+                continue;
+            }
+
+            if (!templates.TryGetValue(item.ItemId, out ItemTemplateRecord? template))
+            {
+                Logger.Write(LogType.WARNING, $"playercreateinfo_item entry {item.ItemId} is missing from item_template and will be skipped.", "CharacterCreationService");
+                continue;
+            }
+
+            byte amount = item.Amount == 0 ? (byte)1 : item.Amount;
+            for (byte index = 0; index < amount; index++)
+            {
+                if (index == 0 && result.Any(existing => existing.Template.Entry == item.ItemId))
+                {
+                    continue;
+                }
+
+                if (!TryAddStarterItem(result, template, template.InventoryType, ref nextBackpackSlot, ref nextBagSlot))
+                {
+                    Logger.Write(LogType.WARNING, $"playercreateinfo_item entry {item.ItemId} could not be placed because the backpack starter slots are full.", "CharacterCreationService");
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -395,6 +446,8 @@ public sealed partial class CharacterCreationService
       * Inputs used by this operation: starterItems, worldTemplates.
       */
     private static IReadOnlyList<StarterItemCreateData> ResolveStarterItemsFromWorldTable(
+        byte race,
+        byte characterClass,
         IReadOnlyList<PlayerCreateItemRecord> starterItems,
         WorldTemplateDataStore worldTemplates)
     {

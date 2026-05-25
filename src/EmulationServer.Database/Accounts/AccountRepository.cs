@@ -526,7 +526,7 @@ public sealed class AccountRepository
 
     /**
       * Removes the active account ban by marking current rows inactive instead of deleting history.
-      * The method keeps MaNGOS-style ban audit data available for later inspection.
+      * The method keeps ban audit data available for later inspection.
       * Inputs used by this operation: username, cancellationToken.
       */
     public async Task<AccountCommandResult> UnbanAccountAsync(string username, CancellationToken cancellationToken = default)
@@ -665,7 +665,7 @@ public sealed class AccountRepository
 
     /**
       * Deactivates expired temporary account bans while leaving permanent bans and history rows intact.
-      * This mirrors the account_banned active flag used by MaNGOS while keeping the table auditable.
+      * This mirrors the account_banned active flag while keeping the table auditable.
       */
     public async Task<int> DeactivateExpiredAccountBansAsync(CancellationToken cancellationToken = default)
     {

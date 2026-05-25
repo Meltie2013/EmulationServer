@@ -65,7 +65,7 @@ public sealed class LiquidTypeIndex
         {
             ushort id = checked((ushort)record.GetUInt32(0));
 
-            // MaNGOS reads field 3 from LiquidType.dbc as the liquid category/sound-bank value.
+            // The map converter reads field 3 from LiquidType.dbc as the liquid category/sound-bank value.
             ushort liquidCategory = checked((ushort)record.GetUInt32(3));
 
             dbcLiquidCategoryById[id] = liquidCategory;

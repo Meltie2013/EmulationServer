@@ -50,4 +50,5 @@ public static class RbacPermissionIds
     public const uint CommandServer = 215;
     public const uint CommandServerRestart = 216;
     public const uint CommandServerShutdown = 217;
+    public const uint CommandBank = 218;
 }

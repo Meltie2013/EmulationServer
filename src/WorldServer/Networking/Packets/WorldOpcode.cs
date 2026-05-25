@@ -479,6 +479,42 @@ public enum WorldOpcode : ushort
       */
     CMSG_STANDSTATECHANGE = 0x101,
     /**
+      * Represents auto-equipping an item from an inventory or bag slot.
+      */
+    CMSG_AUTOEQUIP_ITEM = 0x10A,
+    /**
+      * Represents auto-storing an item from one bag into another available slot.
+      */
+    CMSG_AUTOSTORE_BAG_ITEM = 0x10B,
+    /**
+      * Represents swapping items between two bag/container positions.
+      */
+    CMSG_SWAP_ITEM = 0x10C,
+    /**
+      * Represents swapping items between two top-level inventory positions.
+      */
+    CMSG_SWAP_INV_ITEM = 0x10D,
+    /**
+      * Represents splitting an item stack.
+      */
+    CMSG_SPLIT_ITEM = 0x10E,
+    /**
+      * Represents equipping an item by explicit destination equipment slot.
+      */
+    CMSG_AUTOEQUIP_ITEM_SLOT = 0x10F,
+    /**
+      * Represents destroying an item from an inventory or bag slot.
+      */
+    CMSG_DESTROYITEM = 0x111,
+    /**
+      * Represents an inventory operation failure response.
+      */
+    SMSG_INVENTORY_CHANGE_FAILURE = 0x112,
+    /**
+      * Represents opening a container object.
+      */
+    SMSG_OPEN_CONTAINER = 0x113,
+    /**
       * Represents the factions value for world opcode handling.
       */
     SMSG_INITIALIZE_FACTIONS = 0x122,
@@ -498,6 +534,22 @@ public enum WorldOpcode : ushort
       * Represents the bindpointupdate value for world opcode handling.
       */
     SMSG_BINDPOINTUPDATE = 0x155,
+    /**
+      * Represents the banker activate value for world opcode handling.
+      */
+    CMSG_BANKER_ACTIVATE = 0x1B7,
+    /**
+      * Represents the show bank value for world opcode handling.
+      */
+    SMSG_SHOW_BANK = 0x1B8,
+    /**
+      * Represents the buy bank slot value for world opcode handling.
+      */
+    CMSG_BUY_BANK_SLOT = 0x1B9,
+    /**
+      * Represents the buy bank slot result value for world opcode handling.
+      */
+    SMSG_BUY_BANK_SLOT_RESULT = 0x1BA,
     /**
       * Represents the notification value for world opcode handling.
       */

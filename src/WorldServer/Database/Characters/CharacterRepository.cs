@@ -54,6 +54,19 @@ public sealed class CharacterRepository
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const int NoEquipmentSlot = -1;
+    private const int ItemInstanceFieldCount = 48;
+    private const int ObjectFieldGuid = 0x0000;
+    private const int ObjectFieldType = 0x0002;
+    private const int ObjectFieldEntry = 0x0003;
+    private const int ObjectFieldScaleX = 0x0004;
+    private const int ItemFieldOwner = 0x0006;
+    private const int ItemFieldContained = 0x0008;
+    private const int ItemFieldStackCount = 0x000E;
+    private const int ItemFieldDuration = 0x000F;
+    private const int ItemFieldFlags = 0x0015;
+    private const int ItemFieldRandomPropertiesId = 0x002C;
+    private const int ItemFieldDurability = 0x002E;
+    private const int ItemFieldMaxDurability = 0x002F;
     /**
       * Holds the private database service state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -309,6 +322,151 @@ public sealed class CharacterRepository
             await transaction.RollbackAsync(cancellationToken);
             throw;
         }
+    }
+
+    /**
+      * Updates one or more inventory placements for a character and returns the refreshed inventory state.
+      */
+    public async Task<IReadOnlyList<PlayerInventoryItem>> UpdateInventoryPlacementsAsync(
+        uint characterGuid,
+        IReadOnlyList<PlayerInventoryPlacementUpdate> placements,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(placements);
+
+        if (characterGuid == 0 || placements.Count == 0)
+        {
+            return Array.Empty<PlayerInventoryItem>();
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            foreach (PlayerInventoryPlacementUpdate placement in placements)
+            {
+                using MySqlCommand command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = """
+                    UPDATE `character_inventory`
+                    SET `bag` = @bag,
+                        `slot` = @slot
+                    WHERE `guid` = @guid
+                      AND `item` = @item;
+                    """;
+                command.Parameters.AddWithValue("@guid", characterGuid);
+                command.Parameters.AddWithValue("@item", placement.ItemGuid);
+                command.Parameters.AddWithValue("@bag", placement.BagGuid);
+                command.Parameters.AddWithValue("@slot", placement.Slot);
+
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+
+        return await LoadPlayerInventoryAsync(connection, characterGuid, cancellationToken);
+    }
+
+    /**
+      * Splits a stackable item into an empty destination slot, or merges the requested count into a compatible destination stack.
+      */
+    public async Task<IReadOnlyList<PlayerInventoryItem>> SplitInventoryStackAsync(
+        uint characterGuid,
+        uint sourceItemGuid,
+        uint destinationBagGuid,
+        byte destinationSlot,
+        uint splitCount,
+        CancellationToken cancellationToken = default)
+    {
+        if (characterGuid == 0 || sourceItemGuid == 0 || splitCount == 0)
+        {
+            return Array.Empty<PlayerInventoryItem>();
+        }
+
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        IReadOnlyList<PlayerInventoryItem> inventory = await LoadPlayerInventoryAsync(connection, characterGuid, cancellationToken);
+        PlayerInventoryItem? sourceItem = inventory.FirstOrDefault(item => item.ItemGuid == sourceItemGuid);
+        if (sourceItem is null || sourceItem.IsContainer)
+        {
+            return Array.Empty<PlayerInventoryItem>();
+        }
+
+        if (!_worldTemplateAccessor().TryGetItemTemplate(sourceItem.TemplateEntry, out ItemTemplateRecord sourceTemplate))
+        {
+            return Array.Empty<PlayerInventoryItem>();
+        }
+
+        uint maximumStack = ResolveMaximumStackCount(sourceTemplate);
+        uint sourceCount = Math.Max(sourceItem.StackCount, 1u);
+        if (maximumStack <= 1 || splitCount >= sourceCount || splitCount > maximumStack)
+        {
+            return Array.Empty<PlayerInventoryItem>();
+        }
+
+        PlayerInventoryItem? destinationItem = inventory.FirstOrDefault(item => item.BagGuid == destinationBagGuid && item.Slot == destinationSlot);
+        if (destinationItem is not null)
+        {
+            if (destinationItem.ItemGuid == sourceItem.ItemGuid ||
+                destinationItem.TemplateEntry != sourceItem.TemplateEntry ||
+                destinationItem.IsContainer)
+            {
+                return Array.Empty<PlayerInventoryItem>();
+            }
+
+            uint destinationCount = Math.Max(destinationItem.StackCount, 1u);
+            if (destinationCount >= maximumStack || splitCount > maximumStack - destinationCount)
+            {
+                return Array.Empty<PlayerInventoryItem>();
+            }
+        }
+
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            string normalizedSourceData = NormalizeItemInstanceData(sourceItem.InstanceData, sourceItem.ItemGuid, characterGuid, sourceTemplate);
+            uint sourceNewCount = sourceCount - splitCount;
+            await UpdateItemInstanceDataAsync(
+                connection,
+                transaction,
+                sourceItem.ItemGuid,
+                SetItemInstanceStackCount(normalizedSourceData, sourceItem.ItemGuid, characterGuid, sourceNewCount),
+                cancellationToken);
+
+            if (destinationItem is not null)
+            {
+                string normalizedDestinationData = NormalizeItemInstanceData(destinationItem.InstanceData, destinationItem.ItemGuid, characterGuid, sourceTemplate);
+                uint destinationNewCount = Math.Max(destinationItem.StackCount, 1u) + splitCount;
+                await UpdateItemInstanceDataAsync(
+                    connection,
+                    transaction,
+                    destinationItem.ItemGuid,
+                    SetItemInstanceStackCount(normalizedDestinationData, destinationItem.ItemGuid, characterGuid, destinationNewCount),
+                    cancellationToken);
+            }
+            else
+            {
+                uint newItemGuid = await GetNextIdAsync(connection, transaction, "item_instance", "guid", cancellationToken);
+                string newItemData = SetItemInstanceStackCount(normalizedSourceData, newItemGuid, characterGuid, splitCount);
+                await InsertItemInstanceDataAsync(connection, transaction, newItemGuid, characterGuid, newItemData, cancellationToken);
+                await InsertCharacterInventoryAsync(connection, transaction, characterGuid, newItemGuid, sourceItem.TemplateEntry, destinationBagGuid, destinationSlot, cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+
+        return await LoadPlayerInventoryAsync(connection, characterGuid, cancellationToken);
     }
 
     /**
@@ -725,10 +883,14 @@ public sealed class CharacterRepository
 
             byte inventoryType = 0;
             uint displayId = 0;
+            byte containerSlots = 0;
+            uint maxDurability = 0;
             if (templateEntry != 0 && worldTemplates.TryGetItemTemplate(templateEntry, out ItemTemplateRecord itemTemplate))
             {
                 inventoryType = itemTemplate.InventoryType;
                 displayId = itemTemplate.DisplayId;
+                containerSlots = itemTemplate.ContainerSlots;
+                maxDurability = itemTemplate.MaxDurability;
             }
 
             items.Add(new PlayerInventoryItem(
@@ -740,7 +902,10 @@ public sealed class CharacterRepository
                 instanceData,
                 inventoryType,
                 displayId,
-                ReadItemInstanceField(instanceData, 16)));
+                ReadItemInstanceField(instanceData, 22),
+                containerSlots,
+                maxDurability,
+                Math.Max(ReadItemInstanceField(instanceData, ItemFieldStackCount), 1u)));
         }
 
         return items;
@@ -1175,7 +1340,7 @@ public sealed class CharacterRepository
         uint characterGuid,
         CancellationToken cancellationToken)
     {
-        // Delete optional MaNGOS character-side tables first when the full
+        // Delete optional character-side tables first when the full
         // character schema is installed. The four current milestone tables are
         // always included below, but optional tables are guarded so the minimal
         // schema can still be used while the project is being built out.
@@ -1749,19 +1914,180 @@ public sealed class CharacterRepository
       */
     private static string BuildItemInstanceData(uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
     {
-        uint[] fields = new uint[48];
-        fields[0] = itemGuid;
-        fields[2] = 3;
-        fields[3] = itemTemplate.Entry;
-        fields[4] = 1;
-        fields[6] = ownerGuid;
-        fields[8] = ownerGuid;
-        fields[14] = 1;
-        fields[21] = itemTemplate.Flags;
-        fields[46] = itemTemplate.MaxDurability;
-        fields[47] = itemTemplate.MaxDurability;
+        // Vanilla item update fields end at ITEM_END (0x30). Container slot fields are
+        // generated from character_inventory at packet-build time so bag contents stay authoritative.
+        uint[] fields = new uint[ItemInstanceFieldCount];
+        ulong itemClientGuid = CharacterGuid.ToItemGuid(itemGuid);
+        fields[ObjectFieldGuid] = (uint)(itemClientGuid & uint.MaxValue);
+        fields[ObjectFieldGuid + 1] = (uint)(itemClientGuid >> 32);
+        fields[ObjectFieldType] = itemTemplate.ContainerSlots > 0 ? 0x07u : 0x03u;
+        fields[ObjectFieldEntry] = itemTemplate.Entry;
+        fields[ObjectFieldScaleX] = BitConverter.SingleToUInt32Bits(1.0f);
+        fields[ItemFieldOwner] = ownerGuid;
+        fields[ItemFieldContained] = ownerGuid;
+        fields[ItemFieldStackCount] = 1;
+        fields[ItemFieldDuration] = itemTemplate.Duration;
+        fields[ItemFieldFlags] = itemTemplate.Flags;
+        fields[ItemFieldRandomPropertiesId] = itemTemplate.RandomProperty;
+        fields[ItemFieldDurability] = itemTemplate.MaxDurability;
+        fields[ItemFieldMaxDurability] = itemTemplate.MaxDurability;
 
         return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /**
+      * Resolves the largest legal count for one item stack. Vanilla templates use 0/1 for non-stackable items.
+      */
+    private static uint ResolveMaximumStackCount(ItemTemplateRecord itemTemplate)
+    {
+        return itemTemplate.Stackable > 1 ? itemTemplate.Stackable : 1u;
+    }
+
+    /**
+      * Builds a valid item instance data string when a legacy or empty row is missing stack/owner/object fields.
+      */
+    private static string NormalizeItemInstanceData(string instanceData, uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
+    {
+        if (string.IsNullOrWhiteSpace(instanceData))
+        {
+            return BuildItemInstanceData(itemGuid, ownerGuid, itemTemplate);
+        }
+
+        uint[] fields = ReadItemInstanceFields(instanceData);
+        ulong itemClientGuid = CharacterGuid.ToItemGuid(itemGuid);
+        fields[ObjectFieldGuid] = (uint)(itemClientGuid & uint.MaxValue);
+        fields[ObjectFieldGuid + 1] = (uint)(itemClientGuid >> 32);
+        fields[ObjectFieldType] = itemTemplate.ContainerSlots > 0 ? 0x07u : 0x03u;
+        fields[ObjectFieldEntry] = itemTemplate.Entry;
+        fields[ObjectFieldScaleX] = fields[ObjectFieldScaleX] == 0 ? BitConverter.SingleToUInt32Bits(1.0f) : fields[ObjectFieldScaleX];
+        fields[ItemFieldOwner] = ownerGuid;
+        fields[ItemFieldContained] = ownerGuid;
+        fields[ItemFieldStackCount] = fields[ItemFieldStackCount] == 0 ? 1u : fields[ItemFieldStackCount];
+        fields[ItemFieldDuration] = fields[ItemFieldDuration] == 0 ? itemTemplate.Duration : fields[ItemFieldDuration];
+        fields[ItemFieldFlags] = fields[ItemFieldFlags] == 0 ? itemTemplate.Flags : fields[ItemFieldFlags];
+        fields[ItemFieldRandomPropertiesId] = fields[ItemFieldRandomPropertiesId] == 0 ? itemTemplate.RandomProperty : fields[ItemFieldRandomPropertiesId];
+        fields[ItemFieldDurability] = fields[ItemFieldDurability] == 0 ? itemTemplate.MaxDurability : fields[ItemFieldDurability];
+        fields[ItemFieldMaxDurability] = fields[ItemFieldMaxDurability] == 0 ? itemTemplate.MaxDurability : fields[ItemFieldMaxDurability];
+        return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /**
+      * Returns a new item instance data string with GUID, owner, contained, and stack count fields updated.
+      */
+    private static string SetItemInstanceStackCount(string instanceData, uint itemGuid, uint ownerGuid, uint stackCount)
+    {
+        uint[] fields = ReadItemInstanceFields(instanceData);
+        ulong itemClientGuid = CharacterGuid.ToItemGuid(itemGuid);
+        fields[ObjectFieldGuid] = (uint)(itemClientGuid & uint.MaxValue);
+        fields[ObjectFieldGuid + 1] = (uint)(itemClientGuid >> 32);
+        fields[ItemFieldOwner] = ownerGuid;
+        fields[ItemFieldContained] = ownerGuid;
+        fields[ItemFieldStackCount] = Math.Max(stackCount, 1u);
+        return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
+    }
+
+    /**
+      * Parses the space-separated item_instance.data update fields into a dense array.
+      */
+    private static uint[] ReadItemInstanceFields(string instanceData)
+    {
+        uint[] fields = new uint[ItemInstanceFieldCount];
+        if (string.IsNullOrWhiteSpace(instanceData))
+        {
+            return fields;
+        }
+
+        string[] parts = instanceData.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length > fields.Length)
+        {
+            Array.Resize(ref fields, parts.Length);
+        }
+
+        for (int index = 0; index < parts.Length; index++)
+        {
+            if (uint.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value))
+            {
+                fields[index] = value;
+            }
+        }
+
+        return fields;
+    }
+
+    /**
+      * Persists the mutable item instance data blob for one item.
+      */
+    private static async Task UpdateItemInstanceDataAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint itemGuid,
+        string instanceData,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE `item_instance`
+            SET `data` = @data
+            WHERE `guid` = @guid;
+            """;
+        command.Parameters.AddWithValue("@guid", itemGuid);
+        command.Parameters.AddWithValue("@data", instanceData);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /**
+      * Inserts a cloned item instance row for stack splitting.
+      */
+    private static async Task InsertItemInstanceDataAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint itemGuid,
+        uint ownerGuid,
+        string instanceData,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO `item_instance`
+                (`guid`, `owner_guid`, `data`, `text`)
+            VALUES
+                (@guid, @ownerGuid, @data, NULL);
+            """;
+        command.Parameters.AddWithValue("@guid", itemGuid);
+        command.Parameters.AddWithValue("@ownerGuid", ownerGuid);
+        command.Parameters.AddWithValue("@data", instanceData);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /**
+      * Inserts a cloned item into an explicit bag/slot after stack splitting.
+      */
+    private static async Task InsertCharacterInventoryAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint characterGuid,
+        uint itemGuid,
+        uint itemTemplate,
+        uint bagGuid,
+        byte storageSlot,
+        CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO `character_inventory`
+                (`guid`, `bag`, `slot`, `item`, `item_template`)
+            VALUES
+                (@guid, @bag, @slot, @item, @itemTemplate);
+            """;
+        command.Parameters.AddWithValue("@guid", characterGuid);
+        command.Parameters.AddWithValue("@bag", bagGuid);
+        command.Parameters.AddWithValue("@slot", storageSlot);
+        command.Parameters.AddWithValue("@item", itemGuid);
+        command.Parameters.AddWithValue("@itemTemplate", itemTemplate);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     /**
@@ -1805,7 +2131,7 @@ public sealed class CharacterRepository
             enchantments[starterItem.EquipmentSlot] = 0;
         }
 
-        // MaNGOS stores equipmentCache as two uint values per equipment slot:
+        // The equipmentCache layout stores two uint values per equipment slot:
         // item entry and permanent enchantment id. The character-list packet then
         // resolves the item entry through item_template to send display/inventory type.
         return string.Join(' ', Enumerable.Range(0, CharacterEquipmentSlotCount).SelectMany(slot => new[]
@@ -1842,7 +2168,7 @@ public sealed class CharacterRepository
             return equipment;
         }
 
-        // Current MaNGOS-compatible layout: item entry + enchantment per slot.
+        // Current equipment cache layout: item entry + enchantment per slot.
         if (parts.Length >= CharacterEquipmentSlotCount * 2)
         {
             List<CharacterEquipmentDisplay> equipment = [];

@@ -27,7 +27,7 @@ namespace EmulationServer.Game.Players;
 /**
   * Carries immutable player inventory item data for the logged-in player state, persistence models, and gameplay records layer.
   * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: ItemGuid, OwnerGuid, TemplateEntry, BagGuid, Slot, InstanceData, InventoryType, DisplayId, EnchantmentId.
+  * Positional fields carried by this record: ItemGuid, OwnerGuid, TemplateEntry, BagGuid, Slot, InstanceData, InventoryType, DisplayId, EnchantmentId, ContainerSlots, MaxDurability, StackCount.
   */
 public sealed record PlayerInventoryItem(
     uint ItemGuid,
@@ -38,11 +38,19 @@ public sealed record PlayerInventoryItem(
     string InstanceData,
     byte InventoryType,
     uint DisplayId,
-    uint EnchantmentId)
+    uint EnchantmentId,
+    byte ContainerSlots,
+    uint MaxDurability,
+    uint StackCount)
 {
     /**
       * Stores the default is equipped value used when the caller does not supply an override.
       * Centralizing the default keeps configuration and packet behavior consistent across the server process.
       */
     public bool IsEquipped => BagGuid == 0 && Slot < 19;
+
+    /**
+      * True when the item has container slots and should be created with TYPEID_CONTAINER.
+      */
+    public bool IsContainer => ContainerSlots > 0;
 }

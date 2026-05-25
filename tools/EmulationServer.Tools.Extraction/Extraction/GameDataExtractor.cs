@@ -110,7 +110,7 @@ public sealed class GameDataExtractor
             result.AddSkippedFile();
         }
 
-        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedFiles} ADT source file(s) into MaNGOS .map files.");
+        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedFiles} ADT source file(s) into server .map files.");
         AddMessage(result, options.ReportProgress, $"Generated .map output directory: {mapOutputDirectory}");
 
         if (conversion.FailedFiles > 0)

@@ -45,6 +45,14 @@ public static class ItemDbcFileNames
       */
     public const string ItemDisplayInfo = "ItemDisplayInfo.dbc";
     /**
+      * Defines the constant value for durability costs.
+      */
+    public const string DurabilityCosts = "DurabilityCosts.dbc";
+    /**
+      * Defines the constant value for durability quality.
+      */
+    public const string DurabilityQuality = "DurabilityQuality.dbc";
+    /**
       * Defines the constant value for item random properties.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
@@ -59,6 +67,10 @@ public static class ItemDbcFileNames
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     public const string ItemSubClass = "ItemSubClass.dbc";
+    /**
+      * Defines the constant value for spell item enchantment.
+      */
+    public const string SpellItemEnchantment = "SpellItemEnchantment.dbc";
 
     /**
       * Exposes the core item dbc files value to callers that need this runtime or configuration data.
@@ -66,11 +78,14 @@ public static class ItemDbcFileNames
       */
     public static IReadOnlyList<string> CoreItemDbcFiles { get; } =
     [
+        DurabilityCosts,
+        DurabilityQuality,
         ItemBagFamily,
         ItemClass,
         ItemDisplayInfo,
         ItemRandomProperties,
         ItemSet,
         ItemSubClass,
+        SpellItemEnchantment,
     ];
 }

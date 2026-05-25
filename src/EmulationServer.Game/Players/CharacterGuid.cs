@@ -31,13 +31,35 @@ namespace EmulationServer.Game.Players;
 public static class CharacterGuid
 {
     /**
+      * MaNGOS Zero uses a zero high GUID for players and a 0x4000 high GUID for item/container objects.
+      * Keeping these helpers centralized prevents low-guid collisions between character rows and item_instance rows.
+      */
+    private const ushort HighGuidItem = 0x4000;
+
+    /**
       * Performs the to client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: lowGuid.
       */
     public static ulong ToClientGuid(uint lowGuid)
     {
+        return ToPlayerGuid(lowGuid);
+    }
+
+    /**
+      * Builds a Vanilla player ObjectGuid from the character low guid.
+      */
+    public static ulong ToPlayerGuid(uint lowGuid)
+    {
         return lowGuid;
+    }
+
+    /**
+      * Builds a Vanilla item/container ObjectGuid from the item_instance low guid.
+      */
+    public static ulong ToItemGuid(uint lowGuid)
+    {
+        return lowGuid == 0 ? 0 : ((ulong)HighGuidItem << 48) | lowGuid;
     }
 
     /**

@@ -45,6 +45,15 @@ public static class WorldPacketBuilders
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const int CharacterEquipmentSlotCount = 19;
+    private const int InventorySlotBagEnd = 23;
+    private const int InventorySlotItemStart = 23;
+    private const int InventorySlotItemEnd = 39;
+    private const int BankSlotItemStart = 39;
+    private const int BankSlotItemEnd = 63;
+    private const int BankSlotBagStart = 63;
+    private const int BankSlotBagEnd = 69;
+    private const int KeyringSlotStart = 81;
+    private const int KeyringSlotEnd = 113;
     /**
       * Defines the constant value for at login first.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
@@ -53,7 +62,7 @@ public static class WorldPacketBuilders
 
     /**
       * Vanilla object create movement update flags.
-      * These mirror the MaNGOS 1.12 layout used by Object::BuildMovementUpdate:
+      * These mirror the 1.12 layout used by Object::BuildMovementUpdate:
       * - write update flags first
       * - write MovementInfo when UPDATEFLAG_LIVING is present
       * - write movement speeds immediately after living MovementInfo
@@ -238,8 +247,8 @@ public static class WorldPacketBuilders
     {
         WorldPacketWriter writer = new();
 
-        // Vanilla sends thirty-two uint32 values here. MaNGOS Zero, CMangos,
-        // and VMangos send all zeros at login. Sending only eight values leaves
+        // Vanilla sends thirty-two uint32 values here. Reference emulator implementations
+        // send all zeros at login. Sending only eight values leaves
         // the client UI/addon cache bootstrap incomplete and can destabilize
         // the packets that immediately follow world entry.
         for (int index = 0; index < 32; index++)
@@ -416,26 +425,33 @@ public static class WorldPacketBuilders
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        // Keep world entry to one player create-object block, but include the
-        // Vanilla visible-item fields for equipped items. This lets the client
-        // render the character's worn equipment without creating separate item
-        // objects during the fragile login transition.
-        PlayerInventoryItem[] visibleInventory = player.Inventory
-            .Where(item => item.IsEquipped && item.TemplateEntry != 0)
-            .GroupBy(item => item.Slot)
-            .Select(group => group.First())
-            .OrderBy(item => item.Slot)
+        // MaNGOS Zero sends item/container create blocks to the owning player before
+        // the player create block, then links those objects through the player
+        // inventory GUID fields. The previous experimental path used player-style
+        // low GUIDs and missing item update flags, which can collide with player
+        // GUIDs and crash the Vanilla client during world entry.
+        PlayerInventoryItem[] inventoryItems = player.Inventory
+            .Where(item => item.ItemGuid != 0 && item.TemplateEntry != 0)
+            .OrderBy(item => item.BagGuid == 0 ? 0 : 1)
+            .ThenBy(item => item.BagGuid)
+            .ThenBy(item => item.Slot)
+            .ThenBy(item => item.ItemGuid)
             .ToArray();
 
         WorldPacketWriter writer = new();
-        writer.WriteUInt32(1); // amount_of_objects
+        writer.WriteUInt32((uint)(inventoryItems.Length + 1));
         writer.WriteUInt8(0); // has_transport
+
+        foreach (PlayerInventoryItem item in inventoryItems)
+        {
+            WriteItemCreateUpdateBlock(writer, player, item, inventoryItems);
+        }
 
         writer.WriteUInt8(3); // CREATE_OBJECT2
         WritePackedGuid(writer, player.ClientGuid);
         writer.WriteUInt8(4); // PLAYER
         WritePlayerMovementBlock(writer, player);
-        WritePlayerCreateUpdateMask(writer, player, visibleInventory);
+        WritePlayerCreateUpdateMask(writer, player, inventoryItems);
 
         return writer.ToArray();
     }
@@ -453,7 +469,7 @@ public static class WorldPacketBuilders
         WritePlayerLivingMovementInfo(writer, player);
         WritePlayerMovementSpeeds(writer);
 
-        // MaNGOS writes this field after the living movement/speed block when
+        // The vanilla movement update writes this field after the living movement/speed block when
         // UPDATEFLAG_ALL is set. This is not part of MovementInfo itself; it is
         // the optional UPDATEFLAG_ALL trailing field and should remain uint32 1.
         writer.WriteUInt32(1);
@@ -477,7 +493,7 @@ public static class WorldPacketBuilders
 
     /**
       * Writes the Vanilla player speed block that follows living MovementInfo.
-      * MaNGOS writes exactly six speeds for 1.12: walk, run, run-back, swim,
+      * Vanilla writes exactly six speeds for 1.12: walk, run, run-back, swim,
       * swim-back, and turn-rate.
       */
     private static void WritePlayerMovementSpeeds(WorldPacketWriter writer)
@@ -495,7 +511,7 @@ public static class WorldPacketBuilders
       * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
       * Inputs used by this operation: writer, player, visibleInventory.
       */
-    private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> visibleInventory)
+    private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> inventory)
     {
         const int ObjectFieldGuid = 0x0000;
         const int ObjectFieldType = 0x0002;
@@ -540,6 +556,11 @@ public static class WorldPacketBuilders
         const int PlayerBytes3 = 0x00C3;
         const int PlayerVisibleItem1Item0 = 0x0104;
         const int PlayerVisibleItemFieldCount = 12;
+        const int PlayerFieldInvSlotHead = 0x01E6;
+        const int PlayerFieldPackSlot1 = 0x0214;
+        const int PlayerFieldBankSlot1 = 0x0234;
+        const int PlayerFieldBankBagSlot1 = 0x0264;
+        const int PlayerFieldKeyringSlot1 = 0x0288;
         const int PlayerXp = 0x02CC;
         const int PlayerNextLevelXp = 0x02CD;
         const int PlayerRestStateExperience = 0x0497;
@@ -623,8 +644,25 @@ public static class WorldPacketBuilders
         fields[PlayerBytes2] = player.PlayerBytes2;
         fields[PlayerBytes3] = 0;
 
-        foreach (PlayerInventoryItem item in visibleInventory)
+        foreach (PlayerInventoryItem item in inventory)
         {
+            if (item.BagGuid != 0)
+            {
+                continue;
+            }
+
+            if (TryResolvePlayerInventoryGuidField(
+                item.Slot,
+                PlayerFieldInvSlotHead,
+                PlayerFieldPackSlot1,
+                PlayerFieldBankSlot1,
+                PlayerFieldBankBagSlot1,
+                PlayerFieldKeyringSlot1,
+                out int inventoryField))
+            {
+                WriteGuidFields(fields, inventoryField, CharacterGuid.ToItemGuid(item.ItemGuid));
+            }
+
             if (item.Slot >= CharacterEquipmentSlotCount)
             {
                 continue;
@@ -636,11 +674,6 @@ public static class WorldPacketBuilders
             {
                 fields[visibleItemBase + 1] = item.EnchantmentId;
             }
-
-            // The inventory slot GUID fields are intentionally not written in
-            // the initial player create block yet. They require matching item
-            // object updates, and malformed item object updates were causing
-            // Vanilla clients to crash during CMSG_PLAYER_LOGIN.
         }
 
         fields[PlayerXp] = player.Experience;
@@ -660,18 +693,66 @@ public static class WorldPacketBuilders
         WriteUpdateMask(writer, fields);
     }
 
+    private static bool TryResolvePlayerInventoryGuidField(
+        byte slot,
+        int playerFieldInvSlotHead,
+        int playerFieldPackSlot1,
+        int playerFieldBankSlot1,
+        int playerFieldBankBagSlot1,
+        int playerFieldKeyringSlot1,
+        out int field)
+    {
+        if (slot < InventorySlotBagEnd)
+        {
+            field = playerFieldInvSlotHead + (slot * 2);
+            return true;
+        }
+
+        if (slot is >= InventorySlotItemStart and < InventorySlotItemEnd)
+        {
+            field = playerFieldPackSlot1 + ((slot - InventorySlotItemStart) * 2);
+            return true;
+        }
+
+        if (slot is >= BankSlotItemStart and < BankSlotItemEnd)
+        {
+            field = playerFieldBankSlot1 + ((slot - BankSlotItemStart) * 2);
+            return true;
+        }
+
+        if (slot is >= BankSlotBagStart and < BankSlotBagEnd)
+        {
+            field = playerFieldBankBagSlot1 + ((slot - BankSlotBagStart) * 2);
+            return true;
+        }
+
+        if (slot is >= KeyringSlotStart and < KeyringSlotEnd)
+        {
+            field = playerFieldKeyringSlot1 + ((slot - KeyringSlotStart) * 2);
+            return true;
+        }
+
+        field = 0;
+        return false;
+    }
+
     /**
       * Writes write item create update block data to the target packet, stream, or persistent store.
       * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
       * Inputs used by this operation: writer, player, item.
       */
-    private static void WriteItemCreateUpdateBlock(WorldPacketWriter writer, PlayerLoginRecord player, PlayerInventoryItem item)
+    private static void WriteItemCreateUpdateBlock(
+        WorldPacketWriter writer,
+        PlayerLoginRecord player,
+        PlayerInventoryItem item,
+        IReadOnlyList<PlayerInventoryItem> inventory)
     {
-        writer.WriteUInt8(3); // CREATE_OBJECT2
-        WritePackedGuid(writer, CharacterGuid.ToClientGuid(item.ItemGuid));
-        writer.WriteUInt8(1); // ITEM
-        writer.WriteUInt8(0); // item update flags
-        WriteItemCreateUpdateMask(writer, player, item);
+        writer.WriteUInt8(2); // CREATE_OBJECT; MaNGOS Zero keeps items/containers on create-object, not create-object2.
+        WritePackedGuid(writer, CharacterGuid.ToItemGuid(item.ItemGuid));
+        writer.WriteUInt8(item.IsContainer ? (byte)2 : (byte)1);
+        writer.WriteUInt8((byte)VanillaUpdateFlags.All);
+        writer.WriteUInt32(1);
+        WriteItemCreateUpdateMask(writer, player, item, inventory);
     }
 
     /**
@@ -679,7 +760,11 @@ public static class WorldPacketBuilders
       * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
       * Inputs used by this operation: writer, player, item.
       */
-    private static void WriteItemCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, PlayerInventoryItem item)
+    private static void WriteItemCreateUpdateMask(
+        WorldPacketWriter writer,
+        PlayerLoginRecord player,
+        PlayerInventoryItem item,
+        IReadOnlyList<PlayerInventoryItem> inventory)
     {
         const int ObjectFieldGuid = 0x0000;
         const int ObjectFieldType = 0x0002;
@@ -688,27 +773,60 @@ public static class WorldPacketBuilders
         const int ItemFieldOwner = 0x0006;
         const int ItemFieldContained = 0x0008;
         const int ItemFieldStackCount = 0x000E;
+        const int ItemFieldDuration = 0x000F;
         const int ItemFieldFlags = 0x0015;
+        const int ItemFieldRandomPropertiesId = 0x002C;
         const int ItemFieldDurability = 0x002E;
         const int ItemFieldMaxDurability = 0x002F;
+        const int ContainerFieldNumSlots = 0x0030;
+        const int ContainerFieldSlot1 = 0x0032;
+        const int MaximumContainerSlots = 28;
 
         Dictionary<int, uint> fields = ReadItemInstanceFields(item.InstanceData);
-        ulong itemClientGuid = CharacterGuid.ToClientGuid(item.ItemGuid);
+        ulong itemClientGuid = CharacterGuid.ToItemGuid(item.ItemGuid);
         ulong ownerClientGuid = player.ClientGuid;
+        ulong containedGuid = item.BagGuid == 0 ? ownerClientGuid : CharacterGuid.ToItemGuid(item.BagGuid);
 
-        fields[ObjectFieldGuid] = (uint)(itemClientGuid & uint.MaxValue);
-        fields[ObjectFieldGuid + 1] = (uint)(itemClientGuid >> 32);
-        fields[ObjectFieldType] = 0x03; // OBJECT | ITEM
+        WriteGuidFields(fields, ObjectFieldGuid, itemClientGuid);
+        fields[ObjectFieldType] = item.IsContainer ? 0x07u : 0x03u; // OBJECT | ITEM | optional CONTAINER
         fields[ObjectFieldEntry] = item.TemplateEntry;
         fields[ObjectFieldScaleX] = FloatToUInt32(1.0f);
-        fields[ItemFieldOwner] = (uint)(ownerClientGuid & uint.MaxValue);
-        fields[ItemFieldOwner + 1] = (uint)(ownerClientGuid >> 32);
-        fields[ItemFieldContained] = fields[ItemFieldOwner];
-        fields[ItemFieldContained + 1] = fields[ItemFieldOwner + 1];
+        WriteGuidFields(fields, ItemFieldOwner, ownerClientGuid);
+        WriteGuidFields(fields, ItemFieldContained, containedGuid);
         fields[ItemFieldStackCount] = fields.TryGetValue(ItemFieldStackCount, out uint stackCount) && stackCount != 0 ? stackCount : 1u;
+        fields.TryAdd(ItemFieldDuration, 0);
         fields.TryAdd(ItemFieldFlags, 0);
-        fields.TryAdd(ItemFieldDurability, 0);
-        fields.TryAdd(ItemFieldMaxDurability, fields[ItemFieldDurability]);
+        fields.TryAdd(ItemFieldRandomPropertiesId, 0);
+
+        uint durability = fields.TryGetValue(ItemFieldDurability, out uint existingDurability)
+            ? existingDurability
+            : item.MaxDurability;
+        uint maxDurability = fields.TryGetValue(ItemFieldMaxDurability, out uint existingMaxDurability)
+            ? existingMaxDurability
+            : item.MaxDurability;
+        if (maxDurability == 0 && durability != 0)
+        {
+            maxDurability = durability;
+        }
+
+        fields[ItemFieldDurability] = durability;
+        fields[ItemFieldMaxDurability] = maxDurability;
+
+        if (item.IsContainer)
+        {
+            byte containerSlots = (byte)Math.Min((int)item.ContainerSlots, MaximumContainerSlots);
+            fields[ContainerFieldNumSlots] = containerSlots;
+
+            foreach (PlayerInventoryItem child in inventory)
+            {
+                if (child.BagGuid != item.ItemGuid || child.Slot >= containerSlots)
+                {
+                    continue;
+                }
+
+                WriteGuidFields(fields, ContainerFieldSlot1 + (child.Slot * 2), CharacterGuid.ToItemGuid(child.ItemGuid));
+            }
+        }
 
         WriteUpdateMask(writer, fields);
     }
@@ -722,7 +840,7 @@ public static class WorldPacketBuilders
         }
 
         string[] parts = instanceData.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        int count = Math.Min(parts.Length, 48);
+        int count = Math.Min(parts.Length, 106);
         for (int index = 0; index < count; index++)
         {
             if (uint.TryParse(parts[index], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint value) && value != 0)
@@ -732,6 +850,12 @@ public static class WorldPacketBuilders
         }
 
         return fields;
+    }
+
+    private static void WriteGuidFields(IDictionary<int, uint> fields, int fieldIndex, ulong guid)
+    {
+        fields[fieldIndex] = (uint)(guid & uint.MaxValue);
+        fields[fieldIndex + 1] = (uint)(guid >> 32);
     }
 
     /**
@@ -766,6 +890,216 @@ public static class WorldPacketBuilders
         {
             writer.WriteUInt32(field.Value);
         }
+    }
+
+    /**
+      * Builds the show bank packet. Vanilla expects the banker's ObjectGuid; the command path uses
+      * the player guid as a safe self-bank guid until creature banker interaction is implemented.
+      */
+    public static byte[] BuildShowBank(ulong bankerGuid)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt64(bankerGuid);
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds a values-only inventory update after the server has moved, equipped, or banked items.
+      */
+    public static byte[] BuildInventoryStateUpdate(PlayerLoginRecord player, IReadOnlySet<uint>? createdItemGuids = null)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        PlayerInventoryItem[] inventoryItems = player.Inventory
+            .Where(item => item.ItemGuid != 0 && item.TemplateEntry != 0)
+            .OrderBy(item => item.BagGuid == 0 ? 0 : 1)
+            .ThenBy(item => item.BagGuid)
+            .ThenBy(item => item.Slot)
+            .ThenBy(item => item.ItemGuid)
+            .ToArray();
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32((uint)(inventoryItems.Length + 1));
+        writer.WriteUInt8(0); // has_transport
+
+        if (createdItemGuids is not null)
+        {
+            foreach (PlayerInventoryItem item in inventoryItems)
+            {
+                if (createdItemGuids.Contains(item.ItemGuid))
+                {
+                    WriteItemCreateUpdateBlock(writer, player, item, inventoryItems);
+                }
+            }
+        }
+
+        WriteValuesUpdateBlock(writer, player.ClientGuid, BuildPlayerInventoryValueFields(player, inventoryItems));
+
+        foreach (PlayerInventoryItem item in inventoryItems)
+        {
+            if (createdItemGuids is not null && createdItemGuids.Contains(item.ItemGuid))
+            {
+                continue;
+            }
+
+            WriteValuesUpdateBlock(writer, CharacterGuid.ToItemGuid(item.ItemGuid), BuildItemInventoryValueFields(player, item, inventoryItems));
+        }
+
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds an inventory operation failure response.
+      */
+    public static byte[] BuildInventoryChangeFailure(byte failureCode, ulong itemGuid = 0, ulong itemGuid2 = 0)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt8(failureCode);
+        writer.WriteUInt64(itemGuid);
+        writer.WriteUInt64(itemGuid2);
+        writer.WriteUInt8(0);
+        return writer.ToArray();
+    }
+
+    private static Dictionary<int, uint> BuildPlayerInventoryValueFields(PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> inventory)
+    {
+        const int PlayerVisibleItem1Item0 = 0x0104;
+        const int PlayerVisibleItemFieldCount = 12;
+        const int PlayerFieldInvSlotHead = 0x01E6;
+        const int PlayerFieldPackSlot1 = 0x0214;
+        const int PlayerFieldBankSlot1 = 0x0234;
+        const int PlayerFieldBankBagSlot1 = 0x0264;
+        const int PlayerFieldKeyringSlot1 = 0x0288;
+
+        Dictionary<int, uint> fields = [];
+
+        for (byte slot = 0; slot < InventorySlotBagEnd; slot++)
+        {
+            if (TryResolvePlayerInventoryGuidField(slot, PlayerFieldInvSlotHead, PlayerFieldPackSlot1, PlayerFieldBankSlot1, PlayerFieldBankBagSlot1, PlayerFieldKeyringSlot1, out int field))
+            {
+                WriteGuidFields(fields, field, 0);
+            }
+        }
+
+        for (byte slot = InventorySlotItemStart; slot < InventorySlotItemEnd; slot++)
+        {
+            if (TryResolvePlayerInventoryGuidField(slot, PlayerFieldInvSlotHead, PlayerFieldPackSlot1, PlayerFieldBankSlot1, PlayerFieldBankBagSlot1, PlayerFieldKeyringSlot1, out int field))
+            {
+                WriteGuidFields(fields, field, 0);
+            }
+        }
+
+        for (byte slot = BankSlotItemStart; slot < BankSlotItemEnd; slot++)
+        {
+            if (TryResolvePlayerInventoryGuidField(slot, PlayerFieldInvSlotHead, PlayerFieldPackSlot1, PlayerFieldBankSlot1, PlayerFieldBankBagSlot1, PlayerFieldKeyringSlot1, out int field))
+            {
+                WriteGuidFields(fields, field, 0);
+            }
+        }
+
+        for (byte slot = BankSlotBagStart; slot < BankSlotBagEnd; slot++)
+        {
+            if (TryResolvePlayerInventoryGuidField(slot, PlayerFieldInvSlotHead, PlayerFieldPackSlot1, PlayerFieldBankSlot1, PlayerFieldBankBagSlot1, PlayerFieldKeyringSlot1, out int field))
+            {
+                WriteGuidFields(fields, field, 0);
+            }
+        }
+
+        for (byte slot = KeyringSlotStart; slot < KeyringSlotEnd; slot++)
+        {
+            if (TryResolvePlayerInventoryGuidField(slot, PlayerFieldInvSlotHead, PlayerFieldPackSlot1, PlayerFieldBankSlot1, PlayerFieldBankBagSlot1, PlayerFieldKeyringSlot1, out int field))
+            {
+                WriteGuidFields(fields, field, 0);
+            }
+        }
+
+        for (int slot = 0; slot < CharacterEquipmentSlotCount; slot++)
+        {
+            int visibleItemBase = PlayerVisibleItem1Item0 + (slot * PlayerVisibleItemFieldCount);
+            for (int offset = 0; offset < PlayerVisibleItemFieldCount; offset++)
+            {
+                fields[visibleItemBase + offset] = 0;
+            }
+        }
+
+        foreach (PlayerInventoryItem item in inventory)
+        {
+            if (item.BagGuid != 0)
+            {
+                continue;
+            }
+
+            if (TryResolvePlayerInventoryGuidField(
+                item.Slot,
+                PlayerFieldInvSlotHead,
+                PlayerFieldPackSlot1,
+                PlayerFieldBankSlot1,
+                PlayerFieldBankBagSlot1,
+                PlayerFieldKeyringSlot1,
+                out int inventoryField))
+            {
+                WriteGuidFields(fields, inventoryField, CharacterGuid.ToItemGuid(item.ItemGuid));
+            }
+
+            if (item.Slot >= CharacterEquipmentSlotCount)
+            {
+                continue;
+            }
+
+            int visibleItemBase = PlayerVisibleItem1Item0 + (item.Slot * PlayerVisibleItemFieldCount);
+            fields[visibleItemBase] = item.TemplateEntry;
+            fields[visibleItemBase + 1] = item.EnchantmentId;
+        }
+
+        return fields;
+    }
+
+    private static Dictionary<int, uint> BuildItemInventoryValueFields(PlayerLoginRecord player, PlayerInventoryItem item, IReadOnlyList<PlayerInventoryItem> inventory)
+    {
+        const int ItemFieldOwner = 0x0006;
+        const int ItemFieldContained = 0x0008;
+        const int ItemFieldStackCount = 0x000E;
+        const int ContainerFieldNumSlots = 0x0030;
+        const int ContainerFieldSlot1 = 0x0032;
+        const int MaximumContainerSlots = 28;
+
+        Dictionary<int, uint> fields = [];
+        ulong ownerClientGuid = player.ClientGuid;
+        ulong containedGuid = item.BagGuid == 0 ? ownerClientGuid : CharacterGuid.ToItemGuid(item.BagGuid);
+
+        WriteGuidFields(fields, ItemFieldOwner, ownerClientGuid);
+        WriteGuidFields(fields, ItemFieldContained, containedGuid);
+        fields[ItemFieldStackCount] = Math.Max(item.StackCount, 1u);
+
+        if (item.IsContainer)
+        {
+            byte containerSlots = (byte)Math.Min((int)item.ContainerSlots, MaximumContainerSlots);
+            fields[ContainerFieldNumSlots] = containerSlots;
+
+            for (int slot = 0; slot < containerSlots; slot++)
+            {
+                WriteGuidFields(fields, ContainerFieldSlot1 + (slot * 2), 0);
+            }
+
+            foreach (PlayerInventoryItem child in inventory)
+            {
+                if (child.BagGuid != item.ItemGuid || child.Slot >= containerSlots)
+                {
+                    continue;
+                }
+
+                WriteGuidFields(fields, ContainerFieldSlot1 + (child.Slot * 2), CharacterGuid.ToItemGuid(child.ItemGuid));
+            }
+        }
+
+        return fields;
+    }
+
+    private static void WriteValuesUpdateBlock(WorldPacketWriter writer, ulong guid, IReadOnlyDictionary<int, uint> fields)
+    {
+        writer.WriteUInt8(0); // VALUES
+        WritePackedGuid(writer, guid);
+        WriteUpdateMask(writer, fields);
     }
 
     /**
@@ -888,6 +1222,27 @@ public static class WorldPacketBuilders
         return BitConverter.SingleToUInt32Bits(value);
     }
 
+    private static uint ToClientUInt32(int value)
+    {
+        return unchecked((uint)value);
+    }
+
+    private static uint ToClientSpellCharges(int charges)
+    {
+        if (charges == 0)
+        {
+            return 0;
+        }
+
+        long absoluteCharges = charges;
+        if (absoluteCharges < 0)
+        {
+            absoluteCharges = -absoluteCharges;
+        }
+
+        return unchecked((uint)-absoluteCharges);
+    }
+
     /**
       * Builds the build next level experience result needed by the caller.
       * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
@@ -957,7 +1312,7 @@ public static class WorldPacketBuilders
 
         ushort[] spellIds = GetLoginSpellIds(player).ToArray();
         WorldPacketWriter writer = new();
-        writer.WriteUInt8(0); // MaNGOS Zero sends zero here for Vanilla.
+        writer.WriteUInt8(0); // Vanilla-compatible implementations send zero here.
         writer.WriteUInt16((ushort)spellIds.Length);
         foreach (ushort spellId in spellIds)
         {
@@ -1184,83 +1539,87 @@ public static class WorldPacketBuilders
         WorldPacketWriter writer = new();
         writer.WriteUInt32(itemTemplate.Entry);
         writer.WriteUInt32(itemTemplate.Class);
-        writer.WriteUInt32(itemTemplate.SubClass);
+        writer.WriteUInt32(itemTemplate.Class == 0 ? 0u : itemTemplate.SubClass);
         writer.WriteCString(itemTemplate.Name);
         writer.WriteCString(string.Empty);
         writer.WriteCString(string.Empty);
         writer.WriteCString(string.Empty);
         writer.WriteUInt32(itemTemplate.DisplayId);
-        writer.WriteUInt32(1); // quality; Common until full item_template loading is added
+        writer.WriteUInt32(itemTemplate.Quality);
         writer.WriteUInt32(itemTemplate.Flags);
-        writer.WriteUInt32(1); // buy count
-        writer.WriteUInt32(0); // buy price
-        writer.WriteUInt32(0); // sell price
+        // Vanilla SMSG_ITEM_QUERY_SINGLE_RESPONSE does not include BuyCount here;
+        // sending it shifts every following tooltip field by four bytes.
+        writer.WriteUInt32(itemTemplate.BuyPrice);
+        writer.WriteUInt32(itemTemplate.SellPrice);
         writer.WriteUInt32(itemTemplate.InventoryType);
-        writer.WriteUInt32(0xFFFFFFFF); // allowable class
-        writer.WriteUInt32(0xFFFFFFFF); // allowable race
-        writer.WriteUInt32(1); // item level
-        writer.WriteUInt32(0); // required level
-        writer.WriteUInt32(0); // required skill
-        writer.WriteUInt32(0); // required skill rank
-        writer.WriteUInt32(0); // required spell
-        writer.WriteUInt32(0); // required honor rank
-        writer.WriteUInt32(0); // required city rank
-        writer.WriteUInt32(0); // required reputation faction
-        writer.WriteUInt32(0); // required reputation rank
-        writer.WriteUInt32(0); // max count
-        writer.WriteUInt32(1); // stackable
-        writer.WriteUInt32(0); // container slots
+        writer.WriteUInt32(ToClientUInt32(itemTemplate.AllowableClass));
+        writer.WriteUInt32(ToClientUInt32(itemTemplate.AllowableRace));
+        writer.WriteUInt32(itemTemplate.ItemLevel);
+        writer.WriteUInt32(itemTemplate.RequiredLevel);
+        writer.WriteUInt32(itemTemplate.RequiredSkill);
+        writer.WriteUInt32(itemTemplate.RequiredSkillRank);
+        writer.WriteUInt32(itemTemplate.RequiredSpell);
+        writer.WriteUInt32(itemTemplate.RequiredHonorRank);
+        writer.WriteUInt32(itemTemplate.RequiredCityRank);
+        writer.WriteUInt32(itemTemplate.RequiredReputationFaction);
+        writer.WriteUInt32(itemTemplate.RequiredReputationFaction > 0 ? itemTemplate.RequiredReputationRank : 0u);
+        writer.WriteUInt32(itemTemplate.MaxCount);
+        writer.WriteUInt32(itemTemplate.Stackable);
+        writer.WriteUInt32(itemTemplate.ContainerSlots);
 
         for (int index = 0; index < 10; index++)
         {
-            writer.WriteUInt32(0); // stat type
-            writer.WriteUInt32(0); // stat value
+            ItemTemplateStatRecord stat = itemTemplate.Stats[index];
+            writer.WriteUInt32(stat.Type);
+            writer.WriteUInt32(ToClientUInt32(stat.Value));
         }
 
         for (int index = 0; index < 5; index++)
         {
-            writer.WriteFloat(0);
-            writer.WriteFloat(0);
-            writer.WriteUInt32(0);
+            ItemTemplateDamageRecord damage = itemTemplate.Damages[index];
+            writer.WriteFloat(damage.Minimum);
+            writer.WriteFloat(damage.Maximum);
+            writer.WriteUInt32(damage.Type);
         }
 
-        writer.WriteUInt32(0); // armor
-        writer.WriteUInt32(0); // holy resistance
-        writer.WriteUInt32(0); // fire resistance
-        writer.WriteUInt32(0); // nature resistance
-        writer.WriteUInt32(0); // frost resistance
-        writer.WriteUInt32(0); // shadow resistance
-        writer.WriteUInt32(0); // arcane resistance
-        writer.WriteUInt32(0); // delay
-        writer.WriteUInt32(0); // ammo type
-        writer.WriteFloat(0); // ranged mod range
+        writer.WriteUInt32(itemTemplate.Armor);
+        writer.WriteUInt32(itemTemplate.HolyResistance);
+        writer.WriteUInt32(itemTemplate.FireResistance);
+        writer.WriteUInt32(itemTemplate.NatureResistance);
+        writer.WriteUInt32(itemTemplate.FrostResistance);
+        writer.WriteUInt32(itemTemplate.ShadowResistance);
+        writer.WriteUInt32(itemTemplate.ArcaneResistance);
+        writer.WriteUInt32(itemTemplate.Delay);
+        writer.WriteUInt32(itemTemplate.AmmoType);
+        writer.WriteFloat(itemTemplate.RangedModRange);
 
         for (int index = 0; index < 5; index++)
         {
-            writer.WriteUInt32(0); // spell id
-            writer.WriteUInt32(0); // spell trigger
-            writer.WriteUInt32(0); // spell charges
-            writer.WriteUInt32(0); // spell cooldown
-            writer.WriteUInt32(0); // spell category
-            writer.WriteUInt32(0); // spell category cooldown
+            ItemTemplateSpellRecord spell = itemTemplate.Spells[index];
+            writer.WriteUInt32(spell.SpellId);
+            writer.WriteUInt32(spell.Trigger);
+            writer.WriteUInt32(ToClientSpellCharges(spell.Charges));
+            writer.WriteUInt32(ToClientUInt32(spell.SpellId == 0 ? -1 : spell.Cooldown));
+            writer.WriteUInt32(spell.SpellId == 0 ? 0u : spell.Category);
+            writer.WriteUInt32(ToClientUInt32(spell.SpellId == 0 ? -1 : spell.CategoryCooldown));
         }
 
-        writer.WriteUInt32(0); // bonding
-        writer.WriteCString(string.Empty); // description
-        writer.WriteUInt32(0); // page text
-        writer.WriteUInt32(0); // language id
-        writer.WriteUInt32(0); // page material
-        writer.WriteUInt32(0); // start quest
-        writer.WriteUInt32(0); // lock id
-        writer.WriteUInt32(0); // material
-        writer.WriteUInt32(0); // sheath
-        writer.WriteUInt32(0); // random property
-        writer.WriteUInt32(0); // block
-        writer.WriteUInt32(0); // item set
+        writer.WriteUInt32(itemTemplate.Bonding);
+        writer.WriteCString(itemTemplate.Description);
+        writer.WriteUInt32(itemTemplate.PageText);
+        writer.WriteUInt32(itemTemplate.LanguageId);
+        writer.WriteUInt32(itemTemplate.PageMaterial);
+        writer.WriteUInt32(itemTemplate.StartQuest);
+        writer.WriteUInt32(itemTemplate.LockId);
+        writer.WriteUInt32(ToClientUInt32(itemTemplate.Material));
+        writer.WriteUInt32(itemTemplate.Sheath);
+        writer.WriteUInt32(itemTemplate.RandomProperty);
+        writer.WriteUInt32(itemTemplate.Block);
+        writer.WriteUInt32(itemTemplate.ItemSet);
         writer.WriteUInt32(itemTemplate.MaxDurability);
-        writer.WriteUInt32(0); // area
-        writer.WriteUInt32(0); // map
-        writer.WriteUInt32(0); // bag family
+        writer.WriteUInt32(itemTemplate.Area);
+        writer.WriteUInt32(ToClientUInt32(itemTemplate.Map));
+        writer.WriteUInt32(ToClientUInt32(itemTemplate.BagFamily));
 
         return writer.ToArray();
     }

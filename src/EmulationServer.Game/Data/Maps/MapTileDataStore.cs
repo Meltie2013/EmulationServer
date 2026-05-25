@@ -189,7 +189,7 @@ public sealed class MapTileDataStore
             !byte.TryParse(name.AsSpan(3, 2), NumberStyles.None, CultureInfo.InvariantCulture, out byte tileX) ||
             !byte.TryParse(name.AsSpan(5, 2), NumberStyles.None, CultureInfo.InvariantCulture, out byte tileY))
         {
-            throw new MapFormatException($"Map file '{path}' must use MaNGOS tile file naming: <mapId:000><tileX:00><tileY:00>.map.");
+            throw new MapFormatException($"Map file '{path}' must use server tile file naming: <mapId:000><tileX:00><tileY:00>.map.");
         }
 
         return new MapTileKey(mapId, tileX, tileY);

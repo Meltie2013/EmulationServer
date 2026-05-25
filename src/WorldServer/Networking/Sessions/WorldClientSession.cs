@@ -110,6 +110,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private readonly record struct QueuedMapServiceMovement(PlayerLoginRecord Player, string OwnerServerName, PlayerMovementState Movement);
 
+    private readonly record struct InventoryClientPosition(byte Bag, byte Slot);
+
+    private readonly record struct InventoryStorageLocation(uint BagGuid, byte Slot);
+
+    private const byte ClientBackpackBag = 0xFF;
+    private const byte InventoryChangeFailureItemDoesntGoToSlot = 0x0D;
+    private const byte InventoryChangeFailureItemNotFound = 0x2A;
+    private const byte InventoryChangeFailureBagFull = 0x04;
+
     /**
       * Holds the private client state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -668,6 +677,15 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     }
 
     /**
+      * Opens the player bank using the Vanilla SMSG_SHOW_BANK packet.
+      */
+    public async Task OpenBankAsync(CancellationToken cancellationToken)
+    {
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        await SendAsync(WorldOpcode.SMSG_SHOW_BANK, WorldPacketBuilders.BuildShowBank(player.ClientGuid), _crypt, cancellationToken);
+    }
+
+    /**
       * Determines whether in chat channel for the connected world client session lifecycle and packet dispatch workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: channelName.
@@ -1058,6 +1076,38 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     await HandlePlayedTimeAsync(cancellationToken);
                     break;
 
+                case WorldOpcode.CMSG_BANKER_ACTIVATE:
+                    await OpenBankAsync(cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_SWAP_INV_ITEM:
+                    await HandleSwapInvItemAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_SWAP_ITEM:
+                    await HandleSwapItemAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_AUTOEQUIP_ITEM:
+                    await HandleAutoEquipItemAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_AUTOEQUIP_ITEM_SLOT:
+                    await HandleAutoEquipItemSlotAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_AUTOSTORE_BAG_ITEM:
+                    await HandleAutoStoreBagItemAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_SPLIT_ITEM:
+                    await HandleSplitItemAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_DESTROYITEM:
+                    await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, 0, 0, cancellationToken);
+                    break;
+
                 case WorldOpcode.CMSG_OPENING_CINEMATIC:
                 case WorldOpcode.CMSG_NEXT_CINEMATIC_CAMERA:
                 case WorldOpcode.CMSG_COMPLETE_CINEMATIC:
@@ -1335,7 +1385,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private async Task SendWorldEntryPacketsAsync(PlayerLoginRecord player, CancellationToken cancellationToken)
     {
         DateTimeOffset localTime = DateTimeOffset.Now;
-        // Follow the MaNGOS Zero login bootstrap order more closely:
+        // Follow the vanilla login bootstrap order more closely:
         // login position/account cache first, then pre-map UI state, then the
         // object create packet that makes the player appear in the world.
         await SendAsync(WorldOpcode.SMSG_LOGIN_VERIFY_WORLD, WorldPacketBuilders.BuildLoginVerifyWorld(player), _crypt, cancellationToken);
@@ -1650,7 +1700,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
     /**
       * Drains queued movement packets for this session on one writer path.
-      * This mirrors the MaNGOS-style idea of buffering outbound packets instead of writing them inline from gameplay packet handling.
+      * This mirrors the server-side buffering pattern for outbound packets instead of writing them inline from gameplay packet handling.
       */
     private async Task ProcessMovementBroadcastQueueAsync(CancellationToken cancellationToken)
     {
@@ -1877,6 +1927,583 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     {
         ulong result = (ulong)value + addition;
         return result > uint.MaxValue ? uint.MaxValue : (uint)result;
+    }
+
+    /**
+      * Handles swapping two top-level inventory/equipment/bank slots.
+      */
+    private async Task HandleSwapInvItemAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < 2)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        byte firstSlot = reader.ReadUInt8();
+        byte secondSlot = reader.ReadUInt8();
+
+        await SwapInventoryLocationsAsync(
+            new InventoryClientPosition(ClientBackpackBag, firstSlot),
+            new InventoryClientPosition(ClientBackpackBag, secondSlot),
+            cancellationToken);
+    }
+
+    /**
+      * Handles swapping items between player inventory, equipped bags, bank, and bank bags.
+      */
+    private async Task HandleSwapItemAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < 4)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        byte firstBag = reader.ReadUInt8();
+        byte firstSlot = reader.ReadUInt8();
+        byte secondBag = reader.ReadUInt8();
+        byte secondSlot = reader.ReadUInt8();
+
+        await SwapInventoryLocationsAsync(
+            new InventoryClientPosition(firstBag, firstSlot),
+            new InventoryClientPosition(secondBag, secondSlot),
+            cancellationToken);
+    }
+
+    /**
+      * Handles right-click auto-equip and right-click unequip.
+      */
+    private async Task HandleAutoEquipItemAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < 2)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        byte sourceBag = reader.ReadUInt8();
+        byte sourceSlot = reader.ReadUInt8();
+
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerInventoryItem> inventory = player.Inventory;
+        if (!TryResolveClientInventoryLocation(new InventoryClientPosition(sourceBag, sourceSlot), inventory, out InventoryStorageLocation sourceLocation))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        PlayerInventoryItem? sourceItem = FindItemAtLocation(inventory, sourceLocation);
+        if (sourceItem is null)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        InventoryStorageLocation destinationLocation;
+        if (sourceItem.BagGuid == 0 && sourceItem.Slot < 19)
+        {
+            if (!TryFindFirstFreeBackpackLocation(inventory, out destinationLocation))
+            {
+                await SendInventoryFailureAsync(InventoryChangeFailureBagFull, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
+                return;
+            }
+        }
+        else if (!TryResolveAutoEquipLocation(sourceItem, inventory, out destinationLocation))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
+            return;
+        }
+
+        await MoveOrSwapItemAsync(sourceItem, sourceLocation, destinationLocation, cancellationToken);
+    }
+
+    /**
+      * Handles client requests that equip a known item GUID into an explicit equipment slot.
+      */
+    private async Task HandleAutoEquipItemSlotAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < 9)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        byte destinationSlot = reader.ReadUInt8();
+        ulong itemClientGuid = reader.ReadUInt64();
+        uint itemGuid = CharacterGuid.FromClientGuid(itemClientGuid);
+
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        PlayerInventoryItem? sourceItem = player.Inventory.FirstOrDefault(item => item.ItemGuid == itemGuid);
+        if (sourceItem is null)
+        {
+            WorldPacketReader alternateReader = new(packet.Payload);
+            ulong alternateItemClientGuid = alternateReader.ReadUInt64();
+            byte alternateDestinationSlot = alternateReader.ReadUInt8();
+            uint alternateItemGuid = CharacterGuid.FromClientGuid(alternateItemClientGuid);
+            PlayerInventoryItem? alternateSourceItem = player.Inventory.FirstOrDefault(item => item.ItemGuid == alternateItemGuid);
+            if (alternateSourceItem is null)
+            {
+                await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, itemClientGuid, 0, cancellationToken);
+                return;
+            }
+
+            sourceItem = alternateSourceItem;
+            itemClientGuid = alternateItemClientGuid;
+            destinationSlot = alternateDestinationSlot;
+        }
+
+        InventoryStorageLocation sourceLocation = new(sourceItem.BagGuid, sourceItem.Slot);
+        InventoryStorageLocation destinationLocation = new(0, destinationSlot);
+        if (!CanPlaceItemAtLocation(sourceItem, destinationLocation, player.Inventory))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, itemClientGuid, 0, cancellationToken);
+            return;
+        }
+
+        await MoveOrSwapItemAsync(sourceItem, sourceLocation, destinationLocation, cancellationToken);
+    }
+
+    /**
+      * Handles client auto-store requests by moving the source item to the first free backpack slot.
+      */
+    private async Task HandleAutoStoreBagItemAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < 2)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        byte sourceBag = reader.ReadUInt8();
+        byte sourceSlot = reader.ReadUInt8();
+
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerInventoryItem> inventory = player.Inventory;
+        if (!TryResolveClientInventoryLocation(new InventoryClientPosition(sourceBag, sourceSlot), inventory, out InventoryStorageLocation sourceLocation))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        PlayerInventoryItem? sourceItem = FindItemAtLocation(inventory, sourceLocation);
+        if (sourceItem is null)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        if (!TryFindFirstFreeBackpackLocation(inventory, out InventoryStorageLocation destinationLocation))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureBagFull, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
+            return;
+        }
+
+        await MoveOrSwapItemAsync(sourceItem, sourceLocation, destinationLocation, cancellationToken);
+    }
+
+    /**
+      * Handles splitting part of a stack into an empty slot or merging the split count into a compatible destination stack.
+      */
+    private async Task HandleSplitItemAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < 5)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        byte sourceBag = reader.ReadUInt8();
+        byte sourceSlot = reader.ReadUInt8();
+        byte destinationBag = reader.ReadUInt8();
+        byte destinationSlot = reader.ReadUInt8();
+        byte splitCount = reader.ReadUInt8();
+
+        if (splitCount == 0)
+        {
+            return;
+        }
+
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerInventoryItem> inventory = player.Inventory;
+        if (!TryResolveClientInventoryLocation(new InventoryClientPosition(sourceBag, sourceSlot), inventory, out InventoryStorageLocation sourceLocation))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        PlayerInventoryItem? sourceItem = FindItemAtLocation(inventory, sourceLocation);
+        if (sourceItem is null || sourceItem.StackCount <= splitCount)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        InventoryStorageLocation destinationLocation;
+        if (!TryResolveClientInventoryLocation(new InventoryClientPosition(destinationBag, destinationSlot), inventory, out destinationLocation))
+        {
+            if (destinationBag == ClientBackpackBag && destinationSlot == ClientBackpackBag && TryFindFirstFreeBackpackLocation(inventory, out destinationLocation))
+            {
+                // Client requested an automatic destination. Use the first free backpack/bag slot.
+            }
+            else
+            {
+                await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
+                return;
+            }
+        }
+
+        if (sourceLocation.Equals(destinationLocation))
+        {
+            return;
+        }
+
+        PlayerInventoryItem? destinationItem = FindItemAtLocation(inventory, destinationLocation);
+        if (destinationItem is null && !CanPlaceItemAtLocation(sourceItem, destinationLocation, inventory))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
+            return;
+        }
+
+        if (destinationItem is not null && destinationItem.TemplateEntry != sourceItem.TemplateEntry)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), CharacterGuid.ToItemGuid(destinationItem.ItemGuid), cancellationToken);
+            return;
+        }
+
+        await ApplyInventoryStackSplitAsync(sourceItem, destinationLocation, splitCount, cancellationToken);
+    }
+
+    private async Task SwapInventoryLocationsAsync(InventoryClientPosition firstClientPosition, InventoryClientPosition secondClientPosition, CancellationToken cancellationToken)
+    {
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerInventoryItem> inventory = player.Inventory;
+
+        if (!TryResolveClientInventoryLocation(firstClientPosition, inventory, out InventoryStorageLocation firstLocation) ||
+            !TryResolveClientInventoryLocation(secondClientPosition, inventory, out InventoryStorageLocation secondLocation))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, 0, 0, cancellationToken);
+            return;
+        }
+
+        if (firstLocation.Equals(secondLocation))
+        {
+            return;
+        }
+
+        PlayerInventoryItem? firstItem = FindItemAtLocation(inventory, firstLocation);
+        PlayerInventoryItem? secondItem = FindItemAtLocation(inventory, secondLocation);
+        if (firstItem is null && secondItem is null)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        if (firstItem is not null && !CanPlaceItemAtLocation(firstItem, secondLocation, inventory))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(firstItem.ItemGuid), secondItem is null ? 0 : CharacterGuid.ToItemGuid(secondItem.ItemGuid), cancellationToken);
+            return;
+        }
+
+        if (secondItem is not null && !CanPlaceItemAtLocation(secondItem, firstLocation, inventory))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(secondItem.ItemGuid), firstItem is null ? 0 : CharacterGuid.ToItemGuid(firstItem.ItemGuid), cancellationToken);
+            return;
+        }
+
+        List<PlayerInventoryPlacementUpdate> placements = [];
+        if (firstItem is not null)
+        {
+            placements.Add(new PlayerInventoryPlacementUpdate(firstItem.ItemGuid, secondLocation.BagGuid, secondLocation.Slot));
+        }
+
+        if (secondItem is not null)
+        {
+            placements.Add(new PlayerInventoryPlacementUpdate(secondItem.ItemGuid, firstLocation.BagGuid, firstLocation.Slot));
+        }
+
+        await ApplyInventoryPlacementsAsync(placements, cancellationToken);
+    }
+
+    private async Task MoveOrSwapItemAsync(PlayerInventoryItem sourceItem, InventoryStorageLocation sourceLocation, InventoryStorageLocation destinationLocation, CancellationToken cancellationToken)
+    {
+        if (sourceLocation.Equals(destinationLocation))
+        {
+            return;
+        }
+
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerInventoryItem> inventory = player.Inventory;
+        PlayerInventoryItem? destinationItem = FindItemAtLocation(inventory, destinationLocation);
+
+        if (!CanPlaceItemAtLocation(sourceItem, destinationLocation, inventory))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), destinationItem is null ? 0 : CharacterGuid.ToItemGuid(destinationItem.ItemGuid), cancellationToken);
+            return;
+        }
+
+        if (destinationItem is not null && !CanPlaceItemAtLocation(destinationItem, sourceLocation, inventory))
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(destinationItem.ItemGuid), CharacterGuid.ToItemGuid(sourceItem.ItemGuid), cancellationToken);
+            return;
+        }
+
+        List<PlayerInventoryPlacementUpdate> placements =
+        [
+            new PlayerInventoryPlacementUpdate(sourceItem.ItemGuid, destinationLocation.BagGuid, destinationLocation.Slot),
+        ];
+
+        if (destinationItem is not null)
+        {
+            placements.Add(new PlayerInventoryPlacementUpdate(destinationItem.ItemGuid, sourceLocation.BagGuid, sourceLocation.Slot));
+        }
+
+        await ApplyInventoryPlacementsAsync(placements, cancellationToken);
+    }
+
+    private async Task ApplyInventoryPlacementsAsync(IReadOnlyList<PlayerInventoryPlacementUpdate> placements, CancellationToken cancellationToken)
+    {
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        IReadOnlyList<PlayerInventoryItem> refreshedInventory = await _characterRepository.UpdateInventoryPlacementsAsync(player.Guid, placements, cancellationToken);
+        if (refreshedInventory.Count == 0)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemNotFound, 0, 0, cancellationToken);
+            return;
+        }
+
+        PlayerLoginRecord updatedPlayer = player with { Inventory = refreshedInventory };
+        CurrentPlayer = updatedPlayer;
+        _playerStateDirty = true;
+        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildInventoryStateUpdate(updatedPlayer), _crypt, cancellationToken);
+    }
+
+    private async Task ApplyInventoryStackSplitAsync(PlayerInventoryItem sourceItem, InventoryStorageLocation destinationLocation, uint splitCount, CancellationToken cancellationToken)
+    {
+        PlayerLoginRecord player = RequireCurrentPlayer();
+        HashSet<uint> knownItemGuids = player.Inventory.Select(item => item.ItemGuid).ToHashSet();
+        IReadOnlyList<PlayerInventoryItem> refreshedInventory = await _characterRepository.SplitInventoryStackAsync(
+            player.Guid,
+            sourceItem.ItemGuid,
+            destinationLocation.BagGuid,
+            destinationLocation.Slot,
+            splitCount,
+            cancellationToken);
+
+        if (refreshedInventory.Count == 0)
+        {
+            await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
+            return;
+        }
+
+        HashSet<uint> createdItemGuids = refreshedInventory
+            .Where(item => !knownItemGuids.Contains(item.ItemGuid))
+            .Select(item => item.ItemGuid)
+            .ToHashSet();
+
+        PlayerLoginRecord updatedPlayer = player with { Inventory = refreshedInventory };
+        CurrentPlayer = updatedPlayer;
+        _playerStateDirty = true;
+        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildInventoryStateUpdate(updatedPlayer, createdItemGuids), _crypt, cancellationToken);
+    }
+
+    private async Task SendInventoryFailureAsync(byte failureCode, ulong itemGuid, ulong itemGuid2, CancellationToken cancellationToken)
+    {
+        await SendAsync(WorldOpcode.SMSG_INVENTORY_CHANGE_FAILURE, WorldPacketBuilders.BuildInventoryChangeFailure(failureCode, itemGuid, itemGuid2), _crypt, cancellationToken);
+    }
+
+    private static bool TryResolveClientInventoryLocation(InventoryClientPosition position, IReadOnlyList<PlayerInventoryItem> inventory, out InventoryStorageLocation location)
+    {
+        if (position.Bag == ClientBackpackBag)
+        {
+            location = new InventoryStorageLocation(0, position.Slot);
+            return IsValidTopLevelSlot(position.Slot);
+        }
+
+        if (position.Bag == 0)
+        {
+            byte normalizedBackpackSlot = position.Slot < 16
+                ? (byte)(23 + position.Slot)
+                : position.Slot;
+            location = new InventoryStorageLocation(0, normalizedBackpackSlot);
+            return IsValidTopLevelSlot(normalizedBackpackSlot);
+        }
+
+        byte containerSlot = position.Bag is >= 1 and <= 4
+            ? (byte)(18 + position.Bag)
+            : position.Bag;
+
+        PlayerInventoryItem? bagItem = inventory.FirstOrDefault(item => item.BagGuid == 0 && item.Slot == containerSlot && item.IsContainer);
+        if (bagItem is null || position.Slot >= bagItem.ContainerSlots)
+        {
+            location = default;
+            return false;
+        }
+
+        location = new InventoryStorageLocation(bagItem.ItemGuid, position.Slot);
+        return true;
+    }
+
+    private static PlayerInventoryItem? FindItemAtLocation(IReadOnlyList<PlayerInventoryItem> inventory, InventoryStorageLocation location)
+    {
+        return inventory.FirstOrDefault(item => item.BagGuid == location.BagGuid && item.Slot == location.Slot);
+    }
+
+    private static bool CanPlaceItemAtLocation(PlayerInventoryItem item, InventoryStorageLocation location, IReadOnlyList<PlayerInventoryItem> inventory)
+    {
+        if (location.BagGuid != 0)
+        {
+            PlayerInventoryItem? bagItem = inventory.FirstOrDefault(candidate => candidate.ItemGuid == location.BagGuid && candidate.IsContainer);
+            return bagItem is not null && location.Slot < bagItem.ContainerSlots && !item.IsContainer;
+        }
+
+        byte slot = location.Slot;
+        if (slot < 19)
+        {
+            return IsItemAllowedInEquipmentSlot(item, slot);
+        }
+
+        if (slot is >= 19 and < 23)
+        {
+            return item.IsContainer;
+        }
+
+        if (slot is >= 23 and < 39)
+        {
+            return true;
+        }
+
+        if (slot is >= 39 and < 63)
+        {
+            return true;
+        }
+
+        if (slot is >= 63 and < 69)
+        {
+            return item.IsContainer;
+        }
+
+        if (slot is >= 81 and < 113)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveAutoEquipLocation(PlayerInventoryItem item, IReadOnlyList<PlayerInventoryItem> inventory, out InventoryStorageLocation location)
+    {
+        if (item.IsContainer)
+        {
+            for (byte bagSlot = 19; bagSlot < 23; bagSlot++)
+            {
+                InventoryStorageLocation candidate = new(0, bagSlot);
+                if (FindItemAtLocation(inventory, candidate) is null)
+                {
+                    location = candidate;
+                    return true;
+                }
+            }
+
+            location = new InventoryStorageLocation(0, 19);
+            return true;
+        }
+
+        byte[] allowedSlots = ResolveAllowedEquipmentSlots(item);
+        foreach (byte slot in allowedSlots)
+        {
+            if (FindItemAtLocation(inventory, new InventoryStorageLocation(0, slot)) is null)
+            {
+                location = new InventoryStorageLocation(0, slot);
+                return true;
+            }
+        }
+
+        if (allowedSlots.Length > 0)
+        {
+            location = new InventoryStorageLocation(0, allowedSlots[0]);
+            return true;
+        }
+
+        location = default;
+        return false;
+    }
+
+    private static bool TryFindFirstFreeBackpackLocation(IReadOnlyList<PlayerInventoryItem> inventory, out InventoryStorageLocation location)
+    {
+        for (byte slot = 23; slot < 39; slot++)
+        {
+            InventoryStorageLocation candidate = new(0, slot);
+            if (FindItemAtLocation(inventory, candidate) is null)
+            {
+                location = candidate;
+                return true;
+            }
+        }
+
+        foreach (PlayerInventoryItem bagItem in inventory.Where(item => item.BagGuid == 0 && item.Slot is >= 19 and < 23 && item.IsContainer).OrderBy(item => item.Slot))
+        {
+            for (byte slot = 0; slot < bagItem.ContainerSlots; slot++)
+            {
+                InventoryStorageLocation candidate = new(bagItem.ItemGuid, slot);
+                if (FindItemAtLocation(inventory, candidate) is null)
+                {
+                    location = candidate;
+                    return true;
+                }
+            }
+        }
+
+        location = default;
+        return false;
+    }
+
+    private static bool IsValidTopLevelSlot(byte slot)
+    {
+        return slot < 69 || slot is >= 81 and < 113;
+    }
+
+    private static bool IsItemAllowedInEquipmentSlot(PlayerInventoryItem item, byte slot)
+    {
+        return ResolveAllowedEquipmentSlots(item).Contains(slot);
+    }
+
+    private static byte[] ResolveAllowedEquipmentSlots(PlayerInventoryItem item)
+    {
+        return item.InventoryType switch
+        {
+            1 => [0],
+            2 => [1],
+            3 => [2],
+            4 => [3],
+            5 => [4],
+            6 => [5],
+            7 => [6],
+            8 => [7],
+            9 => [8],
+            10 => [9],
+            11 => [10, 11],
+            12 => [12, 13],
+            13 => [15],
+            14 => [16],
+            15 => [17],
+            16 => [14],
+            17 => [15],
+            19 => [18],
+            20 => [4],
+            21 => [15],
+            22 => [16],
+            23 => [16],
+            25 => [17],
+            26 => [17],
+            28 => [17],
+            _ => [],
+        };
     }
 
     /**

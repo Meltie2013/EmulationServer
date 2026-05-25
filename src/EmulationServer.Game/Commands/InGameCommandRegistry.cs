@@ -54,6 +54,7 @@ public sealed class InGameCommandRegistry
         [
             new AccountCommand(),
             new BanCommand(),
+            new BankCommand(),
             new HelpCommand(),
             new MapCommand(),
             new ReloadCommand(),

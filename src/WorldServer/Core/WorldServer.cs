@@ -1144,7 +1144,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private readonly record struct MapCommandDispatchResult(int TargetCount, int SentConnections);
 
     /**
-      * Validates the MaNGOS-compatible auth, character, and world database connections before the realm is advertised.
+      * Validates the auth, character, and world database connections before the realm is advertised.
       */
     private async Task ValidateDatabaseConnectionsAsync(CancellationToken cancellationToken)
     {
@@ -1177,15 +1177,10 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     }
 
     /**
-      * Loads MaNGOS world database templates needed by character creation and world login into memory.
+      * Loads world database templates needed by character creation, item lookup, and world login into memory.
       */
     private async Task LoadWorldTemplateDataAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(
-            LogType.DATABASE,
-            "WorldServer loading MaNGOS world database templates into memory: playercreateinfo, item_template, player level stats, XP, and playercreateinfo_* tables...",
-            "WorldServer");
-
         _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
 
         if (_worldTemplateData.PlayerCreateInfo.Count == 0)
@@ -1197,6 +1192,8 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         {
             throw new InvalidOperationException("World database table `item_template` is empty. Character creation cannot resolve starter items or equipment display data.");
         }
+
+        Logger.Write(LogType.DATABASE, $"World database table `item_template` loaded {_worldTemplateData.ItemTemplates.Count} row(s).", "WorldServer");
 
         LogOptionalWorldTemplateCount("player_levelstats", _worldTemplateData.PlayerLevelStatsCount, "base race/class/level stats will fall back to generated defaults");
         LogOptionalWorldTemplateCount("player_classlevelstats", _worldTemplateData.PlayerClassLevelStatsCount, "base health/mana will fall back to generated defaults");

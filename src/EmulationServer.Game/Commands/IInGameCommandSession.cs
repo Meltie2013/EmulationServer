@@ -72,4 +72,9 @@ public interface IInGameCommandSession
       * Requires the current in-world player and throws when the command was executed before entering the world.
       */
     PlayerLoginRecord RequireCurrentPlayer();
+
+    /**
+      * Opens the current character bank UI through the active world session.
+      */
+    Task OpenBankAsync(CancellationToken cancellationToken);
 }

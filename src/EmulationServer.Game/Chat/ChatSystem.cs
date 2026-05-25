@@ -190,7 +190,7 @@ public sealed class ChatSystem
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        // MaNGOS sends the player's channel rank before the sender GUID for CHAT_MSG_CHANNEL.
+        // Vanilla sends the player's channel rank before the sender GUID for CHAT_MSG_CHANNEL.
         // Rank management is not implemented yet, so every joined player is a normal member.
         return 0;
     }

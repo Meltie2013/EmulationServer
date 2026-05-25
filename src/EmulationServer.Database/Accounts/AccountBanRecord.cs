@@ -38,7 +38,7 @@ public sealed record AccountBanRecord(
     bool Active)
 {
     /**
-      * Indicates whether this ban is permanent according to MaNGOS account_banned rules.
+      * Indicates whether this ban is permanent according to account_banned rules.
       * A permanent ban stores the same timestamp in bandate and unbandate.
       */
     public bool IsPermanent => BanDate == UnbanDate;

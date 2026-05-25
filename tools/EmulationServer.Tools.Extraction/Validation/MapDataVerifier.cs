@@ -94,7 +94,7 @@ public sealed class MapDataVerifier
 
         if (map.HolesByteCount is not 0 and not 512)
         {
-            result.AddWarning($"{map.Path}: holes section size is {map.HolesByteCount} byte(s). MaNGOS-style map tiles normally use 16x16 ushort hole data, or 512 bytes.");
+            result.AddWarning($"{map.Path}: holes section size is {map.HolesByteCount} byte(s). Server map tiles normally use 16x16 ushort hole data, or 512 bytes.");
         }
     }
 

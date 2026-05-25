@@ -135,7 +135,7 @@ public sealed class MapConversionService
             }
         }
 
-        AddMessage(result, progressMessage, $"Converted {result.ConvertedFiles} MaNGOS .map file(s) to {outputDirectory}.");
+        AddMessage(result, progressMessage, $"Converted {result.ConvertedFiles} server .map file(s) to {outputDirectory}.");
 
         if (result.FailedFiles > 0)
         {

@@ -364,7 +364,7 @@ static void PrintUsage()
     Console.WriteLine("      Extracts DBFilesClient/*.dbc from the client MPQ archives using the C# tool.");
     Console.WriteLine();
     Console.WriteLine("  extract-maps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>] [--no-overwrite]");
-    Console.WriteLine("      Extracts raw ADT/WDT sources and converts ADT tiles into MaNGOS-style .map files.");
+    Console.WriteLine("      Extracts raw ADT/WDT sources and converts ADT tiles into server .map files.");
     Console.WriteLine();
     Console.WriteLine("  extract-vmaps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>] [--no-overwrite]");
     Console.WriteLine("      Extracts raw WMO and ADT placement sources, then converts WMO geometry into compact vmap model/tile files.");
@@ -379,7 +379,7 @@ static void PrintUsage()
     Console.WriteLine("      Reads a DBC header and prints record/string block information.");
     Console.WriteLine();
     Console.WriteLine("  verify-map --file <path-to-map>");
-    Console.WriteLine("      Validates one extracted .map file produced by MaNGOS-style map extraction.");
+    Console.WriteLine("      Validates one extracted .map file produced by server map extraction.");
     Console.WriteLine();
     Console.WriteLine("  verify-maps --directory <path-to-maps>");
     Console.WriteLine("      Validates every .map file under a directory.");

@@ -113,7 +113,7 @@ public static class Srp6Utilities
         byte[] saltBytes = ToLittleEndian(salt, SaltLength);
         byte[] xDigest = SHA1.HashData(Concat(saltBytes, passwordDigest));
 
-        // MaNGOS BigNumber.SetBinary treats this digest as little-endian.
+        // The legacy BigNumber.SetBinary helper treats this digest as little-endian.
         BigInteger x = FromLittleEndian(xDigest);
 
         return BigInteger.ModPow(G, x, N);
