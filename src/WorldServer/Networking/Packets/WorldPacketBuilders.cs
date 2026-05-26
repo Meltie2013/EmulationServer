@@ -25,6 +25,7 @@ using EmulationServer.Game.Characters;
 using EmulationServer.Game.Chat;
 using EmulationServer.Game.Players;
 using EmulationServer.Game.Reputation;
+using EmulationServer.Game.Formulas;
 using EmulationServer.Game.WorldData;
 
 /**
@@ -1251,21 +1252,7 @@ public static class WorldPacketBuilders
       */
     private static uint BuildNextLevelExperience(byte level)
     {
-        uint safeLevel = Math.Max((uint)level, 1u);
-        return safeLevel switch
-        {
-            1 => 400,
-            2 => 900,
-            3 => 1400,
-            4 => 2100,
-            5 => 2800,
-            6 => 3600,
-            7 => 4500,
-            8 => 5400,
-            9 => 6500,
-            10 => 7600,
-            _ => 7600 + ((safeLevel - 10) * 1100u),
-        };
+        return ExperienceFormula.GetFallbackNextLevelExperience(level);
     }
 
     /**

@@ -24,6 +24,8 @@ using EmulationServer.Game.Players;
   * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
   */
 
+using EmulationServer.Game.Formulas;
+
 namespace EmulationServer.Game.WorldData;
 
 /**
@@ -253,7 +255,7 @@ public sealed class WorldTemplateDataStore
             return record.ExperienceForNextLevel;
         }
 
-        return BuildFallbackNextLevelExperience(safeLevel);
+        return ExperienceFormula.GetFallbackNextLevelExperience(safeLevel);
     }
 
     /**
@@ -317,21 +319,7 @@ public sealed class WorldTemplateDataStore
       */
     private static uint BuildFallbackNextLevelExperience(byte level)
     {
-        uint safeLevel = Math.Max((uint)level, 1u);
-        return safeLevel switch
-        {
-            1 => 400,
-            2 => 900,
-            3 => 1400,
-            4 => 2100,
-            5 => 2800,
-            6 => 3600,
-            7 => 4500,
-            8 => 5400,
-            9 => 6500,
-            10 => 7600,
-            _ => 7600 + ((safeLevel - 10) * 1100u),
-        };
+        return ExperienceFormula.GetFallbackNextLevelExperience(level);
     }
 
     /**

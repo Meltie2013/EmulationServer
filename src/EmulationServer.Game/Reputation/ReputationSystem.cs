@@ -18,6 +18,7 @@
 
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Players;
+using EmulationServer.Game.Formulas;
 
 namespace EmulationServer.Game.Reputation;
 
@@ -27,10 +28,8 @@ namespace EmulationServer.Game.Reputation;
 public static class ReputationSystem
 {
     public const int MaxReputationSlots = 64;
-    public const int ReputationCap = 42999;
-    public const int ReputationBottom = -42000;
-
-    private static readonly int[] PointsInRank = [36000, 3000, 3000, 3000, 6000, 12000, 21000, 1000];
+    public const int ReputationCap = ReputationFormula.ReputationCap;
+    public const int ReputationBottom = ReputationFormula.ReputationBottom;
 
     /**
       * Builds the default reputation rows that a new or unsaved character should have.
@@ -124,9 +123,10 @@ public static class ReputationSystem
     public static ReputationRank ReputationToRank(int standing)
     {
         int limit = ReputationCap + 1;
-        for (int rank = PointsInRank.Length - 1; rank >= 0; rank--)
+        ReadOnlySpan<int> pointsInRank = ReputationFormula.PointsInRank;
+        for (int rank = pointsInRank.Length - 1; rank >= 0; rank--)
         {
-            limit -= PointsInRank[rank];
+            limit -= pointsInRank[rank];
             if (standing >= limit)
             {
                 return (ReputationRank)rank;
@@ -141,7 +141,7 @@ public static class ReputationSystem
       */
     public static int ClampStanding(int standing)
     {
-        return Math.Clamp(standing, ReputationBottom, ReputationCap);
+        return ReputationFormula.ClampStanding(standing);
     }
 
     private static bool IsClientReputationFaction(FactionDbcRecord faction)
