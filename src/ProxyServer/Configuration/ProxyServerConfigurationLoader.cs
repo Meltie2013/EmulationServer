@@ -102,6 +102,63 @@ public static class ProxyServerConfigurationLoader
                     ProxyServerSection,
                     "PeerReconnectTimeout",
                     TimeSpan.FromSeconds(120))),
+
+            HealthLoggingEnabled = configuration.GetBool(
+                ProxyServerSection,
+                "HealthLoggingEnabled",
+                true),
+
+            HealthReportInterval = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "HealthReportInterval",
+                TimeSpan.FromSeconds(30)),
+
+            HealthStatusStaleTimeout = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "HealthStatusStaleTimeout",
+                TimeSpan.FromSeconds(45)),
+
+            DegradedLatencyThreshold = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "DegradedLatencyThreshold",
+                TimeSpan.FromMilliseconds(150)),
+
+            UnhealthyLatencyThreshold = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "UnhealthyLatencyThreshold",
+                TimeSpan.FromMilliseconds(500)),
+
+            DegradedLoadPercent = configuration.GetDouble(
+                ProxyServerSection,
+                "DegradedLoadPercent",
+                70d),
+
+            UnhealthyLoadPercent = configuration.GetDouble(
+                ProxyServerSection,
+                "UnhealthyLoadPercent",
+                90d),
+
+            DegradedAverageTickThreshold = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "DegradedAverageTickThreshold",
+                TimeSpan.FromMilliseconds(50)),
+
+            UnhealthyAverageTickThreshold = configuration.GetTimeSpan(
+                ProxyServerSection,
+                "UnhealthyAverageTickThreshold",
+                TimeSpan.FromMilliseconds(200)),
+
+            DegradedPingMissCount = configuration.GetInt(
+                ProxyServerSection,
+                "DegradedPingMissCount",
+                1,
+                minimum: 1),
+
+            UnhealthyPingMissCount = configuration.GetInt(
+                ProxyServerSection,
+                "UnhealthyPingMissCount",
+                3,
+                minimum: 1),
         };
     }
 

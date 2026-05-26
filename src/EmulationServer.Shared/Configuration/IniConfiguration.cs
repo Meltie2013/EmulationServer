@@ -276,6 +276,43 @@ public sealed class IniConfiguration
     /**
       * Returns the current value or snapshot without exposing mutable internal state.
       * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
+      */
+    public double GetDouble(
+        string section,
+        string key,
+        double defaultValue,
+        double? minimum = null,
+        double? maximum = null)
+    {
+        if (!TryGetString(section, key, out string value))
+        {
+            return defaultValue;
+        }
+
+        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+        {
+            throw new ConfigurationException(
+                $"Invalid decimal value for [{section}] {key}: '{value}'.");
+        }
+
+        if (minimum.HasValue && parsed < minimum.Value)
+        {
+            throw new ConfigurationException(
+                $"Configuration value [{section}] {key} must be greater than or equal to {minimum.Value.ToString(CultureInfo.InvariantCulture)}.");
+        }
+
+        if (maximum.HasValue && parsed > maximum.Value)
+        {
+            throw new ConfigurationException(
+                $"Configuration value [{section}] {key} must be less than or equal to {maximum.Value.ToString(CultureInfo.InvariantCulture)}.");
+        }
+
+        return parsed;
+    }
+
+    /**
+      * Returns the current value or snapshot without exposing mutable internal state.
+      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
       * The boolean result lets callers branch without throwing for normal negative outcomes.
       */
     public bool GetBool(string section, string key, bool defaultValue)

@@ -80,6 +80,16 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly TimeSpan _pingTimeout;
+    /**
+      * Receives successful latency measurements for the remote peer.
+      * The shared latency monitor does not own health policy; callers can use this to aggregate health locally.
+      */
+    private readonly Action<string, TimeSpan>? _latencyMeasured;
+    /**
+      * Receives ping timeout events for the remote peer.
+      * Ping health is counted separately from successful latency measurements.
+      */
+    private readonly Action<string, TimeSpan>? _pingTimedOut;
     private readonly ConcurrentDictionary<long, PendingPing> _pendingPings = new();
 
     /**
@@ -121,7 +131,9 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         TimeSpan reportInterval,
         bool latencyLoggingEnabled,
         TimeSpan latencyLogInterval,
-        TimeSpan pingTimeout)
+        TimeSpan pingTimeout,
+        Action<string, TimeSpan>? latencyMeasured = null,
+        Action<string, TimeSpan>? pingTimedOut = null)
     {
         if (string.IsNullOrWhiteSpace(localServerName))
         {
@@ -156,6 +168,8 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _latencyLoggingEnabled = latencyLoggingEnabled;
         _latencyLogInterval = latencyLogInterval;
         _pingTimeout = pingTimeout;
+        _latencyMeasured = latencyMeasured;
+        _pingTimedOut = pingTimedOut;
     }
 
     /**
@@ -266,6 +280,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
 
         TimeSpan latency = GetElapsedTime(pendingPing.StartTimestamp);
         Logger.Write(LogType.TRACE, $"{_localServerName} latency to {_remoteServerName}: {latency.TotalMilliseconds:0.##} ms.", "InternalLatencyMonitor");
+        NotifyLatencyMeasured(latency);
 
         if (ShouldLogLatency())
         {
@@ -352,6 +367,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
             if (_pendingPings.TryRemove(pendingPing.Key, out _))
             {
                 Logger.Write(LogType.WARNING, $"{_localServerName} did not receive latency pong {pendingPing.Key} from {_remoteServerName} within {_pingTimeout.TotalSeconds:0.##} second(s).", "InternalLatencyMonitor");
+                NotifyPingTimedOut(elapsed);
             }
         }
     }
@@ -375,6 +391,36 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
 
         return Interlocked.CompareExchange(ref _lastLatencyLogUtcTicks, nowTicks, previousTicks) == previousTicks;
+    }
+
+    /**
+      * Notifies the owner about a successful latency measurement without allowing health bookkeeping to break socket processing.
+      */
+    private void NotifyLatencyMeasured(TimeSpan latency)
+    {
+        try
+        {
+            _latencyMeasured?.Invoke(_remoteServerName, latency);
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.WARNING, $"{_localServerName} latency measurement callback for {_remoteServerName} failed: {exception.Message}", "InternalLatencyMonitor");
+        }
+    }
+
+    /**
+      * Notifies the owner about a ping timeout without allowing health bookkeeping to break socket processing.
+      */
+    private void NotifyPingTimedOut(TimeSpan elapsed)
+    {
+        try
+        {
+            _pingTimedOut?.Invoke(_remoteServerName, elapsed);
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.WARNING, $"{_localServerName} ping timeout callback for {_remoteServerName} failed: {exception.Message}", "InternalLatencyMonitor");
+        }
     }
 
     /**

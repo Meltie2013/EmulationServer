@@ -78,6 +78,14 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     private readonly WorldRealmStatusReporter _realmStatusReporter;
     /**
+      * Holds the private WorldServer health status cancellation state used by the owning component.
+      */
+    private CancellationTokenSource? _worldHealthStatusCancellation;
+    /**
+      * Holds the private WorldServer health status task state used by the owning component.
+      */
+    private Task? _worldHealthStatusTask;
+    /**
       * Holds the private auth database state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -221,7 +229,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
                 NotifyMapServicePlayerClientPacketAsync,
                 settings.MessageOfTheDay,
                 settings.PlayerSaveInterval,
-                _realmStatusReporter.SetActiveConnections,
+                NotifyActivePlayerCountChanged,
                 _realmStatusReporter.SendCharacterCountSnapshotNowAsync));
     }
 
@@ -246,11 +254,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             await _host.StartupCompleted.WaitAsync(cancellationToken);
 
             await _realmStatusReporter.StartAsync(cancellationToken);
+            StartWorldHealthStatusLoop(cancellationToken);
 
             await Task.WhenAll(hostTask, clientTask);
         }
         finally
         {
+            await StopWorldHealthStatusLoopAsync(CancellationToken.None);
             await _realmStatusReporter.StopAsync(CancellationToken.None);
             await _clientListener.StopAsync(CancellationToken.None);
         }
@@ -264,6 +274,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        await StopWorldHealthStatusLoopAsync(cancellationToken);
         await _realmStatusReporter.StopAsync(cancellationToken);
         await _clientListener.StopAsync(cancellationToken);
         await _host.StopAsync(cancellationToken);
@@ -319,6 +330,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (string.Equals(remoteServerName, "ProxyServer", StringComparison.OrdinalIgnoreCase))
         {
             await AnnounceWorldCapacityAsync(session.SendPacketAsync, remoteServerName, cancellationToken);
+            await AnnounceWorldHealthStatusAsync(session.SendPacketAsync, remoteServerName, cancellationToken);
         }
     }
 
@@ -364,6 +376,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (string.Equals(remoteServerName, "ProxyServer", StringComparison.OrdinalIgnoreCase))
         {
             await AnnounceWorldCapacityAsync(connection.SendPacketAsync, remoteServerName, cancellationToken);
+            await AnnounceWorldHealthStatusAsync(connection.SendPacketAsync, remoteServerName, cancellationToken);
         }
     }
 
@@ -721,6 +734,140 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     }
 
     /**
+      * Applies the active player count update locally and reports the new WorldServer health snapshot to ProxyServer.
+      */
+    private void NotifyActivePlayerCountChanged(int activePlayerCount)
+    {
+        _realmStatusReporter.SetActiveConnections(activePlayerCount);
+        _ = SendWorldHealthStatusSafelyAsync(CancellationToken.None);
+    }
+
+    /**
+      * Starts the WorldServer health status loop used to feed ProxyServer with active player load data.
+      */
+    private void StartWorldHealthStatusLoop(CancellationToken cancellationToken)
+    {
+        if (_worldHealthStatusTask is not null)
+        {
+            return;
+        }
+
+        _worldHealthStatusCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _worldHealthStatusTask = Task.Run(() => RunWorldHealthStatusLoopAsync(_worldHealthStatusCancellation.Token), CancellationToken.None);
+
+        Logger.Write(LogType.THREAD, $"WorldServer health status report loop started with interval {_settings.InternalNetwork.LatencyReportInterval.TotalSeconds:0.##} second(s).", "WorldServer");
+    }
+
+    /**
+      * Stops the WorldServer health status loop during normal server shutdown.
+      */
+    private async Task StopWorldHealthStatusLoopAsync(CancellationToken cancellationToken)
+    {
+        CancellationTokenSource? healthCancellation = _worldHealthStatusCancellation;
+        if (healthCancellation is not null)
+        {
+            await healthCancellation.CancelAsync();
+        }
+
+        Task? healthTask = _worldHealthStatusTask;
+        _worldHealthStatusTask = null;
+        _worldHealthStatusCancellation = null;
+
+        if (healthTask is not null)
+        {
+            try
+            {
+                Task completedTask = await Task.WhenAny(healthTask, Task.Delay(TimeSpan.FromSeconds(2), cancellationToken));
+                if (completedTask == healthTask)
+                {
+                    await healthTask;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown.
+            }
+        }
+
+        healthCancellation?.Dispose();
+    }
+
+    /**
+      * Runs periodic WorldServer health status reporting until shutdown.
+      */
+    private async Task RunWorldHealthStatusLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await SendWorldHealthStatusSafelyAsync(cancellationToken);
+                await Task.Delay(_settings.InternalNetwork.LatencyReportInterval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during shutdown.
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.CRITICAL, exception.ToString(), "WorldServer");
+        }
+    }
+
+    /**
+      * Sends the latest WorldServer health status to ProxyServer if a connection is available.
+      */
+    private async Task SendWorldHealthStatusSafelyAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            string packet = CreateWorldHealthStatusPacket();
+            int sent = await SendPacketToServerAsync("ProxyServer", packet, cancellationToken);
+            if (sent > 0)
+            {
+                Logger.Write(LogType.TRACE, $"WorldServer reported health status to ProxyServer: players={_playerSessionRegistry.ActivePlayerCount}/{_settings.MaxConnections}.", "WorldServer");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Expected during shutdown.
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            Logger.Write(LogType.DEBUG, $"WorldServer could not report health status to ProxyServer: {exception.Message}", "WorldServer");
+        }
+    }
+
+    /**
+      * Sends a WorldServer health status snapshot to a newly authenticated ProxyServer connection.
+      */
+    private async Task AnnounceWorldHealthStatusAsync(
+        Func<string, CancellationToken, Task> sendPacketAsync,
+        string remoteServerName,
+        CancellationToken cancellationToken)
+    {
+        string packet = CreateWorldHealthStatusPacket();
+        await sendPacketAsync(packet, cancellationToken);
+
+        Logger.Write(LogType.NETWORK, $"WorldServer announced health status to {remoteServerName}: players={_playerSessionRegistry.ActivePlayerCount}/{_settings.MaxConnections}.", "WorldServer");
+    }
+
+    /**
+      * Creates the protocol packet carrying WorldServer health input values for ProxyServer.
+      */
+    private string CreateWorldHealthStatusPacket()
+    {
+        InternalWorldHealthStatusPacket status = new(
+            "WorldServer",
+            _playerSessionRegistry.ActivePlayerCount,
+            _settings.MaxConnections,
+            DateTimeOffset.UtcNow);
+
+        return status.ToPacketLine();
+    }
+
+    /**
       * Handles a single operation or packet and keeps the calling code focused on flow control.
       * The method is part of WorldServer and keeps this workflow isolated from the caller.
       */
@@ -878,7 +1025,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             }
         }
 
-        _realmStatusReporter.SetActiveConnections(_playerSessionRegistry.ActivePlayerCount);
+        NotifyActivePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
     }
 
     /**

@@ -53,6 +53,18 @@ public sealed class InternalNetworkCallbacks
 
     public Func<string, TimeSpan, CancellationToken, Task>? PeerReconnectTimedOutAsync { get; init; }
 
+    /**
+      * Raised whenever a successful internal ping/pong round trip produces a latency measurement.
+      * This is intentionally synchronous so health owners can update in-memory state without blocking socket reads.
+      */
+    public Action<string, TimeSpan>? LatencyMeasured { get; init; }
+
+    /**
+      * Raised whenever a pending internal ping exceeds its configured timeout.
+      * Ping health uses missed responses separately from latency health because ping failures are counted events, not slow successful responses.
+      */
+    public Action<string, TimeSpan>? PingTimedOut { get; init; }
+
     public Func<string, string, CancellationToken, Task>? ShutdownRequestedAsync { get; init; }
 
     /**
@@ -153,6 +165,24 @@ public sealed class InternalNetworkCallbacks
         CancellationToken cancellationToken)
     {
         return PeerReconnectTimedOutAsync?.Invoke(remoteServerName, reconnectTimeout, cancellationToken) ?? Task.CompletedTask;
+    }
+
+    /**
+      * Performs the notify latency measured operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Inputs used by this operation: remoteServerName, latency.
+      */
+    public void NotifyLatencyMeasured(string remoteServerName, TimeSpan latency)
+    {
+        LatencyMeasured?.Invoke(remoteServerName, latency);
+    }
+
+    /**
+      * Performs the notify ping timed out operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
+      * Inputs used by this operation: remoteServerName, elapsed.
+      */
+    public void NotifyPingTimedOut(string remoteServerName, TimeSpan elapsed)
+    {
+        PingTimedOut?.Invoke(remoteServerName, elapsed);
     }
 
     /**

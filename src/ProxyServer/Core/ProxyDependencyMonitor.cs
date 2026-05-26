@@ -51,6 +51,14 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
       */
     private const string WorldServerName = "WorldServer";
 
+    private enum HealthLevel
+    {
+        Unknown = 0,
+        Healthy = 1,
+        Degraded = 2,
+        Unhealthy = 3,
+    }
+
     /**
       * Holds the private settings state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -58,6 +66,9 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
     private readonly ProxyDependencySettings _settings;
     private readonly ConcurrentDictionary<string, ServerState> _servers;
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _mapServiceStatusReceivedUtc = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, HealthReportState> _mapServiceHealthReports = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, HealthReportState> _serverHealthReports = new(StringComparer.OrdinalIgnoreCase);
 
     /**
       * Holds the private stop cancellation state used by the owning component.
@@ -121,6 +132,8 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             PacketReceivedAsync = OnPacketReceivedAsync,
             ServerDisconnectedAsync = OnServerDisconnectedAsync,
             PeerReconnectTimedOutAsync = OnPeerReconnectTimedOutAsync,
+            LatencyMeasured = OnLatencyMeasured,
+            PingTimedOut = OnPingTimedOut,
         };
     }
 
@@ -217,6 +230,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             state.DisconnectedUtc = null;
             state.ReconnectTimedOut = false;
             state.HasEverConnected = true;
+            state.LastLatencyMeasuredUtc = null;
+            state.LastPongReceivedUtc = null;
+            state.LastLatencyMilliseconds = null;
+            state.AverageLatencyMilliseconds = null;
+            state.LastPingTimeoutUtc = null;
+            state.ConsecutivePingTimeouts = 0;
+            state.TotalPingTimeouts = 0;
         }
 
         string role = state.IsCritical ? "critical" : "non-critical";
@@ -252,6 +272,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         if (packet.StartsWith(InternalProtocol.WorldCapacity, StringComparison.OrdinalIgnoreCase))
         {
             await HandleWorldCapacityPacketAsync(remoteServerName, packet, cancellationToken);
+            return;
+        }
+
+        if (packet.StartsWith(InternalProtocol.WorldHealthStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            HandleWorldHealthStatusPacket(remoteServerName, packet);
             return;
         }
 
@@ -326,6 +352,43 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
     }
 
     /**
+      * Records a successful ping/pong round trip for a connected internal server.
+      * ProxyServer owns the health state; the shared latency monitor only reports the measurement.
+      */
+    private void OnLatencyMeasured(string remoteServerName, TimeSpan latency)
+    {
+        ServerState state = GetOrCreateServerState(remoteServerName);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        lock (state.SyncRoot)
+        {
+            state.LastLatencyMeasuredUtc = now;
+            state.LastPongReceivedUtc = now;
+            state.LastLatencyMilliseconds = latency.TotalMilliseconds;
+            state.AverageLatencyMilliseconds = state.AverageLatencyMilliseconds is null
+                ? latency.TotalMilliseconds
+                : (state.AverageLatencyMilliseconds.Value * 0.8d) + (latency.TotalMilliseconds * 0.2d);
+            state.ConsecutivePingTimeouts = 0;
+        }
+    }
+
+    /**
+      * Records a missed ping/pong response for a connected internal server.
+      * Ping health is measured by consecutive missed pongs instead of the successful latency threshold.
+      */
+    private void OnPingTimedOut(string remoteServerName, TimeSpan elapsed)
+    {
+        ServerState state = GetOrCreateServerState(remoteServerName);
+
+        lock (state.SyncRoot)
+        {
+            state.LastPingTimeoutUtc = DateTimeOffset.UtcNow;
+            state.ConsecutivePingTimeouts++;
+            state.TotalPingTimeouts++;
+        }
+    }
+
+    /**
       * Runs the main loop for this component until cancellation or shutdown is requested.
       * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
       * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
@@ -366,6 +429,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         string key = GetStatusKey(status);
         _mapServiceStatuses.TryGetValue(key, out InternalMapServiceStatusPacket? previous);
         _mapServiceStatuses[key] = status;
+        _mapServiceStatusReceivedUtc[key] = DateTimeOffset.UtcNow;
 
         bool isOnline = IsMapServiceOnline(status.State);
         bool previousIsOnline = previous is not null && IsMapServiceOnline(previous.State);
@@ -416,7 +480,9 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
 
         foreach (InternalMapServiceStatusPacket status in affectedStatuses)
         {
-            _mapServiceStatuses[GetStatusKey(status)] = status;
+            string key = GetStatusKey(status);
+            _mapServiceStatuses[key] = status;
+            _mapServiceStatusReceivedUtc[key] = DateTimeOffset.UtcNow;
         }
 
         Logger.Write(LogType.WARNING, $"Proxy marked {affectedStatuses.Length} cached map service status snapshot(s) for '{ownerServerName}' as Offline because {reason}.", "ProxyDependencyMonitor");
@@ -485,6 +551,46 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"Proxy received WorldServer capacity limit: {capacityLimit}.", "ProxyDependencyMonitor");
 
         await BroadcastWorldCapacityAsync(remoteServerName, capacityLimit, cancellationToken);
+    }
+
+    /**
+      * Handles a WorldServer health snapshot and stores it only in ProxyServer memory.
+      */
+    private void HandleWorldHealthStatusPacket(string remoteServerName, string packet)
+    {
+        if (!string.Equals(remoteServerName, WorldServerName, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.WARNING, $"Proxy ignored WORLD_HEALTH_STATUS packet from unexpected server '{remoteServerName}'.", "ProxyDependencyMonitor");
+            return;
+        }
+
+        if (!InternalWorldHealthStatusPacket.TryParse(packet, out InternalWorldHealthStatusPacket status))
+        {
+            Logger.Write(LogType.WARNING, $"Proxy received invalid WORLD_HEALTH_STATUS packet from '{remoteServerName}': {packet}", "ProxyDependencyMonitor");
+            return;
+        }
+
+        if (!string.Equals(status.OwnerServerName, WorldServerName, StringComparison.OrdinalIgnoreCase))
+        {
+            Logger.Write(LogType.WARNING, $"Proxy ignored WORLD_HEALTH_STATUS packet with unexpected owner '{status.OwnerServerName}' from '{remoteServerName}'.", "ProxyDependencyMonitor");
+            return;
+        }
+
+        ServerState state = GetOrCreateServerState(WorldServerName);
+        lock (state.SyncRoot)
+        {
+            state.WorldActivePlayers = status.ActivePlayers;
+            state.WorldMaxConnections = status.MaxConnections;
+            state.LastWorldHealthStatusUtc = DateTimeOffset.UtcNow;
+        }
+
+        int previousCapacity = Volatile.Read(ref _worldCapacityLimit);
+        if (previousCapacity != status.MaxConnections)
+        {
+            Volatile.Write(ref _worldCapacityLimit, status.MaxConnections);
+        }
+
+        Logger.Write(LogType.TRACE, $"Proxy cached WorldServer health status: players={status.ActivePlayers}/{status.MaxConnections}.", "ProxyDependencyMonitor");
     }
 
     /**
@@ -635,6 +741,459 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
                 ReportNonCriticalServerDownIfNeeded(state, now);
             }
         }
+
+        EvaluateAndReportHealth(now);
+    }
+
+    /**
+      * Evaluates and reports health for the connected internal servers and cached map services.
+      * Health state is owned by ProxyServer and only recomputed from the latest runtime inputs it has received.
+      */
+    private void EvaluateAndReportHealth(DateTimeOffset now)
+    {
+        if (!_settings.HealthLoggingEnabled)
+        {
+            return;
+        }
+
+        foreach (ServerState state in _servers.Values)
+        {
+            ServerSnapshot snapshot = state.GetSnapshot();
+
+            if (!snapshot.HasEverConnected && !snapshot.IsConnected)
+            {
+                continue;
+            }
+
+            if (string.Equals(snapshot.Name, WorldServerName, StringComparison.OrdinalIgnoreCase))
+            {
+                ReportHealthIfNeeded(
+                    _serverHealthReports,
+                    $"server:{snapshot.Name}",
+                    EvaluateWorldServerHealth(snapshot, now),
+                    now,
+                    snapshot.IsCritical);
+                continue;
+            }
+
+            if (IsMapControlServer(snapshot.Name))
+            {
+                ReportHealthIfNeeded(
+                    _serverHealthReports,
+                    $"server:{snapshot.Name}",
+                    EvaluateMapOwnerHealth(snapshot, now),
+                    now,
+                    snapshot.IsCritical);
+                continue;
+            }
+
+            ReportHealthIfNeeded(
+                _serverHealthReports,
+                $"server:{snapshot.Name}",
+                EvaluateBaseServerHealth(snapshot, now, $"Proxy health {snapshot.Name}"),
+                now,
+                snapshot.IsCritical);
+        }
+
+        foreach (InternalMapServiceStatusPacket status in _mapServiceStatuses.Values)
+        {
+            ReportHealthIfNeeded(
+                _mapServiceHealthReports,
+                $"map:{GetStatusKey(status)}",
+                EvaluateMapServiceHealth(status, now),
+                now,
+                critical: false);
+        }
+    }
+
+    /**
+      * Evaluates WorldServer health from ping health, latency health, and player-load pressure.
+      */
+    private HealthEvaluation EvaluateWorldServerHealth(ServerSnapshot snapshot, DateTimeOffset now)
+    {
+        HealthComponent ping = EvaluatePingHealth(snapshot, now);
+        HealthComponent latency = EvaluateLatencyHealth(snapshot, now);
+        HealthComponent load = EvaluateWorldLoadHealth(snapshot, now);
+        HealthLevel level = Worst(ping.Level, latency.Level, load.Level);
+
+        return new HealthEvaluation(
+            level,
+            $"Proxy health WorldServer: {level} (ping={ping.Summary}, latency={latency.Summary}, load={load.Summary}).",
+            string.Join("; ", new[] { ping.Reason, latency.Reason, load.Reason }.Where(reason => !string.IsNullOrWhiteSpace(reason))));
+    }
+
+    /**
+      * Evaluates MapServer or InstanceServer overall health from server ping/latency and every owned map service snapshot.
+      */
+    private HealthEvaluation EvaluateMapOwnerHealth(ServerSnapshot snapshot, DateTimeOffset now)
+    {
+        HealthComponent ping = EvaluatePingHealth(snapshot, now);
+        HealthComponent latency = EvaluateLatencyHealth(snapshot, now);
+
+        InternalMapServiceStatusPacket[] ownedServices = _mapServiceStatuses.Values
+            .Where(status => string.Equals(status.OwnerServerName, snapshot.Name, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        HealthLevel serviceLevel = HealthLevel.Healthy;
+        int healthyServices = 0;
+        int degradedServices = 0;
+        int unhealthyServices = 0;
+        double worstLoadPercent = 0d;
+        double worstAverageTickMilliseconds = 0d;
+
+        if (ownedServices.Length == 0)
+        {
+            serviceLevel = snapshot.IsConnected ? HealthLevel.Degraded : HealthLevel.Unhealthy;
+        }
+
+        foreach (InternalMapServiceStatusPacket serviceStatus in ownedServices)
+        {
+            HealthEvaluation serviceHealth = EvaluateMapServiceHealth(serviceStatus, now);
+            serviceLevel = Worst(serviceLevel, serviceHealth.Level);
+            worstLoadPercent = Math.Max(worstLoadPercent, serviceStatus.LoadPercent);
+            worstAverageTickMilliseconds = Math.Max(worstAverageTickMilliseconds, serviceStatus.AverageTickMilliseconds);
+
+            switch (serviceHealth.Level)
+            {
+                case HealthLevel.Healthy:
+                    healthyServices++;
+                    break;
+
+                case HealthLevel.Degraded:
+                    degradedServices++;
+                    break;
+
+                case HealthLevel.Unhealthy:
+                    unhealthyServices++;
+                    break;
+            }
+        }
+
+        HealthLevel level = Worst(ping.Level, latency.Level, serviceLevel);
+        string serviceSummary = ownedServices.Length == 0
+            ? "services=none reporting"
+            : $"services={healthyServices} healthy/{degradedServices} degraded/{unhealthyServices} unhealthy, worstLoad={worstLoadPercent:0.##}%, worstAvgTick={worstAverageTickMilliseconds:0.###} ms";
+
+        return new HealthEvaluation(
+            level,
+            $"Proxy health {snapshot.Name} overall: {level} (ping={ping.Summary}, latency={latency.Summary}, {serviceSummary}).",
+            string.Join("; ", new[] { ping.Reason, latency.Reason, ownedServices.Length == 0 ? "no map service status snapshots have been received" : string.Empty }.Where(reason => !string.IsNullOrWhiteSpace(reason))));
+    }
+
+    /**
+      * Evaluates basic server health from ping and latency only.
+      */
+    private HealthEvaluation EvaluateBaseServerHealth(ServerSnapshot snapshot, DateTimeOffset now, string prefix)
+    {
+        HealthComponent ping = EvaluatePingHealth(snapshot, now);
+        HealthComponent latency = EvaluateLatencyHealth(snapshot, now);
+        HealthLevel level = Worst(ping.Level, latency.Level);
+
+        return new HealthEvaluation(
+            level,
+            $"{prefix}: {level} (ping={ping.Summary}, latency={latency.Summary}).",
+            string.Join("; ", new[] { ping.Reason, latency.Reason }.Where(reason => !string.IsNullOrWhiteSpace(reason))));
+    }
+
+    /**
+      * Evaluates ping health using missed pong counts rather than successful latency values.
+      */
+    private HealthComponent EvaluatePingHealth(ServerSnapshot snapshot, DateTimeOffset now)
+    {
+        if (!snapshot.IsConnected)
+        {
+            string duration = snapshot.DisconnectedUtc is null
+                ? "unknown duration"
+                : FormatDuration(now - snapshot.DisconnectedUtc.Value);
+
+            return new HealthComponent(HealthLevel.Unhealthy, $"Unhealthy disconnected for {duration}", "server is disconnected");
+        }
+
+        if (snapshot.ConsecutivePingTimeouts >= _settings.UnhealthyPingMissCount)
+        {
+            return new HealthComponent(
+                HealthLevel.Unhealthy,
+                $"Unhealthy missed={snapshot.ConsecutivePingTimeouts}",
+                $"missed {snapshot.ConsecutivePingTimeouts} consecutive pong response(s)");
+        }
+
+        if (snapshot.ConsecutivePingTimeouts >= _settings.DegradedPingMissCount)
+        {
+            return new HealthComponent(
+                HealthLevel.Degraded,
+                $"Degraded missed={snapshot.ConsecutivePingTimeouts}",
+                $"missed {snapshot.ConsecutivePingTimeouts} consecutive pong response(s)");
+        }
+
+        if (snapshot.LastPongReceivedUtc is null)
+        {
+            return new HealthComponent(HealthLevel.Degraded, "Degraded waiting for first pong", "no successful pong has been recorded yet");
+        }
+
+        TimeSpan lastPongAge = now - snapshot.LastPongReceivedUtc.Value;
+        if (lastPongAge > _settings.HealthStatusStaleTimeout)
+        {
+            return new HealthComponent(
+                HealthLevel.Degraded,
+                $"Degraded lastPong={FormatDuration(lastPongAge)} ago",
+                "last successful pong is stale");
+        }
+
+        return new HealthComponent(HealthLevel.Healthy, $"Healthy lastPong={FormatDuration(lastPongAge)} ago", string.Empty);
+    }
+
+    /**
+      * Evaluates latency health using the smoothed latency value from successful ping/pong round trips.
+      */
+    private HealthComponent EvaluateLatencyHealth(ServerSnapshot snapshot, DateTimeOffset now)
+    {
+        if (!snapshot.IsConnected)
+        {
+            return new HealthComponent(HealthLevel.Unhealthy, "Unhealthy disconnected", "latency cannot be measured while disconnected");
+        }
+
+        if (snapshot.AverageLatencyMilliseconds is null || snapshot.LastLatencyMeasuredUtc is null)
+        {
+            return new HealthComponent(HealthLevel.Degraded, "Degraded waiting for measurement", "no successful latency measurement has been recorded yet");
+        }
+
+        TimeSpan measurementAge = now - snapshot.LastLatencyMeasuredUtc.Value;
+        if (measurementAge > _settings.HealthStatusStaleTimeout)
+        {
+            return new HealthComponent(
+                HealthLevel.Degraded,
+                $"Degraded stale={FormatDuration(measurementAge)} avg={snapshot.AverageLatencyMilliseconds.Value:0.##} ms",
+                "latency measurement is stale");
+        }
+
+        double averageLatency = snapshot.AverageLatencyMilliseconds.Value;
+        if (averageLatency >= _settings.UnhealthyLatencyThreshold.TotalMilliseconds)
+        {
+            return new HealthComponent(
+                HealthLevel.Unhealthy,
+                $"Unhealthy avg={averageLatency:0.##} ms",
+                "latency exceeds unhealthy threshold");
+        }
+
+        if (averageLatency >= _settings.DegradedLatencyThreshold.TotalMilliseconds)
+        {
+            return new HealthComponent(
+                HealthLevel.Degraded,
+                $"Degraded avg={averageLatency:0.##} ms",
+                "latency exceeds degraded threshold");
+        }
+
+        return new HealthComponent(HealthLevel.Healthy, $"Healthy avg={averageLatency:0.##} ms", string.Empty);
+    }
+
+    /**
+      * Evaluates WorldServer load pressure from active in-world players and max connection capacity.
+      */
+    private HealthComponent EvaluateWorldLoadHealth(ServerSnapshot snapshot, DateTimeOffset now)
+    {
+        if (!snapshot.IsConnected)
+        {
+            return new HealthComponent(HealthLevel.Unhealthy, "Unhealthy disconnected", "WorldServer load cannot be measured while disconnected");
+        }
+
+        if (snapshot.LastWorldHealthStatusUtc is null || snapshot.WorldMaxConnections <= 0)
+        {
+            return new HealthComponent(HealthLevel.Degraded, "Degraded waiting for status", "no WorldServer health status snapshot has been received yet");
+        }
+
+        TimeSpan statusAge = now - snapshot.LastWorldHealthStatusUtc.Value;
+        if (statusAge > _settings.HealthStatusStaleTimeout)
+        {
+            return new HealthComponent(
+                HealthLevel.Degraded,
+                $"Degraded stale={FormatDuration(statusAge)} players={snapshot.WorldActivePlayers}/{snapshot.WorldMaxConnections}",
+                "WorldServer health status snapshot is stale");
+        }
+
+        double loadPercent = CalculatePercent(snapshot.WorldActivePlayers, snapshot.WorldMaxConnections);
+        if (loadPercent >= _settings.UnhealthyLoadPercent)
+        {
+            return new HealthComponent(
+                HealthLevel.Unhealthy,
+                $"Unhealthy players={snapshot.WorldActivePlayers}/{snapshot.WorldMaxConnections} ({loadPercent:0.##}%)",
+                "WorldServer player load exceeds unhealthy threshold");
+        }
+
+        if (loadPercent >= _settings.DegradedLoadPercent)
+        {
+            return new HealthComponent(
+                HealthLevel.Degraded,
+                $"Degraded players={snapshot.WorldActivePlayers}/{snapshot.WorldMaxConnections} ({loadPercent:0.##}%)",
+                "WorldServer player load exceeds degraded threshold");
+        }
+
+        return new HealthComponent(
+            HealthLevel.Healthy,
+            $"Healthy players={snapshot.WorldActivePlayers}/{snapshot.WorldMaxConnections} ({loadPercent:0.##}%)",
+            string.Empty);
+    }
+
+    /**
+      * Evaluates one map or instance service health from service state, stale status, tick pressure, and reported load pressure.
+      */
+    private HealthEvaluation EvaluateMapServiceHealth(InternalMapServiceStatusPacket status, DateTimeOffset now)
+    {
+        List<string> reasons = [];
+        HealthLevel level = HealthLevel.Healthy;
+
+        if (!IsMapServiceOnline(status.State))
+        {
+            level = Worst(level, HealthLevel.Unhealthy);
+            reasons.Add($"state={status.State}");
+        }
+
+        string statusKey = GetStatusKey(status);
+        if (!_mapServiceStatusReceivedUtc.TryGetValue(statusKey, out DateTimeOffset statusReceivedUtc))
+        {
+            level = Worst(level, HealthLevel.Degraded);
+            reasons.Add("status receive timestamp is missing");
+        }
+        else
+        {
+            TimeSpan statusAge = now - statusReceivedUtc;
+            if (statusAge > _settings.HealthStatusStaleTimeout)
+            {
+                level = Worst(level, HealthLevel.Degraded);
+                reasons.Add($"status stale for {FormatDuration(statusAge)}");
+            }
+        }
+
+        if (status.LoadPercent >= _settings.UnhealthyLoadPercent)
+        {
+            level = Worst(level, HealthLevel.Unhealthy);
+            reasons.Add($"load={status.LoadPercent:0.##}% exceeds unhealthy threshold");
+        }
+        else if (status.LoadPercent >= _settings.DegradedLoadPercent)
+        {
+            level = Worst(level, HealthLevel.Degraded);
+            reasons.Add($"load={status.LoadPercent:0.##}% exceeds degraded threshold");
+        }
+
+        if (status.AverageTickMilliseconds >= _settings.UnhealthyAverageTickThreshold.TotalMilliseconds)
+        {
+            level = Worst(level, HealthLevel.Unhealthy);
+            reasons.Add($"avgTick={status.AverageTickMilliseconds:0.###} ms exceeds unhealthy threshold");
+        }
+        else if (status.AverageTickMilliseconds >= _settings.DegradedAverageTickThreshold.TotalMilliseconds)
+        {
+            level = Worst(level, HealthLevel.Degraded);
+            reasons.Add($"avgTick={status.AverageTickMilliseconds:0.###} ms exceeds degraded threshold");
+        }
+
+        string reasonText = reasons.Count == 0 ? string.Empty : string.Join("; ", reasons);
+        string reasonSuffix = reasons.Count == 0 ? string.Empty : $" reason={reasonText}";
+
+        return new HealthEvaluation(
+            level,
+            $"Proxy health {status.OwnerServerName} map service: {level} kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, state={status.State}, players={status.ActivePlayers}, load={status.LoadPercent:0.##}%, avgTick={status.AverageTickMilliseconds:0.###} ms.{reasonSuffix}",
+            reasonText);
+    }
+
+    /**
+      * Reports a health evaluation when the state changes or the periodic health report interval expires.
+      */
+    private void ReportHealthIfNeeded(
+        ConcurrentDictionary<string, HealthReportState> reports,
+        string key,
+        HealthEvaluation evaluation,
+        DateTimeOffset now,
+        bool critical)
+    {
+        if (evaluation.Level == HealthLevel.Unknown)
+        {
+            return;
+        }
+
+        HealthReportState reportState = reports.GetOrAdd(key, _ => new HealthReportState());
+        bool shouldReport;
+
+        lock (reportState.SyncRoot)
+        {
+            shouldReport = reportState.LastLevel != evaluation.Level ||
+                reportState.LastReportUtc is null ||
+                now - reportState.LastReportUtc.Value >= _settings.HealthReportInterval;
+
+            if (shouldReport)
+            {
+                reportState.LastLevel = evaluation.Level;
+                reportState.LastSummary = evaluation.Summary;
+                reportState.LastReportUtc = now;
+            }
+        }
+
+        if (!shouldReport)
+        {
+            return;
+        }
+
+        LogType logType = evaluation.Level switch
+        {
+            HealthLevel.Healthy => LogType.SYSTEM,
+            HealthLevel.Degraded => LogType.WARNING,
+            HealthLevel.Unhealthy => LogType.WARNING,
+            _ => LogType.DEBUG,
+        };
+
+        Logger.Write(logType, evaluation.Summary, "ProxyHealth");
+    }
+
+    /**
+      * Returns the most severe health level from the supplied values.
+      */
+    private static HealthLevel Worst(params HealthLevel[] levels)
+    {
+        HealthLevel worst = HealthLevel.Unknown;
+
+        foreach (HealthLevel level in levels)
+        {
+            if ((int)level > (int)worst)
+            {
+                worst = level;
+            }
+        }
+
+        return worst;
+    }
+
+    /**
+      * Formats a short, stable duration for health output.
+      */
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalSeconds < 1d)
+        {
+            return "<1s";
+        }
+
+        if (duration.TotalMinutes < 1d)
+        {
+            return $"{duration.TotalSeconds:0.#}s";
+        }
+
+        if (duration.TotalHours < 1d)
+        {
+            return $"{duration.TotalMinutes:0.#}m";
+        }
+
+        return $"{duration.TotalHours:0.#}h";
+    }
+
+    /**
+      * Calculates a safe percentage while avoiding divide-by-zero pressure during startup.
+      */
+    private static double CalculatePercent(int value, int maximum)
+    {
+        if (maximum <= 0)
+        {
+            return 100d;
+        }
+
+        return Math.Clamp(value / (double)maximum * 100d, 0d, 100d);
     }
 
     /**
@@ -917,6 +1476,56 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         public bool HasEverConnected { get; set; }
 
         /**
+          * Gets or stores the last successful latency measurement timestamp.
+          */
+        public DateTimeOffset? LastLatencyMeasuredUtc { get; set; }
+
+        /**
+          * Gets or stores the last successful pong timestamp.
+          */
+        public DateTimeOffset? LastPongReceivedUtc { get; set; }
+
+        /**
+          * Gets or stores the latest latency measurement in milliseconds.
+          */
+        public double? LastLatencyMilliseconds { get; set; }
+
+        /**
+          * Gets or stores the smoothed latency measurement in milliseconds.
+          */
+        public double? AverageLatencyMilliseconds { get; set; }
+
+        /**
+          * Gets or stores the last ping timeout timestamp.
+          */
+        public DateTimeOffset? LastPingTimeoutUtc { get; set; }
+
+        /**
+          * Gets or stores consecutive ping timeouts since the last successful pong.
+          */
+        public int ConsecutivePingTimeouts { get; set; }
+
+        /**
+          * Gets or stores total ping timeouts observed for this server session.
+          */
+        public int TotalPingTimeouts { get; set; }
+
+        /**
+          * Gets or stores the latest active player count reported by WorldServer.
+          */
+        public int WorldActivePlayers { get; set; }
+
+        /**
+          * Gets or stores the latest maximum connection count reported by WorldServer.
+          */
+        public int WorldMaxConnections { get; set; }
+
+        /**
+          * Gets or stores when ProxyServer last received a WorldServer health status snapshot.
+          */
+        public DateTimeOffset? LastWorldHealthStatusUtc { get; set; }
+
+        /**
           * Returns the current value or snapshot without exposing mutable internal state.
           * The method is part of ServerState and keeps this workflow isolated from the caller.
           */
@@ -933,7 +1542,17 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
                     IsConnected,
                     ShutdownTriggered,
                     HasEverConnected,
-                    ReconnectTimedOut);
+                    ReconnectTimedOut,
+                    LastLatencyMeasuredUtc,
+                    LastPongReceivedUtc,
+                    LastLatencyMilliseconds,
+                    AverageLatencyMilliseconds,
+                    LastPingTimeoutUtc,
+                    ConsecutivePingTimeouts,
+                    TotalPingTimeouts,
+                    WorldActivePlayers,
+                    WorldMaxConnections,
+                    LastWorldHealthStatusUtc);
             }
         }
     }
@@ -952,5 +1571,39 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         bool IsConnected,
         bool ShutdownTriggered,
         bool HasEverConnected,
-        bool ReconnectTimedOut);
+        bool ReconnectTimedOut,
+        DateTimeOffset? LastLatencyMeasuredUtc,
+        DateTimeOffset? LastPongReceivedUtc,
+        double? LastLatencyMilliseconds,
+        double? AverageLatencyMilliseconds,
+        DateTimeOffset? LastPingTimeoutUtc,
+        int ConsecutivePingTimeouts,
+        int TotalPingTimeouts,
+        int WorldActivePlayers,
+        int WorldMaxConnections,
+        DateTimeOffset? LastWorldHealthStatusUtc);
+
+    /**
+      * Represents one component of a larger health evaluation.
+      */
+    private sealed record HealthComponent(HealthLevel Level, string Summary, string Reason);
+
+    /**
+      * Represents an evaluated health target and the output text to log.
+      */
+    private sealed record HealthEvaluation(HealthLevel Level, string Summary, string Reason);
+
+    /**
+      * Stores the last logged health state for a server or map service so unchanged state does not spam normal runtime.
+      */
+    private sealed class HealthReportState
+    {
+        public object SyncRoot { get; } = new();
+
+        public HealthLevel LastLevel { get; set; } = HealthLevel.Unknown;
+
+        public string LastSummary { get; set; } = string.Empty;
+
+        public DateTimeOffset? LastReportUtc { get; set; }
+    }
 }

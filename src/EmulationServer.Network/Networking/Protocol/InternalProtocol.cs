@@ -97,6 +97,11 @@ public static class InternalProtocol
       */
     public const string WorldCapacity = "WORLD_CAPACITY";
     /**
+      * Defines the constant value for world health status.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
+    public const string WorldHealthStatus = "WORLD_HEALTH_STATUS";
+    /**
       * Defines the constant value for map service status.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */

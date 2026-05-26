@@ -68,6 +68,61 @@ public sealed class ProxyDependencySettings
     public TimeSpan NonCriticalReconnectTimeout { get; init; } = TimeSpan.FromSeconds(120);
 
     /**
+      * Gets whether ProxyServer should log health state changes and periodic health summaries.
+      */
+    public bool HealthLoggingEnabled { get; init; } = true;
+
+    /**
+      * Gets how often unchanged health state summaries can be logged again.
+      */
+    public TimeSpan HealthReportInterval { get; init; } = TimeSpan.FromSeconds(30);
+
+    /**
+      * Gets how long a health data source can go without reporting before it is treated as stale.
+      */
+    public TimeSpan HealthStatusStaleTimeout { get; init; } = TimeSpan.FromSeconds(45);
+
+    /**
+      * Gets the latency where a connected internal server starts becoming degraded.
+      */
+    public TimeSpan DegradedLatencyThreshold { get; init; } = TimeSpan.FromMilliseconds(150);
+
+    /**
+      * Gets the latency where a connected internal server is treated as unhealthy.
+      */
+    public TimeSpan UnhealthyLatencyThreshold { get; init; } = TimeSpan.FromMilliseconds(500);
+
+    /**
+      * Gets the percent load pressure where a server or map service starts becoming degraded.
+      */
+    public double DegradedLoadPercent { get; init; } = 70d;
+
+    /**
+      * Gets the percent load pressure where a server or map service is treated as unhealthy.
+      */
+    public double UnhealthyLoadPercent { get; init; } = 90d;
+
+    /**
+      * Gets the average map tick time where a map service starts becoming degraded.
+      */
+    public TimeSpan DegradedAverageTickThreshold { get; init; } = TimeSpan.FromMilliseconds(50);
+
+    /**
+      * Gets the average map tick time where a map service is treated as unhealthy.
+      */
+    public TimeSpan UnhealthyAverageTickThreshold { get; init; } = TimeSpan.FromMilliseconds(200);
+
+    /**
+      * Gets how many consecutive missed pongs make ping health degraded.
+      */
+    public int DegradedPingMissCount { get; init; } = 1;
+
+    /**
+      * Gets how many consecutive missed pongs make ping health unhealthy.
+      */
+    public int UnhealthyPingMissCount { get; init; } = 3;
+
+    /**
       * Validates input and throws a clear exception before invalid state reaches runtime code.
       * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
       */
@@ -91,6 +146,46 @@ public sealed class ProxyDependencySettings
         if (NonCriticalReconnectTimeout <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Proxy non-critical reconnect timeout must be greater than zero.");
+        }
+
+        if (HealthReportInterval <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Proxy health report interval must be greater than zero.");
+        }
+
+        if (HealthStatusStaleTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Proxy health stale timeout must be greater than zero.");
+        }
+
+        if (DegradedLatencyThreshold <= TimeSpan.Zero || UnhealthyLatencyThreshold <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Proxy health latency thresholds must be greater than zero.");
+        }
+
+        if (UnhealthyLatencyThreshold <= DegradedLatencyThreshold)
+        {
+            throw new InvalidOperationException("Proxy unhealthy latency threshold must be greater than degraded latency threshold.");
+        }
+
+        if (DegradedLoadPercent is < 0d or > 100d || UnhealthyLoadPercent is < 0d or > 100d || UnhealthyLoadPercent <= DegradedLoadPercent)
+        {
+            throw new InvalidOperationException("Proxy health load thresholds must be between 0 and 100, and unhealthy must be greater than degraded.");
+        }
+
+        if (DegradedAverageTickThreshold <= TimeSpan.Zero || UnhealthyAverageTickThreshold <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Proxy health average tick thresholds must be greater than zero.");
+        }
+
+        if (UnhealthyAverageTickThreshold <= DegradedAverageTickThreshold)
+        {
+            throw new InvalidOperationException("Proxy unhealthy average tick threshold must be greater than degraded average tick threshold.");
+        }
+
+        if (DegradedPingMissCount < 1 || UnhealthyPingMissCount < 1 || UnhealthyPingMissCount < DegradedPingMissCount)
+        {
+            throw new InvalidOperationException("Proxy health ping miss thresholds must be positive, and unhealthy must be greater than or equal to degraded.");
         }
 
         foreach (string serverName in CriticalServers)

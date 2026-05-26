@@ -216,7 +216,9 @@ public sealed class InternalServerSession
                 _settings.LatencyReportInterval,
                 _settings.LatencyLoggingEnabled,
                 _settings.LatencyLogInterval,
-                _settings.PingTimeout);
+                _settings.PingTimeout,
+                (serverName, latency) => _callbacks.NotifyLatencyMeasured(serverName, latency),
+                (serverName, elapsed) => _callbacks.NotifyPingTimedOut(serverName, elapsed));
 
             latencyMonitor.Start(linkedCancellation.Token);
             StartPacketDispatchLoop(linkedCancellation.Token);

@@ -631,7 +631,9 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             _latencyReportInterval,
             _latencyLoggingEnabled,
             _latencyLogInterval,
-            _pingTimeout);
+            _pingTimeout,
+            (serverName, latency) => _callbacks.NotifyLatencyMeasured(serverName, latency),
+            (serverName, elapsed) => _callbacks.NotifyPingTimedOut(serverName, elapsed));
 
         latencyMonitor.Start(cancellationToken);
 
