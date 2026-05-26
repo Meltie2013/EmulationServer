@@ -82,7 +82,21 @@ public sealed class MapCommand : IChatCommand
             return "Map ID must be a non-negative number. Example: .map info #0";
         }
 
-        return await mapCommands.ExecuteMapCommandAsync(action, mapId, cancellationToken);
+        TimeSpan delay = TimeSpan.Zero;
+        if (parts.Length > 2)
+        {
+            if (action is not ("restart" or "shutdown"))
+            {
+                return $"Usage: .map {action} #mapid";
+            }
+
+            if (!CommandArgumentParser.TryParseDuration(parts[2], out delay))
+            {
+                return "Timer must be 0, seconds, or values using s/m/h/d/w such as 30s, 5m, or 1h.";
+            }
+        }
+
+        return await mapCommands.ExecuteMapCommandAsync(action, mapId, delay, context.Session.AccountName, cancellationToken);
     }
 
     private static string GetHelp(ChatCommandContext context, string? prefix = null)
@@ -91,8 +105,8 @@ public sealed class MapCommand : IChatCommand
         [
             "Map commands:",
             context.Session.HasPermission(RbacPermissionIds.CommandMapInfo) ? "  .map info #mapid" : string.Empty,
-            context.Session.HasPermission(RbacPermissionIds.CommandMapRestart) ? "  .map restart #mapid" : string.Empty,
-            context.Session.HasPermission(RbacPermissionIds.CommandMapShutdown) ? "  .map shutdown #mapid" : string.Empty,
+            context.Session.HasPermission(RbacPermissionIds.CommandMapRestart) ? "  .map restart #mapid #timer" : string.Empty,
+            context.Session.HasPermission(RbacPermissionIds.CommandMapShutdown) ? "  .map shutdown #mapid #timer" : string.Empty,
             context.Session.HasPermission(RbacPermissionIds.CommandMapStart) ? "  .map start #mapid" : string.Empty,
         ];
 

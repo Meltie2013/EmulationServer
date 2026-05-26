@@ -21,6 +21,7 @@ using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Timing;
 
 /**
   * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
@@ -47,6 +48,7 @@ public sealed class MapServiceManager : IAsyncDisposable
       */
     private readonly MapRuntimeSettings _settings;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
+    private readonly ISteadyClock _clock;
     /**
       * Holds the private services state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -86,7 +88,8 @@ public sealed class MapServiceManager : IAsyncDisposable
     public MapServiceManager(
         string ownerServerName,
         MapRuntimeSettings settings,
-        Func<MapServiceSnapshot, CancellationToken, Task> reportStatusAsync)
+        Func<MapServiceSnapshot, CancellationToken, Task> reportStatusAsync,
+        ISteadyClock? clock = null)
     {
         if (string.IsNullOrWhiteSpace(ownerServerName))
         {
@@ -99,6 +102,7 @@ public sealed class MapServiceManager : IAsyncDisposable
         _ownerServerName = ownerServerName;
         _settings = settings;
         _reportStatusAsync = reportStatusAsync ?? throw new ArgumentNullException();
+        _clock = clock ?? SystemSteadyClock.Instance;
 
         if (!settings.Enabled)
         {
@@ -135,7 +139,7 @@ public sealed class MapServiceManager : IAsyncDisposable
                     settings.GridIdleUnloadDelay)
                 : null;
 
-            _services.Add(new MapService(ownerServerName, definition, gridManager, settings.StartupGrids, _reportStatusAsync));
+            _services.Add(new MapService(ownerServerName, definition, gridManager, settings.StartupGrids, _reportStatusAsync, _clock));
         }
     }
 
@@ -242,7 +246,7 @@ public sealed class MapServiceManager : IAsyncDisposable
         {
             try
             {
-                Task completedTask = await Task.WhenAny(_reportTask, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
+                Task completedTask = await Task.WhenAny(_reportTask, _clock.DelayAsync(TimeSpan.FromSeconds(5), cancellationToken).AsTask());
                 if (completedTask == _reportTask)
                 {
                     await _reportTask;
@@ -466,7 +470,7 @@ public sealed class MapServiceManager : IAsyncDisposable
             while (!cancellationToken.IsCancellationRequested)
             {
                 await ReportAllServicesAsync(cancellationToken);
-                await Task.Delay(_settings.StatusReportInterval, cancellationToken);
+                await _clock.DelayAsync(_settings.StatusReportInterval, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -540,7 +544,7 @@ public sealed class MapServiceManager : IAsyncDisposable
     /**
       * Formats an online uptime counter while keeping offline and unknown values explicit.
       */
-    private static string FormatUptime(MapServiceState state, DateTimeOffset startedUtc)
+    private string FormatUptime(MapServiceState state, DateTimeOffset startedUtc)
     {
         if (state != MapServiceState.Online)
         {
@@ -552,7 +556,7 @@ public sealed class MapServiceManager : IAsyncDisposable
             return "unknown";
         }
 
-        TimeSpan uptime = DateTimeOffset.UtcNow - startedUtc;
+        TimeSpan uptime = _clock.UtcNow - startedUtc;
         if (uptime < TimeSpan.Zero)
         {
             uptime = TimeSpan.Zero;

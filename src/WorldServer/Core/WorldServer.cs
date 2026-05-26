@@ -47,6 +47,7 @@ using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSes
 using EmulationServer.WorldServer.Networking.Socket;
 using EmulationServer.Game.WorldData;
 using EmulationServer.Game.Movement;
+using EmulationServer.Shared.Timing;
 
 /**
   * File overview: src/WorldServer/Core/WorldServer.cs
@@ -153,6 +154,9 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _scheduledMapControlTimers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ISteadyClock _clock = SystemSteadyClock.Instance;
+    private CancellationTokenSource? _serverControlTimerCancellation;
     private int _serverControlRequested;
 
     /**
@@ -275,6 +279,17 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        CancellationTokenSource? serverControlTimerCancellation = _serverControlTimerCancellation;
+        if (serverControlTimerCancellation is not null)
+        {
+            await serverControlTimerCancellation.CancelAsync();
+        }
+
+        foreach (CancellationTokenSource timerCancellation in _scheduledMapControlTimers.Values)
+        {
+            await timerCancellation.CancelAsync();
+        }
+
         await StopWorldHealthStatusLoopAsync(cancellationToken);
         await _realmStatusReporter.StopAsync(cancellationToken);
         await _clientListener.StopAsync(cancellationToken);
@@ -609,12 +624,22 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     /**
       * Executes a map control command from the in-game RBAC command system and returns chat-safe feedback.
       */
-    public async Task<string> ExecuteMapCommandAsync(string action, int mapId, CancellationToken cancellationToken)
+    public async Task<string> ExecuteMapCommandAsync(string action, int mapId, TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
     {
         string normalizedAction = (action ?? string.Empty).Trim().ToLowerInvariant();
         if (normalizedAction is not ("info" or "start" or "shutdown" or "restart"))
         {
             return $"Unknown map command action '{action}'.";
+        }
+
+        if (delay > TimeSpan.Zero && normalizedAction is not ("shutdown" or "restart"))
+        {
+            return $"Map {normalizedAction} does not support a timer.";
+        }
+
+        if (delay > TimeSpan.Zero)
+        {
+            return ScheduleMapControlAsync(normalizedAction, mapId, delay, requestedBy, cancellationToken);
         }
 
         string info = string.Equals(normalizedAction, "info", StringComparison.OrdinalIgnoreCase)
@@ -666,6 +691,87 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
 
         return new MapCommandDispatchResult(targets.Length, sentConnections);
+    }
+
+    /**
+      * Schedules a delayed map restart or shutdown using the shared steady-clock countdown path.
+      */
+    private string ScheduleMapControlAsync(string action, int mapId, TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        string key = mapId.ToString(CultureInfo.InvariantCulture);
+        CancellationTokenSource timerCancellation = new();
+        if (!_scheduledMapControlTimers.TryAdd(key, timerCancellation))
+        {
+            timerCancellation.Dispose();
+            return $"A map shutdown or restart is already scheduled for map {mapId}.";
+        }
+
+        string safeRequestedBy = string.IsNullOrWhiteSpace(requestedBy) ? "Unknown" : requestedBy.Trim();
+        _ = Task.Run(() => ExecuteScheduledMapControlAsync(key, action, mapId, delay, safeRequestedBy, timerCancellation), CancellationToken.None);
+
+        string when = delay <= TimeSpan.Zero ? "immediately" : $"in {CommandArgumentParser.FormatDuration(delay)}";
+        return $"Map {mapId} {action} scheduled {when} by {safeRequestedBy}. Players on that map will receive countdown warnings.";
+    }
+
+    /**
+      * Runs the delayed map-control workflow outside the chat packet handler.
+      */
+    private async Task ExecuteScheduledMapControlAsync(string key, string action, int mapId, TimeSpan delay, string requestedBy, CancellationTokenSource timerCancellation)
+    {
+        try
+        {
+            CancellationToken cancellationToken = timerCancellation.Token;
+            await BroadcastMapControlWarningAsync(action, mapId, delay, requestedBy, cancellationToken);
+
+            await SteadyCountdownRunner.RunAsync(
+                _clock,
+                delay,
+                SteadyCountdownRunner.DefaultWarningThresholds,
+                (remaining, warningCancellationToken) => BroadcastMapControlWarningAsync(action, mapId, remaining, requestedBy, warningCancellationToken),
+                async elapsedCancellationToken =>
+                {
+                    await BroadcastMapControlNowAsync(action, mapId, requestedBy, elapsedCancellationToken);
+                    MapCommandDispatchResult dispatch = await SendMapCommandToTargetsAsync(action, mapId, elapsedCancellationToken);
+                    Logger.Write(
+                        dispatch.SentConnections > 0 ? LogType.NETWORK : LogType.WARNING,
+                        $"Scheduled map {action} for MapId={mapId} dispatched to {dispatch.SentConnections} connection(s) across {dispatch.TargetCount} target(s). RequestedBy={requestedBy}",
+                        "WorldServer");
+                },
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.Write(LogType.WARNING, $"Scheduled map {action} for MapId={mapId} was canceled.", "WorldServer");
+        }
+        catch (Exception exception)
+        {
+            Logger.Write(LogType.FAILED, $"Scheduled map {action} for MapId={mapId} failed: {exception.Message}", "WorldServer");
+        }
+        finally
+        {
+            _scheduledMapControlTimers.TryRemove(key, out _);
+            timerCancellation.Dispose();
+        }
+    }
+
+    /**
+      * Broadcasts a countdown notice to active players currently on the affected map.
+      */
+    private Task BroadcastMapControlWarningAsync(string action, int mapId, TimeSpan remaining, string requestedBy, CancellationToken cancellationToken)
+    {
+        string message = $"Map {mapId} will {action} in {CommandArgumentParser.FormatDuration(remaining)}. Requested by {requestedBy}.";
+        return BroadcastSystemMessageAsync(message, session => session.CurrentPlayer?.Map == unchecked((uint)mapId), cancellationToken);
+    }
+
+    /**
+      * Broadcasts the final map-control notice to active players currently on the affected map.
+      */
+    private Task BroadcastMapControlNowAsync(string action, int mapId, string requestedBy, CancellationToken cancellationToken)
+    {
+        string message = $"Map {mapId} is {FormatActionProgress(action)} now. Requested by {requestedBy}.";
+        return BroadcastSystemMessageAsync(message, session => session.CurrentPlayer?.Map == unchecked((uint)mapId), cancellationToken);
     }
 
     /**
@@ -778,7 +884,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         {
             try
             {
-                Task completedTask = await Task.WhenAny(healthTask, Task.Delay(TimeSpan.FromSeconds(2), cancellationToken));
+                Task completedTask = await Task.WhenAny(healthTask, _clock.DelayAsync(TimeSpan.FromSeconds(2), cancellationToken).AsTask());
                 if (completedTask == healthTask)
                 {
                     await healthTask;
@@ -803,7 +909,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             while (!cancellationToken.IsCancellationRequested)
             {
                 await SendWorldHealthStatusSafelyAsync(cancellationToken);
-                await Task.Delay(_settings.InternalNetwork.LatencyReportInterval, cancellationToken);
+                await _clock.DelayAsync(_settings.InternalNetwork.LatencyReportInterval, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -863,7 +969,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             "WorldServer",
             _playerSessionRegistry.ActivePlayerCount,
             _settings.MaxConnections,
-            DateTimeOffset.UtcNow);
+            _clock.UtcNow);
 
         return status.ToPacketLine();
     }
@@ -1183,7 +1289,9 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
 
         string safeRequestedBy = string.IsNullOrWhiteSpace(requestedBy) ? "Unknown" : requestedBy.Trim();
-        _ = Task.Run(() => ExecuteScheduledServerControlAsync(action, delay, safeRequestedBy), CancellationToken.None);
+        CancellationTokenSource timerCancellation = new();
+        _serverControlTimerCancellation = timerCancellation;
+        _ = Task.Run(() => ExecuteScheduledServerControlAsync(action, delay, safeRequestedBy, timerCancellation), CancellationToken.None);
 
         string when = delay <= TimeSpan.Zero ? "immediately" : $"in {CommandArgumentParser.FormatDuration(delay)}";
         string restartNote = string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
@@ -1196,27 +1304,108 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     /**
       * Performs the delayed server-control operation outside the chat packet handler.
       */
-    private async Task ExecuteScheduledServerControlAsync(string action, TimeSpan delay, string requestedBy)
+    private async Task ExecuteScheduledServerControlAsync(string action, TimeSpan delay, string requestedBy, CancellationTokenSource timerCancellation)
     {
         try
         {
+            CancellationToken cancellationToken = timerCancellation.Token;
             if (delay > TimeSpan.Zero)
             {
-                await Task.Delay(delay, CancellationToken.None);
+                await BroadcastServerControlWarningAsync(action, delay, requestedBy, cancellationToken);
             }
 
-            string reason = string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
-                ? $"RestartRequestedBy:{requestedBy}"
-                : $"ShutdownRequestedBy:{requestedBy}";
+            await SteadyCountdownRunner.RunAsync(
+                _clock,
+                delay,
+                SteadyCountdownRunner.DefaultWarningThresholds,
+                (remaining, warningCancellationToken) => BroadcastServerControlWarningAsync(action, remaining, requestedBy, warningCancellationToken),
+                async elapsedCancellationToken =>
+                {
+                    await BroadcastServerControlNowAsync(action, requestedBy, elapsedCancellationToken);
 
-            Logger.Write(LogType.WARNING, $"WorldServer executing scheduled server {action}. Reason={reason}", "WorldServer");
-            await BroadcastServerControlRequestAsync(reason, CancellationToken.None);
-            await StopAsync(CancellationToken.None);
+                    string reason = string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
+                        ? $"RestartRequestedBy:{requestedBy}"
+                        : $"ShutdownRequestedBy:{requestedBy}";
+
+                    Logger.Write(LogType.WARNING, $"WorldServer executing scheduled server {action}. Reason={reason}", "WorldServer");
+                    await BroadcastServerControlRequestAsync(reason, elapsedCancellationToken);
+                    await StopAsync(CancellationToken.None);
+                },
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.Write(LogType.WARNING, $"Scheduled server {action} was canceled.", "WorldServer");
         }
         catch (Exception exception)
         {
             Logger.Write(LogType.FAILED, $"Scheduled server {action} failed: {exception.Message}", "WorldServer");
         }
+        finally
+        {
+            if (ReferenceEquals(_serverControlTimerCancellation, timerCancellation))
+            {
+                _serverControlTimerCancellation = null;
+            }
+
+            timerCancellation.Dispose();
+        }
+    }
+
+    /**
+      * Broadcasts a countdown notice to every active in-world player.
+      */
+    private Task BroadcastServerControlWarningAsync(string action, TimeSpan remaining, string requestedBy, CancellationToken cancellationToken)
+    {
+        string message = $"Server will {action} in {CommandArgumentParser.FormatDuration(remaining)}. Requested by {requestedBy}.";
+        return BroadcastSystemMessageAsync(message, null, cancellationToken);
+    }
+
+    /**
+      * Broadcasts the final server-control notice to every active in-world player.
+      */
+    private Task BroadcastServerControlNowAsync(string action, string requestedBy, CancellationToken cancellationToken)
+    {
+        string message = $"Server is {FormatActionProgress(action)} now. Requested by {requestedBy}.";
+        return BroadcastSystemMessageAsync(message, null, cancellationToken);
+    }
+
+    /**
+      * Sends an in-game system message to all active sessions matching the optional predicate.
+      */
+    private async Task<int> BroadcastSystemMessageAsync(string message, Func<WorldClientSession, bool>? predicate, CancellationToken cancellationToken)
+    {
+        int sent = 0;
+        IReadOnlyList<WorldClientSession> sessions = _playerSessionRegistry.SnapshotSessions();
+        foreach (WorldClientSession session in sessions)
+        {
+            if (predicate is not null && !predicate(session))
+            {
+                continue;
+            }
+
+            try
+            {
+                await session.SendSystemMessageAsync(message, cancellationToken);
+                sent++;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                Logger.Write(LogType.TRACE, $"WorldServer could not send scheduled control notice to session {session.Id}: {exception.Message}", "WorldServer");
+            }
+        }
+
+        return sent;
+    }
+
+    /**
+      * Converts a control action into a readable in-progress phrase for countdown announcements.
+      */
+    private static string FormatActionProgress(string action)
+    {
+        return string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
+            ? "restarting"
+            : "shutting down";
     }
 
     /**

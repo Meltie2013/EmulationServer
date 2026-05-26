@@ -57,7 +57,7 @@ public interface IInGameAccountCommandExecutor
   */
 public interface IInGameMapCommandExecutor
 {
-    Task<string> ExecuteMapCommandAsync(string action, int mapId, CancellationToken cancellationToken);
+    Task<string> ExecuteMapCommandAsync(string action, int mapId, TimeSpan delay, string requestedBy, CancellationToken cancellationToken);
 }
 
 

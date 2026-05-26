@@ -2725,7 +2725,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Inputs used by this operation: message, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private async Task SendSystemMessageAsync(string message, CancellationToken cancellationToken)
+    public async Task SendSystemMessageAsync(string message, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
         ulong senderGuid = player?.ClientGuid ?? 0;

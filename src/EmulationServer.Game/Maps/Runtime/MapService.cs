@@ -16,11 +16,10 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using System.Diagnostics;
-
 using EmulationServer.Game.Data.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Timing;
 
 /**
   * File overview: src/EmulationServer.Game/Maps/Runtime/MapService.cs
@@ -67,6 +66,7 @@ public sealed class MapService : IAsyncDisposable
       */
     private readonly IReadOnlyList<MapTileKey> _startupGrids;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task>? _reportStatusAsync;
+    private readonly ISteadyClock _clock;
 
     /**
       * Holds the private stop cancellation state used by the owning component.
@@ -129,7 +129,8 @@ public sealed class MapService : IAsyncDisposable
         MapServiceDefinition definition,
         MapGridManager? gridManager = null,
         IReadOnlyList<MapTileKey>? startupGrids = null,
-        Func<MapServiceSnapshot, CancellationToken, Task>? reportStatusAsync = null)
+        Func<MapServiceSnapshot, CancellationToken, Task>? reportStatusAsync = null,
+        ISteadyClock? clock = null)
     {
         if (string.IsNullOrWhiteSpace(ownerServerName))
         {
@@ -143,6 +144,7 @@ public sealed class MapService : IAsyncDisposable
         _gridManager = gridManager;
         _startupGrids = startupGrids ?? [];
         _reportStatusAsync = reportStatusAsync;
+        _clock = clock ?? SystemSteadyClock.Instance;
     }
 
     /**
@@ -237,7 +239,7 @@ public sealed class MapService : IAsyncDisposable
                 await _gridManager.InitializeAsync(_startupGrids, cancellationToken);
             }
 
-            ResetRuntimeCounters(DateTimeOffset.UtcNow);
+            ResetRuntimeCounters(_clock.UtcNow);
             await SetStateAsync(MapServiceState.RespawningObjects, "respawning runtime objects", cancellationToken);
             StartTickLoop(cancellationToken);
             await SetStateAsync(MapServiceState.Online, "restart complete", cancellationToken);
@@ -396,7 +398,7 @@ public sealed class MapService : IAsyncDisposable
         _stopCancellation?.Dispose();
         _stopCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-        ResetRuntimeCounters(DateTimeOffset.UtcNow);
+        ResetRuntimeCounters(_clock.UtcNow);
 
         await SetStateAsync(MapServiceState.Starting, "registering map service and loading startup data", cancellationToken);
 
@@ -489,7 +491,7 @@ public sealed class MapService : IAsyncDisposable
         {
             try
             {
-                Task completedTask = await Task.WhenAny(_tickTask, Task.Delay(TimeSpan.FromSeconds(5), cancellationToken));
+                Task completedTask = await Task.WhenAny(_tickTask, _clock.DelayAsync(TimeSpan.FromSeconds(5), cancellationToken).AsTask());
                 if (completedTask == _tickTask)
                 {
                     await _tickTask;
@@ -522,11 +524,18 @@ public sealed class MapService : IAsyncDisposable
     {
         try
         {
-            using PeriodicTimer timer = new(_definition.TickInterval);
+            long nextTickTimestamp = _clock.Add(_clock.Timestamp, _definition.TickInterval);
 
-            while (await timer.WaitForNextTickAsync(cancellationToken))
+            while (!cancellationToken.IsCancellationRequested)
             {
+                await _clock.DelayUntilAsync(nextTickTimestamp, cancellationToken);
                 RunTick();
+
+                nextTickTimestamp = _clock.Add(nextTickTimestamp, _definition.TickInterval);
+                if (_clock.GetElapsedTime(_clock.Timestamp, nextTickTimestamp) <= TimeSpan.Zero)
+                {
+                    nextTickTimestamp = _clock.Add(_clock.Timestamp, _definition.TickInterval);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -555,14 +564,14 @@ public sealed class MapService : IAsyncDisposable
       */
     private void RunTick()
     {
-        long startTimestamp = Stopwatch.GetTimestamp();
+        long startTimestamp = _clock.Timestamp;
 
         // This is the future hook for player movement, creature/gameobject updates,
         // visibility processing, and soft-restart state machines.
         _gridManager?.UnloadIdleGrids();
         Thread.Yield();
 
-        double tickMilliseconds = GetElapsedMilliseconds(startTimestamp);
+        double tickMilliseconds = _clock.GetElapsedTime(startTimestamp).TotalMilliseconds;
         long tick = Interlocked.Increment(ref _tick);
 
         lock (_syncRoot)
@@ -571,7 +580,7 @@ public sealed class MapService : IAsyncDisposable
             _averageTickMilliseconds = _averageTickMilliseconds <= 0
                 ? tickMilliseconds
                 : (_averageTickMilliseconds * 0.90d) + (tickMilliseconds * 0.10d);
-            _lastTickUtc = DateTimeOffset.UtcNow;
+            _lastTickUtc = _clock.UtcNow;
         }
 
         if (_definition.LogTicks)
@@ -643,17 +652,5 @@ public sealed class MapService : IAsyncDisposable
     private string FormatService()
     {
         return $"{_ownerServerName} {_definition.Kind.ToString().ToLowerInvariant()} map service '{_definition.Name}' (MapId={_definition.MapId}, InstanceId={_definition.InstanceId})";
-    }
-
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
-    private static double GetElapsedMilliseconds(long startTimestamp)
-    {
-        long elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
-        double elapsedSeconds = elapsedTicks / (double)Stopwatch.Frequency;
-
-        return TimeSpan.FromSeconds(elapsedSeconds).TotalMilliseconds;
     }
 }
