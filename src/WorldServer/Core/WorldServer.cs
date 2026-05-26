@@ -181,7 +181,8 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         _characterRepository = new CharacterRepository(
             _characterDatabase,
             entry => _worldTemplateData.TryGetItemTemplate(entry, out ItemTemplateRecord itemTemplate) ? itemTemplate : null,
-            () => _worldTemplateData);
+            () => _worldTemplateData,
+            () => _gameData);
         _worldTemplateRepository = new WorldTemplateRepository(_worldDatabase);
         _characterCreationService = new CharacterCreationService(_characterRepository, () => _gameData, () => _worldTemplateData);
         _itemSystem = new GameItemSystem(() => _worldTemplateData);

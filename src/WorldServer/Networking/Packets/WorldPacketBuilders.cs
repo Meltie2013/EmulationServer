@@ -24,6 +24,7 @@ using System.Globalization;
 using EmulationServer.Game.Characters;
 using EmulationServer.Game.Chat;
 using EmulationServer.Game.Players;
+using EmulationServer.Game.Reputation;
 using EmulationServer.Game.WorldData;
 
 /**
@@ -1483,13 +1484,28 @@ public static class WorldPacketBuilders
     /**
       * Builds the build initialize factions result needed by the caller.
       * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
+      * Inputs used by this operation: player.
       */
-    public static byte[] BuildInitializeFactions()
+    public static byte[] BuildInitializeFactions(PlayerLoginRecord player)
     {
+        ArgumentNullException.ThrowIfNull(player);
+
+        Dictionary<int, PlayerReputation> reputationsByListId = player.Reputations
+            .Where(reputation => reputation.ReputationListId is >= 0 and < ReputationSystem.MaxReputationSlots)
+            .GroupBy(reputation => reputation.ReputationListId)
+            .ToDictionary(group => group.Key, group => group.First());
+
         WorldPacketWriter writer = new();
-        writer.WriteUInt32(64);
-        for (int index = 0; index < 64; index++)
+        writer.WriteUInt32(ReputationSystem.MaxReputationSlots);
+        for (int index = 0; index < ReputationSystem.MaxReputationSlots; index++)
         {
+            if (reputationsByListId.TryGetValue(index, out PlayerReputation? reputation))
+            {
+                writer.WriteUInt8((byte)(reputation.Flags & 0xFF));
+                writer.WriteUInt32(unchecked((uint)reputation.Standing));
+                continue;
+            }
+
             writer.WriteUInt8(0);
             writer.WriteUInt32(0);
         }

@@ -20,7 +20,10 @@ using System.Globalization;
 
 using EmulationServer.Database.Interfaces;
 using EmulationServer.Game.Characters;
+using EmulationServer.Game.Data.Dbc.Factions;
+using EmulationServer.Game.Data.Stores;
 using EmulationServer.Game.Players;
+using EmulationServer.Game.Reputation;
 using EmulationServer.Game.WorldData;
 
 using MySqlConnector;
@@ -78,20 +81,26 @@ public sealed class CharacterRepository
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
+    /**
+      * Holds the private world game data accessor state used by reputation and DBC-backed character systems.
+      */
+    private readonly Func<WorldGameDataStore> _worldGameDataAccessor;
 
     /**
       * Initializes a new CharacterRepository instance with the dependencies required by the world database repositories and persisted player/account records workflow.
       * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: databaseService, itemTemplateAccessor, worldTemplateAccessor.
+      * Inputs used by this operation: databaseService, itemTemplateAccessor, worldTemplateAccessor, worldGameDataAccessor.
       */
     public CharacterRepository(
         IDatabaseService databaseService,
         Func<uint, ItemTemplateRecord?> itemTemplateAccessor,
-        Func<WorldTemplateDataStore> worldTemplateAccessor)
+        Func<WorldTemplateDataStore> worldTemplateAccessor,
+        Func<WorldGameDataStore> worldGameDataAccessor)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException();
         _itemTemplateAccessor = itemTemplateAccessor ?? throw new ArgumentNullException();
         _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
+        _worldGameDataAccessor = worldGameDataAccessor ?? throw new ArgumentNullException();
     }
 
     /**
@@ -301,6 +310,7 @@ public sealed class CharacterRepository
             await InsertCharacterTutorialAsync(connection, transaction, accountId, cancellationToken);
             await InsertCharacterSpellsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateSpells(request.Race, request.Class), cancellationToken);
             await InsertCharacterActionsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateActions(request.Race, request.Class), cancellationToken);
+            await InsertCharacterReputationsAsync(connection, transaction, characterGuid, request.Race, request.Class, _worldGameDataAccessor().FactionData, cancellationToken);
 
             foreach (StarterItemCreateData item in starterItems)
             {
@@ -615,7 +625,7 @@ public sealed class CharacterRepository
         IReadOnlyList<PlayerSpell> spells = await LoadCharacterSpellsAsync(connection, row.Guid, row.Race, row.Class, cancellationToken);
         IReadOnlyList<PlayerActionButton> actionButtons = await LoadCharacterActionsAsync(connection, row.Guid, row.Race, row.Class, cancellationToken);
         uint[] tutorialFlags = await LoadCharacterTutorialFlagsAsync(connection, row.AccountId, cancellationToken);
-        IReadOnlyList<PlayerReputation> reputations = await LoadCharacterReputationAsync(connection, row.Guid, cancellationToken);
+        IReadOnlyList<PlayerReputation> reputations = await LoadCharacterReputationAsync(connection, row.Guid, row.Race, row.Class, _worldGameDataAccessor().FactionData, cancellationToken);
         IReadOnlyList<PlayerSkill> skills = await LoadCharacterSkillsAsync(connection, row.Guid, cancellationToken);
 
         return new PlayerLoginRecord(
@@ -1203,6 +1213,46 @@ public sealed class CharacterRepository
     }
 
     /**
+      * Inserts the DBC-backed starter reputation states for a newly created character.
+      */
+    private static async Task InsertCharacterReputationsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint characterGuid,
+        byte race,
+        byte playerClass,
+        FactionDbcDataStore factionData,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<PlayerReputation> reputations = ReputationSystem.BuildInitialReputations(factionData, race, playerClass);
+        if (reputations.Count == 0 || !await TableExistsAsync(connection, transaction, "character_reputation", cancellationToken))
+        {
+            return;
+        }
+
+        foreach (PlayerReputation reputation in reputations)
+        {
+            using MySqlCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO `character_reputation`
+                    (`guid`, `faction`, `standing`, `flags`)
+                VALUES
+                    (@guid, @faction, @standing, @flags)
+                ON DUPLICATE KEY UPDATE
+                    `standing` = VALUES(`standing`),
+                    `flags` = VALUES(`flags`);
+                """;
+            command.Parameters.AddWithValue("@guid", characterGuid);
+            command.Parameters.AddWithValue("@faction", reputation.Faction);
+            command.Parameters.AddWithValue("@standing", reputation.Standing);
+            command.Parameters.AddWithValue("@flags", reputation.Flags);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    /**
       * Performs the insert item instance operation for the world database repositories and persisted player/account records workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: connection, transaction, itemGuid, ownerGuid, itemTemplate, cancellationToken.
@@ -1667,14 +1717,20 @@ public sealed class CharacterRepository
     /**
       * Loads load character reputation information from configuration, files, or persistent storage.
       * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, cancellationToken.
+      * Inputs used by this operation: connection, characterGuid, race, playerClass, factionData, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private static async Task<IReadOnlyList<PlayerReputation>> LoadCharacterReputationAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<PlayerReputation>> LoadCharacterReputationAsync(
+        MySqlConnection connection,
+        uint characterGuid,
+        byte race,
+        byte playerClass,
+        FactionDbcDataStore factionData,
+        CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_reputation", cancellationToken))
         {
-            return Array.Empty<PlayerReputation>();
+            return ReputationSystem.BuildInitialReputations(factionData, race, playerClass);
         }
 
         using MySqlCommand command = connection.CreateCommand();
@@ -1686,17 +1742,23 @@ public sealed class CharacterRepository
             """;
         command.Parameters.AddWithValue("@guid", characterGuid);
 
-        List<PlayerReputation> reputations = [];
+        List<PlayerReputation> savedReputations = [];
         await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            reputations.Add(new PlayerReputation(
-                Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+            uint factionId = Convert.ToUInt32(reader.GetValue(0), CultureInfo.InvariantCulture);
+            int reputationListId = factionData.TryGetFaction((int)factionId, out FactionDbcRecord faction)
+                ? faction.ReputationIndex
+                : -1;
+
+            savedReputations.Add(new PlayerReputation(
+                factionId,
+                reputationListId,
                 Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
                 Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture)));
         }
 
-        return reputations;
+        return ReputationSystem.BuildCharacterReputations(factionData, race, playerClass, savedReputations);
     }
 
     /**

@@ -27,6 +27,6 @@ namespace EmulationServer.Game.Players;
 /**
   * Carries immutable player reputation data for the logged-in player state, persistence models, and gameplay records layer.
   * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Faction, Standing, Flags.
+  * Positional fields carried by this record: Faction, ReputationListId, Standing, Flags.
   */
-public sealed record PlayerReputation(uint Faction, int Standing, uint Flags);
+public sealed record PlayerReputation(uint Faction, int ReputationListId, int Standing, uint Flags);
