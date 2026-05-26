@@ -747,7 +747,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         switch (result.ResultCode.ToLowerInvariant())
         {
             case "success":
-                Logger.Write(LogType.SUCCESS, message, "WorldServer");
+                // Delivery of the in-game map command is already logged when WorldServer sends it to Map/Instance targets.
                 break;
 
             case "notfound":

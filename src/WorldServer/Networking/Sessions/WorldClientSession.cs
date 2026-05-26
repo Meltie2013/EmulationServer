@@ -1754,6 +1754,13 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             }
 
             _playerStateDirty = true;
+
+            PlayerMovementState? movement = CurrentMovement;
+            string ownerServerName = _currentMapOwnerServerName;
+            if (movement is not null && !string.IsNullOrWhiteSpace(ownerServerName) && ShouldRouteMovementToMapService(movement))
+            {
+                QueueMapServiceMovement(RequireCurrentPlayer(), ownerServerName, movement);
+            }
         }
 
         await ForwardPacketToMapServiceAsync(packet, cancellationToken);

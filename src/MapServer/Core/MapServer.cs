@@ -350,7 +350,7 @@ public sealed class MapServer : IAsyncDisposable
             {
                 _playerTracker.PlayerEntered(state);
                 await RefreshMapServicePlayerCountsAsync(cancellationToken, state.Map);
-                Logger.Write(LogType.NETWORK, $"MapServer tracked player '{state.Name}' ({state.Guid}) entering map={state.Map}, zone={state.Zone} from {remoteServerName}. Active players={_playerTracker.ActivePlayerCount}.", "MapServer");
+                MapPlayerRuntimeLogger.LogPlayerEntered("MapServer", remoteServerName, state, _playerTracker.ActivePlayerCount);
             }
             else
             {
@@ -366,14 +366,12 @@ public sealed class MapServer : IAsyncDisposable
                 ? parsedGuid
                 : 0;
 
-            MapPlayerRuntimeState? removedPlayer = null;
-            bool removed = guid != 0 && _playerTracker.PlayerLeft(guid, out removedPlayer);
-            if (removedPlayer is not null)
+            if (guid != 0 && _playerTracker.PlayerLeft(guid, out MapPlayerRuntimeState? removedPlayer) && removedPlayer is not null)
             {
                 await RefreshMapServicePlayerCountsAsync(cancellationToken, removedPlayer.Map);
+                MapPlayerRuntimeLogger.LogPlayerLeft("MapServer", remoteServerName, removedPlayer, _playerTracker.ActivePlayerCount);
             }
 
-            Logger.Write(LogType.NETWORK, $"MapServer tracked player leave-world route from {remoteServerName}: guid={(guid == 0 ? "unknown" : guid.ToString(CultureInfo.InvariantCulture))}, removed={removed}, active players={_playerTracker.ActivePlayerCount}.", "MapServer");
             return true;
         }
 
@@ -381,11 +379,14 @@ public sealed class MapServer : IAsyncDisposable
         {
             if (TryReadPlayerMovementRoute(parts, out uint accountId, out uint guid, out ushort opcode, out uint map, out uint zone, out float x, out float y, out float z, out float orientation, out uint flags, out uint clientTime))
             {
+                _playerTracker.TryGetPlayer(guid, out MapPlayerRuntimeState? previousState);
                 MapPlayerRuntimeState state = _playerTracker.PlayerMoved(accountId, guid, map, zone, x, y, z, orientation, opcode, flags, clientTime, out uint previousMap, out bool serviceCountChanged);
                 if (serviceCountChanged)
                 {
                     await RefreshMapServicePlayerCountsAsync(cancellationToken, previousMap, state.Map);
                 }
+
+                MapPlayerRuntimeLogger.LogPlayerTransition("MapServer", remoteServerName, previousState, state, _playerTracker.ActivePlayerCount);
             }
             else
             {

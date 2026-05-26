@@ -70,6 +70,15 @@ public sealed class MapPlayerTracker
         _players[player.Guid] = player;
     }
 
+
+    /**
+      * Returns the latest tracked player state without mutating the active player list.
+      */
+    public bool TryGetPlayer(uint guid, out MapPlayerRuntimeState? player)
+    {
+        return _players.TryGetValue(guid, out player);
+    }
+
     /**
       * Performs the player left operation for the runtime map-player state tracking workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
