@@ -185,17 +185,17 @@ public sealed class RealmServer : IAsyncDisposable
       */
     private async Task ValidateStartupAsync(CancellationToken cancellationToken)
     {
-        Logger.Write(LogType.TRACE, "Validating RealmServer settings...", "RealmServer");
+        Logger.Write(LogType.SYSTEM, "Validating RealmServer settings...", "RealmServer");
         _settings.Validate();
 
-        Logger.Write(LogType.TRACE, "Validating RealmServer critical authentication opcodes...", "RealmServer");
+        Logger.Write(LogType.SYSTEM, "Validating RealmServer critical authentication opcodes...", "RealmServer");
         RealmAuthOpcodeVerifier.VerifyCriticalOpCodes();
-        Logger.Write(LogType.TRACE, $"Validated RealmServer critical authentication opcodes...", "RealmServer");
+        Logger.Write(LogType.SYSTEM, $"Validated RealmServer critical authentication opcodes...", "RealmServer");
 
-        Logger.Write(LogType.NETWORK, "Validating account database connection...", "RealmServer");
+        Logger.Write(LogType.SYSTEM, "Validating account database connection...", "RealmServer");
         await _databaseService.ValidateConnectionAsync(cancellationToken);
 
-        Logger.Write(LogType.NETWORK, $"Loaded {_settings.Realms.Count} configured realm(s).", "RealmServer");
-        Logger.Write(LogType.NETWORK, "RealmServer settings, authentication opcodes, account database connection, and internal networking validated successfully.", "RealmServer");
+        Logger.Write(LogType.SYSTEM, $"Loaded {_settings.Realms.Count} configured realm(s).", "RealmServer");
+        Logger.Write(LogType.SYSTEM, "RealmServer settings, authentication opcodes, account database connection, and internal networking validated successfully.", "RealmServer");
     }
 }

@@ -326,7 +326,7 @@ public sealed class RealmInternalPacketHandler
 
         float population = RealmPopulationCalculator.Calculate(activeConnections, capacityLimit);
 
-        Logger.Write(LogType.NETWORK, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.00}.", "RealmInternalPacketHandler");
+        Logger.Write(LogType.TRACE, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.00}.", "RealmInternalPacketHandler");
     }
 
     /**
