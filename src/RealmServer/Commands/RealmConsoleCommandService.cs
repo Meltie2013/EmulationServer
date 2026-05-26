@@ -191,7 +191,7 @@ public sealed class RealmConsoleCommandService
         string email = parts.Length >= 5 ? parts[4] : string.Empty;
 
         AccountCommandResult result = await _accountRepository.CreateAccountAsync(username, password, email, cancellationToken);
-        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
+        Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
     /**
@@ -209,7 +209,7 @@ public sealed class RealmConsoleCommandService
         }
 
         AccountCommandResult result = await _accountRepository.RemoveAccountAsync(parts[2], cancellationToken);
-        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
+        Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
     /**
@@ -232,7 +232,7 @@ public sealed class RealmConsoleCommandService
 
         string reason = string.Join(' ', parts.Skip(4));
         AccountCommandResult result = await _accountRepository.BanAccountAsync(parts[2], durationSeconds, "RealmConsole", reason, cancellationToken);
-        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
+        Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
     /**
@@ -248,7 +248,7 @@ public sealed class RealmConsoleCommandService
         }
 
         AccountCommandResult result = await _accountRepository.UnbanAccountAsync(parts[2], cancellationToken);
-        Logger.Write(result.Succeeded ? LogType.SUCCESS : LogType.FAILED, result.Message, "RealmConsoleCommandService");
+        Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
     /**

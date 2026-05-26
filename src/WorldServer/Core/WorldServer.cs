@@ -191,6 +191,8 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             settings.InternalNetwork.RegistrationKey,
             settings.MaxConnections,
             settings.InternalNetwork.LatencyReportInterval,
+            settings.InternalNetwork.LatencyLoggingEnabled,
+            settings.InternalNetwork.LatencyLogInterval,
             settings.InternalNetwork.PingTimeout,
             settings.InternalNetwork.ReceiveBufferSize,
             settings.InternalNetwork.SendBufferSize,
@@ -491,7 +493,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' entered map {player.Map}.", "WorldServer");
+        Logger.Write(LogType.SYSTEM, $"WorldServer notified {ownerServerName} that player '{player.Name}' entered map {player.Map}.", "WorldServer");
     }
 
     /**
@@ -520,7 +522,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"WorldServer notified {ownerServerName} that player '{player.Name}' left map {player.Map}.", "WorldServer");
+        Logger.Write(LogType.SYSTEM, $"WorldServer notified {ownerServerName} that player '{player.Name}' left map {player.Map}.", "WorldServer");
     }
 
     /**

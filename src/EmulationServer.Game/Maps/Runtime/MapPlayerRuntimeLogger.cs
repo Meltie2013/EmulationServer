@@ -43,8 +43,8 @@ public static class MapPlayerRuntimeLogger
         ArgumentNullException.ThrowIfNull(player);
 
         string displayName = FormatPlayerName(player);
-        Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({player.Guid}) entered map {player.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
-        Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({player.Guid}) entered zone {player.Zone} on map {player.Map} from {remoteServerName}.", category);
+        Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({player.Guid}) entered map {player.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
+        Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({player.Guid}) entered zone {player.Zone} on map {player.Map} from {remoteServerName}.", category);
     }
 
     /**
@@ -55,8 +55,8 @@ public static class MapPlayerRuntimeLogger
         ArgumentNullException.ThrowIfNull(player);
 
         string displayName = FormatPlayerName(player);
-        Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({player.Guid}) left zone {player.Zone} on map {player.Map} from {remoteServerName}.", category);
-        Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({player.Guid}) left map {player.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
+        Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({player.Guid}) left zone {player.Zone} on map {player.Map} from {remoteServerName}.", category);
+        Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({player.Guid}) left map {player.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
     }
 
     /**
@@ -80,18 +80,18 @@ public static class MapPlayerRuntimeLogger
         string displayName = FormatPlayerName(currentPlayer, previousPlayer);
         if (mapChanged || zoneChanged)
         {
-            Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({currentPlayer.Guid}) left zone {previousPlayer.Zone} on map {previousPlayer.Map} from {remoteServerName}.", category);
+            Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({currentPlayer.Guid}) left zone {previousPlayer.Zone} on map {previousPlayer.Map} from {remoteServerName}.", category);
         }
 
         if (mapChanged)
         {
-            Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({currentPlayer.Guid}) left map {previousPlayer.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
-            Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({currentPlayer.Guid}) entered map {currentPlayer.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
+            Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({currentPlayer.Guid}) left map {previousPlayer.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
+            Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({currentPlayer.Guid}) entered map {currentPlayer.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
         }
 
         if (mapChanged || zoneChanged)
         {
-            Logger.Write(LogType.NETWORK, $"{category} player '{displayName}' ({currentPlayer.Guid}) entered zone {currentPlayer.Zone} on map {currentPlayer.Map} from {remoteServerName}.", category);
+            Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({currentPlayer.Guid}) entered zone {currentPlayer.Zone} on map {currentPlayer.Map} from {remoteServerName}.", category);
         }
     }
 

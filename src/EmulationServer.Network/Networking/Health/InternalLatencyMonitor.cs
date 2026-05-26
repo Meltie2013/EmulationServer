@@ -64,6 +64,18 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
       */
     private readonly TimeSpan _reportInterval;
     /**
+      * Holds whether successful latency values should be logged during normal runtime.
+      */
+    private readonly bool _latencyLoggingEnabled;
+    /**
+      * Holds the minimum delay between visible latency log lines for this peer.
+      */
+    private readonly TimeSpan _latencyLogInterval;
+    /**
+      * Holds the last visible latency log timestamp in UTC ticks.
+      */
+    private long _lastLatencyLogUtcTicks;
+    /**
       * Holds the private ping timeout state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -107,6 +119,8 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         NetworkStream stream,
         SemaphoreSlim sendLock,
         TimeSpan reportInterval,
+        bool latencyLoggingEnabled,
+        TimeSpan latencyLogInterval,
         TimeSpan pingTimeout)
     {
         if (string.IsNullOrWhiteSpace(localServerName))
@@ -124,6 +138,11 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
             throw new ArgumentOutOfRangeException(null, "Latency report interval must be greater than zero.");
         }
 
+        if (latencyLoggingEnabled && latencyLogInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(null, "Latency log interval must be greater than zero when latency logging is enabled.");
+        }
+
         if (pingTimeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(null, "Ping timeout must be greater than zero.");
@@ -134,6 +153,8 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _stream = stream ?? throw new ArgumentNullException();
         _sendLock = sendLock ?? throw new ArgumentNullException();
         _reportInterval = reportInterval;
+        _latencyLoggingEnabled = latencyLoggingEnabled;
+        _latencyLogInterval = latencyLogInterval;
         _pingTimeout = pingTimeout;
     }
 
@@ -245,6 +266,11 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
 
         TimeSpan latency = GetElapsedTime(pendingPing.StartTimestamp);
         Logger.Write(LogType.TRACE, $"{_localServerName} latency to {_remoteServerName}: {latency.TotalMilliseconds:0.##} ms.", "InternalLatencyMonitor");
+
+        if (ShouldLogLatency())
+        {
+            Logger.Write(LogType.SYSTEM, $"{_localServerName} latency to {_remoteServerName}: {latency.TotalMilliseconds:0.##} ms.", "InternalLatencyMonitor");
+        }
     }
 
     /**
@@ -328,6 +354,27 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
                 Logger.Write(LogType.WARNING, $"{_localServerName} did not receive latency pong {pendingPing.Key} from {_remoteServerName} within {_pingTimeout.TotalSeconds:0.##} second(s).", "InternalLatencyMonitor");
             }
         }
+    }
+
+    /**
+      * Determines whether this pong should be promoted from TRACE into a visible runtime latency line.
+      */
+    private bool ShouldLogLatency()
+    {
+        if (!_latencyLoggingEnabled)
+        {
+            return false;
+        }
+
+        long nowTicks = DateTime.UtcNow.Ticks;
+        long previousTicks = Interlocked.Read(ref _lastLatencyLogUtcTicks);
+
+        if (previousTicks != 0 && TimeSpan.FromTicks(nowTicks - previousTicks) < _latencyLogInterval)
+        {
+            return false;
+        }
+
+        return Interlocked.CompareExchange(ref _lastLatencyLogUtcTicks, nowTicks, previousTicks) == previousTicks;
     }
 
     /**

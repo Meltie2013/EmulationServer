@@ -64,6 +64,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
       */
     private readonly TimeSpan _latencyReportInterval;
     /**
+      * Holds whether successful RealmServer latency values should be logged during normal runtime.
+      */
+    private readonly bool _latencyLoggingEnabled;
+    /**
+      * Holds the minimum delay between visible RealmServer latency log lines.
+      */
+    private readonly TimeSpan _latencyLogInterval;
+    /**
       * Holds the private ping timeout state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -146,6 +154,8 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         string registrationKey,
         int maxConnections,
         TimeSpan latencyReportInterval,
+        bool latencyLoggingEnabled,
+        TimeSpan latencyLogInterval,
         TimeSpan pingTimeout,
         int receiveBufferSize,
         int sendBufferSize,
@@ -170,6 +180,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         if (latencyReportInterval <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(null, "Latency report interval must be greater than zero.");
+        }
+
+        if (latencyLoggingEnabled && latencyLogInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(null, "Latency log interval must be greater than zero when latency logging is enabled.");
         }
 
         if (pingTimeout <= TimeSpan.Zero)
@@ -206,6 +221,8 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _registrationKey = registrationKey;
         _maxConnections = maxConnections;
         _latencyReportInterval = latencyReportInterval;
+        _latencyLoggingEnabled = latencyLoggingEnabled;
+        _latencyLogInterval = latencyLogInterval;
         _pingTimeout = pingTimeout;
         _receiveBufferSize = receiveBufferSize;
         _sendBufferSize = sendBufferSize;
@@ -354,6 +371,8 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
                     stream,
                     _sendLock,
                     _latencyReportInterval,
+                    _latencyLoggingEnabled,
+                    _latencyLogInterval,
                     _pingTimeout);
 
                 latencyMonitor.Start(cancellationToken);

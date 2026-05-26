@@ -1267,7 +1267,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             await SendWorldEntryPacketsAsync(player, cancellationToken);
 
             _activePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
-            Logger.Write(LogType.SUCCESS, $"Player '{player.Name}' ({player.Guid}) entered world map={player.Map}, zone={player.Zone} through {mapAvailability.OwnerServerName}.", "WorldClientSession");
+            Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' ({player.Guid}) entered world map={player.Map}, zone={player.Zone} through {mapAvailability.OwnerServerName}.", "WorldClientSession");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -2925,7 +2925,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         Logger.Write(
-            result == CharacterCreateResult.Success ? LogType.SUCCESS : LogType.WARNING,
+            result == CharacterCreateResult.Success ? LogType.SYSTEM : LogType.WARNING,
             $"Character create result for account '{account.Username}', name='{request.Name}': {result}.",
             "WorldClientSession");
     }
@@ -2959,7 +2959,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         Logger.Write(
-            result == CharacterDeleteServiceResult.Success ? LogType.SUCCESS : LogType.WARNING,
+            result == CharacterDeleteServiceResult.Success ? LogType.SYSTEM : LogType.WARNING,
             $"Character delete result for account '{account.Username}', guid=0x{clientGuid:X16}: {result}.",
             "WorldClientSession");
     }
@@ -3012,6 +3012,12 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         {
             Logger.Write(LogType.FAILED, $"Failed to mark player '{player.Name}' ({player.Guid}) offline: {exception.Message}", "WorldClientSession");
         }
+
+        string ownerSuffix = string.IsNullOrWhiteSpace(ownerServerName)
+            ? string.Empty
+            : $" through {ownerServerName}";
+
+        Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' ({player.Guid}) left world map={player.Map}, zone={player.Zone}{ownerSuffix}.", "WorldClientSession");
     }
 
     /**

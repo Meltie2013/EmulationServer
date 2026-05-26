@@ -134,6 +134,8 @@ public sealed class EmulationServerHost : IAsyncDisposable
             internalNetworkSettings.Peers,
             internalNetworkSettings.RegistrationKey,
             internalNetworkSettings.LatencyReportInterval,
+            internalNetworkSettings.LatencyLoggingEnabled,
+            internalNetworkSettings.LatencyLogInterval,
             internalNetworkSettings.PingTimeout,
             internalNetworkSettings.ReceiveBufferSize,
             internalNetworkSettings.SendBufferSize,
@@ -276,10 +278,10 @@ public sealed class EmulationServerHost : IAsyncDisposable
             Logger.Write(LogType.DATABASE, $"Validating {_serverName} database connection...", "EmulationServerHost");
             await _databaseService.ValidateConnectionAsync(cancellationToken);
 
-            Logger.Write(LogType.NETWORK, $"{_serverName} settings, database connection, and internal networking validated successfully.", "EmulationServerHost");
+            Logger.Write(LogType.SUCCESS, $"{_serverName} settings, database connection, and internal networking validated successfully.", "EmulationServerHost");
             return;
         }
 
-        Logger.Write(LogType.NETWORK, $"{_serverName} settings and internal networking validated successfully. No direct database connection is configured.", "EmulationServerHost");
+        Logger.Write(LogType.SUCCESS, $"{_serverName} settings and internal networking validated successfully. No direct database connection is configured.", "EmulationServerHost");
     }
 }

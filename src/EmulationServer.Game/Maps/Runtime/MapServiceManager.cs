@@ -215,7 +215,8 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         _reportTask = Task.Run(() => RunStatusReportLoopAsync(_stopCancellation.Token), CancellationToken.None);
 
-        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} map service manager started with {_services.Count} service(s).", "MapServiceManager");
+        Logger.Write(LogType.THREAD, $"{_ownerServerName} map service status report loop started with interval {_settings.StatusReportInterval.TotalSeconds:0.##} second(s).", "MapServiceManager");
+        Logger.Write(LogType.SYSTEM, $"{_ownerServerName} map service manager started with {_services.Count} service(s).", "MapServiceManager");
     }
 
     /**
@@ -263,7 +264,8 @@ public sealed class MapServiceManager : IAsyncDisposable
 
         if (_settings.Enabled)
         {
-            Logger.Write(LogType.NETWORK, $"{_ownerServerName} map service manager stopped.", "MapServiceManager");
+            Logger.Write(LogType.THREAD, $"{_ownerServerName} map service status report loop stopped.", "MapServiceManager");
+            Logger.Write(LogType.SYSTEM, $"{_ownerServerName} map service manager stopped.", "MapServiceManager");
         }
     }
 
@@ -433,7 +435,7 @@ public sealed class MapServiceManager : IAsyncDisposable
             ? map.DisplayName
             : definition.Name;
 
-        Logger.Write(LogType.SUCCESS, $"{_ownerServerName} registered {definition.Kind} service: {_mapData.DescribeMap(definition.MapId)}.", "MapServiceManager");
+        Logger.Write(LogType.SYSTEM, $"{_ownerServerName} registered {definition.Kind} service: {_mapData.DescribeMap(definition.MapId)}.", "MapServiceManager");
 
         return new MapServiceDefinition
         {

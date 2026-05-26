@@ -126,7 +126,7 @@ public sealed class ConsoleLogger : ILogger
             LogType.INFORMATION => ConsoleColor.White,
             LogType.NOTICE => ConsoleColor.Cyan,
             LogType.THREAD => ConsoleColor.DarkYellow,
-            LogType.USER => ConsoleColor.White,
+            LogType.SYSTEM => ConsoleColor.White,
             LogType.FUNC => ConsoleColor.DarkGray,
             _ => ConsoleColor.Gray,
         };

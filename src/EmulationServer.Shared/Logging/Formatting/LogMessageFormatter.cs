@@ -136,7 +136,7 @@ public static class LogMessageFormatter
             LogType.NETWORK => "NETWORK",
             LogType.DEBUG => "DEBUG",
             LogType.INFORMATION => "INFORMATION",
-            LogType.USER => "USER",
+            LogType.SYSTEM => "SYSTEM",
             LogType.SUCCESS => "SUCCESS",
             LogType.WARNING => "WARNING",
             LogType.FAILED => "FAILED",

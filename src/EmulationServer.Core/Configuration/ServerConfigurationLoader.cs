@@ -282,6 +282,16 @@ public static class ServerConfigurationLoader
                 "LatencyReportInterval",
                 TimeSpan.FromSeconds(15)),
 
+            LatencyLoggingEnabled = configuration.GetBool(
+                sectionName,
+                "LatencyLoggingEnabled",
+                true),
+
+            LatencyLogInterval = configuration.GetTimeSpan(
+                sectionName,
+                "LatencyLogInterval",
+                TimeSpan.FromSeconds(60)),
+
             PingTimeout = configuration.GetTimeSpan(
                 sectionName,
                 "PingTimeout",
@@ -486,6 +496,8 @@ public static class ServerConfigurationLoader
         {
             "INFO" => LogType.INFORMATION,
             "INFORMATION" => LogType.INFORMATION,
+            "USER" => LogType.SYSTEM,
+            "SYSTEM" => LogType.SYSTEM,
             "WARN" => LogType.WARNING,
             "WARNING" => LogType.WARNING,
             "ERROR" => LogType.FAILED,

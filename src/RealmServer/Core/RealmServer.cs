@@ -111,6 +111,8 @@ public sealed class RealmServer : IAsyncDisposable
             settings.InternalNetwork.Peers,
             settings.InternalNetwork.RegistrationKey,
             settings.InternalNetwork.LatencyReportInterval,
+            settings.InternalNetwork.LatencyLoggingEnabled,
+            settings.InternalNetwork.LatencyLogInterval,
             settings.InternalNetwork.PingTimeout,
             settings.InternalNetwork.ReceiveBufferSize,
             settings.InternalNetwork.SendBufferSize,

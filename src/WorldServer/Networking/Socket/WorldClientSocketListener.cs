@@ -98,7 +98,7 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         _listener = new TcpListener(bindAddress, _settings.Port);
         _listener.Start(_settings.Backlog);
 
-        Logger.Write(LogType.SUCCESS, $"WorldServer listening for WoW clients on {bindAddress}:{_settings.Port}.", "WorldClientSocketListener");
+        Logger.Write(LogType.NETWORK, $"WorldServer listening for WoW clients on {bindAddress}:{_settings.Port}.", "WorldClientSocketListener");
         _acceptTask = AcceptLoopAsync(cancellationToken);
         return _acceptTask;
     }

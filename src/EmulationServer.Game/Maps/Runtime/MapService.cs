@@ -467,6 +467,8 @@ public sealed class MapService : IAsyncDisposable
         CancellationTokenSource stopCancellation = _stopCancellation ?? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _stopCancellation = stopCancellation;
         _tickTask = Task.Run(() => RunTickLoopAsync(stopCancellation.Token), CancellationToken.None);
+
+        Logger.Write(LogType.THREAD, $"{FormatService()} tick loop started with interval {_definition.TickInterval.TotalMilliseconds:0.##} ms.", "MapService");
     }
 
     /**
@@ -506,6 +508,8 @@ public sealed class MapService : IAsyncDisposable
         stopCancellation?.Dispose();
         _stopCancellation = null;
         _tickTask = null;
+
+        Logger.Write(LogType.THREAD, $"{FormatService()} tick loop stopped.", "MapService");
     }
 
     /**
@@ -585,7 +589,7 @@ public sealed class MapService : IAsyncDisposable
     private async Task SetStateAsync(MapServiceState state, string reason, CancellationToken cancellationToken)
     {
         SetState(state);
-        Logger.Write(LogType.NETWORK, $"{FormatService()} state changed to {state}. {reason}", "MapService");
+        Logger.Write(LogType.SYSTEM, $"{FormatService()} state changed to {state}. {reason}", "MapService");
         await PublishStatusAsync(cancellationToken);
     }
 

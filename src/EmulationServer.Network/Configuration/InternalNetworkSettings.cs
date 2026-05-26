@@ -109,10 +109,20 @@ public sealed class InternalNetworkSettings
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
 
     /**
-      * Gets or stores the latency report interval value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets or stores how often internal server health pings are sent.
+      * This protects peer health even when visible latency logging is disabled.
       */
     public TimeSpan LatencyReportInterval { get; init; } = TimeSpan.FromSeconds(15);
+
+    /**
+      * Gets or stores whether successful latency measurements are written to the normal runtime log.
+      */
+    public bool LatencyLoggingEnabled { get; init; } = true;
+
+    /**
+      * Gets or stores the minimum delay between visible latency log lines for each internal peer.
+      */
+    public TimeSpan LatencyLogInterval { get; init; } = TimeSpan.FromSeconds(60);
 
     /**
       * Gets or stores the ping timeout value used by InternalNetworkSettings.
@@ -219,6 +229,11 @@ public sealed class InternalNetworkSettings
         if (LatencyReportInterval <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Internal network latency report interval must be greater than zero.");
+        }
+
+        if (LatencyLoggingEnabled && LatencyLogInterval <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Internal network latency log interval must be greater than zero when latency logging is enabled.");
         }
 
         if (PingTimeout <= TimeSpan.Zero)

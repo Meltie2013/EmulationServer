@@ -214,6 +214,8 @@ public sealed class InternalServerSession
                 _stream,
                 _sendLock,
                 _settings.LatencyReportInterval,
+                _settings.LatencyLoggingEnabled,
+                _settings.LatencyLogInterval,
                 _settings.PingTimeout);
 
             latencyMonitor.Start(linkedCancellation.Token);

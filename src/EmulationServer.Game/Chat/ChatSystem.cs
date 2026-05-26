@@ -284,7 +284,7 @@ public sealed class ChatSystem
         PlayerLoginRecord player = session.RequireCurrentPlayer();
         string normalized = ResolveChannelName(player, channelName);
         session.JoinChatChannel(normalized);
-        Logger.Write(LogType.NETWORK, $"Player '{player.Name}' joined faction-scoped channel '{normalized}'.", "ChatSystem");
+        Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' joined faction-scoped channel '{normalized}'.", "ChatSystem");
     }
 
     /**
@@ -299,7 +299,7 @@ public sealed class ChatSystem
         PlayerLoginRecord player = session.RequireCurrentPlayer();
         string normalized = ResolveChannelName(player, channelName);
         session.LeaveChatChannel(normalized);
-        Logger.Write(LogType.NETWORK, $"Player '{player.Name}' left faction-scoped channel '{normalized}'.", "ChatSystem");
+        Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' left faction-scoped channel '{normalized}'.", "ChatSystem");
     }
 
     /**

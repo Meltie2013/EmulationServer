@@ -67,7 +67,7 @@ public sealed class PlayerSessionRegistry
             return false;
         }
 
-        Logger.Write(LogType.NETWORK, $"Registered in-world player '{player.Name}' ({player.Guid}) for account {player.AccountId}. Active players={ActivePlayerCount}.", "PlayerSessionRegistry");
+        Logger.Write(LogType.SYSTEM, $"Registered in-world player '{player.Name}' ({player.Guid}) for account {player.AccountId}. Active players={ActivePlayerCount}.", "PlayerSessionRegistry");
         return true;
     }
 
@@ -93,7 +93,7 @@ public sealed class PlayerSessionRegistry
             _sessionsByAccount.TryRemove(player.AccountId, out _);
         }
 
-        Logger.Write(LogType.NETWORK, $"Unregistered in-world player '{player.Name}' ({player.Guid}). Active players={ActivePlayerCount}.", "PlayerSessionRegistry");
+        Logger.Write(LogType.SYSTEM, $"Unregistered in-world player '{player.Name}' ({player.Guid}). Active players={ActivePlayerCount}.", "PlayerSessionRegistry");
     }
 
     /**

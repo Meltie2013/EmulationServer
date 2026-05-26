@@ -66,6 +66,14 @@ public sealed class InternalPeerConnector : IAsyncDisposable
       */
     private readonly TimeSpan _latencyReportInterval;
     /**
+      * Holds whether successful latency values should be logged during normal runtime.
+      */
+    private readonly bool _latencyLoggingEnabled;
+    /**
+      * Holds the minimum delay between visible latency log lines for active peer connections.
+      */
+    private readonly TimeSpan _latencyLogInterval;
+    /**
       * Holds the private ping timeout state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -142,6 +150,8 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         IReadOnlyList<InternalPeerSettings> peers,
         string registrationKey,
         TimeSpan latencyReportInterval,
+        bool latencyLoggingEnabled,
+        TimeSpan latencyLogInterval,
         TimeSpan pingTimeout,
         int receiveBufferSize,
         int sendBufferSize,
@@ -164,6 +174,11 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         if (latencyReportInterval <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(null, "Latency report interval must be greater than zero.");
+        }
+
+        if (latencyLoggingEnabled && latencyLogInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(null, "Latency log interval must be greater than zero when latency logging is enabled.");
         }
 
         if (pingTimeout <= TimeSpan.Zero)
@@ -200,6 +215,8 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         _peers = peers ?? throw new ArgumentNullException();
         _registrationKey = registrationKey;
         _latencyReportInterval = latencyReportInterval;
+        _latencyLoggingEnabled = latencyLoggingEnabled;
+        _latencyLogInterval = latencyLogInterval;
         _pingTimeout = pingTimeout;
         _receiveBufferSize = receiveBufferSize;
         _sendBufferSize = sendBufferSize;
@@ -612,6 +629,8 @@ public sealed class InternalPeerConnector : IAsyncDisposable
             stream,
             sendLock,
             _latencyReportInterval,
+            _latencyLoggingEnabled,
+            _latencyLogInterval,
             _pingTimeout);
 
         latencyMonitor.Start(cancellationToken);

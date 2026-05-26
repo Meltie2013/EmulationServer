@@ -43,9 +43,9 @@ public enum LogType
       */
     INFORMATION,   // General information
     /**
-      * Represents the user value for log type handling.
+      * Represents the system value for log type handling.
       */
-    USER,          // User actions
+    SYSTEM,        // System runtime events
     /**
       * Represents the success value for log type handling.
       */
