@@ -97,7 +97,7 @@ public sealed class RealmServer : IAsyncDisposable
         _settings = settings;
         _databaseService = new MySqlDatabaseService(settings.Database);
         _accountRepository = new AccountRepository(_databaseService);
-        _realmStore = new ConfiguredRealmStore(settings.Realms);
+        _realmStore = new ConfiguredRealmStore(settings.Realms, settings.RealmList);
 
         RealmListPacketBuilder realmListPacketBuilder = new(_realmStore);
         _socketListener = new RealmSocketListener(

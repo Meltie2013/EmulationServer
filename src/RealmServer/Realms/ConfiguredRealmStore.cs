@@ -17,6 +17,8 @@
 //
 
 using EmulationServer.RealmServer.Configuration;
+using EmulationServer.Shared.Logging;
+using EmulationServer.Shared.Logging.Enums;
 
 /**
   * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
@@ -28,20 +30,24 @@ namespace EmulationServer.RealmServer.Realms;
 
 /**
   * Owns the configured realm store behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
+  * The class keeps configured realm definitions loaded at startup while applying runtime WorldServer visibility rules when realm-list packets are built.
   */
 public sealed class ConfiguredRealmStore
 {
     private readonly Dictionary<uint, ConfiguredRealm> _realms;
+    private readonly RealmListSettings _realmListSettings;
 
     /**
       * Initializes a new ConfiguredRealmStore instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
       * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: realmSettings.
+      * Inputs used by this operation: realmSettings, realmListSettings.
       */
-    public ConfiguredRealmStore(IEnumerable<ConfiguredRealmSettings> realmSettings)
+    public ConfiguredRealmStore(IEnumerable<ConfiguredRealmSettings> realmSettings, RealmListSettings? realmListSettings = null)
     {
         ArgumentNullException.ThrowIfNull(realmSettings);
+
+        _realmListSettings = realmListSettings ?? new RealmListSettings();
+        _realmListSettings.Validate();
 
         _realms = realmSettings
             .Select(settings => new ConfiguredRealm(settings))
@@ -59,10 +65,49 @@ public sealed class ConfiguredRealmStore
       */
     public IReadOnlyCollection<ConfiguredRealm> GetRealmsForBuild(ushort build)
     {
+        return GetRealmsForBuild(build, DateTimeOffset.UtcNow);
+    }
+
+    /**
+      * Returns visible realms for the client build after applying WorldServer registration and stale-status rules.
+      */
+    public IReadOnlyCollection<ConfiguredRealm> GetRealmsForBuild(ushort build, DateTimeOffset nowUtc)
+    {
+        HideStaleRealms(nowUtc);
+
         return _realms.Values
             .Where(realm => realm.Builds.Contains(build))
+            .Where(ShouldShowRealm)
             .OrderBy(realm => realm.Id)
             .ToArray();
+    }
+
+    /**
+      * Hides stale realms and returns the realm ids hidden during this call.
+      */
+    public IReadOnlyList<uint> HideStaleRealms(DateTimeOffset nowUtc)
+    {
+        if (!_realmListSettings.HideStaleRealms)
+        {
+            return [];
+        }
+
+        List<uint> hiddenRealmIds = [];
+        foreach (ConfiguredRealm realm in _realms.Values)
+        {
+            if (!realm.IsStatusStale(nowUtc, _realmListSettings.StaleRealmTimeout))
+            {
+                continue;
+            }
+
+            if (realm.TryHideAsStale())
+            {
+                hiddenRealmIds.Add(realm.Id);
+                Logger.Write(LogType.WARNING, $"Realm {realm.Id} was hidden from the realm list because WorldServer status has been stale for {_realmListSettings.StaleRealmTimeout}.", "ConfiguredRealmStore");
+            }
+        }
+
+        return hiddenRealmIds;
     }
 
     /**
@@ -86,12 +131,33 @@ public sealed class ConfiguredRealmStore
       */
     public bool TrySetRealmStatus(uint realmId, bool online, int activeConnections, int capacityLimit)
     {
+        return TrySetRealmStatus(realmId, online, activeConnections, capacityLimit, DateTimeOffset.UtcNow);
+    }
+
+    /**
+      * Attempts to set status while using an explicit timestamp for tests and controlled status handling.
+      */
+    public bool TrySetRealmStatus(uint realmId, bool online, int activeConnections, int capacityLimit, DateTimeOffset updatedUtc)
+    {
         if (!_realms.TryGetValue(realmId, out ConfiguredRealm? realm))
         {
             return false;
         }
 
-        realm.SetStatus(online, activeConnections, capacityLimit);
+        realm.SetStatus(online, activeConnections, capacityLimit, updatedUtc);
         return true;
+    }
+
+    /**
+      * Returns whether this realm should be advertised to clients in a realm-list packet.
+      */
+    private bool ShouldShowRealm(ConfiguredRealm realm)
+    {
+        if (_realmListSettings.RequireWorldServerStatus && !realm.HasReceivedWorldServerStatus)
+        {
+            return false;
+        }
+
+        return !realm.IsHiddenBecauseStale;
     }
 }

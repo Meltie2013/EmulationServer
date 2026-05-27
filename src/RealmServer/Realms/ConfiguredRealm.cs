@@ -53,6 +53,18 @@ public sealed class ConfiguredRealm
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private int _capacityLimit;
+    /**
+      * Holds whether this realm has been registered by at least one WorldServer status packet during the current RealmServer process lifetime.
+      */
+    private bool _hasReceivedWorldServerStatus;
+    /**
+      * Holds the last time RealmServer accepted a status update for this realm.
+      */
+    private DateTimeOffset? _lastStatusUpdateUtc;
+    /**
+      * Holds whether the realm has already been hidden because its WorldServer status became stale.
+      */
+    private bool _hiddenBecauseStale;
     private Dictionary<uint, byte> _characterCountsByAccount = [];
 
     /**
@@ -195,6 +207,48 @@ public sealed class ConfiguredRealm
     }
 
     /**
+      * Gets whether this configured realm has received a WorldServer status packet during the current RealmServer process lifetime.
+      */
+    public bool HasReceivedWorldServerStatus
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _hasReceivedWorldServerStatus;
+            }
+        }
+    }
+
+    /**
+      * Gets whether this realm is currently hidden because its WorldServer status became stale.
+      */
+    public bool IsHiddenBecauseStale
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _hiddenBecauseStale;
+            }
+        }
+    }
+
+    /**
+      * Gets the last time this realm accepted a WorldServer status packet.
+      */
+    public DateTimeOffset? LastStatusUpdateUtc
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _lastStatusUpdateUtc;
+            }
+        }
+    }
+
+    /**
       * Returns the number of characters this account has on this realm from the latest WorldServer snapshot.
       */
     public byte GetCharacterCount(uint accountId)
@@ -244,11 +298,22 @@ public sealed class ConfiguredRealm
       */
     public void SetStatus(bool online, int activeConnections, int capacityLimit)
     {
+        SetStatus(online, activeConnections, capacityLimit, DateTimeOffset.UtcNow);
+    }
+
+    /**
+      * Updates the stored value and records when a trusted WorldServer last refreshed this realm.
+      */
+    public void SetStatus(bool online, int activeConnections, int capacityLimit, DateTimeOffset updatedUtc)
+    {
         lock (_syncRoot)
         {
             _online = online;
             _activeConnections = Math.Max(0, activeConnections);
             _capacityLimit = Math.Max(1, capacityLimit);
+            _hasReceivedWorldServerStatus = true;
+            _lastStatusUpdateUtc = updatedUtc;
+            _hiddenBecauseStale = false;
 
             if (!online)
             {
@@ -256,4 +321,43 @@ public sealed class ConfiguredRealm
             }
         }
     }
+
+    /**
+      * Returns whether the last trusted WorldServer status update has exceeded the configured stale timeout.
+      */
+    public bool IsStatusStale(DateTimeOffset nowUtc, TimeSpan staleTimeout)
+    {
+        lock (_syncRoot)
+        {
+            if (!_hasReceivedWorldServerStatus || _lastStatusUpdateUtc is null || _hiddenBecauseStale)
+            {
+                return false;
+            }
+
+            return nowUtc - _lastStatusUpdateUtc.Value >= staleTimeout;
+        }
+    }
+
+    /**
+      * Hides this realm from future realm-list packets because WorldServer stopped refreshing it in time.
+      */
+    public bool TryHideAsStale()
+    {
+        lock (_syncRoot)
+        {
+            if (!_hasReceivedWorldServerStatus || _hiddenBecauseStale)
+            {
+                return false;
+            }
+
+            _online = false;
+            _activeConnections = 0;
+            _capacityLimit = Math.Max(1, _capacityLimit);
+            _characterCountsByAccount = [];
+            _hiddenBecauseStale = true;
+
+            return true;
+        }
+    }
 }
+

@@ -53,6 +53,11 @@ public static class RealmServerConfigurationLoader
       */
     private const string RealmsSection = "Realms";
     /**
+      * Defines the constant value for realm list section.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
+    private const string RealmListSection = "RealmList";
+    /**
       * Defines the constant value for internal network section.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
@@ -79,6 +84,7 @@ public static class RealmServerConfigurationLoader
                 InternalNetworkSection,
                 "RealmServer",
                 5005),
+            RealmList = LoadRealmListSettings(configuration),
             Realms = LoadRealmSettings(configuration),
         };
 
@@ -237,6 +243,31 @@ public static class RealmServerConfigurationLoader
                 DatabaseSection,
                 "UseCompression",
                 false),
+        };
+    }
+
+    /**
+      * Loads configuration or data from the configured source and validates the result before it is used.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
+    private static RealmListSettings LoadRealmListSettings(IniConfiguration configuration)
+    {
+        return new RealmListSettings
+        {
+            RequireWorldServerStatus = configuration.GetBool(
+                RealmListSection,
+                "RequireWorldServerStatus",
+                true),
+
+            HideStaleRealms = configuration.GetBool(
+                RealmListSection,
+                "HideStaleRealms",
+                true),
+
+            StaleRealmTimeout = configuration.GetTimeSpan(
+                RealmListSection,
+                "StaleRealmTimeout",
+                TimeSpan.FromMinutes(5)),
         };
     }
 

@@ -60,6 +60,12 @@ public sealed class RealmServerSettings
     public InternalNetworkSettings InternalNetwork { get; init; } = new();
 
     /**
+      * Gets or stores the realm list visibility settings used by RealmServerSettings.
+      * Keeping this value exposed through a property makes startup visibility and stale-realm behavior configurable without changing configured realm definitions.
+      */
+    public RealmListSettings RealmList { get; init; } = new();
+
+    /**
       * Gets or stores the realms value used by RealmServerSettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
@@ -75,6 +81,7 @@ public sealed class RealmServerSettings
         Socket.Validate();
         Database.Validate();
         InternalNetwork.Validate();
+        RealmList.Validate();
 
         if (Realms.Count == 0)
         {
