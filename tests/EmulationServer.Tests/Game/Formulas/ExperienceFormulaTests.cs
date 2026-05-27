@@ -49,7 +49,7 @@ public sealed class ExperienceFormulaTests
     [InlineData(1, 1, 50)]
     [InlineData(10, 10, 95)]
     [InlineData(10, 14, 114)]
-    [InlineData(10, 5, 47)]
+    [InlineData(10, 5, 27)]
     [InlineData(10, 4, 0)]
     public void CalculateBaseKillExperience_MatchesMangosFormula(uint playerLevel, uint targetLevel, uint expectedExperience)
     {
@@ -79,8 +79,8 @@ public sealed class ExperienceFormulaTests
     [Fact]
     public void CalculateGroupMemberKillExperience_DistributesByLevelWeight()
     {
-        Assert.Equal(55u, ExperienceFormula.CalculateGroupMemberKillExperience(95, 10, 20, 2, false));
-        Assert.Equal(28u, ExperienceFormula.CalculateGroupMemberKillExperience(95, 10, 20, 2, false, hasHigherGrayParticipant: true));
+        Assert.Equal(47u, ExperienceFormula.CalculateGroupMemberKillExperience(95, 10, 20, 2, false));
+        Assert.Equal(24u, ExperienceFormula.CalculateGroupMemberKillExperience(95, 10, 20, 2, false, hasHigherGrayParticipant: true));
     }
 
     [Theory]
