@@ -22,6 +22,8 @@
   * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
   */
 
+using EmulationServer.RealmServer.Realms;
+
 namespace EmulationServer.RealmServer.Configuration;
 
 /**
@@ -64,7 +66,7 @@ public sealed class ConfiguredRealmSettings
       * Gets or stores the realm flags value used by ConfiguredRealmSettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
-    public byte RealmFlags { get; init; }
+    public RealmFlags RealmFlags { get; init; }
 
     /**
       * Gets or stores the timezone value used by ConfiguredRealmSettings.
@@ -133,6 +135,15 @@ public sealed class ConfiguredRealmSettings
         if (ActiveConnections < 0)
         {
             throw new InvalidOperationException($"Realm {Id} active connections cannot be negative.");
+        }
+
+        try
+        {
+            RealmFlagUtilities.EnsureConfigurationFlagsAreSupported(RealmFlags);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidOperationException($"Realm {Id} has invalid realm flags. {ex.Message}", ex);
         }
 
         if (Builds.Count == 0)

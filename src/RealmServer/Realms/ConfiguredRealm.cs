@@ -126,7 +126,7 @@ public sealed class ConfiguredRealm
       * Gets or stores the base realm flags value used by ConfiguredRealm.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
-    public byte BaseRealmFlags { get; }
+    public RealmFlags BaseRealmFlags { get; }
 
     /**
       * Gets or stores the timezone value used by ConfiguredRealm.

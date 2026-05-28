@@ -21,6 +21,7 @@ using System.Globalization;
 using EmulationServer.Core.Configuration;
 using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
+using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Configuration;
 
 /**
@@ -297,7 +298,7 @@ public static class RealmServerConfigurationLoader
                 Address = configuration.GetString(section, "Address", "127.0.0.1"),
                 Port = (ushort)configuration.GetInt(section, "Port", 8085, minimum: 1, maximum: 65535),
                 Icon = (byte)configuration.GetInt(section, "Icon", 0, minimum: 0, maximum: byte.MaxValue),
-                RealmFlags = (byte)configuration.GetInt(section, "RealmFlags", 0, minimum: 0, maximum: byte.MaxValue),
+                RealmFlags = ParseRealmFlags(configuration.GetString(section, "RealmFlags", "0"), section),
                 Timezone = (byte)configuration.GetInt(section, "Timezone", 1, minimum: 0, maximum: byte.MaxValue),
                 AllowedSecurityLevel = (byte)configuration.GetInt(section, "AllowedSecurityLevel", 0, minimum: 0, maximum: byte.MaxValue),
                 Online = configuration.GetBool(section, "Online", false),
@@ -307,6 +308,22 @@ public static class RealmServerConfigurationLoader
         }
 
         return realms;
+    }
+
+    /**
+      * Parses configured realm flags from decimal, hexadecimal, or named values.
+      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
+      */
+    private static RealmFlags ParseRealmFlags(string value, string section)
+    {
+        try
+        {
+            return RealmFlagUtilities.ParseConfigurationValue(value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ConfigurationException($"Invalid realm flags in [{section}] RealmFlags: {ex.Message}", ex);
+        }
     }
 
     /**

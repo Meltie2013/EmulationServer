@@ -33,12 +33,6 @@ namespace EmulationServer.RealmServer.Auth;
 public sealed class RealmListPacketBuilder
 {
     /**
-      * Defines the constant value for offline flag.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const byte OfflineFlag = 0x02;
-
-    /**
       * Holds the private realm store state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
@@ -78,15 +72,15 @@ public sealed class RealmListPacketBuilder
             .ToArray();
 
         return RealmBuilds.UsesModernRealmList(build)
-            ? BuildModernRealmList(realms, accountSecurityLevel, accountId)
-            : BuildVanillaRealmList(realms, accountSecurityLevel, accountId);
+            ? BuildModernRealmList(build, realms, accountSecurityLevel, accountId)
+            : BuildVanillaRealmList(build, realms, accountSecurityLevel, accountId);
     }
 
     /**
       * Builds a protocol payload or domain model from validated input values.
       * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
       */
-    private static byte[] BuildVanillaRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
+    private static byte[] BuildVanillaRealmList(ushort build, ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
     {
         ByteWriter body = new();
         body.WriteUInt32(0);
@@ -94,11 +88,12 @@ public sealed class RealmListPacketBuilder
 
         foreach (ConfiguredRealm realm in realms.Take(byte.MaxValue))
         {
-            byte realmFlags = GetRealmFlags(realm, accountSecurityLevel);
+            RealmFlags realmFlags = GetRealmFlags(realm, accountSecurityLevel);
+            realmFlags = ClearSpecifyBuildWhenVersionIsUnknown(realmFlags, build);
 
             body.WriteUInt32(realm.Icon);
-            body.WriteUInt8(realmFlags);
-            body.WriteCString(realm.Name);
+            body.WriteUInt8((byte)realmFlags);
+            body.WriteCString(GetRealmDisplayName(realm, realmFlags, build));
             body.WriteCString(realm.ClientAddress);
             body.WriteFloat(realm.Population);
             body.WriteUInt8(realm.GetCharacterCount(accountId));
@@ -115,7 +110,7 @@ public sealed class RealmListPacketBuilder
       * Builds a protocol payload or domain model from validated input values.
       * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
       */
-    private static byte[] BuildModernRealmList(ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
+    private static byte[] BuildModernRealmList(ushort build, ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
     {
         ByteWriter body = new();
         body.WriteUInt32(0);
@@ -124,17 +119,23 @@ public sealed class RealmListPacketBuilder
         foreach (ConfiguredRealm realm in realms.Take(ushort.MaxValue))
         {
             byte locked = accountSecurityLevel < realm.AllowedSecurityLevel ? (byte)1 : (byte)0;
-            byte realmFlags = GetRealmFlags(realm, accountSecurityLevel);
+            RealmFlags realmFlags = GetRealmFlags(realm, accountSecurityLevel);
+            realmFlags = ClearSpecifyBuildWhenVersionIsUnknown(realmFlags, build);
 
             body.WriteUInt8((byte)realm.Icon);
             body.WriteUInt8(locked);
-            body.WriteUInt8(realmFlags);
+            body.WriteUInt8((byte)realmFlags);
             body.WriteCString(realm.Name);
             body.WriteCString(realm.ClientAddress);
             body.WriteFloat(realm.Population);
             body.WriteUInt8(realm.GetCharacterCount(accountId));
             body.WriteUInt8(realm.Timezone);
             body.WriteUInt8(0); // Unknown realm list value.
+
+            if (realmFlags.HasFlag(RealmFlags.SpecifyBuild))
+            {
+                WriteRealmBuildVersion(body, build);
+            }
         }
 
         body.WriteUInt16(0x0010);
@@ -143,16 +144,58 @@ public sealed class RealmListPacketBuilder
     }
 
     /**
+      * Clears SpecifyBuild when no matching build metadata exists, preventing malformed modern realm-list rows.
+      */
+    private static RealmFlags ClearSpecifyBuildWhenVersionIsUnknown(RealmFlags realmFlags, ushort build)
+    {
+        if (realmFlags.HasFlag(RealmFlags.SpecifyBuild) && !RealmBuilds.TryGetVersionInfo(build, out _))
+        {
+            return realmFlags & ~RealmFlags.SpecifyBuild;
+        }
+
+        return realmFlags;
+    }
+
+    /**
+      * Returns the name shown to 1.x clients, including version text when SpecifyBuild is configured.
+      */
+    private static string GetRealmDisplayName(ConfiguredRealm realm, RealmFlags realmFlags, ushort build)
+    {
+        if (!realmFlags.HasFlag(RealmFlags.SpecifyBuild) || !RealmBuilds.TryGetVersionInfo(build, out RealmBuildVersionInfo versionInfo))
+        {
+            return realm.Name;
+        }
+
+        return $"{realm.Name} ({versionInfo.MajorVersion}.{versionInfo.MinorVersion}.{versionInfo.PatchVersion}.{versionInfo.Build})";
+    }
+
+    /**
+      * Writes version fields required by newer realm-list clients when SpecifyBuild is enabled.
+      */
+    private static void WriteRealmBuildVersion(ByteWriter body, ushort build)
+    {
+        if (!RealmBuilds.TryGetVersionInfo(build, out RealmBuildVersionInfo versionInfo))
+        {
+            return;
+        }
+
+        body.WriteUInt8(versionInfo.MajorVersion);
+        body.WriteUInt8(versionInfo.MinorVersion);
+        body.WriteUInt8(versionInfo.PatchVersion);
+        body.WriteUInt16(versionInfo.Build);
+    }
+
+    /**
       * Returns the current value or snapshot without exposing mutable internal state.
       * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
       */
-    private static byte GetRealmFlags(ConfiguredRealm realm, byte accountSecurityLevel)
+    private static RealmFlags GetRealmFlags(ConfiguredRealm realm, byte accountSecurityLevel)
     {
-        byte realmFlags = realm.BaseRealmFlags;
+        RealmFlags realmFlags = realm.BaseRealmFlags;
 
         if (!realm.IsOnline || accountSecurityLevel < realm.AllowedSecurityLevel)
         {
-            realmFlags |= OfflineFlag;
+            realmFlags |= RealmFlags.Offline;
         }
 
         return realmFlags;

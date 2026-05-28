@@ -153,6 +153,11 @@ public sealed class ConfiguredRealmStore
       */
     private bool ShouldShowRealm(ConfiguredRealm realm)
     {
+        if (realm.BaseRealmFlags.HasFlag(RealmFlags.Invalid))
+        {
+            return false;
+        }
+
         if (_realmListSettings.RequireWorldServerStatus && !realm.HasReceivedWorldServerStatus)
         {
             return false;

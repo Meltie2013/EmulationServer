@@ -25,6 +25,11 @@
 namespace EmulationServer.RealmServer.Auth;
 
 /**
+  * Stores protocol version details that can be written into a realm-list packet when the SpecifyBuild flag is enabled.
+  */
+public readonly record struct RealmBuildVersionInfo(byte MajorVersion, byte MinorVersion, byte PatchVersion, ushort Build);
+
+/**
   * Lists the supported realm client expansion values used by the realm authentication, realm-list handling, and external client login services layer.
   * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
   */
@@ -186,6 +191,26 @@ public static class RealmBuilds
             Cataclysm434 => RealmClientExpansion.Cataclysm,
             _ => RealmClientExpansion.Classic,
         };
+    }
+
+    /**
+      * Attempts to resolve the client build into packet version fields used by SpecifyBuild.
+      * The method is part of RealmBuilds and keeps this workflow isolated from the caller.
+      */
+    public static bool TryGetVersionInfo(ushort build, out RealmBuildVersionInfo versionInfo)
+    {
+        versionInfo = build switch
+        {
+            Vanilla1121 => new RealmBuildVersionInfo(1, 12, 1, Vanilla1121),
+            Vanilla1122 => new RealmBuildVersionInfo(1, 12, 2, Vanilla1122),
+            Vanilla1123 => new RealmBuildVersionInfo(1, 12, 3, Vanilla1123),
+            TheBurningCrusade243 => new RealmBuildVersionInfo(2, 4, 3, TheBurningCrusade243),
+            Wrath335a => new RealmBuildVersionInfo(3, 3, 5, Wrath335a),
+            Cataclysm434 => new RealmBuildVersionInfo(4, 3, 4, Cataclysm434),
+            _ => default,
+        };
+
+        return versionInfo.Build != 0;
     }
 
     /**
