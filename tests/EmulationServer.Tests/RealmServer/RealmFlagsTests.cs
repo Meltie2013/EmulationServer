@@ -144,7 +144,7 @@ public sealed class RealmFlagsTests
         byte[] packet = builder.BuildRealmList(SupportedBuild, accountSecurityLevel: 0, accountId: 1);
         string packetText = System.Text.Encoding.ASCII.GetString(packet);
 
-        Assert.Contains("Test Realm (1.12.3.6141)", packetText);
+        Assert.Contains("Test Realm (1,12,3)", packetText);
     }
 
     /**

@@ -130,7 +130,7 @@ public sealed class RealmListPacketBuilder
             body.WriteFloat(realm.Population);
             body.WriteUInt8(realm.GetCharacterCount(accountId));
             body.WriteUInt8(realm.Timezone);
-            body.WriteUInt8(0); // Unknown realm list value.
+            body.WriteUInt8(0x2C); // Unknown realm list value used by newer clients.
 
             if (realmFlags.HasFlag(RealmFlags.SpecifyBuild))
             {
@@ -166,7 +166,7 @@ public sealed class RealmListPacketBuilder
             return realm.Name;
         }
 
-        return $"{realm.Name} ({versionInfo.MajorVersion}.{versionInfo.MinorVersion}.{versionInfo.PatchVersion}.{versionInfo.Build})";
+        return $"{realm.Name} ({versionInfo.MajorVersion},{versionInfo.MinorVersion},{versionInfo.PatchVersion})";
     }
 
     /**
