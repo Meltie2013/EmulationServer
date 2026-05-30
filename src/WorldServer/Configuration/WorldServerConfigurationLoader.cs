@@ -116,6 +116,7 @@ public static class WorldServerConfigurationLoader
             RealmServerHost = configuration.GetString(RealmStatusSection, "RealmServerHost", "127.0.0.1"),
             RealmServerPort = (ushort)configuration.GetInt(RealmStatusSection, "RealmServerPort", 5005, minimum: 1, maximum: 65535),
             UpdateInterval = configuration.GetTimeSpan(RealmStatusSection, "UpdateInterval", TimeSpan.FromSeconds(15)),
+            PopulationCapacityLimit = configuration.GetInt(RealmStatusSection, "PopulationCapacityLimit", 0, minimum: 0),
         };
     }
 

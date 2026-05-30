@@ -269,6 +269,26 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     }
 
     /**
+      * Sends the current realm-status snapshot immediately instead of waiting for the next periodic update.
+      */
+    public async Task SendRealmStatusNowAsync(CancellationToken cancellationToken = default)
+    {
+        if (Volatile.Read(ref _started) == 0 || _stream is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await SendRealmStatusAsync(true, Volatile.Read(ref _activeConnections), cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or OperationCanceledException)
+        {
+            Logger.Write(LogType.WARNING, $"Unable to send immediate realm status: {exception.Message}", "WorldRealmStatusReporter");
+        }
+    }
+
+    /**
       * Sends a character-count snapshot immediately when character storage changes.
       */
     public async Task SendCharacterCountSnapshotNowAsync(CancellationToken cancellationToken = default)
@@ -695,10 +715,10 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
 
         int safeActiveConnections = Math.Max(0, activeConnections);
-        int safeMaxConnections = Math.Max(1, _maxConnections);
+        int safePopulationCapacityLimit = Math.Max(1, _settings.PopulationCapacityLimit > 0 ? _settings.PopulationCapacityLimit : _maxConnections);
         string state = online ? "online" : "offline";
 
-        string packet = $"REALM_STATUS {_settings.RealmId} {state} {safeActiveConnections} {safeMaxConnections}";
+        string packet = $"REALM_STATUS {_settings.RealmId} {state} {safeActiveConnections} {safePopulationCapacityLimit}";
 
         await InternalProtocol.WriteLineAsync(
             _stream,

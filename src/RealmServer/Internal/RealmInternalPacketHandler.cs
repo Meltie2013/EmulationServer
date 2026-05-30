@@ -56,8 +56,8 @@ public sealed class RealmInternalPacketHandler
       */
     private readonly object _syncRoot = new();
 
-    private readonly Dictionary<string, HashSet<uint>> _realmsByServerName = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Dictionary<uint, Dictionary<uint, byte>>> _pendingCharacterCounts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<InternalServerSession, HashSet<uint>> _realmIdsBySession = [];
+    private readonly Dictionary<InternalServerSession, Dictionary<uint, Dictionary<uint, byte>>> _pendingCharacterCountsBySession = [];
 
     /**
       * Initializes a new RealmInternalPacketHandler instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
@@ -119,25 +119,25 @@ public sealed class RealmInternalPacketHandler
 
         if (string.Equals(parts[0], RealmStatusPacket, StringComparison.OrdinalIgnoreCase))
         {
-            HandleRealmStatusPacket(remoteServerName, parts);
+            HandleRealmStatusPacket(session, remoteServerName, parts);
             return Task.CompletedTask;
         }
 
         if (string.Equals(parts[0], InternalProtocol.RealmCharacterCountSnapshotBegin, StringComparison.OrdinalIgnoreCase))
         {
-            HandleCharacterCountSnapshotBegin(remoteServerName, parts);
+            HandleCharacterCountSnapshotBegin(session, remoteServerName, parts);
             return Task.CompletedTask;
         }
 
         if (string.Equals(parts[0], InternalProtocol.RealmCharacterCountSnapshotData, StringComparison.OrdinalIgnoreCase))
         {
-            HandleCharacterCountSnapshotData(remoteServerName, parts);
+            HandleCharacterCountSnapshotData(session, remoteServerName, parts);
             return Task.CompletedTask;
         }
 
         if (string.Equals(parts[0], InternalProtocol.RealmCharacterCountSnapshotEnd, StringComparison.OrdinalIgnoreCase))
         {
-            HandleCharacterCountSnapshotEnd(remoteServerName, parts);
+            HandleCharacterCountSnapshotEnd(session, remoteServerName, parts);
             return Task.CompletedTask;
         }
 
@@ -159,15 +159,15 @@ public sealed class RealmInternalPacketHandler
 
         lock (_syncRoot)
         {
-            _pendingCharacterCounts.Remove(remoteServerName);
+            _pendingCharacterCountsBySession.Remove(session);
 
-            if (!_realmsByServerName.Remove(remoteServerName, out HashSet<uint>? mappedRealmIds))
+            if (!_realmIdsBySession.Remove(session, out HashSet<uint>? mappedRealmIds))
             {
                 Logger.Write(LogType.WARNING, $"RealmServer internal server '{remoteServerName}' disconnected. No realm status mapping was registered.", "RealmInternalPacketHandler");
                 return Task.CompletedTask;
             }
 
-            realmIds = mappedRealmIds.ToList();
+            realmIds = [.. mappedRealmIds];
         }
 
         foreach (uint realmId in realmIds)
@@ -184,7 +184,7 @@ public sealed class RealmInternalPacketHandler
     /**
       * Starts a new character-count snapshot from a WorldServer.
       */
-    private void HandleCharacterCountSnapshotBegin(string remoteServerName, string[] parts)
+    private void HandleCharacterCountSnapshotBegin(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length != 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
         {
@@ -194,10 +194,10 @@ public sealed class RealmInternalPacketHandler
 
         lock (_syncRoot)
         {
-            if (!_pendingCharacterCounts.TryGetValue(remoteServerName, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm))
+            if (!_pendingCharacterCountsBySession.TryGetValue(session, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm))
             {
                 snapshotsByRealm = [];
-                _pendingCharacterCounts[remoteServerName] = snapshotsByRealm;
+                _pendingCharacterCountsBySession[session] = snapshotsByRealm;
             }
 
             snapshotsByRealm[realmId] = [];
@@ -207,7 +207,7 @@ public sealed class RealmInternalPacketHandler
     /**
       * Adds one data chunk to the pending character-count snapshot.
       */
-    private void HandleCharacterCountSnapshotData(string remoteServerName, string[] parts)
+    private void HandleCharacterCountSnapshotData(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length < 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
         {
@@ -217,7 +217,7 @@ public sealed class RealmInternalPacketHandler
 
         lock (_syncRoot)
         {
-            if (!_pendingCharacterCounts.TryGetValue(remoteServerName, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm) ||
+            if (!_pendingCharacterCountsBySession.TryGetValue(session, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm) ||
                 !snapshotsByRealm.TryGetValue(realmId, out Dictionary<uint, byte>? characterCounts))
             {
                 Logger.Write(LogType.WARNING, $"Received {InternalProtocol.RealmCharacterCountSnapshotData} from '{remoteServerName}' before snapshot begin for realm {realmId}.", "RealmInternalPacketHandler");
@@ -243,7 +243,7 @@ public sealed class RealmInternalPacketHandler
     /**
       * Completes and publishes the pending character-count snapshot for a realm.
       */
-    private void HandleCharacterCountSnapshotEnd(string remoteServerName, string[] parts)
+    private void HandleCharacterCountSnapshotEnd(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length != 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
         {
@@ -254,7 +254,7 @@ public sealed class RealmInternalPacketHandler
         Dictionary<uint, byte>? snapshot;
         lock (_syncRoot)
         {
-            if (!_pendingCharacterCounts.TryGetValue(remoteServerName, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm) ||
+            if (!_pendingCharacterCountsBySession.TryGetValue(session, out Dictionary<uint, Dictionary<uint, byte>>? snapshotsByRealm) ||
                 !snapshotsByRealm.Remove(realmId, out snapshot))
             {
                 Logger.Write(LogType.WARNING, $"Received {InternalProtocol.RealmCharacterCountSnapshotEnd} from '{remoteServerName}' before snapshot data for realm {realmId}.", "RealmInternalPacketHandler");
@@ -275,7 +275,7 @@ public sealed class RealmInternalPacketHandler
       * Handles a single operation or packet and keeps the calling code focused on flow control.
       * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
       */
-    private void HandleRealmStatusPacket(string remoteServerName, string[] parts)
+    private void HandleRealmStatusPacket(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length < 5)
         {
@@ -315,10 +315,10 @@ public sealed class RealmInternalPacketHandler
 
         lock (_syncRoot)
         {
-            if (!_realmsByServerName.TryGetValue(remoteServerName, out HashSet<uint>? realmIds))
+            if (!_realmIdsBySession.TryGetValue(session, out HashSet<uint>? realmIds))
             {
                 realmIds = [];
-                _realmsByServerName[remoteServerName] = realmIds;
+                _realmIdsBySession[session] = realmIds;
             }
 
             realmIds.Add(realmId);
@@ -326,7 +326,7 @@ public sealed class RealmInternalPacketHandler
 
         float population = RealmPopulationCalculator.Calculate(activeConnections, capacityLimit);
 
-        Logger.Write(LogType.TRACE, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.00}.", "RealmInternalPacketHandler");
+        Logger.Write(LogType.TRACE, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.0000}.", "RealmInternalPacketHandler");
     }
 
     /**

@@ -846,6 +846,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private void NotifyActivePlayerCountChanged(int activePlayerCount)
     {
         _realmStatusReporter.SetActiveConnections(activePlayerCount);
+        _ = _realmStatusReporter.SendRealmStatusNowAsync(CancellationToken.None);
         _ = SendWorldHealthStatusSafelyAsync(CancellationToken.None);
     }
 

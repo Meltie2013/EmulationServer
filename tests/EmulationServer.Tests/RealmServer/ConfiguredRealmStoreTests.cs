@@ -76,6 +76,53 @@ public sealed class ConfiguredRealmStoreTests
     }
 
     /**
+      * Verifies population data stays attached to the realm id that sent the status update.
+      */
+    [Fact]
+    public void TrySetRealmStatus_ShouldKeepPopulationScopedToMatchingRealmId()
+    {
+        ConfiguredRealmStore store = new(
+            [
+                new ConfiguredRealmSettings
+                {
+                    Id = 1,
+                    Name = "Realm One",
+                    Address = "127.0.0.1",
+                    Port = 8085,
+                    Builds = new HashSet<ushort> { SupportedBuild },
+                },
+                new ConfiguredRealmSettings
+                {
+                    Id = 2,
+                    Name = "Realm Two",
+                    Address = "127.0.0.1",
+                    Port = 8086,
+                    Builds = new HashSet<ushort> { SupportedBuild },
+                },
+            ],
+            new RealmListSettings
+            {
+                RequireWorldServerStatus = false,
+                HideStaleRealms = false,
+                StaleRealmTimeout = TimeSpan.FromMinutes(5),
+            });
+
+        DateTimeOffset now = DateTimeOffset.UnixEpoch;
+
+        Assert.True(store.TrySetRealmStatus(2, true, 25, 100, now));
+
+        ConfiguredRealm[] realms = store.GetRealmsForBuild(SupportedBuild, now)
+            .OrderBy(realm => realm.Id)
+            .ToArray();
+
+        Assert.Equal(2, realms.Length);
+        Assert.Equal((uint)1, realms[0].Id);
+        Assert.Equal(0.0f, realms[0].Population);
+        Assert.Equal((uint)2, realms[1].Id);
+        Assert.Equal(0.5f, realms[1].Population);
+    }
+
+    /**
       * Verifies stale realms are hidden when stale hiding is enabled.
       */
     [Fact]

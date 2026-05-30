@@ -61,6 +61,12 @@ public sealed class RealmStatusSettings
     public TimeSpan UpdateInterval { get; init; } = TimeSpan.FromSeconds(15);
 
     /**
+      * Gets or stores the population capacity limit value used by RealmStatusSettings.
+      * A value of 0 means the realm population calculator uses WorldServer MaxConnections as the capacity.
+      */
+    public int PopulationCapacityLimit { get; init; }
+
+    /**
       * Validates input and throws a clear exception before invalid state reaches runtime code.
       * The method is part of RealmStatusSettings and keeps this workflow isolated from the caller.
       */
@@ -89,6 +95,11 @@ public sealed class RealmStatusSettings
         if (UpdateInterval <= TimeSpan.Zero)
         {
             throw new InvalidOperationException("Realm status update interval must be greater than zero.");
+        }
+
+        if (PopulationCapacityLimit < 0)
+        {
+            throw new InvalidOperationException("Realm status population capacity limit cannot be negative.");
         }
 
     }
