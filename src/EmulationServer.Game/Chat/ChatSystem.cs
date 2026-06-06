@@ -34,7 +34,7 @@ namespace EmulationServer.Game.Chat;
   * Owns the chat system behavior for the chat channel normalization, language handling, and message routing layer.
   * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
   */
-public sealed class ChatSystem
+public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null)
 {
     /**
       * Exposes the default channels value to callers that need this runtime or configuration data.
@@ -51,17 +51,7 @@ public sealed class ChatSystem
       * Holds the private game data accessor state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly Func<WorldGameDataStore> _gameDataAccessor;
-
-    /**
-      * Initializes a new ChatSystem instance with the dependencies required by the chat channel normalization, language handling, and message routing workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: gameDataAccessor.
-      */
-    public ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null)
-    {
-        _gameDataAccessor = gameDataAccessor ?? (() => WorldGameDataStore.Empty);
-    }
+    private readonly Func<WorldGameDataStore> _gameDataAccessor = gameDataAccessor ?? (() => WorldGameDataStore.Empty);
 
     /**
       * Resolves the default channel names value requested by the caller.
@@ -157,7 +147,7 @@ public sealed class ChatSystem
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: player.
       */
-    public ChatLanguage GetDefaultLanguage(PlayerLoginRecord player)
+    public static ChatLanguage GetDefaultLanguage(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
 
@@ -186,7 +176,7 @@ public sealed class ChatSystem
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: player.
       */
-    public uint ResolveChannelPlayerRank(PlayerLoginRecord player)
+    public static uint ResolveChannelPlayerRank(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
 
@@ -233,17 +223,13 @@ public sealed class ChatSystem
 
         return message.Type switch
         {
-            ChatMessageType.Channel => availableSessions
-                .Where(session => session.CurrentPlayer?.Faction == player.Faction)
-                .Where(session => session.IsInChatChannel(channelName))
-                .Distinct()
-                .ToArray(),
+            ChatMessageType.Channel => [.. availableSessions
+                .Where(session => session.CurrentPlayer?.Faction == player.Faction && session.IsInChatChannel(channelName))
+                .Distinct()],
 
-            ChatMessageType.Whisper => availableSessions
-                .Where(session => session.CurrentPlayer?.Faction == player.Faction)
-                .Where(session => string.Equals(session.CurrentPlayer?.Name, message.Target, StringComparison.OrdinalIgnoreCase))
-                .Distinct()
-                .ToArray(),
+            ChatMessageType.Whisper => [.. availableSessions
+                .Where(session => session.CurrentPlayer?.Faction == player.Faction && string.Equals(session.CurrentPlayer?.Name, message.Target, StringComparison.OrdinalIgnoreCase))
+                .Distinct()],
 
             _ => availableSessions
                 .Where(session => session.CurrentPlayer?.Faction == player.Faction)

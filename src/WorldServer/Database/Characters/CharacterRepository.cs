@@ -22,6 +22,7 @@ using EmulationServer.Database.Interfaces;
 using EmulationServer.Game.Characters;
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Data.Stores;
+using EmulationServer.Game.Items;
 using EmulationServer.Game.Players;
 using EmulationServer.Game.Reputation;
 using EmulationServer.Game.WorldData;
@@ -52,11 +53,6 @@ public sealed class CharacterRepository
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const uint AtLoginFirst = 0x20;
-    /**
-      * Defines the constant value for no equipment slot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const int NoEquipmentSlot = -1;
     private const int ItemInstanceFieldCount = 48;
     private const int ObjectFieldGuid = 0x0000;
     private const int ObjectFieldType = 0x0002;
@@ -346,7 +342,7 @@ public sealed class CharacterRepository
 
         if (characterGuid == 0 || placements.Count == 0)
         {
-            return Array.Empty<PlayerInventoryItem>();
+            return [];
         }
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -356,7 +352,7 @@ public sealed class CharacterRepository
         {
             foreach (PlayerInventoryPlacementUpdate placement in placements)
             {
-                using MySqlCommand command = connection.CreateCommand();
+                await using MySqlCommand command = connection.CreateCommand();
                 command.Transaction = transaction;
                 command.CommandText = """
                     UPDATE `character_inventory`
@@ -397,27 +393,27 @@ public sealed class CharacterRepository
     {
         if (characterGuid == 0 || sourceItemGuid == 0 || splitCount == 0)
         {
-            return Array.Empty<PlayerInventoryItem>();
+            return [];
         }
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
         IReadOnlyList<PlayerInventoryItem> inventory = await LoadPlayerInventoryAsync(connection, characterGuid, cancellationToken);
         PlayerInventoryItem? sourceItem = inventory.FirstOrDefault(item => item.ItemGuid == sourceItemGuid);
-        if (sourceItem is null || sourceItem.IsContainer)
+        if (sourceItem?.IsContainer is not false)
         {
-            return Array.Empty<PlayerInventoryItem>();
+            return [];
         }
 
         if (!_worldTemplateAccessor().TryGetItemTemplate(sourceItem.TemplateEntry, out ItemTemplateRecord sourceTemplate))
         {
-            return Array.Empty<PlayerInventoryItem>();
+            return [];
         }
 
         uint maximumStack = ResolveMaximumStackCount(sourceTemplate);
         uint sourceCount = Math.Max(sourceItem.StackCount, 1u);
         if (maximumStack <= 1 || splitCount >= sourceCount || splitCount > maximumStack)
         {
-            return Array.Empty<PlayerInventoryItem>();
+            return [];
         }
 
         PlayerInventoryItem? destinationItem = inventory.FirstOrDefault(item => item.BagGuid == destinationBagGuid && item.Slot == destinationSlot);
@@ -427,13 +423,13 @@ public sealed class CharacterRepository
                 destinationItem.TemplateEntry != sourceItem.TemplateEntry ||
                 destinationItem.IsContainer)
             {
-                return Array.Empty<PlayerInventoryItem>();
+                return [];
             }
 
             uint destinationCount = Math.Max(destinationItem.StackCount, 1u);
             if (destinationCount >= maximumStack || splitCount > maximumStack - destinationCount)
             {
-                return Array.Empty<PlayerInventoryItem>();
+                return [];
             }
         }
 
@@ -866,10 +862,10 @@ public sealed class CharacterRepository
     {
         if (!await TableExistsAsync(connection, "character_inventory", cancellationToken))
         {
-            return Array.Empty<PlayerInventoryItem>();
+            return [];
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `ci`.`item`, `ci`.`guid`, `ci`.`item_template`, `ci`.`bag`, `ci`.`slot`, COALESCE(`ii`.`data`, '')
             FROM `character_inventory` `ci`
@@ -1536,7 +1532,7 @@ public sealed class CharacterRepository
       */
     private static uint[] CreateDefaultTutorialFlags()
     {
-        return Enumerable.Repeat(uint.MaxValue, 8).ToArray();
+        return [.. Enumerable.Repeat(uint.MaxValue, 8)];
     }
 
     /**
@@ -1545,7 +1541,7 @@ public sealed class CharacterRepository
       * Inputs used by this operation: connection, characterGuid, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private async Task<PlayerStats?> LoadCharacterStatsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
+    private static async Task<PlayerStats?> LoadCharacterStatsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_stats", cancellationToken))
         {
@@ -1623,11 +1619,10 @@ public sealed class CharacterRepository
             return spells;
         }
 
-        return _worldTemplateAccessor()
+        return [.. _worldTemplateAccessor()
             .GetPlayerCreateSpells(race, characterClass)
             .Where(spell => spell.SpellId != 0)
-            .Select(spell => new PlayerSpell(spell.SpellId, true, false))
-            .ToArray();
+            .Select(spell => new PlayerSpell(spell.SpellId, true, false))];
     }
 
     /**
@@ -1670,11 +1665,10 @@ public sealed class CharacterRepository
             return actions;
         }
 
-        return _worldTemplateAccessor()
+        return [.. _worldTemplateAccessor()
             .GetPlayerCreateActions(race, characterClass)
             .Where(action => action.Button < 120)
-            .Select(action => new PlayerActionButton(action.Button, action.Action, action.Type))
-            .ToArray();
+            .Select(action => new PlayerActionButton(action.Button, action.Action, action.Type))];
     }
 
     /**
@@ -1771,10 +1765,10 @@ public sealed class CharacterRepository
     {
         if (!await TableExistsAsync(connection, "character_skills", cancellationToken))
         {
-            return Array.Empty<PlayerSkill>();
+            return [];
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `skill`, `value`, `max`
             FROM `character_skills`
@@ -1801,7 +1795,7 @@ public sealed class CharacterRepository
         IEnumerable<uint> characterGuids,
         CancellationToken cancellationToken)
     {
-        uint[] guids = characterGuids.Distinct().ToArray();
+        uint[] guids = [.. characterGuids.Distinct()];
         Dictionary<uint, IReadOnlyList<CharacterEquipmentDisplay>> result = [];
         if (guids.Length == 0)
         {
@@ -1839,8 +1833,8 @@ public sealed class CharacterRepository
                 continue;
             }
 
-            int equipmentSlot = MapInventoryTypeToEquipmentSlot(itemTemplate.InventoryType);
-            if (equipmentSlot == NoEquipmentSlot && storedSlot < CharacterEquipmentSlotCount)
+            int equipmentSlot = EquipmentSlotMapper.FromInventoryType(itemTemplate.InventoryType);
+            if (equipmentSlot == EquipmentSlotMapper.NoEquipmentSlot && storedSlot < CharacterEquipmentSlotCount)
             {
                 equipmentSlot = storedSlot;
             }
@@ -1902,48 +1896,9 @@ public sealed class CharacterRepository
       */
     private static CharacterEquipmentDisplay[] CreateEmptyEquipmentArray()
     {
-        return Enumerable
+        return [.. Enumerable
             .Range(0, CharacterEquipmentSlotCount)
-            .Select(_ => new CharacterEquipmentDisplay(0, 0, 0))
-            .ToArray();
-    }
-
-    /**
-      * Performs the map inventory type to equipment slot operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: inventoryType.
-      */
-    private static int MapInventoryTypeToEquipmentSlot(byte inventoryType)
-    {
-        return inventoryType switch
-        {
-            1 => 0,
-            2 => 1,
-            3 => 2,
-            4 => 3,
-            5 => 4,
-            6 => 5,
-            7 => 6,
-            8 => 7,
-            9 => 8,
-            10 => 9,
-            11 => 10,
-            12 => 12,
-            13 => 15,
-            14 => 16,
-            15 => 17,
-            16 => 14,
-            17 => 15,
-            19 => 18,
-            20 => 4,
-            21 => 15,
-            22 => 16,
-            23 => 16,
-            25 => 17,
-            26 => 17,
-            28 => 17,
-            _ => NoEquipmentSlot,
-        };
+            .Select(_ => new CharacterEquipmentDisplay(0, 0, 0))];
     }
 
     /**

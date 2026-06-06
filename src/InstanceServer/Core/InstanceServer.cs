@@ -530,11 +530,11 @@ public sealed class InstanceServer : IAsyncDisposable
             InternalMapServiceCommandResultPacket invalidResult = new(
                 command.CommandId,
                 "InstanceServer",
-                MapServiceKind.Instance.ToString(),
+                nameof(MapServiceKind.Instance),
                 command.MapId,
                 0,
-                MapServiceControlResultCode.Failed.ToString(),
-                MapServiceState.Offline.ToString(),
+                nameof(MapServiceControlResultCode.Failed),
+                nameof(MapServiceState.Offline),
                 $"Invalid map command action '{command.Action}'.");
 
             await sendResponseAsync(invalidResult.ToPacketLine());
@@ -549,11 +549,11 @@ public sealed class InstanceServer : IAsyncDisposable
             InternalMapServiceCommandResultPacket unavailableResult = new(
                 command.CommandId,
                 "InstanceServer",
-                MapServiceKind.Instance.ToString(),
+                nameof(MapServiceKind.Instance),
                 command.MapId,
                 0,
-                MapServiceControlResultCode.Failed.ToString(),
-                MapServiceState.Offline.ToString(),
+                nameof(MapServiceControlResultCode.Failed),
+                nameof(MapServiceState.Offline),
                 "InstanceServer instance service manager is not started yet.");
 
             await sendResponseAsync(unavailableResult.ToPacketLine());
@@ -591,8 +591,8 @@ public sealed class InstanceServer : IAsyncDisposable
         MapServiceSnapshot snapshot,
         CancellationToken cancellationToken)
     {
-        InternalPeerConnection[] peers = _peerConnections.Values.ToArray();
-        InternalServerSession[] sessions = _serverSessions.Values.ToArray();
+        InternalPeerConnection[] peers = [.. _peerConnections.Values];
+        InternalServerSession[] sessions = [.. _serverSessions.Values];
         if (peers.Length == 0 && sessions.Length == 0)
         {
             return;

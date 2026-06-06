@@ -30,23 +30,13 @@ namespace EmulationServer.Game.Items;
   * Owns the item system behavior for the item lookup and item validation support layer.
   * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
   */
-public sealed class ItemSystem
+public sealed class ItemSystem(Func<WorldTemplateDataStore> worldTemplateAccessor)
 {
     /**
       * Holds the private world template accessor state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
-
-    /**
-      * Initializes a new ItemSystem instance with the dependencies required by the item lookup and item validation support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: worldTemplateAccessor.
-      */
-    public ItemSystem(Func<WorldTemplateDataStore> worldTemplateAccessor)
-    {
-        _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
-    }
+    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
 
     /**
       * Tries to resolve the get item template value requested by the caller.

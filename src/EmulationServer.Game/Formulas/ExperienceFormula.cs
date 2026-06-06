@@ -158,7 +158,7 @@ public static class ExperienceFormula
                 levelDifference = 4;
             }
 
-            return ((safePlayerLevel * 5u + BaseKillExperience) * (20u + levelDifference) / 10u + 1u) / 2u;
+            return ((((safePlayerLevel * 5u) + BaseKillExperience) * (20u + levelDifference) / 10u) + 1u) / 2u;
         }
 
         uint grayLevel = GetGrayLevel(safePlayerLevel);
@@ -168,7 +168,7 @@ public static class ExperienceFormula
         }
 
         uint zeroDifference = GetZeroDifference(safePlayerLevel);
-        return (safePlayerLevel * 5u + BaseKillExperience) * (zeroDifference + safeTargetLevel - safePlayerLevel) / zeroDifference;
+        return ((safePlayerLevel * 5u) + BaseKillExperience) * (zeroDifference + safeTargetLevel - safePlayerLevel) / zeroDifference;
     }
 
     /**

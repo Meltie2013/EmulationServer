@@ -18,36 +18,35 @@
 
 using System.Collections.Concurrent;
 using System.Globalization;
-
 using EmulationServer.Core.Servers;
+using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Services;
-using EmulationServer.Game.Data.Stores;
+using EmulationServer.Game.Characters;
+using EmulationServer.Game.Commands;
 using EmulationServer.Game.Data.Dbc.Maps;
+using EmulationServer.Game.Data.Stores;
+using EmulationServer.Game.Movement;
+using EmulationServer.Game.Players;
+using EmulationServer.Game.WorldData;
 using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Peers;
 using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
-using EmulationServer.Database.Accounts;
-using EmulationServer.Game.Commands;
-using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
+using EmulationServer.Shared.Timing;
 using EmulationServer.WorldServer.Characters;
-using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
 using EmulationServer.WorldServer.Configuration;
 using EmulationServer.WorldServer.Database.Accounts;
 using EmulationServer.WorldServer.Database.Characters;
-using EmulationServer.Game.Characters;
 using EmulationServer.WorldServer.Internal;
-using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
 using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.WorldServer.Networking.Sessions;
-using EmulationServer.Game.Players;
-using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
 using EmulationServer.WorldServer.Networking.Socket;
-using EmulationServer.Game.WorldData;
-using EmulationServer.Game.Movement;
-using EmulationServer.Shared.Timing;
+using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
+using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
+using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
+using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
 
 /**
   * File overview: src/WorldServer/Core/WorldServer.cs
@@ -155,7 +154,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _scheduledMapControlTimers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ISteadyClock _clock = SystemSteadyClock.Instance;
+    private readonly SystemSteadyClock _clock = SystemSteadyClock.Instance;
     private CancellationTokenSource? _serverControlTimerCancellation;
     private int _serverControlRequested;
 
@@ -466,11 +465,8 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             requiredKind = "Instance";
         }
 
-        InternalMapServiceStatusPacket[] candidates = _mapServiceStatuses.Values
-            .Where(status => status.MapId == mapId)
-            .Where(status => string.Equals(status.State, "Online", StringComparison.OrdinalIgnoreCase))
-            .Where(status => IsConnectedMapOwner(status.OwnerServerName))
-            .ToArray();
+        InternalMapServiceStatusPacket[] candidates = [.. _mapServiceStatuses.Values.Where(status => status.MapId == mapId &&
+            string.Equals(status.State, "Online", StringComparison.OrdinalIgnoreCase) && IsConnectedMapOwner(status.OwnerServerName))];
 
         InternalMapServiceStatusPacket? selected = candidates.FirstOrDefault(status => string.Equals(status.Kind, requiredKind, StringComparison.OrdinalIgnoreCase))
             ?? candidates.FirstOrDefault();
@@ -780,22 +776,20 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     private string[] GetMapCommandTargets(int mapId)
     {
-        string[] owners = _mapServiceStatuses.Values
+        string[] owners = [.. _mapServiceStatuses.Values
             .Where(status => status.MapId == mapId)
             .Select(status => status.OwnerServerName)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         if (owners.Length > 0)
         {
             return owners;
         }
 
-        return _peerConnections.Keys
+        return [.. _peerConnections.Keys
             .Concat(_serverSessions.Keys)
             .Where(IsMapControlServer)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
     }
 
     /**
@@ -1067,10 +1061,9 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     private async Task MarkMapOwnerUnavailableAsync(string ownerServerName, string reason, CancellationToken cancellationToken)
     {
-        InternalMapServiceStatusPacket[] affectedStatuses = _mapServiceStatuses.Values
+        InternalMapServiceStatusPacket[] affectedStatuses = [.. _mapServiceStatuses.Values
             .Where(status => string.Equals(status.OwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
-            .Select(status => status with { State = "Offline" })
-            .ToArray();
+            .Select(status => status with { State = "Offline" })];
 
         foreach (InternalMapServiceStatusPacket status in affectedStatuses)
         {
@@ -1088,9 +1081,9 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     /**
       * Disconnects active player sessions affected by an explicit non-online service status packet.
       */
-    private async Task DisconnectPlayersForUnavailableMapServiceAsync(InternalMapServiceStatusPacket status, string reason, CancellationToken cancellationToken)
+    private Task DisconnectPlayersForUnavailableMapServiceAsync(InternalMapServiceStatusPacket status, string reason, CancellationToken cancellationToken)
     {
-        await DisconnectPlayersForMapOwnerAsync(status.OwnerServerName, new[] { status }, reason, cancellationToken);
+        return DisconnectPlayersForMapOwnerAsync(status.OwnerServerName, [status], reason, cancellationToken);
     }
 
     /**
@@ -1102,15 +1095,9 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         string reason,
         CancellationToken cancellationToken)
     {
-        HashSet<uint> affectedMapIds = statuses
-            .Select(status => unchecked((uint)status.MapId))
-            .ToHashSet();
+        HashSet<uint> affectedMapIds = [.. statuses.Select(status => unchecked((uint)status.MapId))];
 
-        WorldClientSession[] affectedSessions = _playerSessionRegistry.SnapshotSessions()
-            .Where(session => string.Equals(session.CurrentMapOwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
-            .Where(session => session.CurrentPlayer is not null)
-            .Where(session => affectedMapIds.Count == 0 || affectedMapIds.Contains(session.CurrentPlayer!.Map))
-            .ToArray();
+        WorldClientSession[] affectedSessions = [.. _playerSessionRegistry.SnapshotSessions().Where(session => string.Equals(session.CurrentMapOwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase) && session.CurrentPlayer is not null && (affectedMapIds.Count == 0 || affectedMapIds.Contains(session.CurrentPlayer!.Map)))];
 
         if (affectedSessions.Length == 0)
         {
@@ -1141,11 +1128,10 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     private string FormatCachedMapInfo(int mapId)
     {
-        InternalMapServiceStatusPacket[] statuses = _mapServiceStatuses.Values
+        InternalMapServiceStatusPacket[] statuses = [.. _mapServiceStatuses.Values
             .Where(status => status.MapId == mapId)
             .OrderBy(status => status.OwnerServerName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(status => status.InstanceId)
-            .ToArray();
+            .ThenBy(status => status.InstanceId)];
 
         string dbcDescription = _gameData.MapData.DescribeMap(mapId);
         List<string> lines = [$"Map {mapId} info:"];
@@ -1424,10 +1410,9 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
                 : $"WorldServer could not send shutdown request to RealmServer; realm status connection is not active. Reason={reason}",
             "WorldServer");
 
-        string[] targets = _peerConnections.Keys
+        string[] targets = [.. _peerConnections.Keys
             .Concat(_serverSessions.Keys)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
 
         foreach (string target in targets)
         {

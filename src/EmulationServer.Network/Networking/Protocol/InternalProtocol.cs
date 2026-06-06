@@ -161,7 +161,7 @@ public static class InternalProtocol
         ArgumentNullException.ThrowIfNull(stream);
 
         byte[] singleByteBuffer = new byte[1];
-        using MemoryStream lineBuffer = new();
+        await using MemoryStream lineBuffer = new();
 
         while (lineBuffer.Length < maximumLength)
         {

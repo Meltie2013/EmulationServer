@@ -40,6 +40,7 @@ public sealed class WorldAccountRepository
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly IDatabaseService _databaseService;
+    private readonly AccountRepository _accountRepository;
 
     /**
       * Initializes a new WorldAccountRepository instance with the dependencies required by the world database repositories and persisted player/account records workflow.
@@ -49,28 +50,16 @@ public sealed class WorldAccountRepository
     public WorldAccountRepository(IDatabaseService databaseService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException();
+        _accountRepository = new AccountRepository(_databaseService);
     }
 
     /**
       * Returns whether the remote address is currently blocked by the account database IP ban table.
       * The WorldServer repeats this check because a client can receive a realm list before an IP ban is applied and then attempt to enter the world.
       */
-    public async Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
+    public Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
     {
-        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
-
-        command.CommandText = """
-            SELECT 1
-            FROM `ip_banned`
-            WHERE (`unbandate` = `bandate` OR `unbandate` > UNIX_TIMESTAMP())
-              AND `ip` = @ip
-            LIMIT 1;
-            """;
-        command.Parameters.AddWithValue("@ip", ipAddress);
-
-        object? result = await command.ExecuteScalarAsync(cancellationToken);
-        return result is not null;
+        return _accountRepository.IsIpBannedAsync(ipAddress, cancellationToken);
     }
 
     /**
@@ -84,7 +73,7 @@ public sealed class WorldAccountRepository
         username = NormalizeUsername(username);
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `id`, `username`, `locked`, `sessionkey`
@@ -120,54 +109,9 @@ public sealed class WorldAccountRepository
       * Returns the active account ban status during world authentication.
       * The WorldServer repeats this check so bans applied after realm login still block entering the world.
       */
-    public async Task<AccountBanStatus> GetAccountBanStatusAsync(uint accountId, CancellationToken cancellationToken = default)
+    public Task<AccountBanStatus> GetAccountBanStatusAsync(uint accountId, CancellationToken cancellationToken = default)
     {
-        await DeactivateExpiredAccountBansAsync(cancellationToken);
-
-        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
-
-        command.CommandText = """
-            SELECT `bandate`, `unbandate`
-            FROM `account_banned`
-            WHERE `id` = @id
-              AND `active` = 1
-              AND (`unbandate` > UNIX_TIMESTAMP() OR `unbandate` = `bandate`)
-            ORDER BY `bandate` DESC
-            LIMIT 1;
-            """;
-        command.Parameters.AddWithValue("@id", accountId);
-
-        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken))
-        {
-            return AccountBanStatus.NotBanned;
-        }
-
-        ulong banDate = reader.GetUInt64(0);
-        ulong unbanDate = reader.GetUInt64(1);
-
-        return new AccountBanStatus(true, banDate == unbanDate);
-    }
-
-    /**
-      * Deactivates expired temporary account bans before auth and list operations read active rows.
-      * Permanent bans are identified by matching bandate and unbandate values and are left active.
-      */
-    private async Task<int> DeactivateExpiredAccountBansAsync(CancellationToken cancellationToken = default)
-    {
-        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
-
-        command.CommandText = """
-            UPDATE `account_banned`
-            SET `active` = 0
-            WHERE `active` = 1
-              AND `unbandate` <> `bandate`
-              AND `unbandate` <= UNIX_TIMESTAMP();
-            """;
-
-        return await command.ExecuteNonQueryAsync(cancellationToken);
+        return _accountRepository.GetAccountBanStatusAsync(accountId, cancellationToken);
     }
 
     /**
@@ -179,7 +123,7 @@ public sealed class WorldAccountRepository
     public async Task SetActiveRealmAsync(uint accountId, uint realmId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `account`
@@ -199,8 +143,6 @@ public sealed class WorldAccountRepository
       */
     public static string NormalizeUsername(string username)
     {
-        return string.IsNullOrWhiteSpace(username)
-            ? string.Empty
-            : username.Trim().ToUpperInvariant();
+        return AccountRepository.NormalizeUsername(username);
     }
 }

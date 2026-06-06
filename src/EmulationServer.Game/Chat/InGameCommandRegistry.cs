@@ -25,7 +25,6 @@ namespace EmulationServer.Game.Commands;
 public sealed class InGameCommandRegistry
 {
     private readonly Dictionary<string, IChatCommand> _commandsByToken;
-    private readonly IReadOnlyList<IChatCommand> _commands;
 
     public InGameCommandRegistry(IEnumerable<IChatCommand> commands)
     {
@@ -40,9 +39,7 @@ public sealed class InGameCommandRegistry
         }
 
         _commandsByToken = commandsByToken;
-        _commands = commandList
-            .OrderBy(command => command.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        Commands = [.. commandList.OrderBy(command => command.Name, StringComparer.OrdinalIgnoreCase)];
     }
 
     /**
@@ -80,7 +77,7 @@ public sealed class InGameCommandRegistry
     /**
       * Returns one entry per command, excluding aliases.
       */
-    public IReadOnlyList<IChatCommand> Commands => _commands;
+    public IReadOnlyList<IChatCommand> Commands { get; }
 
     /**
       * Returns the commands visible to the supplied session after RBAC checks.
@@ -89,9 +86,7 @@ public sealed class InGameCommandRegistry
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        return _commands
-            .Where(command => session.HasPermission(command.RequiredPermission))
-            .ToArray();
+        return [.. Commands.Where(command => session.HasPermission(command.RequiredPermission))];
     }
 
     /**
@@ -142,6 +137,6 @@ public sealed class InGameCommandRegistry
     private static string NormalizeToken(string token)
     {
         token = token.Trim();
-        return token.StartsWith(".", StringComparison.Ordinal) ? token[1..].Trim() : token;
+        return token.StartsWith('.') ? token[1..].Trim() : token;
     }
 }

@@ -130,7 +130,7 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
             await session.DisconnectAsync();
         }
 
-        Task[] tasks = _sessionTasks.Values.ToArray();
+        Task[] tasks = [.. _sessionTasks.Values];
         if (tasks.Length > 0)
         {
             using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

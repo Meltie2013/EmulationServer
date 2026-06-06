@@ -22,16 +22,10 @@ namespace EmulationServer.Game.Commands;
   * Parses in-game chat command text, resolves the matching handler, checks RBAC permissions, and executes the command.
   * Command behavior is owned by individual command files; this service only handles common routing and validation.
   */
-public sealed class InGameCommandService
+public sealed class InGameCommandService(InGameCommandDependencies? dependencies = null, InGameCommandRegistry? registry = null)
 {
-    private readonly InGameCommandRegistry _registry;
-    private readonly InGameCommandDependencies _dependencies;
-
-    public InGameCommandService(InGameCommandDependencies? dependencies = null, InGameCommandRegistry? registry = null)
-    {
-        _registry = registry ?? InGameCommandRegistry.CreateDefault();
-        _dependencies = dependencies ?? InGameCommandDependencies.Empty;
-    }
+    private readonly InGameCommandRegistry _registry = registry ?? InGameCommandRegistry.CreateDefault();
+    private readonly InGameCommandDependencies _dependencies = dependencies ?? InGameCommandDependencies.Empty;
 
     /**
       * Executes an in-game command and returns the system message text that should be sent back to the player.
@@ -71,6 +65,6 @@ public sealed class InGameCommandService
     private static string NormalizeCommandText(string commandText)
     {
         string normalized = (commandText ?? string.Empty).Trim();
-        return normalized.StartsWith(".", StringComparison.Ordinal) ? normalized[1..].Trim() : normalized;
+        return normalized.StartsWith('.') ? normalized[1..].Trim() : normalized;
     }
 }

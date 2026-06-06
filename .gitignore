@@ -5,7 +5,12 @@
 # ignore obj and bin folders
 obj/
 bin/
+.vscode/
 
 # ignore cache files
 *.cache
 *.lscache
+
+# ignore patch and diff files
+*.patch
+*.diff

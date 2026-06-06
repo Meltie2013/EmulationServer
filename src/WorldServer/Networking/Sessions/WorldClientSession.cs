@@ -20,26 +20,25 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Threading.Channels;
-
 using EmulationServer.Database.Accounts;
 using EmulationServer.Game.Characters;
 using EmulationServer.Game.Chat;
 using EmulationServer.Game.Commands;
-using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
-using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
-using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
-using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
+using EmulationServer.Game.Movement;
 using EmulationServer.Game.Players;
 using EmulationServer.Game.WorldData;
-using EmulationServer.Game.Movement;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Auth;
 using EmulationServer.WorldServer.Characters;
 using EmulationServer.WorldServer.Database.Accounts;
 using EmulationServer.WorldServer.Database.Characters;
-using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.WorldServer.Networking.Movement;
+using EmulationServer.WorldServer.Networking.Packets;
+using GameChatSystem = EmulationServer.Game.Chat.ChatSystem;
+using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandService;
+using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
+using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
 
 /**
   * File overview: src/WorldServer/Networking/Sessions/WorldClientSession.cs
@@ -448,12 +447,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     public async Task ReloadPermissionsAsync(CancellationToken cancellationToken)
     {
         WorldAccountSessionRecord account = RequireAccount();
-        WorldAccountSessionRecord? reloaded = await _accountRepository.GetAccountSessionAsync(account.Username, _realmId, cancellationToken);
-        if (reloaded is null)
-        {
-            throw new InvalidOperationException($"Account '{account.Username}' could not be reloaded.");
-        }
-
+        WorldAccountSessionRecord? reloaded = await _accountRepository.GetAccountSessionAsync(account.Username, _realmId, cancellationToken)
+            ?? throw new InvalidOperationException($"Account '{account.Username}' could not be reloaded.");
         _account = reloaded;
     }
 
@@ -1212,7 +1207,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             Logger.Write(LogType.FAILED, $"Failed to build/send character list for account '{account.Username}' ({account.Id}): {exception}", "WorldClientSession");
-            await SendAsync(WorldOpcode.SMSG_CHAR_ENUM, WorldPacketBuilders.BuildCharacterEnum(Array.Empty<CharacterListEntry>()), _crypt, cancellationToken);
+            await SendAsync(WorldOpcode.SMSG_CHAR_ENUM, WorldPacketBuilders.BuildCharacterEnum([]), _crypt, cancellationToken);
         }
     }
 
@@ -2293,7 +2288,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private async Task ApplyInventoryStackSplitAsync(PlayerInventoryItem sourceItem, InventoryStorageLocation destinationLocation, uint splitCount, CancellationToken cancellationToken)
     {
         PlayerLoginRecord player = RequireCurrentPlayer();
-        HashSet<uint> knownItemGuids = player.Inventory.Select(item => item.ItemGuid).ToHashSet();
+        HashSet<uint> knownItemGuids = [.. player.Inventory.Select(item => item.ItemGuid)];
         IReadOnlyList<PlayerInventoryItem> refreshedInventory = await _characterRepository.SplitInventoryStackAsync(
             player.Guid,
             sourceItem.ItemGuid,
@@ -2308,10 +2303,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return;
         }
 
-        HashSet<uint> createdItemGuids = refreshedInventory
+        HashSet<uint> createdItemGuids = [.. refreshedInventory
             .Where(item => !knownItemGuids.Contains(item.ItemGuid))
-            .Select(item => item.ItemGuid)
-            .ToHashSet();
+            .Select(item => item.ItemGuid)];
 
         PlayerLoginRecord updatedPlayer = player with { Inventory = refreshedInventory };
         CurrentPlayer = updatedPlayer;
@@ -2319,9 +2313,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildInventoryStateUpdate(updatedPlayer, createdItemGuids), _crypt, cancellationToken);
     }
 
-    private async Task SendInventoryFailureAsync(byte failureCode, ulong itemGuid, ulong itemGuid2, CancellationToken cancellationToken)
+    private Task SendInventoryFailureAsync(byte failureCode, ulong itemGuid, ulong itemGuid2, CancellationToken cancellationToken)
     {
-        await SendAsync(WorldOpcode.SMSG_INVENTORY_CHANGE_FAILURE, WorldPacketBuilders.BuildInventoryChangeFailure(failureCode, itemGuid, itemGuid2), _crypt, cancellationToken);
+        return SendAsync(WorldOpcode.SMSG_INVENTORY_CHANGE_FAILURE, WorldPacketBuilders.BuildInventoryChangeFailure(failureCode, itemGuid, itemGuid2), _crypt, cancellationToken);
     }
 
     private static bool TryResolveClientInventoryLocation(InventoryClientPosition position, IReadOnlyList<PlayerInventoryItem> inventory, out InventoryStorageLocation location)
@@ -2663,7 +2657,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
         IReadOnlyList<IChatSession> recipients = _chatSystem.GetRecipients(this, message, _playerSessionRegistry.SnapshotSessions().Cast<IChatSession>());
         string channelName = message.Type == ChatMessageType.Channel ? _chatSystem.ResolveChannelName(CurrentPlayer, message.Target) : string.Empty;
-        uint channelRank = message.Type == ChatMessageType.Channel ? _chatSystem.ResolveChannelPlayerRank(CurrentPlayer) : 0;
+        uint channelRank = message.Type == ChatMessageType.Channel ? GameChatSystem.ResolveChannelPlayerRank(CurrentPlayer) : 0;
         byte[] payload = WorldPacketBuilders.BuildChatMessage(
             message.Type,
             message.Language,

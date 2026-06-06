@@ -20,6 +20,7 @@ using System.Text.RegularExpressions;
 
 using EmulationServer.Game.Data.Dbc.Characters;
 using EmulationServer.Game.Data.Stores;
+using EmulationServer.Game.Items;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Database.Characters;
@@ -39,7 +40,10 @@ namespace EmulationServer.WorldServer.Characters;
   * Owns the character creation service behavior for the world character creation validation and character database access layer.
   * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
   */
-public sealed partial class CharacterCreationService
+public sealed partial class CharacterCreationService(
+    CharacterRepository characterRepository,
+    Func<WorldGameDataStore> gameDataAccessor,
+    Func<WorldTemplateDataStore> worldTemplateAccessor)
 {
     /**
       * Defines the constant value for maximum characters per account.
@@ -67,40 +71,20 @@ public sealed partial class CharacterCreationService
       */
     private const int LastBagSlot = 22;
     /**
-      * Defines the constant value for no equipment slot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const int NoEquipmentSlot = -1;
-    /**
       * Holds the private character repository state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly CharacterRepository _characterRepository;
+    private readonly CharacterRepository _characterRepository = characterRepository ?? throw new ArgumentNullException();
     /**
       * Holds the private game data accessor state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly Func<WorldGameDataStore> _gameDataAccessor;
+    private readonly Func<WorldGameDataStore> _gameDataAccessor = gameDataAccessor ?? throw new ArgumentNullException();
     /**
       * Holds the private world template accessor state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
-
-    /**
-      * Initializes a new CharacterCreationService instance with the dependencies required by the world character creation validation and character database access workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: characterRepository, gameDataAccessor, worldTemplateAccessor.
-      */
-    public CharacterCreationService(
-        CharacterRepository characterRepository,
-        Func<WorldGameDataStore> gameDataAccessor,
-        Func<WorldTemplateDataStore> worldTemplateAccessor)
-    {
-        _characterRepository = characterRepository ?? throw new ArgumentNullException();
-        _gameDataAccessor = gameDataAccessor ?? throw new ArgumentNullException();
-        _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
-    }
+    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
 
     /**
       * Resolves the character list value requested by the caller.
@@ -179,7 +163,7 @@ public sealed partial class CharacterCreationService
             return CharacterCreateResult.Failed;
         }
 
-        IReadOnlyList<StarterItemCreateData> starterItems = ResolveStarterItems(request.Race, request.Class, outfit, worldTemplates);
+        List<StarterItemCreateData> starterItems = ResolveStarterItems(request.Race, request.Class, outfit, worldTemplates);
         Logger.Write(LogType.DATABASE, $"Resolved {starterItems.Count} starter item(s) for new character '{request.Name}' race={request.Race}, class={request.Class}, outfit={request.OutfitId}.", "CharacterCreationService");
 
         try
@@ -343,7 +327,7 @@ public sealed partial class CharacterCreationService
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: race, characterClass, outfit, worldTemplates.
       */
-    private static IReadOnlyList<StarterItemCreateData> ResolveStarterItems(
+    private static List<StarterItemCreateData> ResolveStarterItems(
         byte race,
         byte characterClass,
         CharStartOutfitDbcRecord outfit,
@@ -351,10 +335,9 @@ public sealed partial class CharacterCreationService
     {
         IReadOnlyList<PlayerCreateItemRecord> databaseStarterItems = worldTemplates.GetPlayerCreateItems(race, characterClass);
 
-        uint[] itemEntries = outfit.Items
+        uint[] itemEntries = [.. outfit.Items
             .Where(item => item.ItemId > 0)
-            .Select(item => (uint)item.ItemId)
-            .ToArray();
+            .Select(item => (uint)item.ItemId)];
 
         IReadOnlyDictionary<uint, ItemTemplateRecord> templates = worldTemplates.GetItemTemplates(itemEntries);
         List<StarterItemCreateData> result = [];
@@ -402,11 +385,10 @@ public sealed partial class CharacterCreationService
             return;
         }
 
-        uint[] itemEntries = starterItems
+        uint[] itemEntries = [.. starterItems
             .Where(item => item.ItemId != 0)
             .Select(item => item.ItemId)
-            .Distinct()
-            .ToArray();
+            .Distinct()];
 
         IReadOnlyDictionary<uint, ItemTemplateRecord> templates = worldTemplates.GetItemTemplates(itemEntries);
 
@@ -441,54 +423,6 @@ public sealed partial class CharacterCreationService
     }
 
     /**
-      * Resolves the starter items from world table value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: starterItems, worldTemplates.
-      */
-    private static IReadOnlyList<StarterItemCreateData> ResolveStarterItemsFromWorldTable(
-        byte race,
-        byte characterClass,
-        IReadOnlyList<PlayerCreateItemRecord> starterItems,
-        WorldTemplateDataStore worldTemplates)
-    {
-        uint[] itemEntries = starterItems
-            .Where(item => item.ItemId != 0)
-            .Select(item => item.ItemId)
-            .ToArray();
-
-        IReadOnlyDictionary<uint, ItemTemplateRecord> templates = worldTemplates.GetItemTemplates(itemEntries);
-        List<StarterItemCreateData> result = [];
-        int nextBackpackSlot = FirstBackpackSlot;
-        int nextBagSlot = FirstBagSlot;
-
-        foreach (PlayerCreateItemRecord item in starterItems)
-        {
-            if (item.ItemId == 0)
-            {
-                continue;
-            }
-
-            if (!templates.TryGetValue(item.ItemId, out ItemTemplateRecord? template))
-            {
-                Logger.Write(LogType.WARNING, $"playercreateinfo_item entry {item.ItemId} is missing from item_template and will be skipped.", "CharacterCreationService");
-                continue;
-            }
-
-            byte amount = item.Amount == 0 ? (byte)1 : item.Amount;
-            for (byte index = 0; index < amount; index++)
-            {
-                if (!TryAddStarterItem(result, template, template.InventoryType, ref nextBackpackSlot, ref nextBagSlot))
-                {
-                    Logger.Write(LogType.WARNING, $"playercreateinfo_item entry {item.ItemId} could not be placed because the backpack starter slots are full.", "CharacterCreationService");
-                    break;
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /**
       * Tries to resolve the add starter item value requested by the caller.
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: result, template, inventoryType, nextBackpackSlot, nextBagSlot.
@@ -500,22 +434,22 @@ public sealed partial class CharacterCreationService
         ref int nextBackpackSlot,
         ref int nextBagSlot)
     {
-        int equipmentSlot = MapInventoryTypeToEquipmentSlot(inventoryType);
+        int equipmentSlot = EquipmentSlotMapper.FromInventoryType(inventoryType);
         int storageSlot;
 
-        if (equipmentSlot != NoEquipmentSlot && result.All(item => item.EquipmentSlot != equipmentSlot))
+        if (equipmentSlot != EquipmentSlotMapper.NoEquipmentSlot && result.All(item => item.EquipmentSlot != equipmentSlot))
         {
             storageSlot = equipmentSlot;
         }
         else if (inventoryType == 18 && nextBagSlot <= LastBagSlot)
         {
             storageSlot = nextBagSlot++;
-            equipmentSlot = NoEquipmentSlot;
+            equipmentSlot = EquipmentSlotMapper.NoEquipmentSlot;
         }
         else if (nextBackpackSlot <= LastBackpackSlot)
         {
             storageSlot = nextBackpackSlot++;
-            equipmentSlot = NoEquipmentSlot;
+            equipmentSlot = EquipmentSlotMapper.NoEquipmentSlot;
         }
         else
         {
@@ -536,47 +470,6 @@ public sealed partial class CharacterCreationService
         return item.InventorySlotId is > 0 and <= byte.MaxValue
             ? (byte)item.InventorySlotId
             : template.InventoryType;
-    }
-
-    /**
-      * Performs the map inventory type to equipment slot operation for the world character creation validation and character database access workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: inventoryType.
-      */
-    private static int MapInventoryTypeToEquipmentSlot(byte inventoryType)
-    {
-        // CharStartOutfit.dbc stores item inventory type values, not character
-        // equipment slot indexes. These are the Vanilla equipment slots used by
-        // character_inventory and SMSG_CHAR_ENUM.
-        return inventoryType switch
-        {
-            1 => 0,   // Head
-            2 => 1,   // Neck
-            3 => 2,   // Shoulders
-            4 => 3,   // Shirt/body
-            5 => 4,   // Chest
-            6 => 5,   // Waist
-            7 => 6,   // Legs
-            8 => 7,   // Feet
-            9 => 8,   // Wrists
-            10 => 9,  // Hands
-            11 => 10, // First finger
-            12 => 12, // First trinket
-            13 => 15, // One-hand weapon
-            14 => 16, // Shield
-            15 => 17, // Ranged
-            16 => 14, // Back
-            17 => 15, // Two-hand weapon
-            19 => 18, // Tabard
-            20 => 4,  // Robe/chest
-            21 => 15, // Main hand
-            22 => 16, // Off hand
-            23 => 16, // Held in off hand
-            25 => 17, // Thrown
-            26 => 17, // Ranged right
-            28 => 17, // Relic
-            _ => NoEquipmentSlot,
-        };
     }
 
     /**

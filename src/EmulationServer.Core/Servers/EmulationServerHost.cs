@@ -59,7 +59,7 @@ public sealed class EmulationServerHost : IAsyncDisposable
       * Holds the private database service state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly IDatabaseService? _databaseService;
+    private readonly MySqlDatabaseService? _databaseService;
     /**
       * Holds the private internal socket listener state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.

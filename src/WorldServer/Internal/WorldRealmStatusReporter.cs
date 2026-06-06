@@ -525,7 +525,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     /**
       * Sends one character-count data chunk.
       */
-    private async Task SendCharacterCountSnapshotDataAsync(uint realmId, IReadOnlyList<string> pairs, CancellationToken cancellationToken)
+    private async Task SendCharacterCountSnapshotDataAsync(uint realmId, List<string> pairs, CancellationToken cancellationToken)
     {
         if (_stream is null || pairs.Count == 0)
         {
@@ -554,12 +554,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
 
             string? line = await reader.ReadLineAsync(
                 InternalProtocol.MaximumPacketLineLength,
-                cancellationToken);
-
-            if (line is null)
-            {
-                throw new IOException("RealmServer disconnected from WorldServer realm status reporter.");
-            }
+                cancellationToken) ?? throw new IOException("RealmServer disconnected from WorldServer realm status reporter.");
 
             if (string.IsNullOrWhiteSpace(line))
             {
@@ -576,7 +571,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
       * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
       * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
       */
-    private async Task ProcessRealmServerPacketAsync(string line, InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
+    private static async Task ProcessRealmServerPacketAsync(string line, InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
@@ -644,13 +639,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
 
         string? challenge = await _reader.ReadLineAsync(
             InternalProtocol.MaximumAuthenticationLineLength,
-            authenticationCancellation.Token);
-
-        if (challenge is null)
-        {
-            throw new InvalidOperationException("RealmServer disconnected before authentication challenge.");
-        }
-
+            authenticationCancellation.Token) ?? throw new InvalidOperationException("RealmServer disconnected before authentication challenge.");
         string[] challengeParts = challenge.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         if (challengeParts.Length != 3 || !string.Equals(challengeParts[0], InternalProtocol.AuthenticationChallenge, StringComparison.OrdinalIgnoreCase))
@@ -680,14 +669,9 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
 
         string? response = await _reader.ReadLineAsync(
             InternalProtocol.MaximumAuthenticationLineLength,
-            authenticationCancellation.Token);
-
-        if (response is null)
-        {
-            throw new InvalidOperationException("RealmServer disconnected before accepting authentication.");
-        }
-
+            authenticationCancellation.Token) ?? throw new InvalidOperationException("RealmServer disconnected before accepting authentication.");
         string[] responseParts = response.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
         if (responseParts.Length != 2 || !string.Equals(responseParts[0], InternalProtocol.AuthenticationAccepted, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("RealmServer rejected WorldServer authentication.");
