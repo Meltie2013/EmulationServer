@@ -1,5 +1,6 @@
 # Emulation Server
-[![Build Emulation Server](https://github.com/Meltie2013/EmulationServer/actions/workflows/build.yml/badge.svg)](https://github.com/Meltie2013/EmulationServer/actions/workflows/build.yml)
+[![Linux Build (C#/.NET)](https://github.com/Meltie2013/EmulationServer/actions/workflows/linux_build.yml/badge.svg)](https://github.com/Meltie2013/EmulationServer/actions/workflows/linux_build.yml)
+[![Linux Build (Warning Check)](https://github.com/Meltie2013/EmulationServer/actions/workflows/warning_check.yml/badge.svg)](https://github.com/Meltie2013/EmulationServer/actions/workflows/warning_check.yml)
 
 Emulation Server is a C#/.NET 9 game-server emulator project built around a split-service architecture. The project separates authentication, world state, internal routing, map runtime services, instance runtime services, shared game logic, shared networking, and database access into dedicated projects so each part can be developed and tested independently.
 
