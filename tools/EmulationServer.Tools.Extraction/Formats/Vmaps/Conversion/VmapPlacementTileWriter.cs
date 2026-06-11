@@ -17,6 +17,7 @@
 //
 
 using System.Text;
+using EmulationServer.Shared.Data.MapStore;
 
 /**
   * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapPlacementTileWriter.cs
@@ -31,11 +32,6 @@ namespace EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
   */
 public static class VmapPlacementTileWriter
 {
-    /**
-      * Defines the constant value for magic.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const string Magic = "ESVTIL1";
     /**
       * Defines the constant value for version.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
@@ -57,10 +53,27 @@ public static class VmapPlacementTileWriter
             Directory.CreateDirectory(parentDirectory);
         }
 
-        using FileStream stream = File.Create(path);
-        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: false);
+        byte[] payload = BuildPayload(tile, build);
+        MapStoreBinary.WriteFile(
+            path,
+            MapStoreDataKind.Collision,
+            build,
+            tile.MapId,
+            checked((byte)tile.TileX),
+            checked((byte)tile.TileY),
+            payload);
+    }
 
-        WriteMagic(writer, Magic);
+
+    /**
+      * Builds the vmap collision placement payload stored inside a collision mapstore file.
+      */
+    private static byte[] BuildPayload(VmapPlacementTile tile, ushort build)
+    {
+        using MemoryStream stream = new();
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
+
+        MapStoreBinaryPrimitives.WriteAscii(writer, MapStorePayloadConstants.CollisionPayloadMagic);
         writer.Write(Version);
         writer.Write(build);
         writer.Write(tile.MapId);
@@ -70,8 +83,8 @@ public static class VmapPlacementTileWriter
 
         foreach (VmapPlacement placement in tile.Placements)
         {
-            WriteString(writer, placement.ModelName.Key);
-            WriteString(writer, placement.ModelName.NormalizedPath);
+            MapStoreBinaryPrimitives.WriteUtf8String(writer, placement.ModelName.Key);
+            MapStoreBinaryPrimitives.WriteUtf8String(writer, placement.ModelName.NormalizedPath);
             writer.Write(placement.UniqueId);
             WriteVector(writer, placement.Position);
             WriteVector(writer, placement.Rotation);
@@ -80,24 +93,9 @@ public static class VmapPlacementTileWriter
             writer.Write(placement.DoodadSet);
             writer.Write(placement.NameSet);
         }
-    }
 
-    /**
-      * Writes a fixed-size ASCII magic value.
-      */
-    private static void WriteMagic(BinaryWriter writer, string value)
-    {
-        writer.Write(Encoding.ASCII.GetBytes(value));
-    }
-
-    /**
-      * Writes a length-prefixed UTF-8 string.
-      */
-    private static void WriteString(BinaryWriter writer, string value)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(value);
-        writer.Write(bytes.Length);
-        writer.Write(bytes);
+        writer.Flush();
+        return stream.ToArray();
     }
 
     /**

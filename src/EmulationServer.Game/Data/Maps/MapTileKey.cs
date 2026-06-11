@@ -22,6 +22,8 @@
   * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
   */
 
+using EmulationServer.Shared.Data.MapStore;
+
 namespace EmulationServer.Game.Data.Maps;
 
 /**
@@ -37,6 +39,6 @@ public readonly record struct MapTileKey(uint MapId, byte TileX, byte TileY)
       */
     public override string ToString()
     {
-        return $"{MapId:D3}{TileX:D2}{TileY:D2}";
+        return MapStoreFileNames.FormatTileKey(MapId, TileX, TileY);
     }
 }

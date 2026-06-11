@@ -17,11 +17,10 @@
 //
 
 using System.Collections.Concurrent;
-using System.Globalization;
-
 using EmulationServer.Game.Data.Maps;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
+using EmulationServer.Shared.Data.MapStore;
 
 /**
   * File overview: src/EmulationServer.Game/Maps/Runtime/MapGridManager.cs
@@ -35,55 +34,23 @@ namespace EmulationServer.Game.Maps.Runtime;
   * Owns loaded map grid tiles for a service and controls whether tiles stay resident or unload when idle.
   * It coordinates a collection of related runtime objects and keeps ownership rules in one place.
   */
-public sealed class MapGridManager
+public sealed class MapGridManager(
+    MapServiceDefinition definition,
+    string mapsDirectory)
 {
     /**
       * Holds the private definition state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly MapServiceDefinition _definition;
+    private readonly MapServiceDefinition _definition = definition ?? throw new ArgumentNullException();
     /**
       * Holds the private maps directory state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly string _mapsDirectory;
-    /**
-      * Holds the private loading mode state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
-    private readonly MapGridLoadingMode _loadingMode;
-    /**
-      * Holds the private keep loaded state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
-    private readonly bool _keepLoaded;
-    /**
-      * Holds the private idle unload delay state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
-    private readonly TimeSpan _idleUnloadDelay;
+    private readonly string _mapsDirectory = string.IsNullOrWhiteSpace(mapsDirectory)
+        ? throw new ArgumentException("Maps directory is required.")
+        : Path.GetFullPath(mapsDirectory);
     private readonly ConcurrentDictionary<MapTileKey, LoadedMapGrid> _loadedGrids = new();
-
-    /**
-      * Initializes a new MapGridManager instance with the dependencies required by the runtime map-player state tracking workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: definition, mapsDirectory, loadingMode, keepLoaded, idleUnloadDelay.
-      */
-    public MapGridManager(
-        MapServiceDefinition definition,
-        string mapsDirectory,
-        MapGridLoadingMode loadingMode,
-        bool keepLoaded,
-        TimeSpan idleUnloadDelay)
-    {
-        _definition = definition ?? throw new ArgumentNullException();
-        _mapsDirectory = string.IsNullOrWhiteSpace(mapsDirectory)
-            ? throw new ArgumentException("Maps directory is required.")
-            : Path.GetFullPath(mapsDirectory);
-        _loadingMode = loadingMode;
-        _keepLoaded = keepLoaded;
-        _idleUnloadDelay = idleUnloadDelay;
-    }
 
     /**
       * Gets or stores the loaded grid count value used by MapGridManager.
@@ -103,24 +70,14 @@ public sealed class MapGridManager
       * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
       * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
       */
-    public async Task InitializeAsync(IEnumerable<MapTileKey> startupGrids, CancellationToken cancellationToken)
+    public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         if (!Directory.Exists(_mapsDirectory))
         {
             throw new DirectoryNotFoundException($"Map tile directory was not found: {_mapsDirectory}");
         }
 
-        if (_loadingMode == MapGridLoadingMode.Preload)
-        {
-            await PreloadAllTilesForMapAsync(cancellationToken);
-            return;
-        }
-
-        foreach (MapTileKey key in startupGrids.Where(key => key.MapId == _definition.MapId))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            LoadGrid(key, markUsed: true);
-        }
+        await PreloadAllTilesForMapAsync(cancellationToken);
     }
 
     /**
@@ -137,16 +94,67 @@ public sealed class MapGridManager
             return true;
         }
 
-        try
+        grid = null!;
+        return false;
+    }
+
+    /**
+      * Attempts to sample terrain height from a loaded or loadable tile.
+      */
+    public bool TryGetTerrainHeight(byte tileX, byte tileY, float gridX, float gridY, out float height)
+    {
+        height = 0.0f;
+        if (!TryGetGrid(tileX, tileY, out LoadedMapGrid grid))
         {
-            grid = LoadGrid(key, markUsed: true);
-            return true;
-        }
-        catch (FileNotFoundException)
-        {
-            grid = null!;
             return false;
         }
+
+        height = grid.Tile.TerrainQueries.SampleHeight(gridX, gridY);
+        return true;
+    }
+
+    /**
+      * Attempts to read the terrain area flag for a local ADT cell.
+      */
+    public bool TryGetAreaFlag(byte tileX, byte tileY, int cellX, int cellY, out ushort areaFlag)
+    {
+        areaFlag = 0;
+        if (!TryGetGrid(tileX, tileY, out LoadedMapGrid grid))
+        {
+            return false;
+        }
+
+        areaFlag = grid.Tile.TerrainQueries.GetAreaFlag(cellX, cellY);
+        return true;
+    }
+
+    /**
+      * Attempts to read liquid information for a local tile grid coordinate.
+      */
+    public bool TryGetLiquidInfo(byte tileX, byte tileY, float gridX, float gridY, out MapTileLiquidInfo liquidInfo)
+    {
+        liquidInfo = default;
+        if (!TryGetGrid(tileX, tileY, out LoadedMapGrid grid))
+        {
+            return false;
+        }
+
+        return grid.Tile.LiquidQueries.TryGetLiquidInfo(gridX, gridY, out liquidInfo);
+    }
+
+    /**
+      * Attempts to return collision placements whose extracted bounds contain the supplied world point.
+      */
+    public bool TryGetCollisionPlacements(byte tileX, byte tileY, MapTileVector3 point, out IReadOnlyList<MapTileCollisionPlacement> placements)
+    {
+        placements = [];
+        if (!TryGetGrid(tileX, tileY, out LoadedMapGrid grid))
+        {
+            return false;
+        }
+
+        placements = grid.Tile.CollisionQueries.FindPlacementsContaining(point);
+        return true;
     }
 
     /**
@@ -175,24 +183,8 @@ public sealed class MapGridManager
       */
     public void UnloadIdleGrids()
     {
-        if (_keepLoaded || _idleUnloadDelay <= TimeSpan.Zero)
-        {
-            return;
-        }
-
-        DateTimeOffset cutoff = DateTimeOffset.UtcNow - _idleUnloadDelay;
-        foreach ((MapTileKey key, LoadedMapGrid grid) in _loadedGrids.ToArray())
-        {
-            if (grid.LastUsedUtc > cutoff)
-            {
-                continue;
-            }
-
-            if (_loadedGrids.TryRemove(key, out _))
-            {
-                Logger.Write(LogType.TRACE, $"Unloaded idle map grid {FormatKey(key)} for '{_definition.Name}'.", "MapGridManager");
-            }
-        }
+        // Grids are intentionally kept resident for deterministic runtime behavior.
+        // Disabling terrain/liquid/collision/navmesh data requires a compile-time mapstore feature symbol.
     }
 
     /**
@@ -204,10 +196,10 @@ public sealed class MapGridManager
     private async Task PreloadAllTilesForMapAsync(CancellationToken cancellationToken)
     {
         int loaded = 0;
-        foreach (string path in EnumerateMapTileFilesForMap())
+        foreach (MapTileKey key in EnumerateMapTileKeysForMap())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            MapTileDataStore tile = MapTileDataStore.Load(path);
+            MapTileDataStore tile = MapTileDataStore.Load(_mapsDirectory, key);
             _loadedGrids[tile.Key] = new LoadedMapGrid(tile);
             loaded++;
 
@@ -217,71 +209,43 @@ public sealed class MapGridManager
             }
         }
 
-        Logger.Write(LogType.SUCCESS, $"Preloaded {loaded} map grid(s) for '{_definition.Name}' from '{_mapsDirectory}'.", "MapGridManager");
-    }
-
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
-      */
-    private LoadedMapGrid LoadGrid(MapTileKey key, bool markUsed)
-    {
-        LoadedMapGrid grid = _loadedGrids.GetOrAdd(key, static (tileKey, state) =>
+        if (loaded == 0)
         {
-            string path = state.ResolveTilePath(tileKey);
-            MapTileDataStore tile = MapTileDataStore.Load(path);
-            Logger.Write(LogType.TRACE, $"Loaded map grid {FormatKey(tileKey)} for '{state._definition.Name}'.", "MapGridManager");
-            return new LoadedMapGrid(tile);
-        }, this);
-
-        if (markUsed)
-        {
-            grid.Touch();
+            throw new InvalidDataException($"No extracted mapstore tiles were found for '{_definition.Name}' in '{_mapsDirectory}'.");
         }
 
-        return grid;
+        Logger.Write(LogType.SUCCESS, $"Preloaded {loaded} map grid(s) for '{_definition.Name}' from '{_mapsDirectory}'. Mapstore policy: {MapStoreRuntimeFeatures.FormatPolicy()}.", "MapGridManager");
     }
 
     /**
-      * Resolves the tile path value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: key.
+      * Enumerates map tile keys from the required map.index.bin file.
+      * The index is mandatory so startup validates the exact extracted tile set instead of guessing from file names.
       */
-    private string ResolveTilePath(MapTileKey key)
+    private IEnumerable<MapTileKey> EnumerateMapTileKeysForMap()
     {
-        string fileName = string.Create(CultureInfo.InvariantCulture, $"{key.MapId:000}{key.TileX:00}{key.TileY:00}.map");
-        string directPath = Path.Combine(_mapsDirectory, fileName);
-        if (File.Exists(directPath))
+        string indexPath = MapStoreFileNames.GetIndexPath(_mapsDirectory, (uint)_definition.MapId);
+        if (!File.Exists(indexPath))
         {
-            return directPath;
+            throw new FileNotFoundException($"Required mapstore index file was not found for map {_definition.MapId:D3}: {indexPath}", indexPath);
         }
 
-        string nestedPath = Path.Combine(_mapsDirectory, key.MapId.ToString(CultureInfo.InvariantCulture), fileName);
-        if (File.Exists(nestedPath))
+        MapStoreMapIndex index = MapStoreMapIndexReader.Read(indexPath, (uint)_definition.MapId);
+        foreach (MapStoreMapIndexRecord record in index.Records.OrderBy(record => record.Key.TileX).ThenBy(record => record.Key.TileY))
         {
-            return nestedPath;
+            ValidateIndexRecord(record, indexPath);
+            yield return record.Key;
         }
-
-        throw new FileNotFoundException($"Map grid file was not found for {FormatKey(key)}. Checked '{directPath}' and '{nestedPath}'.", fileName);
     }
 
     /**
-      * Performs the enumerate map tile files for map operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
+      * Validates that the map index says every compile-required tile component exists.
       */
-    private IEnumerable<string> EnumerateMapTileFilesForMap()
+    private static void ValidateIndexRecord(MapStoreMapIndexRecord record, string indexPath)
     {
-        string prefix = _definition.MapId.ToString("000", CultureInfo.InvariantCulture);
-        return Directory.EnumerateFiles(_mapsDirectory, $"{prefix}*.map", SearchOption.AllDirectories)
-            .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
-    }
-
-    /**
-      * Formats runtime values into a stable human-readable message for logging or diagnostics.
-      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
-      */
-    private static string FormatKey(MapTileKey key)
-    {
-        return $"MapId={key.MapId}, TileX={key.TileX}, TileY={key.TileY}";
+        MapStoreTileDataFlags missingFlags = MapStoreRuntimeFeatures.RequiredFlags & ~record.DataFlags;
+        if (missingFlags != MapStoreTileDataFlags.None)
+        {
+            throw new InvalidDataException($"{indexPath} reports tile {record.Key} is missing required mapstore data: {missingFlags}.");
+        }
     }
 }

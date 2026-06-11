@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
+using EmulationServer.Tools.Extraction.Formats.MapStore;
 using EmulationServer.Tools.Extraction.Formats.Vmaps.Conversion;
 using EmulationServer.Tools.Extraction.Mpq;
 
@@ -79,7 +80,7 @@ public sealed class GameDataExtractor
         WowMpqArchiveSet archives = WowMpqArchiveSet.Discover(options.ClientRootDirectory, options.Locale);
         string rawOutputDirectory = Path.Combine(options.OutputDirectory, "maps-raw");
         string dbcOutputDirectory = Path.Combine(options.OutputDirectory, "dbc");
-        string mapOutputDirectory = Path.Combine(options.OutputDirectory, "maps");
+        string mapOutputDirectory = Path.Combine(options.OutputDirectory, "mapstore");
 
         EnsureMapConversionDbcFiles(archives, dbcOutputDirectory, options.Overwrite, options.ReportProgress);
 
@@ -92,7 +93,7 @@ public sealed class GameDataExtractor
 
         AssetExtractionResult result = ToResult(AssetExtractionKind.Maps, report, rawOutputDirectory, archives);
         MapConversionService conversionService = new();
-        MapConversionResult conversion = conversionService.ConvertRawAdtDirectory(
+        MapConversionResult conversion = MapConversionService.ConvertRawAdtDirectory(
             rawOutputDirectory,
             dbcOutputDirectory,
             mapOutputDirectory,
@@ -110,8 +111,8 @@ public sealed class GameDataExtractor
             result.AddSkippedFile();
         }
 
-        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedFiles} ADT source file(s) into server .map files.");
-        AddMessage(result, options.ReportProgress, $"Generated .map output directory: {mapOutputDirectory}");
+        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedFiles} ADT source file(s) into mapstore terrain/liquid files.");
+        AddMessage(result, options.ReportProgress, $"Generated mapstore output directory: {mapOutputDirectory}");
 
         if (conversion.FailedFiles > 0)
         {
@@ -134,23 +135,39 @@ public sealed class GameDataExtractor
     {
         options.Validate();
         WowMpqArchiveSet archives = WowMpqArchiveSet.Discover(options.ClientRootDirectory, options.Locale);
-        string rawOutputDirectory = Path.Combine(options.OutputDirectory, "vmaps-raw");
+        string rawVmapOutputDirectory = Path.Combine(options.OutputDirectory, "vmaps-raw");
+        string rawMapOutputDirectory = Path.Combine(options.OutputDirectory, "maps-raw");
         string dbcOutputDirectory = Path.Combine(options.OutputDirectory, "dbc");
-        string vmapOutputDirectory = Path.Combine(options.OutputDirectory, "vmaps");
+        string vmapOutputDirectory = Path.Combine(options.OutputDirectory, "mapstore");
 
         EnsureVmapConversionDbcFiles(archives, dbcOutputDirectory, options.Overwrite, options.ReportProgress);
+        AssetCopyReport? mapSourceReport = EnsureRawMapSourceFiles(archives, rawMapOutputDirectory, options.Overwrite, options.ReportProgress);
 
         AssetCopyReport report = archives.ExtractKnownFiles(
-            IsVmapSourceFile,
+            IsVmapModelSourceFile,
             static normalizedName => normalizedName,
-            rawOutputDirectory,
+            rawVmapOutputDirectory,
             options.Overwrite,
             options.ReportProgress);
 
-        AssetExtractionResult result = ToResult(AssetExtractionKind.Vmaps, report, rawOutputDirectory, archives);
+        AssetExtractionResult result = ToResult(AssetExtractionKind.Vmaps, report, rawVmapOutputDirectory, archives);
+        if (mapSourceReport is null)
+        {
+            result.AddMessage($"Reused existing raw map source files from {rawMapOutputDirectory} for collision placement conversion.");
+        }
+        else
+        {
+            result.AddMessage($"Extracted {mapSourceReport.ExtractedFiles} raw map support file(s) to {rawMapOutputDirectory} for collision placement conversion.");
+            foreach (string message in mapSourceReport.Messages)
+            {
+                result.AddMessage(message);
+            }
+        }
+
         VmapConversionService conversionService = new();
         VmapConversionResult conversion = conversionService.ConvertRawVmapDirectory(
-            rawOutputDirectory,
+            rawVmapOutputDirectory,
+            rawMapOutputDirectory,
             dbcOutputDirectory,
             vmapOutputDirectory,
             options.Build,
@@ -167,8 +184,8 @@ public sealed class GameDataExtractor
             result.AddSkippedFile();
         }
 
-        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedModelFiles} WMO model file(s) and {conversion.ConvertedPlacementFiles} placement tile file(s) into Emulation Server compact vmap files.");
-        AddMessage(result, options.ReportProgress, $"Generated vmap output directory: {vmapOutputDirectory}");
+        AddMessage(result, options.ReportProgress, $"Converted {conversion.ConvertedModelFiles} WMO model file(s) and {conversion.ConvertedPlacementFiles} placement tile file(s) into mapstore collision files.");
+        AddMessage(result, options.ReportProgress, $"Generated mapstore output directory: {vmapOutputDirectory}");
 
         if (conversion.FailedModelFiles > 0 || conversion.FailedPlacementFiles > 0)
         {
@@ -190,17 +207,19 @@ public sealed class GameDataExtractor
     public AssetExtractionResult ExtractMmaps(AssetExtractionOptions options)
     {
         options.Validate();
-        string outputDirectory = Path.Combine(options.OutputDirectory, "mmaps");
+        string outputDirectory = Path.Combine(options.OutputDirectory, "mapstore");
         Directory.CreateDirectory(outputDirectory);
 
         AssetExtractionResult result = new(AssetExtractionKind.Mmaps);
-        AddMessage(result, options.ReportProgress, "MMaps are generated navmesh data derived from extracted maps/vmaps. Native Recast/Detour mmap generation is not implemented yet in the C# tool.");
-        AddMessage(result, options.ReportProgress, $"Created mmap output directory: {outputDirectory}");
-        string readmePath = Path.Combine(outputDirectory, "README.txt");
-        File.WriteAllText(
-            readmePath,
-            "MMap generation is not implemented yet in MapDataTool. This directory is reserved for generated navigation mesh files.\n");
-        AddMessage(result, options.ReportProgress, "Created 'README.txt'");
+        AddMessage(result, options.ReportProgress, "Native Recast/Detour navmesh generation is not implemented yet in the C# tool. Empty .navmesh.bin placeholders will be created for existing terrain tiles so runtime file validation can be enabled now.");
+
+        int written = MapStoreNavmeshPlaceholderWriter.WriteMissingNavmeshFiles(outputDirectory, options.Build, options.Overwrite);
+        for (int i = 0; i < written; i++)
+        {
+            result.AddExtractedFile();
+        }
+
+        AddMessage(result, options.ReportProgress, $"Generated {written} placeholder navmesh file(s) in mapstore output directory: {outputDirectory}");
         return result;
     }
 
@@ -344,18 +363,40 @@ public sealed class GameDataExtractor
     }
 
     /**
-      * Determines whether vmap source file for the client data extraction and conversion tooling workflow.
+      * Ensures shared raw map source files are available before mapstore compile steps run.
+      */
+    private static AssetCopyReport? EnsureRawMapSourceFiles(WowMpqArchiveSet archives, string rawMapOutputDirectory, bool overwrite, Action<string>? progressMessage)
+    {
+        if (HasRawAdtFiles(rawMapOutputDirectory))
+        {
+            progressMessage?.Invoke($"Reusing raw map source directory for collision placement conversion: {rawMapOutputDirectory}");
+            return null;
+        }
+
+        return archives.ExtractKnownFiles(
+            IsMapSourceFile,
+            static normalizedName => normalizedName,
+            rawMapOutputDirectory,
+            overwrite,
+            progressMessage);
+    }
+
+    /**
+      * Checks whether the shared raw map source directory already contains ADT files.
+      */
+    private static bool HasRawAdtFiles(string rawMapOutputDirectory)
+    {
+        return Directory.Exists(rawMapOutputDirectory) &&
+               Directory.EnumerateFiles(rawMapOutputDirectory, "*.adt", SearchOption.AllDirectories).Any();
+    }
+
+    /**
+      * Determines whether vmap model source file for the client data extraction and conversion tooling workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: normalizedName.
       */
-    private static bool IsVmapSourceFile(string normalizedName)
+    private static bool IsVmapModelSourceFile(string normalizedName)
     {
-        if (normalizedName.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return normalizedName.StartsWith("World/Maps/", StringComparison.OrdinalIgnoreCase) &&
-               normalizedName.EndsWith(".adt", StringComparison.OrdinalIgnoreCase);
+        return normalizedName.EndsWith(".wmo", StringComparison.OrdinalIgnoreCase);
     }
 }

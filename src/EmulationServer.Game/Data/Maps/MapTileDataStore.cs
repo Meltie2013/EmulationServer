@@ -16,8 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using System.Globalization;
-using System.Text;
+using EmulationServer.Shared.Data.MapStore;
 
 /**
   * File overview: src/EmulationServer.Game/Data/Maps/MapTileDataStore.cs
@@ -28,185 +27,224 @@ using System.Text;
 namespace EmulationServer.Game.Data.Maps;
 
 /**
-  * Loads extracted map tile files and validates the map tile header before runtime use.
-  * It owns loaded data in memory and provides lookup access to other systems.
+  * Loads extracted mapstore tile files and converts each compile-required runtime payload into typed queryable data.
+  * Terrain, liquid, collision, and navmesh files are required by default unless a dedicated compile-time feature symbol disables one.
   */
 public sealed class MapTileDataStore
 {
-    /**
-      * Defines the constant value for map file header size.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const int MapFileHeaderSize = 44;
-    /**
-      * Defines the constant value for expected map magic.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const string ExpectedMapMagic = "MAPS";
-    /**
-      * Defines the constant value for expected version magic.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const string ExpectedVersionMagic = "0000";
-
-    /**
-      * Initializes a new MapTileDataStore instance with the dependencies required by the extracted map data loading and map tile lookup workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: path, key, header, data.
-      */
-    private MapTileDataStore(string path, MapTileKey key, MapFileHeader header, byte[] data)
+    private MapTileDataStore(
+        string mapStoreRootDirectory,
+        MapTileKey key,
+        IReadOnlyList<MapStoreFileHeader> fileHeaders,
+        IReadOnlyList<string> filePaths,
+        MapTileTerrainData terrain,
+        MapTileLiquidData liquid,
+        MapTileCollisionData collision,
+        MapTileNavmeshData navmesh)
     {
-        Path = path;
-        Name = System.IO.Path.GetFileName(path);
+        MapStoreRootDirectory = mapStoreRootDirectory;
         Key = key;
-        Header = header;
-        Data = data;
+        FileHeaders = fileHeaders;
+        FilePaths = filePaths;
+        Terrain = terrain;
+        Liquid = liquid;
+        Collision = collision;
+        Navmesh = navmesh;
+        TerrainQueries = new MapTileTerrainQueryService(Terrain);
+        LiquidQueries = new MapTileLiquidQueryService(Liquid);
+        CollisionQueries = new MapTileCollisionQueryService(Collision);
+        NavmeshQueries = new MapTileNavmeshQueryService(Navmesh);
     }
 
     /**
-      * Gets or stores the path value used by MapTileDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets the root mapstore directory used to load this tile.
       */
-    public string Path { get; }
+    public string MapStoreRootDirectory { get; }
 
     /**
-      * Gets or stores the name value used by MapTileDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public string Name { get; }
-
-    /**
-      * Gets or stores the key value used by MapTileDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets the map/tile key represented by this loaded tile.
       */
     public MapTileKey Key { get; }
 
     /**
-      * Gets or stores the header value used by MapTileDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets the validated mapstore headers used to build the typed tile payloads.
       */
-    public MapFileHeader Header { get; }
+    public IReadOnlyList<MapStoreFileHeader> FileHeaders { get; }
 
     /**
-      * Gets or stores the data value used by MapTileDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
+      * Gets the physical mapstore component paths used to build the typed tile payloads.
       */
-    public byte[] Data { get; }
+    public IReadOnlyList<string> FilePaths { get; }
 
     /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      * Gets parsed terrain data for this tile.
       */
-    public static MapTileDataStore Load(string path)
+    public MapTileTerrainData Terrain { get; }
+
+    /**
+      * Gets parsed liquid data for this tile.
+      */
+    public MapTileLiquidData Liquid { get; }
+
+    /**
+      * Gets parsed collision placement data for this tile.
+      */
+    public MapTileCollisionData Collision { get; }
+
+    /**
+      * Gets parsed navmesh metadata for this tile.
+      */
+    public MapTileNavmeshData Navmesh { get; }
+
+    /**
+      * Gets terrain query helpers for this tile.
+      */
+    public MapTileTerrainQueryService TerrainQueries { get; }
+
+    /**
+      * Gets liquid query helpers for this tile.
+      */
+    public MapTileLiquidQueryService LiquidQueries { get; }
+
+    /**
+      * Gets collision query helpers for this tile.
+      */
+    public MapTileCollisionQueryService CollisionQueries { get; }
+
+    /**
+      * Gets navmesh query helpers for this tile. Real path queries intentionally return false until navmesh payload generation exists.
+      */
+    public MapTileNavmeshQueryService NavmeshQueries { get; }
+
+    /**
+      * Loads a complete mapstore tile using a terrain file path as the discovery point.
+      */
+    public static MapTileDataStore Load(string terrainPath)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(terrainPath);
 
-        byte[] data = File.ReadAllBytes(path);
-        using MemoryStream stream = new(data, writable: false);
-        using BinaryReader reader = new(stream, Encoding.ASCII, leaveOpen: false);
+        if (!TryParseTerrainTilePath(terrainPath, out string mapStoreRootDirectory, out MapTileKey key))
+        {
+            throw new MapFormatException($"Mapstore terrain file '{terrainPath}' must use: mapstore/maps/<mapId:000>/tiles/<tileX:00>_<tileY:00>.terrain.bin.");
+        }
 
-        MapFileHeader header = ReadHeader(reader, path);
-        ValidateHeader(header, data.LongLength, path);
-        MapTileKey key = ParseTileKey(path);
-
-        return new MapTileDataStore(path, key, header, data);
+        return Load(mapStoreRootDirectory, key);
     }
 
     /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      * Loads a complete mapstore tile from the supplied mapstore root and tile key.
       */
-    private static MapFileHeader ReadHeader(BinaryReader reader, string path)
+    public static MapTileDataStore Load(string mapStoreRootDirectory, MapTileKey key)
     {
-        if (reader.BaseStream.Length < MapFileHeaderSize)
-        {
-            throw new MapFormatException($"{path} is too small to contain a map header.");
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(mapStoreRootDirectory);
 
-        return new MapFileHeader(
-            ReadFourCC(reader),
-            ReadFourCC(reader),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32(),
-            reader.ReadUInt32());
+        string fullRoot = Path.GetFullPath(mapStoreRootDirectory);
+        List<MapStoreFileHeader> fileHeaders = [];
+        List<string> filePaths = [];
+
+        MapStoreFile? terrainFile = LoadRequiredIfEnabled(fullRoot, key, MapStoreDataKind.Terrain, fileHeaders, filePaths);
+        MapStoreFile? liquidFile = LoadRequiredIfEnabled(fullRoot, key, MapStoreDataKind.Liquid, fileHeaders, filePaths);
+        MapStoreFile? collisionFile = LoadRequiredIfEnabled(fullRoot, key, MapStoreDataKind.Collision, fileHeaders, filePaths);
+        MapStoreFile? navmeshFile = LoadRequiredIfEnabled(fullRoot, key, MapStoreDataKind.Navmesh, fileHeaders, filePaths);
+
+        MapTileTerrainData terrain = terrainFile is null
+            ? MapTileTerrainData.CreateDisabled(key)
+            : MapTileTerrainReader.Read(terrainFile);
+        MapTileLiquidData liquid = liquidFile is null
+            ? MapTileLiquidData.CreateDisabled(key)
+            : MapTileLiquidReader.Read(liquidFile);
+        MapTileCollisionData collision = collisionFile is null
+            ? MapTileCollisionData.CreateDisabled(key)
+            : MapTileCollisionReader.Read(collisionFile);
+        MapTileNavmeshData navmesh = navmeshFile is null
+            ? MapTileNavmeshData.CreateDisabled(key)
+            : MapTileNavmeshReader.Read(navmeshFile);
+
+        return new MapTileDataStore(
+            fullRoot,
+            key,
+            fileHeaders.ToArray(),
+            filePaths.ToArray(),
+            terrain,
+            liquid,
+            collision,
+            navmesh);
     }
 
     /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      * Tries to parse a terrain file path into the mapstore root directory and tile key.
       */
-    private static void ValidateHeader(MapFileHeader header, long length, string path)
+    public static bool TryParseTerrainTilePath(string terrainPath, out string mapStoreRootDirectory, out MapTileKey key)
     {
-        if (!string.Equals(header.MapMagic, ExpectedMapMagic, StringComparison.Ordinal))
+        mapStoreRootDirectory = string.Empty;
+        key = default;
+
+        string fullPath = Path.GetFullPath(terrainPath);
+        if (!MapStoreFileNames.TryParseTileFileName(Path.GetFileName(fullPath), out byte tileX, out byte tileY, out MapStoreDataKind kind) || kind != MapStoreDataKind.Terrain)
         {
-            throw new MapFormatException($"{path} has invalid map magic '{header.MapMagic}'. Expected '{ExpectedMapMagic}'.");
+            return false;
         }
 
-        if (!string.Equals(header.VersionMagic, ExpectedVersionMagic, StringComparison.Ordinal))
+        DirectoryInfo? tilesDirectory = Directory.GetParent(fullPath);
+        DirectoryInfo? mapDirectory = tilesDirectory?.Parent;
+        DirectoryInfo? mapsDirectory = mapDirectory?.Parent;
+        DirectoryInfo? rootDirectory = mapsDirectory?.Parent;
+
+        if (tilesDirectory is null ||
+            mapDirectory is null ||
+            mapsDirectory is null ||
+            rootDirectory is null ||
+            !string.Equals(tilesDirectory.Name, MapStoreFileNames.TilesDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(mapsDirectory.Name, MapStoreFileNames.MapsDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+            !MapStoreFileNames.TryParseMapDirectoryName(mapDirectory.Name, out uint mapId))
         {
-            throw new MapFormatException($"{path} has invalid map version '{header.VersionMagic}'. Expected '{ExpectedVersionMagic}'.");
+            return false;
         }
 
-        ValidateRange(header.AreaMapOffset, header.AreaMapSize, length, path, "area");
-        ValidateRange(header.HeightMapOffset, header.HeightMapSize, length, path, "height");
-        ValidateRange(header.LiquidMapOffset, header.LiquidMapSize, length, path, "liquid");
-        ValidateRange(header.HolesOffset, header.HolesSize, length, path, "holes");
+        mapStoreRootDirectory = rootDirectory.FullName;
+        key = new MapTileKey(mapId, tileX, tileY);
+        return true;
     }
 
     /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      * Loads one required mapstore file when that component is enabled by the current build.
       */
-    private static void ValidateRange(uint offset, uint size, long fileLength, string path, string sectionName)
+    private static MapStoreFile? LoadRequiredIfEnabled(
+        string mapStoreRootDirectory,
+        MapTileKey key,
+        MapStoreDataKind kind,
+        List<MapStoreFileHeader> fileHeaders,
+        List<string> filePaths)
     {
-        if (offset == 0 && size == 0)
+        if (!MapStoreRuntimeFeatures.IsEnabled(kind))
         {
-            return;
+            return null;
         }
 
-        long end = checked((long)offset + size);
-        if (offset == 0 || size == 0 || end > fileLength)
+        string path = MapStoreFileNames.GetTileFilePath(mapStoreRootDirectory, key.MapId, key.TileX, key.TileY, kind);
+        if (!File.Exists(path))
         {
-            throw new MapFormatException($"{path} has an invalid {sectionName} section range. Offset={offset}, Size={size}, FileLength={fileLength}.");
+            throw new FileNotFoundException($"Required mapstore {kind} file was not found for tile {key}: {path}", path);
         }
+
+        MapStoreFile file = MapStoreBinary.ReadFile(path, kind);
+        ValidateComponentKey(key, file);
+        fileHeaders.Add(file.Header);
+        filePaths.Add(file.Path);
+        return file;
     }
 
     /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
+      * Validates that a loaded component belongs to the requested tile key.
       */
-    private static MapTileKey ParseTileKey(string path)
+    private static void ValidateComponentKey(MapTileKey key, MapStoreFile file)
     {
-        string name = System.IO.Path.GetFileNameWithoutExtension(path);
-
-        if (name.Length != 7 || !uint.TryParse(name.AsSpan(0, 3), NumberStyles.None, CultureInfo.InvariantCulture, out uint mapId) ||
-            !byte.TryParse(name.AsSpan(3, 2), NumberStyles.None, CultureInfo.InvariantCulture, out byte tileX) ||
-            !byte.TryParse(name.AsSpan(5, 2), NumberStyles.None, CultureInfo.InvariantCulture, out byte tileY))
+        if (file.Header.MapId != key.MapId || file.Header.TileX != key.TileX || file.Header.TileY != key.TileY)
         {
-            throw new MapFormatException($"Map file '{path}' must use server tile file naming: <mapId:000><tileX:00><tileY:00>.map.");
+            throw new MapFormatException(
+                $"{file.Path} has mismatched mapstore key. " +
+                $"Expected {key}, " +
+                $"got {MapStoreFileNames.FormatTileKey(file.Header.MapId, file.Header.TileX, file.Header.TileY)}.");
         }
-
-        return new MapTileKey(mapId, tileX, tileY);
-    }
-
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of MapTileDataStore and keeps this workflow isolated from the caller.
-      */
-    private static string ReadFourCC(BinaryReader reader)
-    {
-        byte[] bytes = reader.ReadBytes(4);
-        if (bytes.Length != 4)
-        {
-            throw new EndOfStreamException("Unexpected end of stream while reading FourCC value.");
-        }
-
-        return Encoding.ASCII.GetString(bytes);
     }
 }

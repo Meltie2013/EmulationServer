@@ -60,11 +60,6 @@ public sealed class MapService : IAsyncDisposable
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly MapGridManager? _gridManager;
-    /**
-      * Holds the private startup grids state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
-    private readonly IReadOnlyList<MapTileKey> _startupGrids;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task>? _reportStatusAsync;
     private readonly ISteadyClock _clock;
 
@@ -122,13 +117,12 @@ public sealed class MapService : IAsyncDisposable
     /**
       * Initializes a new MapService instance with the dependencies required by the runtime map-player state tracking workflow.
       * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: ownerServerName, definition, gridManager, startupGrids, reportStatusAsync.
+      * Inputs used by this operation: ownerServerName, definition, gridManager, reportStatusAsync.
       */
     public MapService(
         string ownerServerName,
         MapServiceDefinition definition,
         MapGridManager? gridManager = null,
-        IReadOnlyList<MapTileKey>? startupGrids = null,
         Func<MapServiceSnapshot, CancellationToken, Task>? reportStatusAsync = null,
         ISteadyClock? clock = null)
     {
@@ -142,7 +136,6 @@ public sealed class MapService : IAsyncDisposable
         _ownerServerName = ownerServerName;
         _definition = definition;
         _gridManager = gridManager;
-        _startupGrids = startupGrids ?? [];
         _reportStatusAsync = reportStatusAsync;
         _clock = clock ?? SystemSteadyClock.Instance;
     }
@@ -236,7 +229,7 @@ public sealed class MapService : IAsyncDisposable
             await SetStateAsync(MapServiceState.ReloadingData, "reloading map runtime data", cancellationToken);
             if (_gridManager is not null)
             {
-                await _gridManager.InitializeAsync(_startupGrids, cancellationToken);
+                await _gridManager.InitializeAsync(cancellationToken);
             }
 
             ResetRuntimeCounters(_clock.UtcNow);
@@ -404,7 +397,7 @@ public sealed class MapService : IAsyncDisposable
 
         if (_gridManager is not null)
         {
-            await _gridManager.InitializeAsync(_startupGrids, _stopCancellation.Token);
+            await _gridManager.InitializeAsync(_stopCancellation.Token);
         }
 
         StartTickLoop(cancellationToken);

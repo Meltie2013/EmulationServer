@@ -17,6 +17,7 @@
 //
 
 using System.Text;
+using EmulationServer.Shared.Data.MapStore;
 
 /**
   * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapModelWriter.cs
@@ -61,10 +62,10 @@ public static class VmapModelWriter
         using FileStream stream = File.Create(path);
         using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: false);
 
-        WriteMagic(writer, Magic);
+        MapStoreBinaryPrimitives.WriteAscii(writer, Magic);
         writer.Write(Version);
         writer.Write(build);
-        WriteString(writer, model.Name.NormalizedPath);
+        MapStoreBinaryPrimitives.WriteUtf8String(writer, model.Name.NormalizedPath);
         WriteBounds(writer, model.Bounds);
         writer.Write(model.Groups.Count);
         writer.Write(model.VertexCount);
@@ -88,25 +89,6 @@ public static class VmapModelWriter
                 writer.Write(index);
             }
         }
-    }
-
-    /**
-      * Writes a fixed-size ASCII magic value.
-      */
-    private static void WriteMagic(BinaryWriter writer, string value)
-    {
-        byte[] bytes = Encoding.ASCII.GetBytes(value);
-        writer.Write(bytes);
-    }
-
-    /**
-      * Writes a length-prefixed UTF-8 string.
-      */
-    private static void WriteString(BinaryWriter writer, string value)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(value);
-        writer.Write(bytes.Length);
-        writer.Write(bytes);
     }
 
     /**

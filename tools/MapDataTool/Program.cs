@@ -47,6 +47,9 @@ try
         "extract-all" => ExtractAll(args),
         "verify-map" => VerifyMap(args),
         "verify-maps" => VerifyMaps(args),
+        "verify-bin" => VerifyBin(args),
+        "verify-bins" => VerifyBins(args),
+        "verify-mapstore" => VerifyBins(args),
         "formula-test" => RunFormulaTest(args),
         _ => UnknownCommand(args[0]),
     };
@@ -211,7 +214,7 @@ static int VerifyMaps(string[] args)
     bool valid = true;
     int checkedFiles = 0;
 
-    foreach (string file in Directory.EnumerateFiles(directory, "*.map", SearchOption.AllDirectories).OrderBy(file => file))
+    foreach (string file in Directory.EnumerateFiles(directory, "*.map", SearchOption.AllDirectories).Order())
     {
         checkedFiles++;
         MapValidationResult result = verifier.VerifyFile(file);
@@ -220,6 +223,53 @@ static int VerifyMaps(string[] args)
     }
 
     Console.WriteLine($"Checked {checkedFiles} map file(s).");
+    return valid ? 0 : 2;
+}
+
+/**
+  * Runs the verify bin validation command against one generated mapstore .bin file.
+  * The command validates the shared outer header, CRC, canonical filename, and typed payload contents.
+  * Inputs used by this helper: args.
+  */
+static int VerifyBin(string[] args)
+{
+    string path = RequireOption(args, "--file");
+    bool detailed = HasOption(args, "--details");
+
+    MapStoreBinVerifier verifier = new();
+    MapStoreBinValidationResult result = verifier.VerifyFile(path, detailed);
+    PrintMapStoreBinValidationResult(result);
+    return result.IsValid ? 0 : 2;
+}
+
+/**
+  * Runs the verify bins validation command against every generated mapstore .bin file under a directory.
+  * The command covers map.index.bin, terrain, liquid, collision, and navmesh payload files.
+  * Inputs used by this helper: args.
+  */
+static int VerifyBins(string[] args)
+{
+    string directory = RequireOption(args, "--directory");
+    bool detailed = HasOption(args, "--details");
+
+    if (!Directory.Exists(directory))
+    {
+        throw new DirectoryNotFoundException(directory);
+    }
+
+    MapStoreBinVerifier verifier = new();
+    bool valid = true;
+    int checkedFiles = 0;
+
+    foreach (string file in Directory.EnumerateFiles(directory, "*.bin", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+    {
+        checkedFiles++;
+        MapStoreBinValidationResult result = verifier.VerifyFile(file, detailed);
+        PrintMapStoreBinValidationResult(result);
+        valid &= result.IsValid;
+    }
+
+    Console.WriteLine($"Checked {checkedFiles} mapstore .bin file(s).");
     return valid ? 0 : 2;
 }
 
@@ -256,6 +306,26 @@ static void PrintValidationResult(MapValidationResult result)
     {
         Console.WriteLine($"[{message.Severity}] {message.Message}");
     }
+}
+
+/**
+  * Prints mapstore bin validation output to the console for the operator.
+  * Summary lines are printed before validation messages so the file contents can be inspected even when verification fails.
+  * Inputs used by this helper: result.
+  */
+static void PrintMapStoreBinValidationResult(MapStoreBinValidationResult result)
+{
+    foreach (string line in result.SummaryLines)
+    {
+        Console.WriteLine(line);
+    }
+
+    foreach (ValidationMessage message in result.Messages)
+    {
+        Console.WriteLine($"[{message.Severity}] {message.Message}");
+    }
+
+    Console.WriteLine();
 }
 
 /**
@@ -364,25 +434,28 @@ static void PrintUsage()
     Console.WriteLine("      Extracts DBFilesClient/*.dbc from the client MPQ archives using the C# tool.");
     Console.WriteLine();
     Console.WriteLine("  extract-maps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>] [--no-overwrite]");
-    Console.WriteLine("      Extracts raw ADT/WDT sources and converts ADT tiles into server .map files.");
+    Console.WriteLine("      Extracts raw ADT/WDT sources and converts ADT tiles into mapstore terrain/liquid .bin files.");
     Console.WriteLine();
     Console.WriteLine("  extract-vmaps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>] [--no-overwrite]");
-    Console.WriteLine("      Extracts raw WMO and ADT placement sources, then converts WMO geometry into compact vmap model/tile files.");
+    Console.WriteLine("      Extracts raw WMO and ADT placement sources, then converts WMO geometry and placements into mapstore collision .bin files.");
     Console.WriteLine();
     Console.WriteLine("  extract-mmaps [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>]");
-    Console.WriteLine("      Creates the mmap output location and explains that native navmesh generation is not implemented yet.");
+    Console.WriteLine("      Creates placeholder mapstore navmesh .bin files for existing terrain tiles until native Recast/Detour generation is implemented.");
     Console.WriteLine();
     Console.WriteLine("  extract-all [--client <wow-root>] [--output <directory>] [--build <build>] [--locale <locale>] [--no-overwrite]");
     Console.WriteLine("      Runs extract-dbc, extract-maps, extract-vmaps, and extract-mmaps.");
     Console.WriteLine();
+    Console.WriteLine("  verify-bin --file <path-to-bin> [--details]");
+    Console.WriteLine("      Validates and prints the contents of one mapstore .bin file, including index, terrain, liquid, collision, and navmesh files.");
+    Console.WriteLine();
+    Console.WriteLine("  verify-bins --directory <mapstore-or-output-directory> [--details]");
+    Console.WriteLine("      Validates and prints summaries for every mapstore .bin file under the directory.");
+    Console.WriteLine();
+    Console.WriteLine("  verify-mapstore --directory <mapstore-or-output-directory> [--details]");
+    Console.WriteLine("      Alias for verify-bins.");
+    Console.WriteLine();
     Console.WriteLine("  dbc-info --file <path-to-dbc>");
     Console.WriteLine("      Reads a DBC header and prints record/string block information.");
-    Console.WriteLine();
-    Console.WriteLine("  verify-map --file <path-to-map>");
-    Console.WriteLine("      Validates one extracted .map file produced by server map extraction.");
-    Console.WriteLine();
-    Console.WriteLine("  verify-maps --directory <path-to-maps>");
-    Console.WriteLine("      Validates every .map file under a directory.");
     Console.WriteLine();
     Console.WriteLine("  formula-test [--min <height>] [--max <height>] [--samples <count>]");
     Console.WriteLine("      Verifies the uint8/uint16 height encode/decode formulas over a sampled range.");

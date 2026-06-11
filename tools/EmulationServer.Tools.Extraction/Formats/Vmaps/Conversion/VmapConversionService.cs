@@ -18,7 +18,9 @@
 
 using System.Text;
 using System.Text.RegularExpressions;
+using EmulationServer.Shared.Data.MapStore;
 using EmulationServer.Tools.Extraction.Formats.Maps.Conversion;
+using EmulationServer.Tools.Extraction.Formats.MapStore;
 
 /**
   * File overview: tools/EmulationServer.Tools.Extraction/Formats/Vmaps/Conversion/VmapConversionService.cs
@@ -40,11 +42,6 @@ public sealed partial class VmapConversionService
       */
     private const string ModelsDirectoryName = "models";
     /**
-      * Defines the constant value for tiles directory name.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const string TilesDirectoryName = "tiles";
-    /**
       * Defines the constant value for manifest file name.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
@@ -55,6 +52,7 @@ public sealed partial class VmapConversionService
       */
     public VmapConversionResult ConvertRawVmapDirectory(
         string rawVmapDirectory,
+        string rawMapDirectory,
         string dbcDirectory,
         string outputDirectory,
         ushort build,
@@ -62,6 +60,7 @@ public sealed partial class VmapConversionService
         Action<string>? progressMessage = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rawVmapDirectory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rawMapDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(dbcDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
@@ -69,19 +68,26 @@ public sealed partial class VmapConversionService
 
         if (!Directory.Exists(rawVmapDirectory))
         {
-            AddMessage(result, progressMessage, $"Raw vmap directory does not exist: {rawVmapDirectory}");
+            AddMessage(result, progressMessage, $"Raw vmap model directory does not exist: {rawVmapDirectory}");
+            return result;
+        }
+
+        if (!Directory.Exists(rawMapDirectory))
+        {
+            AddMessage(result, progressMessage, $"Raw map directory does not exist: {rawMapDirectory}");
             return result;
         }
 
         Directory.CreateDirectory(outputDirectory);
 
-        string modelOutputDirectory = Path.Combine(outputDirectory, ModelsDirectoryName);
-        string tileOutputDirectory = Path.Combine(outputDirectory, TilesDirectoryName);
+        string modelOutputDirectory = Path.Combine(outputDirectory, "collision", ModelsDirectoryName);
+        string tileOutputDirectory = outputDirectory;
         Directory.CreateDirectory(modelOutputDirectory);
         Directory.CreateDirectory(tileOutputDirectory);
 
         Dictionary<string, VmapModel> convertedModels = ConvertModels(rawVmapDirectory, modelOutputDirectory, build, overwrite, result, progressMessage);
-        ConvertPlacementTiles(rawVmapDirectory, dbcDirectory, tileOutputDirectory, build, overwrite, result, progressMessage);
+        ConvertPlacementTiles(rawMapDirectory, dbcDirectory, tileOutputDirectory, build, overwrite, result, progressMessage);
+        MapStoreIndexWriter.RebuildIndexes(outputDirectory, build);
         WriteManifest(outputDirectory, rawVmapDirectory, convertedModels.Values.OrderBy(model => model.Name.NormalizedPath, StringComparer.OrdinalIgnoreCase), result, progressMessage);
 
         AddMessage(result, progressMessage, $"Converted {result.ConvertedModelFiles} WMO model file(s) and {result.ConvertedPlacementFiles} vmap placement tile file(s) to {outputDirectory}.");
@@ -106,7 +112,7 @@ public sealed partial class VmapConversionService
             result.SourceModelFiles++;
             string relativePath = Path.GetRelativePath(rawVmapDirectory, rootPath).Replace(Path.DirectorySeparatorChar, '/');
             VmapModelName modelName = VmapModelName.FromRelativePath(relativePath);
-            string outputPath = Path.Combine(outputDirectory, $"{modelName.Key}.vmapmodel");
+            string outputPath = Path.Combine(outputDirectory, $"{modelName.Key}.collisionmodel.bin");
 
             if (!overwrite && File.Exists(outputPath))
             {
@@ -173,7 +179,7 @@ public sealed partial class VmapConversionService
       * Converts ADT WMO placement data into one placement file per map tile.
       */
     private static void ConvertPlacementTiles(
-        string rawVmapDirectory,
+        string rawMapDirectory,
         string dbcDirectory,
         string outputDirectory,
         ushort build,
@@ -191,7 +197,7 @@ public sealed partial class VmapConversionService
 
         MapDbcIndex mapIndex = MapDbcIndex.Load(mapDbcPath);
 
-        foreach (string adtPath in Directory.EnumerateFiles(rawVmapDirectory, "*.adt", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        foreach (string adtPath in Directory.EnumerateFiles(rawMapDirectory, "*.adt", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             result.SourcePlacementFiles++;
 
@@ -208,7 +214,9 @@ public sealed partial class VmapConversionService
                 continue;
             }
 
-            string outputPath = Path.Combine(outputDirectory, $"{mapEntry.Id:D3}{tileX:D2}{tileY:D2}.vmaptile");
+            byte tileXValue = checked((byte)tileX);
+            byte tileYValue = checked((byte)tileY);
+            string outputPath = MapStoreFileNames.GetTileFilePath(outputDirectory, mapEntry.Id, tileXValue, tileYValue, MapStoreDataKind.Collision);
 
             if (!overwrite && File.Exists(outputPath))
             {
@@ -221,16 +229,10 @@ public sealed partial class VmapConversionService
             {
                 IReadOnlyList<VmapPlacement> placements = AdtWmoPlacementReader.Read(adtPath);
 
-                if (placements.Count == 0)
-                {
-                    result.SkippedPlacementFiles++;
-                    continue;
-                }
-
                 VmapPlacementTile tile = new(mapEntry.Id, tileX, tileY, placements);
                 VmapPlacementTileWriter.Write(outputPath, tile, build);
                 result.ConvertedPlacementFiles++;
-                AddMessage(result, progressMessage, $"Converted vmap tile '{Path.GetFileName(outputPath)}' from '{Path.GetFileName(adtPath)}' | placements={placements.Count}");
+                AddMessage(result, progressMessage, $"Converted collision tile {MapStoreFileNames.FormatTileKey(mapEntry.Id, tileXValue, tileYValue)} from '{Path.GetFileName(adtPath)}' | placements={placements.Count}");
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or NotSupportedException)
             {
@@ -262,7 +264,7 @@ public sealed partial class VmapConversionService
 
         foreach (VmapModel model in models)
         {
-            builder.AppendLine($"  {model.Name.Key}.vmapmodel | Source={model.Name.NormalizedPath} | Groups={model.Groups.Count} | Vertices={model.VertexCount} | Triangles={model.TriangleCount}");
+            builder.AppendLine($"  {model.Name.Key}.collisionmodel.bin | Source={model.Name.NormalizedPath} | Groups={model.Groups.Count} | Vertices={model.VertexCount} | Triangles={model.TriangleCount}");
         }
 
         File.WriteAllText(manifestPath, builder.ToString());

@@ -16,6 +16,8 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Shared.Data.MapStore;
+using EmulationServer.Tools.Extraction.Formats.MapStore;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
 /**
@@ -37,7 +39,7 @@ public sealed class MapConversionService
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: rawMapDirectory, dbcDirectory, outputDirectory, build, overwrite, progressMessage.
       */
-    public MapConversionResult ConvertRawAdtDirectory(
+    public static MapConversionResult ConvertRawAdtDirectory(
         string rawMapDirectory,
         string dbcDirectory,
         string outputDirectory,
@@ -103,25 +105,28 @@ public sealed class MapConversionService
                 continue;
             }
 
-            string outputPath = Path.Combine(outputDirectory, $"{mapEntry.Id:D3}{tileX:D2}{tileY:D2}.map");
+            byte tileXValue = checked((byte)tileX);
+            byte tileYValue = checked((byte)tileY);
+            string terrainPath = MapStoreFileNames.GetTileFilePath(outputDirectory, mapEntry.Id, tileXValue, tileYValue, MapStoreDataKind.Terrain);
+            string liquidPath = MapStoreFileNames.GetTileFilePath(outputDirectory, mapEntry.Id, tileXValue, tileYValue, MapStoreDataKind.Liquid);
 
-            if (!overwrite && File.Exists(outputPath))
+            if (!overwrite && File.Exists(terrainPath) && File.Exists(liquidPath))
             {
                 result.SkippedFiles++;
-                AddMessage(result, progressMessage, $"Skipped existing '{Path.GetFileName(outputPath)}'");
+                AddMessage(result, progressMessage, $"Skipped existing mapstore tile '{MapStoreFileNames.FormatTileKey(mapEntry.Id, tileXValue, tileYValue)}'.");
                 continue;
             }
 
             try
             {
-                MapTileConversionReport tileReport = converter.Convert(adtPath, outputPath, build);
+                MapTileConversionReport tileReport = converter.Convert(adtPath, outputDirectory, mapEntry.Id, tileXValue, tileYValue, build);
 
                 result.ConvertedFiles++;
 
                 AddMessage(
                     result,
                     progressMessage,
-                    $"Converted '{Path.GetFileName(outputPath)}' from '{Path.GetFileName(adtPath)}' | Liquid Data: {tileReport.GetLiquidStatus()}");
+                    $"Converted mapstore tile {MapStoreFileNames.FormatTileKey(mapEntry.Id, tileXValue, tileYValue)} from '{Path.GetFileName(adtPath)}' | Liquid Data: {tileReport.GetLiquidStatus()}");
             }
             catch (AdtFormatException exception) when (exception.Message.Contains("does not contain any MCNK chunks", StringComparison.OrdinalIgnoreCase))
             {
@@ -135,7 +140,8 @@ public sealed class MapConversionService
             }
         }
 
-        AddMessage(result, progressMessage, $"Converted {result.ConvertedFiles} server .map file(s) to {outputDirectory}.");
+        MapStoreIndexWriter.RebuildIndexes(outputDirectory, build);
+        AddMessage(result, progressMessage, $"Converted {result.ConvertedFiles} ADT tile(s) into mapstore terrain/liquid files at {outputDirectory}.");
 
         if (result.FailedFiles > 0)
         {

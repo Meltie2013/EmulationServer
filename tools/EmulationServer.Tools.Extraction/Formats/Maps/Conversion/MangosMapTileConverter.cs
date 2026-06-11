@@ -17,6 +17,7 @@
 //
 
 using System.Text;
+using EmulationServer.Shared.Data.MapStore;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 
@@ -50,11 +51,6 @@ public sealed class MangosMapTileConverter
       */
     private const int GridSize = MapFormatConstants.AdtGridSize;
     /**
-      * Defines the constant value for header size.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
-    private const int HeaderSize = MapFormatConstants.MapFileHeaderSize;
-    /**
       * Defines the constant value for minimum stored height.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
@@ -85,12 +81,12 @@ public sealed class MangosMapTileConverter
     /**
       * Performs the convert operation for the client data extraction and conversion tooling workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: adtPath, outputPath, build.
+      * Inputs used by this operation: adtPath, mapStoreRootDirectory, mapId, tileX, tileY, build.
       */
-    public MapTileConversionReport Convert(string adtPath, string outputPath, uint build)
+    public MapTileConversionReport Convert(string adtPath, string mapStoreRootDirectory, uint mapId, byte tileX, byte tileY, ushort build)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(adtPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(mapStoreRootDirectory);
 
         AdtTile tile = AdtTileReader.Read(adtPath, _liquidTypes);
         TileData tileData = BuildTileData(tile);
@@ -100,60 +96,14 @@ public sealed class MangosMapTileConverter
         byte[] liquidSection = BuildLiquidSection(tileData);
         byte[] holesSection = BuildHolesSection(tileData.Holes);
 
-        uint areaOffset = HeaderSize;
-        uint areaSize = checked((uint)areaSection.Length);
+        byte[] terrainPayload = BuildTerrainPayload(areaSection, heightSection, holesSection);
+        byte[] liquidPayload = BuildLiquidPayload(liquidSection);
 
-        uint heightOffset = checked(areaOffset + areaSize);
-        uint heightSize = checked((uint)heightSection.Length);
+        string terrainPath = MapStoreFileNames.GetTileFilePath(mapStoreRootDirectory, mapId, tileX, tileY, MapStoreDataKind.Terrain);
+        string liquidPath = MapStoreFileNames.GetTileFilePath(mapStoreRootDirectory, mapId, tileX, tileY, MapStoreDataKind.Liquid);
 
-        uint liquidOffset = liquidSection.Length > 0
-            ? checked(heightOffset + heightSize)
-            : 0;
-
-        uint liquidSize = checked((uint)liquidSection.Length);
-
-        uint holesOffset = holesSection.Length > 0
-            ? checked((liquidOffset != 0 ? liquidOffset + liquidSize : heightOffset + heightSize))
-            : 0;
-
-        uint holesSize = checked((uint)holesSection.Length);
-
-        string? parentDirectory = Path.GetDirectoryName(outputPath);
-
-        if (!string.IsNullOrWhiteSpace(parentDirectory))
-        {
-            Directory.CreateDirectory(parentDirectory);
-        }
-
-        using FileStream stream = File.Open(outputPath, FileMode.Create, FileAccess.Write, FileShare.Read);
-        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: false);
-
-        WriteFourCC(writer, MapFormatConstants.MapMagic);
-        WriteFourCC(writer, MapFormatConstants.VersionMagic);
-        writer.Write(build);
-        writer.Write(areaOffset);
-        writer.Write(areaSize);
-        writer.Write(heightOffset);
-        writer.Write(heightSize);
-        writer.Write(liquidOffset);
-        writer.Write(liquidSize);
-        writer.Write(holesOffset);
-        writer.Write(holesSize);
-
-        writer.Write(areaSection);
-        writer.Write(heightSection);
-
-        if (liquidSection.Length > 0)
-        {
-            writer.Write(liquidSection);
-        }
-
-        if (holesSection.Length > 0)
-        {
-            writer.Write(holesSection);
-        }
-
-        writer.Flush();
+        MapStoreBinary.WriteFile(terrainPath, MapStoreDataKind.Terrain, build, mapId, tileX, tileY, terrainPayload);
+        MapStoreBinary.WriteFile(liquidPath, MapStoreDataKind.Liquid, build, mapId, tileX, tileY, liquidPayload);
 
         return new MapTileConversionReport(
             liquidSection.Length > 0,
@@ -162,6 +112,50 @@ public sealed class MangosMapTileConverter
             CountLiquidCells(tileData.LiquidFlags),
             CountVisibleLiquidTiles(tileData.LiquidShow),
             liquidSection.Length);
+    }
+
+    /**
+      * Builds the terrain payload stored inside a terrain mapstore file.
+      */
+    private static byte[] BuildTerrainPayload(byte[] areaSection, byte[] heightSection, byte[] holesSection)
+    {
+        using MemoryStream stream = new();
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
+
+        MapStoreBinaryPrimitives.WriteFourCC(writer, MapStorePayloadConstants.TerrainMagic);
+        writer.Write(checked((uint)areaSection.Length));
+        writer.Write(checked((uint)heightSection.Length));
+        writer.Write(checked((uint)holesSection.Length));
+        writer.Write(areaSection);
+        writer.Write(heightSection);
+
+        if (holesSection.Length > 0)
+        {
+            writer.Write(holesSection);
+        }
+
+        writer.Flush();
+        return stream.ToArray();
+    }
+
+    /**
+      * Builds the liquid payload stored inside a liquid mapstore file.
+      */
+    private static byte[] BuildLiquidPayload(byte[] liquidSection)
+    {
+        using MemoryStream stream = new();
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
+
+        MapStoreBinaryPrimitives.WriteFourCC(writer, MapStorePayloadConstants.LiquidPayloadMagic);
+        writer.Write(checked((uint)liquidSection.Length));
+
+        if (liquidSection.Length > 0)
+        {
+            writer.Write(liquidSection);
+        }
+
+        writer.Flush();
+        return stream.ToArray();
     }
 
     /**
@@ -275,9 +269,9 @@ public sealed class MangosMapTileConverter
         }
 
         using MemoryStream stream = new();
-        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
-        WriteFourCC(writer, MapFormatConstants.AreaMagic);
+        MapStoreBinaryPrimitives.WriteFourCC(writer, MapFormatConstants.AreaMagic);
 
         if (fullAreaData)
         {
@@ -342,9 +336,9 @@ public sealed class MangosMapTileConverter
             : 0;
 
         using MemoryStream stream = new();
-        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
-        WriteFourCC(writer, MapFormatConstants.HeightMagic);
+        MapStoreBinaryPrimitives.WriteFourCC(writer, MapFormatConstants.HeightMagic);
         writer.Write(flags);
         writer.Write(minimum);
         writer.Write(maximum);
@@ -451,9 +445,9 @@ public sealed class MangosMapTileConverter
         }
 
         using MemoryStream stream = new();
-        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
-        WriteFourCC(writer, MapFormatConstants.LiquidMagic);
+        MapStoreBinaryPrimitives.WriteFourCC(writer, MapFormatConstants.LiquidMagic);
         writer.Write(flags);
         writer.Write(fullType ? (ushort)0 : firstLiquidEntry);
         writer.Write(offsetX);
@@ -518,7 +512,7 @@ public sealed class MangosMapTileConverter
         }
 
         using MemoryStream stream = new();
-        using BinaryWriter writer = new(stream, Encoding.ASCII, leaveOpen: true);
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
         for (int y = 0; y < CellsPerGrid; y++)
         {
@@ -607,23 +601,6 @@ public sealed class MangosMapTileConverter
     private static bool IsValidCellIndex(int value)
     {
         return value >= 0 && value < CellsPerGrid;
-    }
-
-    /**
-      * Writes write four cc data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, value.
-      */
-    private static void WriteFourCC(BinaryWriter writer, string value)
-    {
-        byte[] bytes = Encoding.ASCII.GetBytes(value);
-
-        if (bytes.Length != 4)
-        {
-            throw new ArgumentException("FourCC values must be exactly four bytes.");
-        }
-
-        writer.Write(bytes);
     }
 
     /**

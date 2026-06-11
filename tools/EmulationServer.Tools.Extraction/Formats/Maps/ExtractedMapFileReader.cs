@@ -16,7 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using System.Text;
+using EmulationServer.Shared.Data.MapStore;
 
 /**
   * File overview: tools/EmulationServer.Tools.Extraction/Formats/Maps/ExtractedMapFileReader.cs
@@ -62,7 +62,7 @@ public static class ExtractedMapFileReader
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         using FileStream stream = File.OpenRead(path);
-        using BinaryReader reader = new(stream, Encoding.ASCII, leaveOpen: false);
+        using BinaryReader reader = new(stream);
 
         MapFileHeader header = ReadHeader(reader);
         ValidateHeader(header, stream.Length, path);
@@ -81,8 +81,8 @@ public static class ExtractedMapFileReader
     private static MapFileHeader ReadHeader(BinaryReader reader)
     {
         return new MapFileHeader(
-            ReadFourCC(reader),
-            ReadFourCC(reader),
+            MapStoreBinaryPrimitives.ReadFourCC(reader),
+            MapStoreBinaryPrimitives.ReadFourCC(reader),
             reader.ReadUInt32(),
             reader.ReadUInt32(),
             reader.ReadUInt32(),
@@ -106,7 +106,7 @@ public static class ExtractedMapFileReader
         }
 
         reader.BaseStream.Position = header.AreaMapOffset;
-        string fourcc = ReadFourCC(reader);
+        string fourcc = MapStoreBinaryPrimitives.ReadFourCC(reader);
 
         if (!string.Equals(fourcc, MapFormatConstants.AreaMagic, StringComparison.Ordinal))
         {
@@ -140,7 +140,7 @@ public static class ExtractedMapFileReader
         }
 
         reader.BaseStream.Position = header.HeightMapOffset;
-        string fourcc = ReadFourCC(reader);
+        string fourcc = MapStoreBinaryPrimitives.ReadFourCC(reader);
 
         if (!string.Equals(fourcc, MapFormatConstants.HeightMagic, StringComparison.Ordinal))
         {
@@ -183,7 +183,7 @@ public static class ExtractedMapFileReader
         }
 
         reader.BaseStream.Position = header.LiquidMapOffset;
-        string fourcc = ReadFourCC(reader);
+        string fourcc = MapStoreBinaryPrimitives.ReadFourCC(reader);
 
         if (!string.Equals(fourcc, MapFormatConstants.LiquidMagic, StringComparison.Ordinal))
         {
@@ -279,21 +279,5 @@ public static class ExtractedMapFileReader
         }
 
         return sizeof(float);
-    }
-
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of ExtractedMapFileReader and keeps this workflow isolated from the caller.
-      */
-    private static string ReadFourCC(BinaryReader reader)
-    {
-        byte[] bytes = reader.ReadBytes(4);
-
-        if (bytes.Length != 4)
-        {
-            throw new EndOfStreamException("Unexpected end of stream while reading FourCC value.");
-        }
-
-        return Encoding.ASCII.GetString(bytes);
     }
 }

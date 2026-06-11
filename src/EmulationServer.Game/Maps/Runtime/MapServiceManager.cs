@@ -122,24 +122,17 @@ public sealed class MapServiceManager : IAsyncDisposable
             ? MapDbcDataStore.FromDbcStores(_dbcStores, ownerServerName)
             : MapDbcDataStore.Empty;
 
-        string? mapsDirectory = settings.LoadMapTiles
-            ? GameDataPathResolver.ResolveDirectory(settings.DataDirectory, settings.MapsDirectory)
-            : null;
+        string mapsDirectory = GameDataPathResolver.ResolveDirectory(settings.DataDirectory, settings.MapsDirectory);
 
         foreach (MapServiceDefinition configuredDefinition in settings.Services)
         {
             MapServiceDefinition definition = ApplyMapDbcMetadata(configuredDefinition);
 
-            MapGridManager? gridManager = settings.LoadMapTiles
-                ? new MapGridManager(
-                    definition,
-                    mapsDirectory!,
-                    settings.GridLoadingMode,
-                    settings.KeepLoadedGrids,
-                    settings.GridIdleUnloadDelay)
-                : null;
+            MapGridManager gridManager = new(
+                definition,
+                mapsDirectory);
 
-            _services.Add(new MapService(ownerServerName, definition, gridManager, settings.StartupGrids, _reportStatusAsync, _clock));
+            _services.Add(new MapService(ownerServerName, definition, gridManager, _reportStatusAsync, _clock));
         }
     }
 

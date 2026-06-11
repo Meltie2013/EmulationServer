@@ -18,7 +18,6 @@
 
 using EmulationServer.Core.Configuration;
 using EmulationServer.Game.Data.Dbc.Maps;
-using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
@@ -121,11 +120,6 @@ public static class MapServerConfigurationLoader
             "RequiredDbcFiles",
             string.Join(';', DefaultRequiredDbcFiles));
 
-        string startupGrids = configuration.GetString(
-            MapServicesSection,
-            "StartupGrids",
-            string.Empty);
-
         return new MapRuntimeSettings
         {
             Enabled = configuration.GetBool(MapServicesSection, "Enabled", true),
@@ -134,54 +128,13 @@ public static class MapServerConfigurationLoader
             LogTicks = logTicks,
             DataDirectory = configuration.GetString(MapServicesSection, "DataDirectory", "Data"),
             DbcDirectory = configuration.GetString(MapServicesSection, "DbcDirectory", "dbc"),
-            MapsDirectory = configuration.GetString(MapServicesSection, "MapsDirectory", "maps"),
+            MapsDirectory = configuration.GetString(MapServicesSection, "MapsDirectory", "mapstore"),
             LoadDbcStores = configuration.GetBool(MapServicesSection, "LoadDbcStores", true),
-            LoadMapTiles = configuration.GetBool(MapServicesSection, "LoadMapTiles", true),
-            GridLoadingMode = ParseGridLoadingMode(configuration.GetString(MapServicesSection, "GridLoadingMode", "OnDemand")),
-            KeepLoadedGrids = configuration.GetBool(MapServicesSection, "KeepLoadedGrids", false),
-            GridIdleUnloadDelay = configuration.GetTimeSpan(MapServicesSection, "GridIdleUnloadDelay", TimeSpan.FromMinutes(5)),
-            StartupGrids = ParseStartupGrids(startupGrids),
+            // Mapstore grid data is intentionally not a runtime toggle. Terrain, liquid, collision/vmaps,
+            // and navmesh/mmaps are always preloaded and kept resident unless a compile-time symbol disables a component.
             RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
             Services = ParseMapServices(maps, MapServiceKind.World, tickInterval, logTicks),
         };
-    }
-
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
-    private static MapGridLoadingMode ParseGridLoadingMode(string value)
-    {
-        if (Enum.TryParse(value, ignoreCase: true, out MapGridLoadingMode mode))
-        {
-            return mode;
-        }
-
-        throw new ConfigurationException($"Invalid GridLoadingMode '{value}'. Expected OnDemand or Preload.");
-    }
-
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
-    private static IReadOnlyList<MapTileKey> ParseStartupGrids(string value)
-    {
-        List<MapTileKey> grids = [];
-        foreach (string entry in SplitList(value))
-        {
-            string[] parts = entry.Split(':', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 3 ||
-                !uint.TryParse(parts[0], out uint mapId) ||
-                !byte.TryParse(parts[1], out byte tileX) ||
-                !byte.TryParse(parts[2], out byte tileY))
-            {
-                throw new ConfigurationException($"Invalid StartupGrids entry '{entry}'. Expected MapId:TileX:TileY, for example 0:32:32.");
-            }
-
-            grids.Add(new MapTileKey(mapId, tileX, tileY));
-        }
-
-        return grids;
     }
 
     /**

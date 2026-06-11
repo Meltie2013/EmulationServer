@@ -16,8 +16,6 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
-using EmulationServer.Game.Data.Maps;
-
 /**
   * File overview: src/EmulationServer.Game/Maps/Runtime/MapRuntimeSettings.cs
   * Documents the MapRuntimeSettings source file in the runtime map-player state tracking area of the Emulation Server project.
@@ -72,43 +70,13 @@ public sealed class MapRuntimeSettings
       * Gets or stores the maps directory value used by MapRuntimeSettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
-    public string MapsDirectory { get; init; } = "maps";
+    public string MapsDirectory { get; init; } = "mapstore";
 
     /**
       * Gets or stores the load dbc stores value used by MapRuntimeSettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
     public bool LoadDbcStores { get; init; } = true;
-
-    /**
-      * Gets or stores the load map tiles value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public bool LoadMapTiles { get; init; } = true;
-
-    /**
-      * Gets or stores the grid loading mode value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public MapGridLoadingMode GridLoadingMode { get; init; } = MapGridLoadingMode.OnDemand;
-
-    /**
-      * Gets or stores the keep loaded grids value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public bool KeepLoadedGrids { get; init; }
-
-    /**
-      * Gets or stores the grid idle unload delay value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public TimeSpan GridIdleUnloadDelay { get; init; } = TimeSpan.FromMinutes(5);
-
-    /**
-      * Gets or stores the startup grids value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public IReadOnlyList<MapTileKey> StartupGrids { get; init; } = [];
 
     /**
       * Gets or stores the required dbc files value used by MapRuntimeSettings.
@@ -138,11 +106,6 @@ public sealed class MapRuntimeSettings
             throw new InvalidOperationException("Map service status report interval must be greater than zero.");
         }
 
-        if (GridIdleUnloadDelay < TimeSpan.Zero)
-        {
-            throw new InvalidOperationException("Map service grid idle unload delay cannot be negative.");
-        }
-
         if (!Enabled)
         {
             return;
@@ -158,9 +121,9 @@ public sealed class MapRuntimeSettings
             throw new InvalidOperationException("At least one required DBC file must be configured when map-service DBC loading is enabled.");
         }
 
-        if ((LoadDbcStores || LoadMapTiles) && string.IsNullOrWhiteSpace(DataDirectory))
+        if (string.IsNullOrWhiteSpace(DataDirectory))
         {
-            throw new InvalidOperationException("Map-service data directory is required when game data loading is enabled.");
+            throw new InvalidOperationException("Map-service data directory is required when map services are enabled.");
         }
 
         if (LoadDbcStores && string.IsNullOrWhiteSpace(DbcDirectory))
@@ -168,9 +131,9 @@ public sealed class MapRuntimeSettings
             throw new InvalidOperationException("Map-service DBC directory is required when DBC loading is enabled.");
         }
 
-        if (LoadMapTiles && string.IsNullOrWhiteSpace(MapsDirectory))
+        if (string.IsNullOrWhiteSpace(MapsDirectory))
         {
-            throw new InvalidOperationException("Map-service maps directory is required when map tile loading is enabled.");
+            throw new InvalidOperationException("Map-service mapstore directory is required when map services are enabled.");
         }
 
         HashSet<(MapServiceKind Kind, int MapId, long InstanceId)> serviceKeys = [];
