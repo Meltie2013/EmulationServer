@@ -565,6 +565,7 @@ public static class WorldPacketBuilders
         const int PlayerFieldKeyringSlot1 = 0x0288;
         const int PlayerXp = 0x02CC;
         const int PlayerNextLevelXp = 0x02CD;
+        const int PlayerSkillInfo1_1 = 0x02CE;
         const int PlayerRestStateExperience = 0x0497;
         const int PlayerFieldCoinage = 0x0498;
         const int PlayerFieldPosStat0 = 0x0499;
@@ -680,6 +681,7 @@ public static class WorldPacketBuilders
 
         fields[PlayerXp] = player.Experience;
         fields[PlayerNextLevelXp] = player.NextLevelExperience == 0 ? BuildNextLevelExperience(player.Level) : player.NextLevelExperience;
+        WritePlayerSkillFields(fields, PlayerSkillInfo1_1, player);
         fields[PlayerRestStateExperience] = 0;
         fields[PlayerFieldCoinage] = player.Money;
         for (int index = 0; index < 5; index++)
@@ -693,6 +695,36 @@ public static class WorldPacketBuilders
         fields[PlayerFieldWatchedFactionIndex] = uint.MaxValue;
 
         WriteUpdateMask(writer, fields);
+    }
+
+    private const int PlayerSkillInfoFieldCount = 128;
+
+    private static void WritePlayerSkillFields(IDictionary<int, uint> fields, int firstSkillField, PlayerLoginRecord player)
+    {
+        IReadOnlyList<PlayerSkill> skills = LanguageKnowledgeSystem.EnsureInitialLanguageSkills(player.Race, player.Faction, player.Skills);
+        int slot = 0;
+        foreach (PlayerSkill skill in skills
+            .Where(skill => skill.Skill != 0)
+            .OrderBy(skill => skill.Skill))
+        {
+            if (slot >= PlayerSkillInfoFieldCount)
+            {
+                break;
+            }
+
+            int field = firstSkillField + (slot * 3);
+            fields[field] = PackUInt16Pair(skill.Skill, 0);
+            fields[field + 1] = PackUInt16Pair(skill.Value, skill.MaxValue == 0 ? skill.Value : skill.MaxValue);
+            fields[field + 2] = 0;
+            slot++;
+        }
+    }
+
+    private static uint PackUInt16Pair(uint lowValue, uint highValue)
+    {
+        uint low = Math.Min(lowValue, ushort.MaxValue);
+        uint high = Math.Min(highValue, ushort.MaxValue);
+        return low | (high << 16);
     }
 
     private static bool TryResolvePlayerInventoryGuidField(
@@ -1428,21 +1460,12 @@ public static class WorldPacketBuilders
       */
     private static IEnumerable<ushort> GetLanguageSpellIds(byte race, PlayerFaction faction)
     {
-        yield return faction == PlayerFaction.Horde ? (ushort)669 : (ushort)668; // Orcish or Common.
-
-        ushort raceLanguage = race switch
+        foreach (uint spellId in LanguageKnowledgeSystem.BuildInitialLanguageSpellIds(race, faction))
         {
-            3 => 672, // Dwarven
-            4 => 671, // Darnassian
-            6 => 670, // Taurahe
-            7 => 7340, // Gnomish
-            8 => 7341, // Troll
-            _ => 0,
-        };
-
-        if (raceLanguage != 0)
-        {
-            yield return raceLanguage;
+            if (spellId <= ushort.MaxValue)
+            {
+                yield return (ushort)spellId;
+            }
         }
     }
 

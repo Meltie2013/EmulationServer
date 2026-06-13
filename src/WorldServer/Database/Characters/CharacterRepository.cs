@@ -20,6 +20,7 @@ using System.Globalization;
 
 using EmulationServer.Database.Interfaces;
 using EmulationServer.Game.Characters;
+using EmulationServer.Game.Chat;
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Data.Stores;
 using EmulationServer.Game.Items;
@@ -299,14 +300,16 @@ public sealed class CharacterRepository
             uint playerBytes = PackPlayerBytes(request.Skin, request.Face, request.HairStyle, request.HairColor);
             uint playerBytes2 = PackPlayerBytes2(request.FacialHair);
             PlayerStats initialStats = ResolvePlayerStats(request.Race, request.Class, 1, PlayerStats.Empty);
+            PlayerFaction faction = ResolveFactionForRace(request.Race);
 
             await InsertCharacterAsync(connection, transaction, characterGuid, accountId, request, createInfo, playerBytes, playerBytes2, equipmentCache, initialStats, cancellationToken);
             await InsertHomebindAsync(connection, transaction, characterGuid, createInfo, cancellationToken);
             await InsertCharacterStatsAsync(connection, transaction, characterGuid, initialStats, cancellationToken);
             await InsertCharacterTutorialAsync(connection, transaction, accountId, cancellationToken);
-            await InsertCharacterSpellsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateSpells(request.Race, request.Class), cancellationToken);
+            await InsertCharacterSpellsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateSpells(request.Race, request.Class), request.Race, faction, cancellationToken);
             await InsertCharacterActionsAsync(connection, transaction, characterGuid, _worldTemplateAccessor().GetPlayerCreateActions(request.Race, request.Class), cancellationToken);
             await InsertCharacterReputationsAsync(connection, transaction, characterGuid, request.Race, request.Class, _worldGameDataAccessor().FactionData, cancellationToken);
+            await InsertCharacterSkillsAsync(connection, transaction, characterGuid, request.Race, faction, cancellationToken);
 
             foreach (StarterItemCreateData item in starterItems)
             {
@@ -622,7 +625,8 @@ public sealed class CharacterRepository
         IReadOnlyList<PlayerActionButton> actionButtons = await LoadCharacterActionsAsync(connection, row.Guid, row.Race, row.Class, cancellationToken);
         uint[] tutorialFlags = await LoadCharacterTutorialFlagsAsync(connection, row.AccountId, cancellationToken);
         IReadOnlyList<PlayerReputation> reputations = await LoadCharacterReputationAsync(connection, row.Guid, row.Race, row.Class, _worldGameDataAccessor().FactionData, cancellationToken);
-        IReadOnlyList<PlayerSkill> skills = await LoadCharacterSkillsAsync(connection, row.Guid, cancellationToken);
+        PlayerFaction faction = factionResolver(row.Race);
+        IReadOnlyList<PlayerSkill> skills = await LoadCharacterSkillsAsync(connection, row.Guid, row.Race, faction, cancellationToken);
 
         return new PlayerLoginRecord(
             row.Guid,
@@ -655,7 +659,7 @@ public sealed class CharacterRepository
             tutorialFlags,
             reputations,
             skills,
-            factionResolver(row.Race));
+            faction);
     }
 
     /**
@@ -1136,20 +1140,34 @@ public sealed class CharacterRepository
         MySqlTransaction transaction,
         uint characterGuid,
         IReadOnlyList<PlayerCreateSpellRecord> starterSpells,
+        byte race,
+        PlayerFaction faction,
         CancellationToken cancellationToken)
     {
-        if (starterSpells.Count == 0 || !await TableExistsAsync(connection, transaction, "character_spell", cancellationToken))
+        SortedSet<uint> spellIds = [];
+        foreach (PlayerCreateSpellRecord spell in starterSpells)
+        {
+            if (spell.SpellId != 0)
+            {
+                spellIds.Add(spell.SpellId);
+            }
+        }
+
+        foreach (uint languageSpellId in LanguageKnowledgeSystem.BuildInitialLanguageSpellIds(race, faction))
+        {
+            if (languageSpellId != 0)
+            {
+                spellIds.Add(languageSpellId);
+            }
+        }
+
+        if (spellIds.Count == 0 || !await TableExistsAsync(connection, transaction, "character_spell", cancellationToken))
         {
             return;
         }
 
-        foreach (PlayerCreateSpellRecord spell in starterSpells)
+        foreach (uint spellId in spellIds)
         {
-            if (spell.SpellId == 0)
-            {
-                continue;
-            }
-
             using MySqlCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
@@ -1159,7 +1177,7 @@ public sealed class CharacterRepository
                     (@guid, @spell, 1, 0);
                 """;
             command.Parameters.AddWithValue("@guid", characterGuid);
-            command.Parameters.AddWithValue("@spell", spell.SpellId);
+            command.Parameters.AddWithValue("@spell", spellId);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
     }
@@ -1243,6 +1261,45 @@ public sealed class CharacterRepository
             command.Parameters.AddWithValue("@faction", reputation.Faction);
             command.Parameters.AddWithValue("@standing", reputation.Standing);
             command.Parameters.AddWithValue("@flags", reputation.Flags);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    /**
+      * Inserts the starter skill state needed by the Vanilla language menu and chat comprehension rules.
+      */
+    private static async Task InsertCharacterSkillsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        uint characterGuid,
+        byte race,
+        PlayerFaction faction,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<PlayerSkill> skills = LanguageKnowledgeSystem.BuildInitialLanguageSkills(race, faction);
+        if (skills.Count == 0 || !await TableExistsAsync(connection, transaction, "character_skills", cancellationToken))
+        {
+            return;
+        }
+
+        foreach (PlayerSkill skill in skills)
+        {
+            using MySqlCommand command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO `character_skills`
+                    (`guid`, `skill`, `value`, `max`)
+                VALUES
+                    (@guid, @skill, @value, @max)
+                ON DUPLICATE KEY UPDATE
+                    `value` = GREATEST(`value`, VALUES(`value`)),
+                    `max` = GREATEST(`max`, VALUES(`max`));
+                """;
+            command.Parameters.AddWithValue("@guid", characterGuid);
+            command.Parameters.AddWithValue("@skill", skill.Skill);
+            command.Parameters.AddWithValue("@value", skill.Value);
+            command.Parameters.AddWithValue("@max", skill.MaxValue);
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
@@ -1761,11 +1818,16 @@ public sealed class CharacterRepository
       * Inputs used by this operation: connection, characterGuid, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private static async Task<IReadOnlyList<PlayerSkill>> LoadCharacterSkillsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<PlayerSkill>> LoadCharacterSkillsAsync(
+        MySqlConnection connection,
+        uint characterGuid,
+        byte race,
+        PlayerFaction faction,
+        CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_skills", cancellationToken))
         {
-            return [];
+            return LanguageKnowledgeSystem.BuildInitialLanguageSkills(race, faction);
         }
 
         await using MySqlCommand command = connection.CreateCommand();
@@ -1787,7 +1849,17 @@ public sealed class CharacterRepository
                 Convert.ToUInt32(reader.GetValue(2), CultureInfo.InvariantCulture)));
         }
 
-        return skills;
+        return LanguageKnowledgeSystem.EnsureInitialLanguageSkills(race, faction, skills);
+    }
+
+    private static PlayerFaction ResolveFactionForRace(byte race)
+    {
+        return race switch
+        {
+            1 or 3 or 4 or 7 => PlayerFaction.Alliance,
+            2 or 5 or 6 or 8 => PlayerFaction.Horde,
+            _ => PlayerFaction.Neutral,
+        };
     }
 
     private async Task<Dictionary<uint, IReadOnlyList<CharacterEquipmentDisplay>>> LoadEquippedInventoryAsync(

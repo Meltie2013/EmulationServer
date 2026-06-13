@@ -129,14 +129,24 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         }
 
         WorldGameDataStore gameData = _gameDataAccessor();
-        if (gameData.LanguageData.IsKnownLanguage(unchecked((int)requestedLanguage)))
+        if (!gameData.LanguageData.IsKnownLanguage(unchecked((int)requestedLanguage)))
+        {
+            Logger.Write(
+                LogType.WARNING,
+                $"Player '{player.Name}' attempted to chat with unknown language {(uint)requestedLanguage}; falling back to default faction language.",
+                "ChatSystem");
+
+            return GetDefaultLanguage(player);
+        }
+
+        if (LanguageKnowledgeSystem.PlayerKnowsLanguage(player, requestedLanguage))
         {
             return requestedLanguage;
         }
 
         Logger.Write(
             LogType.WARNING,
-            $"Player '{player.Name}' attempted to chat with unknown language {(uint)requestedLanguage}; falling back to default faction language.",
+            $"Player '{player.Name}' attempted to chat with unlearned language {(uint)requestedLanguage}; falling back to default faction language.",
             "ChatSystem");
 
         return GetDefaultLanguage(player);
@@ -151,9 +161,7 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        return player.Faction == PlayerFaction.Alliance
-            ? ChatLanguage.Common
-            : ChatLanguage.Orcish;
+        return LanguageKnowledgeSystem.GetDefaultLanguage(player.Faction);
     }
 
     /**
