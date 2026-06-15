@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Core.Configuration;
+using EmulationServer.Game.Data.Dbc.Creatures;
 using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
@@ -57,6 +58,7 @@ public static class MapServerConfigurationLoader
         "Faction.dbc",
         "FactionTemplate.dbc",
         "GameObjectDisplayInfo.dbc",
+        ..CreatureDbcFileNames.CoreCreatureDbcFiles,
         "LiquidType.dbc",
         MapDbcFileNames.Map,
         "WMOAreaTable.dbc",

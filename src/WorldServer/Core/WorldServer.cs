@@ -23,6 +23,7 @@ using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Services;
 using EmulationServer.Game.Characters;
 using EmulationServer.Game.Commands;
+using EmulationServer.Game.Creatures;
 using EmulationServer.Game.Data;
 using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Data.Dbc.Maps;
@@ -66,6 +67,7 @@ namespace EmulationServer.WorldServer.Core;
 public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandExecutor, IInGameServerCommandExecutor, IAsyncDisposable
 {
     private static readonly int[] DefaultWorldGameObjectSnapshotMapIds = [0, 1];
+    private static readonly int[] DefaultWorldCreatureSnapshotMapIds = [0, 1];
 
     /**
       * Holds the private settings state used by the owning component.
@@ -159,6 +161,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _sentGameObjectSnapshotKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _sentCreatureSnapshotKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _scheduledMapControlTimers = new(StringComparer.OrdinalIgnoreCase);
     private readonly SystemSteadyClock _clock = SystemSteadyClock.Instance;
     private CancellationTokenSource? _serverControlTimerCancellation;
@@ -358,6 +361,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (IsMapControlServer(remoteServerName))
         {
             await SendInitialGameObjectSnapshotsToMapOwnerAsync(remoteServerName, cancellationToken);
+            await SendInitialCreatureSnapshotsToMapOwnerAsync(remoteServerName, cancellationToken);
         }
     }
 
@@ -384,6 +388,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (IsMapControlServer(remoteServerName))
         {
             ClearGameObjectSnapshotKeysForOwner(remoteServerName);
+            ClearCreatureSnapshotKeysForOwner(remoteServerName);
             await MarkMapOwnerUnavailableAsync(remoteServerName, "incoming internal connection disconnected", cancellationToken);
         }
     }
@@ -410,6 +415,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (IsMapControlServer(remoteServerName))
         {
             await SendInitialGameObjectSnapshotsToMapOwnerAsync(remoteServerName, cancellationToken);
+            await SendInitialCreatureSnapshotsToMapOwnerAsync(remoteServerName, cancellationToken);
         }
     }
 
@@ -436,6 +442,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (IsMapControlServer(remoteServerName))
         {
             ClearGameObjectSnapshotKeysForOwner(remoteServerName);
+            ClearCreatureSnapshotKeysForOwner(remoteServerName);
             await MarkMapOwnerUnavailableAsync(remoteServerName, "outgoing internal peer disconnected", cancellationToken);
         }
     }
@@ -684,6 +691,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (shouldRefreshGameObjectSnapshot)
         {
             await ReloadGameObjectDataForMapAsync(mapId, cancellationToken);
+            await ReloadCreatureDataForMapAsync(mapId, cancellationToken);
         }
 
         string commandId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
@@ -703,6 +711,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             if (shouldRefreshGameObjectSnapshot)
             {
                 await SendGameObjectSnapshotToTargetAsync(target, mapId, cancellationToken);
+                await SendCreatureSnapshotToTargetAsync(target, mapId, cancellationToken);
             }
 
             int sent = await SendPacketToServerAsync(target, packet, cancellationToken);
@@ -982,6 +991,140 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     }
 
     /**
+      * Sends startup creature snapshots to a newly connected map owner before players depend on that owner for runtime state.
+      */
+    private async Task SendInitialCreatureSnapshotsToMapOwnerAsync(string ownerServerName, CancellationToken cancellationToken)
+    {
+        foreach (int mapId in GetInitialCreatureSnapshotMapIds(ownerServerName))
+        {
+            await SendCreatureSnapshotIfNeededAsync(ownerServerName, mapId, cancellationToken);
+        }
+    }
+
+    /**
+      * Resolves the maps that should be pushed to a map owner when it authenticates.
+      */
+    private int[] GetInitialCreatureSnapshotMapIds(string ownerServerName)
+    {
+        IEnumerable<int> reportedMaps = _mapServiceStatuses.Values
+            .Where(status => string.Equals(status.OwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
+            .Select(status => status.MapId);
+
+        if (string.Equals(ownerServerName, "MapServer", StringComparison.OrdinalIgnoreCase))
+        {
+            reportedMaps = reportedMaps.Concat(DefaultWorldCreatureSnapshotMapIds);
+        }
+
+        return [.. reportedMaps
+            .Where(mapId => mapId >= 0 && mapId <= ushort.MaxValue)
+            .Distinct()
+            .OrderBy(mapId => mapId)];
+    }
+
+    /**
+      * Avoids resending the same startup snapshot repeatedly while still allowing explicit map start/restart commands to force a fresh snapshot.
+      */
+    private async Task SendCreatureSnapshotIfNeededAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
+    {
+        string key = GetCreatureSnapshotKey(ownerServerName, mapId);
+        if (!_sentCreatureSnapshotKeys.TryAdd(key, 0))
+        {
+            return;
+        }
+
+        int sentLines = await SendCreatureSnapshotToTargetAsync(ownerServerName, mapId, cancellationToken);
+        if (sentLines == 0)
+        {
+            _sentCreatureSnapshotKeys.TryRemove(key, out _);
+            return;
+        }
+
+        _sentCreatureSnapshotKeys[key] = 1;
+    }
+
+    /**
+      * Sends one full creature template/spawn snapshot to a MapServer or InstanceServer target.
+      */
+    private async Task<int> SendCreatureSnapshotToTargetAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
+    {
+        if (mapId < 0 || mapId > ushort.MaxValue)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer cannot send creature snapshot for invalid MapId={mapId} to {ownerServerName}.", "WorldServer");
+            return 0;
+        }
+
+        ushort safeMapId = unchecked((ushort)mapId);
+        IReadOnlyList<CreatureSpawnRecord> spawns = _worldTemplateData.GetCreatureSpawnsForMap(safeMapId);
+        CreatureTemplateRecord[] templates = [.. spawns
+            .Select(spawn => spawn.Entry)
+            .Distinct()
+            .Select(entry => _worldTemplateData.TryGetCreatureTemplate(entry, out CreatureTemplateRecord template) ? template : null)
+            .OfType<CreatureTemplateRecord>()
+            .OrderBy(template => template.Entry)];
+
+        string snapshotId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        int sentLines = 0;
+
+        async Task SendSnapshotLineAsync(string line)
+        {
+            if (line.Length > InternalProtocol.MaximumPacketLineLength)
+            {
+                Logger.Write(LogType.WARNING, $"WorldServer skipped oversized creature snapshot packet for MapId={mapId} to {ownerServerName}: {line.Length} characters.", "WorldServer");
+                return;
+            }
+
+            int sent = await SendPacketToServerAsync(ownerServerName, line, cancellationToken);
+            if (sent > 0)
+            {
+                sentLines++;
+            }
+        }
+
+        await SendSnapshotLineAsync(CreatureSnapshotProtocol.CreateBeginPacket(snapshotId, mapId, templates.Length, spawns.Count));
+        foreach (CreatureTemplateRecord template in templates)
+        {
+            await SendSnapshotLineAsync(CreatureSnapshotProtocol.CreateTemplatePacket(snapshotId, template));
+        }
+
+        foreach (CreatureSpawnRecord spawn in spawns.OrderBy(spawn => spawn.Guid))
+        {
+            await SendSnapshotLineAsync(CreatureSnapshotProtocol.CreateSpawnPacket(snapshotId, spawn));
+        }
+
+        await SendSnapshotLineAsync(CreatureSnapshotProtocol.CreateEndPacket(snapshotId, mapId));
+
+        if (sentLines == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not send creature snapshot for MapId={mapId} to {ownerServerName}; no active connection was available.", "WorldServer");
+            return 0;
+        }
+
+        _sentCreatureSnapshotKeys[GetCreatureSnapshotKey(ownerServerName, mapId)] = 1;
+        Logger.Write(LogType.NETWORK, $"WorldServer sent creature snapshot {snapshotId} for MapId={mapId} to {ownerServerName}: templates={templates.Length}, spawns={spawns.Count}, packetLines={sentLines}.", "WorldServer");
+        return sentLines;
+    }
+
+    /**
+      * Removes startup snapshot cache entries when a map owner disconnects so the next connection receives fresh data.
+      */
+    private void ClearCreatureSnapshotKeysForOwner(string ownerServerName)
+    {
+        string prefix = string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|");
+        foreach (string key in _sentCreatureSnapshotKeys.Keys.Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            _sentCreatureSnapshotKeys.TryRemove(key, out _);
+        }
+    }
+
+    /**
+      * Builds the startup snapshot cache key for one map owner/map pair.
+      */
+    private static string GetCreatureSnapshotKey(string ownerServerName, int mapId)
+    {
+        return string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|{mapId}");
+    }
+
+    /**
       * Performs the announce world capacity operation for the world server startup, client networking, gameplay routing, and persistence workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
       * Inputs used by this operation: sendPacketAsync, remoteServerName, cancellationToken.
@@ -1204,6 +1347,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (isOnline && IsConnectedMapOwner(status.OwnerServerName))
         {
             await SendGameObjectSnapshotIfNeededAsync(status.OwnerServerName, status.MapId, cancellationToken);
+            await SendCreatureSnapshotIfNeededAsync(status.OwnerServerName, status.MapId, cancellationToken);
         }
 
         // WorldServer receives map service snapshots from both the direct MapServer/InstanceServer
@@ -1306,6 +1450,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         List<string> lines = [$"Map {mapId} info:"];
         AppendMapMetadataLines(lines, mapId);
         AppendGameObjectMetadataLines(lines, mapId);
+        AppendCreatureMetadataLines(lines, mapId);
 
         if (statuses.Length == 0)
         {
@@ -1388,6 +1533,61 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         if (missingTemplates > 0)
         {
             lines.Add($"GO Missing Templates: {missingTemplates}");
+        }
+    }
+
+    /**
+      * Reloads the world cache creature rows for a map before a map start or restart command is dispatched.
+      */
+    private async Task ReloadCreatureDataForMapAsync(int mapId, CancellationToken cancellationToken)
+    {
+        if (mapId < 0 || mapId > ushort.MaxValue)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer cannot reload creature spawns for invalid MapId={mapId}.", "WorldServer");
+            return;
+        }
+
+        ushort safeMapId = unchecked((ushort)mapId);
+        IReadOnlyList<CreatureTemplateRecord> templates = await _worldTemplateRepository.LoadCreatureTemplatesAsync(cancellationToken);
+        IReadOnlyList<CreatureSpawnRecord> spawns = await _worldTemplateRepository.LoadCreatureSpawnsForMapAsync(safeMapId, cancellationToken);
+        spawns = await ResolveAndPersistCreatureAreaDataAsync(spawns, $"MapId={mapId} reload", cancellationToken);
+
+        _worldTemplateData = _worldTemplateData.WithCreatureDataForMap(safeMapId, templates, spawns);
+
+        HashSet<uint> templateEntries = templates.Select(template => template.Entry).ToHashSet();
+        int zones = spawns.Where(spawn => spawn.ZoneId != 0).Select(spawn => spawn.ZoneId).Distinct().Count();
+        int areas = spawns.Where(spawn => spawn.AreaId != 0).Select(spawn => spawn.AreaId).Distinct().Count();
+        int missingTemplates = spawns.Count(spawn => !templateEntries.Contains(spawn.Entry));
+
+        Logger.Write(
+            missingTemplates == 0 ? LogType.DATABASE : LogType.WARNING,
+            $"WorldServer reloaded creature data for MapId={mapId}: spawns={spawns.Count}, templates={templates.Count}, zones={zones}, areas={areas}, missingTemplates={missingTemplates}.",
+            "WorldServer");
+    }
+
+    /**
+      * Appends cached creature spawn metadata as short chat-safe lines.
+      */
+    private void AppendCreatureMetadataLines(List<string> lines, int mapId)
+    {
+        if (mapId < 0 || mapId > ushort.MaxValue)
+        {
+            lines.Add("Creatures: unsupported map id for spawn cache lookup.");
+            return;
+        }
+
+        IReadOnlyList<CreatureSpawnRecord> spawns = _worldTemplateData.GetCreatureSpawnsForMap(unchecked((ushort)mapId));
+        int templateReferences = spawns.Select(spawn => spawn.Entry).Distinct().Count();
+        int missingTemplates = spawns.Count(spawn => !_worldTemplateData.CreatureTemplates.ContainsKey(spawn.Entry));
+        int zones = spawns.Where(spawn => spawn.ZoneId != 0).Select(spawn => spawn.ZoneId).Distinct().Count();
+        int areas = spawns.Where(spawn => spawn.AreaId != 0).Select(spawn => spawn.AreaId).Distinct().Count();
+
+        lines.Add($"Creatures: {spawns.Count} spawn(s)");
+        lines.Add($"Creature Templates: {templateReferences} referenced / {_worldTemplateData.CreatureTemplateCount} loaded");
+        lines.Add($"Creature Location Index: {zones} zone(s), {areas} area(s)");
+        if (missingTemplates > 0)
+        {
+            lines.Add($"Creature Missing Templates: {missingTemplates}");
         }
     }
 
@@ -1733,6 +1933,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     {
         _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
         await EnrichAndPersistGameObjectAreaDataAsync(cancellationToken);
+        await EnrichAndPersistCreatureAreaDataAsync(cancellationToken);
 
         if (_worldTemplateData.PlayerCreateInfo.Count == 0)
         {
@@ -1754,10 +1955,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         LogOptionalWorldTemplateCount("playercreateinfo_spell", _worldTemplateData.PlayerCreateSpellCount, "new characters will fall back to hardcoded starter spells");
         LogOptionalWorldTemplateCount("gameobject_template", _worldTemplateData.GameObjectTemplateCount, "game object templates are unavailable until Mangos Zero data is imported");
         LogOptionalWorldTemplateCount("gameobject", _worldTemplateData.GameObjectSpawnCount, "no game object spawns will be tracked by map/zone/area until data is imported");
+        LogOptionalWorldTemplateCount("creature_template", _worldTemplateData.CreatureTemplateCount, "creature/NPC templates are unavailable until Mangos Zero data is imported");
+        LogOptionalWorldTemplateCount("creature", _worldTemplateData.CreatureSpawnCount, "no creature/NPC spawns will be tracked by map/zone/area until data is imported");
 
         Logger.Write(
             LogType.DATABASE,
-            $"World database templates ready (playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}, gameobject_template={_worldTemplateData.GameObjectTemplateCount}, gameobject={_worldTemplateData.GameObjectSpawnCount}, gameobject_maps={_worldTemplateData.GameObjectSpawnMapCount}, gameobject_zones={_worldTemplateData.GameObjectSpawnZoneCount}, gameobject_areas={_worldTemplateData.GameObjectSpawnAreaCount}).",
+            $"World database templates ready (playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}, gameobject_template={_worldTemplateData.GameObjectTemplateCount}, gameobject={_worldTemplateData.GameObjectSpawnCount}, gameobject_maps={_worldTemplateData.GameObjectSpawnMapCount}, gameobject_zones={_worldTemplateData.GameObjectSpawnZoneCount}, gameobject_areas={_worldTemplateData.GameObjectSpawnAreaCount}, creature_template={_worldTemplateData.CreatureTemplateCount}, creature={_worldTemplateData.CreatureSpawnCount}, creature_maps={_worldTemplateData.CreatureSpawnMapCount}, creature_zones={_worldTemplateData.CreatureSpawnZoneCount}, creature_areas={_worldTemplateData.CreatureSpawnAreaCount}).",
             "WorldServer");
     }
 
@@ -1766,13 +1969,14 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     private async Task EnrichAndPersistGameObjectAreaDataAsync(CancellationToken cancellationToken)
     {
-        if (_worldTemplateData.GameObjectSpawnCount == 0)
+        IReadOnlyList<GameObjectSpawnRecord> rawSpawns = await _worldTemplateRepository.LoadGameObjectSpawnsAsync(cancellationToken);
+        if (rawSpawns.Count == 0)
         {
             return;
         }
 
         IReadOnlyList<GameObjectSpawnRecord> enrichedSpawns = await ResolveAndPersistGameObjectAreaDataAsync(
-            _worldTemplateData.GameObjectSpawns.Values.ToArray(),
+            rawSpawns,
             "startup",
             cancellationToken);
 
@@ -1802,7 +2006,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         MapStoreAreaLookupService areaLookup = new(mapStoreDirectory, _gameData.MapData);
         GameObjectAreaEnrichmentResult result = await _worldTemplateRepository.ResolveAndPersistGameObjectAreasAsync(spawns, areaLookup, cancellationToken);
 
-        string sourceSummary = FormatGameObjectAreaSourceSummary(result.SourceCounts);
+        string sourceSummary = FormatAreaSourceSummary(result.SourceCounts);
         LogType logType = result.UnresolvedCount == 0 ? LogType.DATABASE : LogType.WARNING;
         Logger.Write(
             logType,
@@ -1813,9 +2017,61 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     }
 
     /**
+      * Resolves and persists creature zoneId/areaId for the full startup cache.
+      */
+    private async Task EnrichAndPersistCreatureAreaDataAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<CreatureSpawnRecord> rawSpawns = await _worldTemplateRepository.LoadCreatureSpawnsAsync(cancellationToken);
+        if (rawSpawns.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<CreatureSpawnRecord> enrichedSpawns = await ResolveAndPersistCreatureAreaDataAsync(
+            rawSpawns,
+            "startup",
+            cancellationToken);
+
+        _worldTemplateData = _worldTemplateData.WithCreatureSpawns(enrichedSpawns);
+    }
+
+    /**
+      * Resolves and persists creature zoneId/areaId for supplied spawns using exact mapstore terrain area flags when available.
+      */
+    private async Task<IReadOnlyList<CreatureSpawnRecord>> ResolveAndPersistCreatureAreaDataAsync(
+        IReadOnlyList<CreatureSpawnRecord> spawns,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        if (spawns.Count == 0)
+        {
+            return spawns;
+        }
+
+        if (!_settings.GameData.Enabled || _gameData.MapData.Areas.Count == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer skipped creature zone/area resolution for {reason}; game data or AreaTable.dbc is unavailable.", "WorldServer");
+            return spawns;
+        }
+
+        string mapStoreDirectory = GameDataPathResolver.ResolveDirectory(_settings.GameData.DataDirectory, _settings.GameData.MapStoreDirectory);
+        MapStoreAreaLookupService areaLookup = new(mapStoreDirectory, _gameData.MapData);
+        CreatureAreaEnrichmentResult result = await _worldTemplateRepository.ResolveAndPersistCreatureAreasAsync(spawns, areaLookup, cancellationToken);
+
+        string sourceSummary = FormatAreaSourceSummary(result.SourceCounts);
+        LogType logType = result.UnresolvedCount == 0 ? LogType.DATABASE : LogType.WARNING;
+        Logger.Write(
+            logType,
+            $"WorldServer resolved creature zone/area data for {reason}: spawns={result.Spawns.Count}, resolved={result.ResolvedCount}, unresolved={result.UnresolvedCount}, changed={result.ChangedCount}, persisted={result.PersistedCount}, sources={sourceSummary}.",
+            "WorldServer");
+
+        return result.Spawns;
+    }
+
+    /**
       * Formats zone/area lookup source counts for startup diagnostics.
       */
-    private static string FormatGameObjectAreaSourceSummary(IReadOnlyDictionary<string, int> sourceCounts)
+    private static string FormatAreaSourceSummary(IReadOnlyDictionary<string, int> sourceCounts)
     {
         if (sourceCounts.Count == 0)
         {

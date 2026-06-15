@@ -127,6 +127,22 @@ public enum WorldOpcode : ushort
       */
     SMSG_ITEM_QUERY_SINGLE_RESPONSE = 0x058,
     /**
+      * Represents the query value for world opcode handling.
+      */
+    CMSG_GAMEOBJECT_QUERY = 0x05E,
+    /**
+      * Represents the response value for world opcode handling.
+      */
+    SMSG_GAMEOBJECT_QUERY_RESPONSE = 0x05F,
+    /**
+      * Represents the query value for world opcode handling.
+      */
+    CMSG_CREATURE_QUERY = 0x060,
+    /**
+      * Represents the response value for world opcode handling.
+      */
+    SMSG_CREATURE_QUERY_RESPONSE = 0x061,
+    /**
       * Represents the who value for world opcode handling.
       */
     CMSG_WHO = 0x062,

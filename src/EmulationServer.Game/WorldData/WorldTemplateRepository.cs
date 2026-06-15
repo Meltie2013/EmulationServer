@@ -71,6 +71,8 @@ public sealed class WorldTemplateRepository
         IReadOnlyList<PlayerCreateSpellRecord> playerCreateSpells = await LoadPlayerCreateSpellsAsync(cancellationToken);
         IReadOnlyList<GameObjectTemplateRecord> gameObjectTemplates = await LoadGameObjectTemplatesAsync(cancellationToken);
         IReadOnlyList<GameObjectSpawnRecord> gameObjectSpawns = await LoadGameObjectSpawnsAsync(cancellationToken);
+        IReadOnlyList<CreatureTemplateRecord> creatureTemplates = await LoadCreatureTemplatesAsync(cancellationToken);
+        IReadOnlyList<CreatureSpawnRecord> creatureSpawns = await LoadCreatureSpawnsAsync(cancellationToken);
 
         return new WorldTemplateDataStore(
             playerCreateInfo,
@@ -82,7 +84,9 @@ public sealed class WorldTemplateRepository
             playerCreateItems,
             playerCreateSpells,
             gameObjectTemplates,
-            gameObjectSpawns);
+            gameObjectSpawns,
+            creatureTemplates,
+            creatureSpawns);
     }
 
     /**
@@ -555,6 +559,202 @@ public sealed class WorldTemplateRepository
     }
 
     /**
+      * Loads every creature_template row into the startup world cache.
+      */
+    public async Task<IReadOnlyList<CreatureTemplateRecord>> LoadCreatureTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "creature_template", cancellationToken))
+        {
+            return Array.Empty<CreatureTemplateRecord>();
+        }
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT {CreatureTemplateSelectColumns}
+            FROM `creature_template`;
+            """;
+
+        List<CreatureTemplateRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadCreatureTemplateRecord(reader));
+        }
+
+        return records;
+    }
+
+    /**
+      * Loads every creature spawn row into the startup world cache.
+      */
+    public async Task<IReadOnlyList<CreatureSpawnRecord>> LoadCreatureSpawnsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "creature", cancellationToken))
+        {
+            return Array.Empty<CreatureSpawnRecord>();
+        }
+
+        bool hasZoneId = await ColumnExistsAsync(connection, "creature", "zoneId", cancellationToken);
+        bool hasAreaId = await ColumnExistsAsync(connection, "creature", "areaId", cancellationToken);
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT `guid`, `id`, `map`, {FormatOptionalColumnSelect(hasZoneId, "zoneId")}, {FormatOptionalColumnSelect(hasAreaId, "areaId")},
+                   `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`,
+                   `spawntimesecs`, `spawndist`, `currentwaypoint`, `curhealth`, `curmana`, `DeathState`, `MovementType`
+            FROM `creature`
+            ORDER BY `map`, `guid`;
+            """;
+
+        List<CreatureSpawnRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadCreatureSpawnRecord(reader));
+        }
+
+        return records;
+    }
+
+    /**
+      * Loads creature rows for one map. Used by map start/restart control flows so creature DB edits can be picked up without rebooting WorldServer.
+      */
+    public async Task<IReadOnlyList<CreatureSpawnRecord>> LoadCreatureSpawnsForMapAsync(ushort mapId, CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "creature", cancellationToken))
+        {
+            return Array.Empty<CreatureSpawnRecord>();
+        }
+
+        bool hasZoneId = await ColumnExistsAsync(connection, "creature", "zoneId", cancellationToken);
+        bool hasAreaId = await ColumnExistsAsync(connection, "creature", "areaId", cancellationToken);
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT `guid`, `id`, `map`, {FormatOptionalColumnSelect(hasZoneId, "zoneId")}, {FormatOptionalColumnSelect(hasAreaId, "areaId")},
+                   `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`,
+                   `spawntimesecs`, `spawndist`, `currentwaypoint`, `curhealth`, `curmana`, `DeathState`, `MovementType`
+            FROM `creature`
+            WHERE `map` = @map
+            ORDER BY `guid`;
+            """;
+        command.Parameters.AddWithValue("@map", mapId);
+
+        List<CreatureSpawnRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadCreatureSpawnRecord(reader));
+        }
+
+        return records;
+    }
+
+    /**
+      * Resolves zoneId/areaId per creature guid from world coordinates and persists changed values back to the world database.
+      */
+    public async Task<CreatureAreaEnrichmentResult> ResolveAndPersistCreatureAreasAsync(
+        IEnumerable<CreatureSpawnRecord> spawns,
+        MapStoreAreaLookupService areaLookup,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(spawns);
+        ArgumentNullException.ThrowIfNull(areaLookup);
+
+        List<CreatureSpawnRecord> enrichedSpawns = [];
+        List<CreatureSpawnRecord> changedSpawns = [];
+        Dictionary<string, int> sourceCounts = new(StringComparer.OrdinalIgnoreCase);
+        int resolvedCount = 0;
+        int unresolvedCount = 0;
+
+        foreach (CreatureSpawnRecord spawn in spawns)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!areaLookup.TryResolve(spawn.Map, spawn.PositionX, spawn.PositionY, out WorldAreaLookupResult lookup) || !lookup.IsResolved)
+            {
+                enrichedSpawns.Add(spawn);
+                unresolvedCount++;
+                continue;
+            }
+
+            resolvedCount++;
+            sourceCounts[lookup.Source] = sourceCounts.TryGetValue(lookup.Source, out int count) ? count + 1 : 1;
+
+            CreatureSpawnRecord enrichedSpawn = spawn with
+            {
+                ZoneId = lookup.ZoneId,
+                AreaId = lookup.AreaId,
+            };
+
+            enrichedSpawns.Add(enrichedSpawn);
+
+            if (spawn.ZoneId != lookup.ZoneId || spawn.AreaId != lookup.AreaId)
+            {
+                changedSpawns.Add(enrichedSpawn);
+            }
+        }
+
+        int persistedCount = changedSpawns.Count == 0
+            ? 0
+            : await PersistCreatureAreaIdsAsync(changedSpawns, cancellationToken);
+
+        return new CreatureAreaEnrichmentResult(
+            enrichedSpawns,
+            resolvedCount,
+            unresolvedCount,
+            changedSpawns.Count,
+            persistedCount,
+            sourceCounts);
+    }
+
+    /**
+      * Persists changed creature zone/area identifiers by guid.
+      */
+    private async Task<int> PersistCreatureAreaIdsAsync(IReadOnlyList<CreatureSpawnRecord> changedSpawns, CancellationToken cancellationToken)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "creature", cancellationToken) ||
+            !await ColumnExistsAsync(connection, "creature", "zoneId", cancellationToken) ||
+            !await ColumnExistsAsync(connection, "creature", "areaId", cancellationToken))
+        {
+            return 0;
+        }
+
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE `creature`
+            SET `zoneId` = @zoneId,
+                `areaId` = @areaId
+            WHERE `guid` = @guid
+              AND (`zoneId` <> @zoneId OR `areaId` <> @areaId);
+            """;
+
+        MySqlParameter guidParameter = command.Parameters.Add("@guid", MySqlDbType.UInt32);
+        MySqlParameter zoneParameter = command.Parameters.Add("@zoneId", MySqlDbType.UInt32);
+        MySqlParameter areaParameter = command.Parameters.Add("@areaId", MySqlDbType.UInt32);
+
+        int updated = 0;
+        foreach (CreatureSpawnRecord spawn in changedSpawns)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            guidParameter.Value = spawn.Guid;
+            zoneParameter.Value = spawn.ZoneId;
+            areaParameter.Value = spawn.AreaId;
+            updated += await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return updated;
+    }
+
+
+    /**
       * Resolves the player create info value requested by the caller.
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: race, characterClass, cancellationToken.
@@ -625,6 +825,131 @@ public sealed class WorldTemplateRepository
         }
 
         return result;
+    }
+
+    private const string CreatureTemplateSelectColumns = """
+        `Entry`, `Name`, COALESCE(`SubName`, '') AS `SubName`, `MinLevel`, `MaxLevel`,
+        `ModelId1`, `ModelId2`, `ModelId3`, `ModelId4`, `FactionAlliance`, `FactionHorde`, `Scale`,
+        `Family`, `CreatureType`, `InhabitType`, COALESCE(`RegenerateStats`, 0) AS `RegenerateStats`, `RacialLeader`,
+        `NpcFlags`, `UnitFlags`, `DynamicFlags`, `ExtraFlags`, `CreatureTypeFlags`, `SpeedWalk`, `SpeedRun`,
+        `UnitClass`, `Rank`, `HealthMultiplier`, `PowerMultiplier`, `DamageMultiplier`, `DamageVariance`, `ArmorMultiplier`,
+        `ExperienceMultiplier`, `MinLevelHealth`, `MaxLevelHealth`, `MinLevelMana`, `MaxLevelMana`, `MinMeleeDmg`,
+        `MaxMeleeDmg`, `MinRangedDmg`, `MaxRangedDmg`, `Armor`, `MeleeAttackPower`, `RangedAttackPower`,
+        `MeleeBaseAttackTime`, `RangedBaseAttackTime`, `DamageSchool`, `MinLootGold`, `MaxLootGold`, `LootId`,
+        `PickpocketLootId`, `SkinningLootId`, `KillCredit1`, `KillCredit2`, `MechanicImmuneMask`, `SchoolImmuneMask`,
+        `ResistanceHoly`, `ResistanceFire`, `ResistanceNature`, `ResistanceFrost`, `ResistanceShadow`, `ResistanceArcane`,
+        `SpellListId`, `PetSpellDataId`, `MovementType`, `TrainerType`, `TrainerSpell`, `TrainerClass`, `TrainerRace`,
+        `TrainerTemplateId`, `VendorTemplateId`, `GossipMenuId`, `EquipmentTemplateId`, `Civilian`, COALESCE(`AIName`, '') AS `AIName`
+        """;
+
+    /**
+      * Parses one creature_template row into the immutable template cache record.
+      */
+    private static CreatureTemplateRecord ReadCreatureTemplateRecord(MySqlDataReader reader)
+    {
+        int index = 0;
+        return new CreatureTemplateRecord(
+            Entry: ReadUInt32(reader, index++),
+            Name: ReadString(reader, index++),
+            SubName: ReadString(reader, index++),
+            MinLevel: ReadByte(reader, index++),
+            MaxLevel: ReadByte(reader, index++),
+            ModelId1: ReadUInt32(reader, index++),
+            ModelId2: ReadUInt32(reader, index++),
+            ModelId3: ReadUInt32(reader, index++),
+            ModelId4: ReadUInt32(reader, index++),
+            FactionAlliance: ReadUInt16(reader, index++),
+            FactionHorde: ReadUInt16(reader, index++),
+            Scale: ReadSingle(reader, index++),
+            Family: ReadSByte(reader, index++),
+            CreatureType: ReadByte(reader, index++),
+            InhabitType: ReadByte(reader, index++),
+            RegenerateStats: ReadByte(reader, index++),
+            RacialLeader: ReadByte(reader, index++),
+            NpcFlags: ReadUInt32(reader, index++),
+            UnitFlags: ReadUInt32(reader, index++),
+            DynamicFlags: ReadUInt32(reader, index++),
+            ExtraFlags: ReadUInt32(reader, index++),
+            CreatureTypeFlags: ReadUInt32(reader, index++),
+            SpeedWalk: ReadSingle(reader, index++),
+            SpeedRun: ReadSingle(reader, index++),
+            UnitClass: ReadByte(reader, index++),
+            Rank: ReadByte(reader, index++),
+            HealthMultiplier: ReadSingle(reader, index++),
+            PowerMultiplier: ReadSingle(reader, index++),
+            DamageMultiplier: ReadSingle(reader, index++),
+            DamageVariance: ReadSingle(reader, index++),
+            ArmorMultiplier: ReadSingle(reader, index++),
+            ExperienceMultiplier: ReadSingle(reader, index++),
+            MinLevelHealth: ReadUInt32(reader, index++),
+            MaxLevelHealth: ReadUInt32(reader, index++),
+            MinLevelMana: ReadUInt32(reader, index++),
+            MaxLevelMana: ReadUInt32(reader, index++),
+            MinMeleeDamage: ReadSingle(reader, index++),
+            MaxMeleeDamage: ReadSingle(reader, index++),
+            MinRangedDamage: ReadSingle(reader, index++),
+            MaxRangedDamage: ReadSingle(reader, index++),
+            Armor: ReadUInt32(reader, index++),
+            MeleeAttackPower: ReadUInt32(reader, index++),
+            RangedAttackPower: ReadUInt16(reader, index++),
+            MeleeBaseAttackTime: ReadUInt32(reader, index++),
+            RangedBaseAttackTime: ReadUInt32(reader, index++),
+            DamageSchool: ReadSByte(reader, index++),
+            MinLootGold: ReadUInt32(reader, index++),
+            MaxLootGold: ReadUInt32(reader, index++),
+            LootId: ReadUInt32(reader, index++),
+            PickpocketLootId: ReadUInt32(reader, index++),
+            SkinningLootId: ReadUInt32(reader, index++),
+            KillCredit1: ReadUInt32(reader, index++),
+            KillCredit2: ReadUInt32(reader, index++),
+            MechanicImmuneMask: ReadUInt32(reader, index++),
+            SchoolImmuneMask: ReadUInt32(reader, index++),
+            ResistanceHoly: ReadInt16(reader, index++),
+            ResistanceFire: ReadInt16(reader, index++),
+            ResistanceNature: ReadInt16(reader, index++),
+            ResistanceFrost: ReadInt16(reader, index++),
+            ResistanceShadow: ReadInt16(reader, index++),
+            ResistanceArcane: ReadInt16(reader, index++),
+            SpellListId: ReadUInt32(reader, index++),
+            PetSpellDataId: ReadUInt32(reader, index++),
+            MovementType: ReadByte(reader, index++),
+            TrainerType: ReadSByte(reader, index++),
+            TrainerSpell: ReadUInt32(reader, index++),
+            TrainerClass: ReadByte(reader, index++),
+            TrainerRace: ReadByte(reader, index++),
+            TrainerTemplateId: ReadUInt32(reader, index++),
+            VendorTemplateId: ReadUInt32(reader, index++),
+            GossipMenuId: ReadUInt32(reader, index++),
+            EquipmentTemplateId: ReadUInt32(reader, index++),
+            Civilian: ReadByte(reader, index++),
+            AIName: ReadString(reader, index++));
+    }
+
+    /**
+      * Parses one creature spawn row into the immutable spawn cache record.
+      */
+    private static CreatureSpawnRecord ReadCreatureSpawnRecord(MySqlDataReader reader)
+    {
+        int index = 0;
+        return new CreatureSpawnRecord(
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt16(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadInt32(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadSingle(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadByte(reader, index++),
+            ReadByte(reader, index++));
     }
 
     private const string GameObjectTemplateSelectColumns = """
@@ -889,6 +1214,11 @@ public sealed class WorldTemplateRepository
     private static int ReadInt32(MySqlDataReader reader, int index)
     {
         return Convert.ToInt32(reader.GetValue(index), CultureInfo.InvariantCulture);
+    }
+
+    private static short ReadInt16(MySqlDataReader reader, int index)
+    {
+        return Convert.ToInt16(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
     private static float ReadSingle(MySqlDataReader reader, int index)

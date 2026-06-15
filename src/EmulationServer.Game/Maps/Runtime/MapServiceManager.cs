@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Game.Creatures;
 using EmulationServer.Game.Data;
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Game.Data.Dbc.Maps;
@@ -52,6 +53,8 @@ public sealed class MapServiceManager : IAsyncDisposable
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
     private readonly Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>>? _loadGameObjectSpawnsAsync;
     private readonly Func<uint, GameObjectTemplateRecord?>? _resolveGameObjectTemplate;
+    private readonly Func<int, CancellationToken, Task<IReadOnlyList<CreatureSpawnRecord>>>? _loadCreatureSpawnsAsync;
+    private readonly Func<uint, CreatureTemplateRecord?>? _resolveCreatureTemplate;
     private readonly ISteadyClock _clock;
     /**
       * Holds the private services state used by the owning component.
@@ -95,6 +98,8 @@ public sealed class MapServiceManager : IAsyncDisposable
         Func<MapServiceSnapshot, CancellationToken, Task> reportStatusAsync,
         Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>>? loadGameObjectSpawnsAsync = null,
         Func<uint, GameObjectTemplateRecord?>? resolveGameObjectTemplate = null,
+        Func<int, CancellationToken, Task<IReadOnlyList<CreatureSpawnRecord>>>? loadCreatureSpawnsAsync = null,
+        Func<uint, CreatureTemplateRecord?>? resolveCreatureTemplate = null,
         ISteadyClock? clock = null)
     {
         if (string.IsNullOrWhiteSpace(ownerServerName))
@@ -110,6 +115,8 @@ public sealed class MapServiceManager : IAsyncDisposable
         _reportStatusAsync = reportStatusAsync ?? throw new ArgumentNullException();
         _loadGameObjectSpawnsAsync = loadGameObjectSpawnsAsync;
         _resolveGameObjectTemplate = resolveGameObjectTemplate;
+        _loadCreatureSpawnsAsync = loadCreatureSpawnsAsync;
+        _resolveCreatureTemplate = resolveCreatureTemplate;
         _clock = clock ?? SystemSteadyClock.Instance;
 
         if (!settings.Enabled)
@@ -141,8 +148,9 @@ public sealed class MapServiceManager : IAsyncDisposable
                 mapsDirectory);
 
             GameObjectMapRuntime? gameObjectRuntime = CreateGameObjectRuntime(definition);
+            CreatureMapRuntime? creatureRuntime = CreateCreatureRuntime(definition);
 
-            _services.Add(new MapService(ownerServerName, definition, gridManager, gameObjectRuntime, _reportStatusAsync, _clock));
+            _services.Add(new MapService(ownerServerName, definition, gridManager, gameObjectRuntime, creatureRuntime, _reportStatusAsync, _clock));
         }
     }
 
@@ -175,6 +183,22 @@ public sealed class MapServiceManager : IAsyncDisposable
             definition.MapId,
             _loadGameObjectSpawnsAsync,
             _resolveGameObjectTemplate);
+    }
+
+    /**
+      * Creates the optional creature runtime bridge used by start/restart/shutdown map lifecycle hooks.
+      */
+    private CreatureMapRuntime? CreateCreatureRuntime(MapServiceDefinition definition)
+    {
+        if (_loadCreatureSpawnsAsync is null || _resolveCreatureTemplate is null)
+        {
+            return null;
+        }
+
+        return new CreatureMapRuntime(
+            definition.MapId,
+            _loadCreatureSpawnsAsync,
+            _resolveCreatureTemplate);
     }
 
     /**
@@ -384,6 +408,17 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
+      * Reloads creature runtime state for every hosted service on one map from the latest received WorldServer snapshot.
+      */
+    public async Task ReloadCreaturesAsync(int mapId, CancellationToken cancellationToken)
+    {
+        foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
+        {
+            await service.ReloadCreaturesAsync(cancellationToken);
+        }
+    }
+
+    /**
       * Executes a map control command against a single service and converts the result to a protocol-safe response.
       */
     private async Task<MapServiceControlResult> ExecuteControlCommandAsync(
@@ -546,6 +581,7 @@ public sealed class MapServiceManager : IAsyncDisposable
             $"Players: {snapshot.ActivePlayers}",
             $"Grids: {snapshot.ActiveGrids}",
             $"GameObjects: {GetActiveGameObjectsForSnapshot(snapshot)}",
+            $"Creatures: {GetActiveCreaturesForSnapshot(snapshot)}",
             $"Load: {snapshot.LoadPercent:0.##}%",
             $"Average Tick: {snapshot.AverageTickMilliseconds:0.###} ms"
         ];
@@ -564,6 +600,18 @@ public sealed class MapServiceManager : IAsyncDisposable
                 service.Definition.InstanceId == snapshot.InstanceId &&
                 service.Definition.Kind == snapshot.Kind)
             ?.ActiveGameObjectCount ?? 0;
+    }
+
+    /**
+      * Resolves the active creature count for the service represented by a snapshot.
+      */
+    private int GetActiveCreaturesForSnapshot(MapServiceSnapshot snapshot)
+    {
+        return _services.FirstOrDefault(service =>
+                service.Definition.MapId == snapshot.MapId &&
+                service.Definition.InstanceId == snapshot.InstanceId &&
+                service.Definition.Kind == snapshot.Kind)
+            ?.ActiveCreatureCount ?? 0;
     }
 
     /**

@@ -16,6 +16,7 @@
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
 
+using EmulationServer.Game.Creatures;
 using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.GameObjects;
 using EmulationServer.Shared.Logging;
@@ -62,6 +63,7 @@ public sealed class MapService : IAsyncDisposable
       */
     private readonly MapGridManager? _gridManager;
     private readonly GameObjectMapRuntime? _gameObjectRuntime;
+    private readonly CreatureMapRuntime? _creatureRuntime;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task>? _reportStatusAsync;
     private readonly ISteadyClock _clock;
 
@@ -126,6 +128,7 @@ public sealed class MapService : IAsyncDisposable
         MapServiceDefinition definition,
         MapGridManager? gridManager = null,
         GameObjectMapRuntime? gameObjectRuntime = null,
+        CreatureMapRuntime? creatureRuntime = null,
         Func<MapServiceSnapshot, CancellationToken, Task>? reportStatusAsync = null,
         ISteadyClock? clock = null)
     {
@@ -140,6 +143,7 @@ public sealed class MapService : IAsyncDisposable
         _definition = definition;
         _gridManager = gridManager;
         _gameObjectRuntime = gameObjectRuntime;
+        _creatureRuntime = creatureRuntime;
         _reportStatusAsync = reportStatusAsync;
         _clock = clock ?? SystemSteadyClock.Instance;
     }
@@ -171,6 +175,11 @@ public sealed class MapService : IAsyncDisposable
     public int ActiveGameObjectCount => _gameObjectRuntime?.ActiveSpawnCount ?? 0;
 
     /**
+      * Gets the number of active creature runtime spawns currently owned by this map service.
+      */
+    public int ActiveCreatureCount => _creatureRuntime?.ActiveSpawnCount ?? 0;
+
+    /**
       * Reloads game object runtime state from the latest WorldServer snapshot without restarting the entire map service.
       */
     public async Task ReloadGameObjectsAsync(CancellationToken cancellationToken = default)
@@ -189,6 +198,33 @@ public sealed class MapService : IAsyncDisposable
             }
 
             await _gameObjectRuntime.LoadAsync(cancellationToken);
+            await PublishStatusAsync(cancellationToken);
+        }
+        finally
+        {
+            _lifecycleLock.Release();
+        }
+    }
+
+    /**
+      * Reloads creature runtime state from the latest WorldServer snapshot without restarting the entire map service.
+      */
+    public async Task ReloadCreaturesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_creatureRuntime is null)
+        {
+            return;
+        }
+
+        await _lifecycleLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (State == MapServiceState.Offline)
+            {
+                return;
+            }
+
+            await _creatureRuntime.LoadAsync(cancellationToken);
             await PublishStatusAsync(cancellationToken);
         }
         finally
@@ -260,6 +296,7 @@ public sealed class MapService : IAsyncDisposable
             await SetStateAsync(MapServiceState.UnloadingObjects, "despawning creatures, gameobjects, and active grids", cancellationToken);
 
             await StopTickLoopAsync(cancellationToken);
+            _creatureRuntime?.DespawnAll("map restart");
             _gameObjectRuntime?.DespawnAll("map restart");
             _gridManager?.UnloadAllGrids("map restart");
 
@@ -267,6 +304,11 @@ public sealed class MapService : IAsyncDisposable
             if (_gridManager is not null)
             {
                 await _gridManager.InitializeAsync(cancellationToken);
+            }
+
+            if (_creatureRuntime is not null)
+            {
+                await _creatureRuntime.LoadAsync(cancellationToken);
             }
 
             if (_gameObjectRuntime is not null)
@@ -442,6 +484,11 @@ public sealed class MapService : IAsyncDisposable
             await _gridManager.InitializeAsync(_stopCancellation.Token);
         }
 
+        if (_creatureRuntime is not null)
+        {
+            await _creatureRuntime.LoadAsync(_stopCancellation.Token);
+        }
+
         if (_gameObjectRuntime is not null)
         {
             await _gameObjectRuntime.LoadAsync(_stopCancellation.Token);
@@ -490,6 +537,7 @@ public sealed class MapService : IAsyncDisposable
 
         await SetStateAsync(MapServiceState.Stopping, reason, cancellationToken);
         await StopTickLoopAsync(cancellationToken);
+        _creatureRuntime?.DespawnAll(reason);
         _gameObjectRuntime?.DespawnAll(reason);
         _gridManager?.UnloadAllGrids(reason);
         await SetStateAsync(MapServiceState.Offline, "map service is offline", cancellationToken);

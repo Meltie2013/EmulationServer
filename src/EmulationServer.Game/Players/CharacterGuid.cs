@@ -36,6 +36,7 @@ public static class CharacterGuid
       */
     private const ushort HighGuidItem = 0x4000;
     private const ushort HighGuidGameObject = 0xF110;
+    private const ushort HighGuidCreature = 0xF130;
 
     /**
       * Performs the to client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
@@ -75,9 +76,25 @@ public static class CharacterGuid
     }
 
     /**
+      * Builds a Vanilla creature ObjectGuid from a spawn low guid and creature template entry.
+      * The layout mirrors the gameobject high-guid/entry/low-guid split used by Vanilla object updates.
+      */
+    public static ulong ToCreatureGuid(uint lowGuid, uint entry)
+    {
+        return lowGuid == 0 || entry == 0
+            ? 0
+            : ((ulong)HighGuidCreature << 48) | (((ulong)entry & 0xFFFFFFUL) << 24) | ((ulong)lowGuid & 0xFFFFFFUL);
+    }
+
+    /**
       * Exposes the Vanilla gameobject high GUID value written in non-living movement create blocks.
       */
     public static uint GameObjectHighGuidValue => HighGuidGameObject;
+
+    /**
+      * Exposes the Vanilla creature high GUID value for debugging/object packet review.
+      */
+    public static uint CreatureHighGuidValue => HighGuidCreature;
 
     /**
       * Performs the from client guid operation for the logged-in player state, persistence models, and gameplay records workflow.

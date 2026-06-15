@@ -18,6 +18,7 @@
 
 using EmulationServer.Game.Data.Dbc.Chat;
 using EmulationServer.Game.Data.Dbc.Characters;
+using EmulationServer.Game.Data.Dbc.Creatures;
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Data.Dbc.Items;
 using EmulationServer.Game.Data.Dbc.Maps;
@@ -81,6 +82,9 @@ public sealed class GameDataSettings
 
         // Starter gear, item display, and future inventory validation.
         ..ItemDbcFileNames.CoreItemDbcFiles,
+
+        // Creature/NPC display, model, family, type, sound, and spell metadata.
+        ..CreatureDbcFileNames.CoreCreatureDbcFiles,
 
         // Skills, spells, ranges, durations, and icons used by starter character data.
         ..SpellDbcFileNames.CoreSpellDbcFiles,

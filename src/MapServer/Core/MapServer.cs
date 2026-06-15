@@ -21,6 +21,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using EmulationServer.Core.Servers;
+using EmulationServer.Game.Creatures;
 using EmulationServer.Game.GameObjects;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.MapServer.Configuration;
@@ -68,6 +69,7 @@ public sealed class MapServer : IAsyncDisposable
       */
     private readonly MapPlayerTracker _playerTracker = new();
     private readonly GameObjectSnapshotStore _gameObjectSnapshots = new("MapServer");
+    private readonly CreatureSnapshotStore _creatureSnapshots = new("MapServer");
     /**
       * Holds the private world capacity limit state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -161,7 +163,9 @@ public sealed class MapServer : IAsyncDisposable
             _settings.MapServices,
             ReportMapServiceStatusAsync,
             (mapId, cancellationToken) => Task.FromResult(_gameObjectSnapshots.GetSpawnsForMap(mapId)),
-            entry => _gameObjectSnapshots.GetTemplateOrDefault(entry));
+            entry => _gameObjectSnapshots.GetTemplateOrDefault(entry),
+            (mapId, cancellationToken) => Task.FromResult(_creatureSnapshots.GetSpawnsForMap(mapId)),
+            entry => _creatureSnapshots.GetTemplateOrDefault(entry));
     }
 
     /**
@@ -303,6 +307,11 @@ public sealed class MapServer : IAsyncDisposable
             return;
         }
 
+        if (await HandleCreatureSnapshotPacketAsync(remoteServerName, packet, cancellationToken))
+        {
+            return;
+        }
+
         if (InternalMapServiceCommandPacket.TryParse(packet, out InternalMapServiceCommandPacket command))
         {
             await HandleMapServiceCommandAsync(remoteServerName, command, sendResponseAsync, cancellationToken);
@@ -357,6 +366,31 @@ public sealed class MapServer : IAsyncDisposable
             }
 
             Logger.Write(LogType.SYSTEM, $"MapServer refreshed gameobject runtime for MapId={result.MapId} from WorldServer snapshot: templates={result.TemplateCount}, spawns={result.SpawnCount}.", "MapServer");
+        }
+
+        return true;
+    }
+
+    /**
+      * Applies creature snapshot packets from WorldServer and refreshes hosted map runtimes when a snapshot completes.
+      */
+    private async Task<bool> HandleCreatureSnapshotPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
+    {
+        if (!_creatureSnapshots.TryHandleSnapshotPacket(remoteServerName, packet, out CreatureSnapshotApplyResult result))
+        {
+            return false;
+        }
+
+        if (result.Completed)
+        {
+            MapServiceManager? mapServices = _mapServices;
+            if (mapServices is not null)
+            {
+                await mapServices.ReloadCreaturesAsync(result.MapId, cancellationToken);
+                await mapServices.ReportServicesAsync(result.MapId, cancellationToken);
+            }
+
+            Logger.Write(LogType.SYSTEM, $"MapServer refreshed creature runtime for MapId={result.MapId} from WorldServer snapshot: templates={result.TemplateCount}, spawns={result.SpawnCount}.", "MapServer");
         }
 
         return true;

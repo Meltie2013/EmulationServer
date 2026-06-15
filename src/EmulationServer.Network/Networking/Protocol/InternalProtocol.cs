@@ -171,6 +171,22 @@ public static class InternalProtocol
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     public const string GameObjectSnapshotEnd = "GAMEOBJECT_SNAPSHOT_END";
+    /**
+      * Defines the constant value for creature snapshot begin.
+      */
+    public const string CreatureSnapshotBegin = "CREATURE_SNAPSHOT_BEGIN";
+    /**
+      * Defines the constant value for creature template snapshot.
+      */
+    public const string CreatureTemplateSnapshot = "CREATURE_TEMPLATE_SNAPSHOT";
+    /**
+      * Defines the constant value for creature spawn snapshot.
+      */
+    public const string CreatureSpawnSnapshot = "CREATURE_SPAWN_SNAPSHOT";
+    /**
+      * Defines the constant value for creature snapshot end.
+      */
+    public const string CreatureSnapshotEnd = "CREATURE_SNAPSHOT_END";
 
     /**
       * Reads a single protocol line without consuming bytes after the line terminator.

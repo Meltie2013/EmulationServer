@@ -64,6 +64,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private const float GameObjectVisibilityUnloadDistance = 120.0f;
     private const float GameObjectVisibilityUnloadDistanceSquared = GameObjectVisibilityUnloadDistance * GameObjectVisibilityUnloadDistance;
     private const int MaximumGameObjectCreateUpdatesPerRefresh = 96;
+    private const float CreatureVisibilityDistance = 90.0f;
+    private const float CreatureVisibilityDistanceSquared = CreatureVisibilityDistance * CreatureVisibilityDistance;
+    private const float CreatureVisibilityUnloadDistance = 120.0f;
+    private const float CreatureVisibilityUnloadDistanceSquared = CreatureVisibilityUnloadDistance * CreatureVisibilityUnloadDistance;
+    private const int MaximumCreatureCreateUpdatesPerRefresh = 32;
 
     /**
       * Defines the short grace window used after terminal auth failures so the vanilla client can render the exact failure text before the socket closes.
@@ -85,6 +90,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Limits gameobject visibility work so high-frequency movement packets do not scan all static spawns every frame.
       */
     private static readonly TimeSpan GameObjectVisibilityRefreshInterval = TimeSpan.FromMilliseconds(750);
+    private static readonly TimeSpan CreatureVisibilityRefreshInterval = TimeSpan.FromMilliseconds(750);
     /**
       * Defines how often account/IP ban state is rechecked after authentication.
       * The check runs on a background monitor so movement and ping packets never wait on database queries.
@@ -252,6 +258,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       */
     private readonly HashSet<WorldOpcode> _reportedUnhandledOpcodes = [];
     private readonly Dictionary<ulong, uint> _visibleGameObjectClientGuids = [];
+    private readonly Dictionary<ulong, uint> _visibleCreatureClientGuids = [];
     /**
       * Holds the private server seed state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -344,6 +351,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private uint _lastMapServiceMovementRouteZone;
     private bool _hasLastMapServiceMovementRoute;
     private DateTimeOffset _lastGameObjectVisibilityRefreshUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastCreatureVisibilityRefreshUtc = DateTimeOffset.MinValue;
     /**
       * Prevents the automatic CMSG_CHAR_ENUM sent by the client after SMSG_CHARACTER_LOGIN_FAILED from hiding the failure dialog immediately.
       */
@@ -1044,6 +1052,14 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     await HandleNameQueryAsync(packet, cancellationToken);
                     break;
 
+                case WorldOpcode.CMSG_CREATURE_QUERY:
+                    await HandleCreatureQueryAsync(packet, cancellationToken);
+                    break;
+
+                case WorldOpcode.CMSG_GAMEOBJECT_QUERY:
+                    await HandleGameObjectQueryAsync(packet, cancellationToken);
+                    break;
+
                 case WorldOpcode.CMSG_WHO:
                     await HandleWhoAsync(cancellationToken);
                     break;
@@ -1410,6 +1426,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await SendAsync(WorldOpcode.SMSG_LOGIN_SETTIMESPEED, WorldPacketBuilders.BuildLoginSetTimeSpeed(localTime), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildPlayerCreateUpdate(player), _crypt, cancellationToken);
         await RefreshVisibleGameObjectsAsync(player, force: true, cancellationToken);
+        await RefreshVisibleCreaturesAsync(player, force: true, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(new CharacterNameQueryResult(player.Guid, player.Name, player.Race, player.Gender, player.Class)), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_MOTD, WorldPacketBuilders.BuildMessageOfTheDay(_messageOfTheDay), _crypt, cancellationToken);
         await JoinDefaultChatChannelsAsync(cancellationToken);
@@ -1479,6 +1496,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
         QueueMovementBroadcastToNearbyPlayers(packet, movement);
         await RefreshVisibleGameObjectsAsync(updatedPlayer, force: false, cancellationToken);
+        await RefreshVisibleCreaturesAsync(updatedPlayer, force: false, cancellationToken);
 
         if (!ShouldRouteMovementToMapService(movement))
         {
@@ -1777,6 +1795,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         await RefreshVisibleGameObjectsAsync(RequireCurrentPlayer(), force: true, cancellationToken);
+        await RefreshVisibleCreaturesAsync(RequireCurrentPlayer(), force: true, cancellationToken);
         await ForwardPacketToMapServiceAsync(packet, cancellationToken);
     }
 
@@ -1786,7 +1805,118 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private void ResetGameObjectVisibility()
     {
         _visibleGameObjectClientGuids.Clear();
+        _visibleCreatureClientGuids.Clear();
         _lastGameObjectVisibilityRefreshUtc = DateTimeOffset.MinValue;
+        _lastCreatureVisibilityRefreshUtc = DateTimeOffset.MinValue;
+    }
+
+    /**
+      * Sends guarded creature create/destroy updates for the player's local visibility bubble.
+      * This is a WorldServer bridge until MapServer can push unit visibility deltas over the internal protocol.
+      */
+    private async Task RefreshVisibleCreaturesAsync(PlayerLoginRecord player, bool force, CancellationToken cancellationToken)
+    {
+        if (_crypt is null)
+        {
+            return;
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (!force && now - _lastCreatureVisibilityRefreshUtc < CreatureVisibilityRefreshInterval)
+        {
+            return;
+        }
+
+        _lastCreatureVisibilityRefreshUtc = now;
+        WorldTemplateDataStore worldData = _worldTemplateDataResolver();
+        if (worldData.CreatureSpawnCount == 0 || worldData.CreatureTemplateCount == 0)
+        {
+            return;
+        }
+
+        (uint map, float x, float y, float z) = ResolveCurrentVisibilityPosition(player);
+        if (map > ushort.MaxValue || !IsFiniteWorldPosition(x, y, z))
+        {
+            return;
+        }
+
+        ushort mapId = unchecked((ushort)map);
+        IReadOnlyList<CreatureSpawnRecord> mapSpawns = worldData.GetCreatureSpawnsForMap(mapId);
+        if (mapSpawns.Count == 0)
+        {
+            return;
+        }
+
+        List<CreatureClientCreateRecord> nearbyCreates = [];
+        List<ulong> removeClientGuids = [];
+
+        foreach (KeyValuePair<ulong, uint> visible in _visibleCreatureClientGuids.ToArray())
+        {
+            if (!worldData.TryGetCreatureSpawn(visible.Value, out CreatureSpawnRecord visibleSpawn) ||
+                visibleSpawn.Map != mapId ||
+                !worldData.TryGetCreatureTemplate(visibleSpawn.Entry, out CreatureTemplateRecord visibleTemplate) ||
+                !CreatureDataValidation.IsClientVisibleCreature(visibleSpawn, visibleTemplate) ||
+                CalculateDistanceSquared2D(x, y, visibleSpawn.PositionX, visibleSpawn.PositionY) > CreatureVisibilityUnloadDistanceSquared)
+            {
+                removeClientGuids.Add(visible.Key);
+            }
+        }
+
+        foreach (ulong clientGuid in removeClientGuids)
+        {
+            _visibleCreatureClientGuids.Remove(clientGuid);
+            await SendAsync(WorldOpcode.SMSG_DESTROY_OBJECT, WorldPacketBuilders.BuildDestroyObject(clientGuid), _crypt, cancellationToken);
+        }
+
+        foreach (CreatureSpawnRecord spawn in mapSpawns)
+        {
+            if (CalculateDistanceSquared2D(x, y, spawn.PositionX, spawn.PositionY) > CreatureVisibilityDistanceSquared)
+            {
+                continue;
+            }
+
+            if (!worldData.TryGetCreatureTemplate(spawn.Entry, out CreatureTemplateRecord template) ||
+                !CreatureDataValidation.IsClientVisibleCreature(spawn, template))
+            {
+                continue;
+            }
+
+            ulong clientGuid = CharacterGuid.ToCreatureGuid(spawn.Guid, spawn.Entry);
+            if (clientGuid == 0 || _visibleCreatureClientGuids.ContainsKey(clientGuid))
+            {
+                continue;
+            }
+
+            nearbyCreates.Add(new CreatureClientCreateRecord(spawn, template));
+        }
+
+        if (nearbyCreates.Count == 0)
+        {
+            return;
+        }
+
+        CreatureClientCreateRecord[] selectedCreates = nearbyCreates
+            .OrderBy(record => CalculateDistanceSquared2D(x, y, record.Spawn.PositionX, record.Spawn.PositionY))
+            .Take(MaximumCreatureCreateUpdatesPerRefresh)
+            .ToArray();
+
+        byte[] payload = WorldPacketBuilders.BuildCreatureCreateUpdate(selectedCreates);
+        if (payload.Length == 0)
+        {
+            return;
+        }
+
+        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, payload, _crypt, cancellationToken);
+        foreach (CreatureClientCreateRecord record in selectedCreates)
+        {
+            ulong clientGuid = CharacterGuid.ToCreatureGuid(record.Spawn.Guid, record.Spawn.Entry);
+            _visibleCreatureClientGuids[clientGuid] = record.Spawn.Guid;
+        }
+
+        Logger.Write(
+            LogType.TRACE,
+            $"Sent {selectedCreates.Length} creature create update(s) to player '{player.Name}' ({player.Guid}) near map={mapId}, x={x:F2}, y={y:F2}.",
+            "WorldClientSession");
     }
 
     /**
@@ -2735,6 +2865,62 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(character), _crypt, cancellationToken);
+    }
+
+    /**
+      * Handles client-side WDB creature cache lookups.
+      * Visible NPCs render from UNIT create packets, but the client asks this query before it can replace the temporary "Unknown" nameplate.
+      */
+    private async Task HandleCreatureQueryAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < sizeof(uint))
+        {
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        uint entry = reader.ReadUInt32();
+        ulong clientGuid = reader.Remaining >= sizeof(ulong) ? reader.ReadUInt64() : 0;
+
+        WorldTemplateDataStore worldData = _worldTemplateDataResolver();
+        if (!worldData.TryGetCreatureTemplate(entry, out CreatureTemplateRecord template))
+        {
+            await SendAsync(WorldOpcode.SMSG_CREATURE_QUERY_RESPONSE, WorldPacketBuilders.BuildCreatureQueryNotFound(entry), _crypt, cancellationToken);
+            return;
+        }
+
+        CreatureSpawnRecord? spawn = null;
+        if (clientGuid != 0 &&
+            _visibleCreatureClientGuids.TryGetValue(clientGuid, out uint spawnGuid) &&
+            worldData.TryGetCreatureSpawn(spawnGuid, out CreatureSpawnRecord visibleSpawn))
+        {
+            spawn = visibleSpawn;
+        }
+
+        await SendAsync(WorldOpcode.SMSG_CREATURE_QUERY_RESPONSE, WorldPacketBuilders.BuildCreatureQueryResponse(template, spawn), _crypt, cancellationToken);
+    }
+
+    /**
+      * Handles client-side WDB gameobject cache lookups.
+      * This keeps newly visible gameobjects from sitting in the client cache as nameless objects.
+      */
+    private async Task HandleGameObjectQueryAsync(WorldPacket packet, CancellationToken cancellationToken)
+    {
+        if (packet.Payload.Length < sizeof(uint))
+        {
+            return;
+        }
+
+        WorldPacketReader reader = new(packet.Payload);
+        uint entry = reader.ReadUInt32();
+        _ = reader.Remaining >= sizeof(ulong) ? reader.ReadUInt64() : 0;
+
+        WorldTemplateDataStore worldData = _worldTemplateDataResolver();
+        byte[] payload = worldData.TryGetGameObjectTemplate(entry, out GameObjectTemplateRecord template)
+            ? WorldPacketBuilders.BuildGameObjectQueryResponse(template)
+            : WorldPacketBuilders.BuildGameObjectQueryNotFound(entry);
+
+        await SendAsync(WorldOpcode.SMSG_GAMEOBJECT_QUERY_RESPONSE, payload, _crypt, cancellationToken);
     }
 
     /**

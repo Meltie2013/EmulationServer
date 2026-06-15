@@ -484,6 +484,31 @@ public static class WorldPacketBuilders
     }
 
     /**
+      * Builds create update blocks for creatures that are newly visible to a player.
+      * This is intentionally conservative and only serializes static idle UNIT create state.
+      */
+    public static byte[] BuildCreatureCreateUpdate(IReadOnlyList<CreatureClientCreateRecord> creatures)
+    {
+        ArgumentNullException.ThrowIfNull(creatures);
+
+        if (creatures.Count == 0)
+        {
+            return [];
+        }
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32((uint)creatures.Count);
+        writer.WriteUInt8(0); // has_transport
+
+        foreach (CreatureClientCreateRecord creature in creatures)
+        {
+            WriteCreatureCreateUpdateBlock(writer, creature.Spawn, creature.Template);
+        }
+
+        return writer.ToArray();
+    }
+
+    /**
       * Builds the Vanilla destroy-object packet for an object leaving a player's visible set.
       */
     public static byte[] BuildDestroyObject(ulong clientGuid)
@@ -491,6 +516,172 @@ public static class WorldPacketBuilders
         WorldPacketWriter writer = new();
         writer.WriteUInt64(clientGuid);
         return writer.ToArray();
+    }
+
+    /**
+      * Writes one idle creature CREATE_OBJECT2 block.
+      */
+    private static void WriteCreatureCreateUpdateBlock(
+        WorldPacketWriter writer,
+        CreatureSpawnRecord spawn,
+        CreatureTemplateRecord template)
+    {
+        ulong clientGuid = CharacterGuid.ToCreatureGuid(spawn.Guid, spawn.Entry);
+
+        writer.WriteUInt8(3); // CREATE_OBJECT2
+        WritePackedGuid(writer, clientGuid);
+        writer.WriteUInt8(3); // TYPEID_UNIT
+        WriteCreatureMovementBlock(writer, spawn, template);
+        WriteCreatureCreateUpdateMask(writer, spawn, template, clientGuid);
+    }
+
+    /**
+      * Writes the living movement block used by idle creature UNIT create updates.
+      */
+    private static void WriteCreatureMovementBlock(
+        WorldPacketWriter writer,
+        CreatureSpawnRecord spawn,
+        CreatureTemplateRecord template)
+    {
+        const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.All | VanillaUpdateFlags.Living;
+
+        writer.WriteUInt8((byte)updateFlags);
+        writer.WriteUInt32(0); // MovementFlags: idle creature at spawn point.
+        writer.WriteUInt32(unchecked((uint)Environment.TickCount));
+        writer.WriteFloat(spawn.PositionX);
+        writer.WriteFloat(spawn.PositionY);
+        writer.WriteFloat(spawn.PositionZ);
+        writer.WriteFloat(spawn.Orientation);
+        writer.WriteUInt32(0); // fallTime
+        WriteCreatureMovementSpeeds(writer, template);
+        writer.WriteUInt32(1); // UPDATEFLAG_ALL trailing field.
+    }
+
+    /**
+      * Writes the six Vanilla movement speeds for a creature.
+      */
+    private static void WriteCreatureMovementSpeeds(WorldPacketWriter writer, CreatureTemplateRecord template)
+    {
+        float walkSpeed = template.GetEffectiveWalkSpeed() * PlayerWalkSpeed;
+        float runSpeed = template.GetEffectiveRunSpeed() * PlayerRunSpeed;
+
+        writer.WriteFloat(float.IsFinite(walkSpeed) && walkSpeed > 0.0f ? walkSpeed : PlayerWalkSpeed);
+        writer.WriteFloat(float.IsFinite(runSpeed) && runSpeed > 0.0f ? runSpeed : PlayerRunSpeed);
+        writer.WriteFloat(PlayerRunBackSpeed);
+        writer.WriteFloat(PlayerSwimSpeed);
+        writer.WriteFloat(PlayerSwimBackSpeed);
+        writer.WriteFloat(PlayerTurnRate);
+    }
+
+    /**
+      * Writes a minimal Vanilla 1.12 UNIT field mask for creature first render.
+      */
+    private static void WriteCreatureCreateUpdateMask(
+        WorldPacketWriter writer,
+        CreatureSpawnRecord spawn,
+        CreatureTemplateRecord template,
+        ulong clientGuid)
+    {
+        const int ObjectFieldGuid = 0x0000;
+        const int ObjectFieldType = 0x0002;
+        const int ObjectFieldEntry = 0x0003;
+        const int ObjectFieldScaleX = 0x0004;
+        const int UnitFieldHealth = 0x0016;
+        const int UnitFieldPower1 = 0x0017;
+        const int UnitFieldMaxHealth = 0x001C;
+        const int UnitFieldMaxPower1 = 0x001D;
+        const int UnitFieldLevel = 0x0022;
+        const int UnitFieldFactionTemplate = 0x0023;
+        const int UnitFieldBytes0 = 0x0024;
+        const int UnitFieldFlags = 0x002E;
+        const int UnitFieldBaseAttackTime = 0x007E;
+        const int UnitFieldRangedAttackTime = 0x0080;
+        const int UnitFieldBoundingRadius = 0x0081;
+        const int UnitFieldCombatReach = 0x0082;
+        const int UnitFieldDisplayId = 0x0083;
+        const int UnitFieldNativeDisplayId = 0x0084;
+        const int UnitFieldMinDamage = 0x0086;
+        const int UnitFieldMaxDamage = 0x0087;
+        const int UnitFieldMinOffHandDamage = 0x0088;
+        const int UnitFieldMaxOffHandDamage = 0x0089;
+        const int UnitFieldBytes1 = 0x008A;
+        const int UnitFieldDynamicFlags = 0x008B;
+        const int UnitModCastSpeed = 0x008C;
+        const int UnitNpcFlags = 0x0093;
+        const int UnitNpcEmoteState = 0x0094;
+        const int UnitFieldResistances = 0x009B;
+        const int UnitFieldBaseMana = 0x00A2;
+        const int UnitFieldBaseHealth = 0x00A3;
+        const int UnitFieldBytes2 = 0x00A4;
+        const int UnitFieldAttackPower = 0x00A5;
+        const int UnitFieldAttackPowerMods = 0x00A6;
+        const int UnitFieldAttackPowerMultiplier = 0x00A7;
+        const int UnitFieldRangedAttackPower = 0x00A8;
+        const int UnitFieldRangedAttackPowerMods = 0x00A9;
+        const int UnitFieldRangedAttackPowerMultiplier = 0x00AA;
+
+        Dictionary<int, uint> fields = [];
+        uint health = template.GetEffectiveHealth(spawn.CurrentHealth);
+        uint mana = template.GetEffectiveMana(spawn.CurrentMana);
+        uint level = template.GetEffectiveMinLevel();
+        uint displayId = CreatureDataValidation.ResolveDisplayModelId(spawn, template);
+        uint factionTemplate = template.FactionAlliance != 0 ? template.FactionAlliance : template.FactionHorde;
+        float scale = float.IsFinite(template.Scale) && template.Scale > 0.0f && template.Scale <= 100.0f ? template.Scale : 1.0f;
+        float minMeleeDamage = template.MinMeleeDamage > 0.0f && float.IsFinite(template.MinMeleeDamage) ? template.MinMeleeDamage : 1.0f;
+        float maxMeleeDamage = template.MaxMeleeDamage >= minMeleeDamage && float.IsFinite(template.MaxMeleeDamage) ? template.MaxMeleeDamage : minMeleeDamage + 1.0f;
+
+        WriteGuidFields(fields, ObjectFieldGuid, clientGuid);
+        fields[ObjectFieldType] = 0x09; // OBJECT | UNIT
+        fields[ObjectFieldEntry] = spawn.Entry;
+        fields[ObjectFieldScaleX] = FloatToUInt32(scale);
+        fields[UnitFieldHealth] = health;
+        fields[UnitFieldPower1] = mana;
+        fields[UnitFieldMaxHealth] = health;
+        fields[UnitFieldMaxPower1] = mana;
+        fields[UnitFieldLevel] = level;
+        fields[UnitFieldFactionTemplate] = factionTemplate;
+        fields[UnitFieldBytes0] = BuildCreatureBytes0(template);
+        fields[UnitFieldFlags] = template.UnitFlags;
+        fields[UnitFieldBaseAttackTime] = template.MeleeBaseAttackTime == 0 ? 2000u : template.MeleeBaseAttackTime;
+        fields[UnitFieldBaseAttackTime + 1] = template.MeleeBaseAttackTime == 0 ? 2000u : template.MeleeBaseAttackTime;
+        fields[UnitFieldRangedAttackTime] = template.RangedBaseAttackTime == 0 ? 2000u : template.RangedBaseAttackTime;
+        fields[UnitFieldBoundingRadius] = FloatToUInt32(0.389f);
+        fields[UnitFieldCombatReach] = FloatToUInt32(1.5f);
+        fields[UnitFieldDisplayId] = displayId;
+        fields[UnitFieldNativeDisplayId] = displayId;
+        fields[UnitFieldMinDamage] = FloatToUInt32(minMeleeDamage);
+        fields[UnitFieldMaxDamage] = FloatToUInt32(maxMeleeDamage);
+        fields[UnitFieldMinOffHandDamage] = FloatToUInt32(0.0f);
+        fields[UnitFieldMaxOffHandDamage] = FloatToUInt32(0.0f);
+        fields[UnitFieldBytes1] = 0;
+        fields[UnitFieldDynamicFlags] = template.DynamicFlags;
+        fields[UnitModCastSpeed] = FloatToUInt32(1.0f);
+        fields[UnitNpcFlags] = template.NpcFlags;
+        fields[UnitNpcEmoteState] = 0;
+        fields[UnitFieldResistances] = template.Armor;
+        fields[UnitFieldResistances + 1] = ToClientUInt32(template.ResistanceHoly);
+        fields[UnitFieldResistances + 2] = ToClientUInt32(template.ResistanceFire);
+        fields[UnitFieldResistances + 3] = ToClientUInt32(template.ResistanceNature);
+        fields[UnitFieldResistances + 4] = ToClientUInt32(template.ResistanceFrost);
+        fields[UnitFieldResistances + 5] = ToClientUInt32(template.ResistanceShadow);
+        fields[UnitFieldResistances + 6] = ToClientUInt32(template.ResistanceArcane);
+        fields[UnitFieldBaseMana] = mana;
+        fields[UnitFieldBaseHealth] = health;
+        fields[UnitFieldBytes2] = 0;
+        fields[UnitFieldAttackPower] = template.MeleeAttackPower;
+        fields[UnitFieldAttackPowerMods] = 0;
+        fields[UnitFieldAttackPowerMultiplier] = FloatToUInt32(0.0f);
+        fields[UnitFieldRangedAttackPower] = template.RangedAttackPower;
+        fields[UnitFieldRangedAttackPowerMods] = 0;
+        fields[UnitFieldRangedAttackPowerMultiplier] = FloatToUInt32(0.0f);
+
+        WriteUpdateMask(writer, fields);
+    }
+
+    private static uint BuildCreatureBytes0(CreatureTemplateRecord template)
+    {
+        byte unitClass = template.GetEffectiveUnitClass();
+        return ((uint)unitClass) << 8;
     }
 
     /**
@@ -1392,6 +1583,11 @@ public static class WorldPacketBuilders
         return float.IsFinite(value) ? value : 0.0f;
     }
 
+    private static string SanitizeClientCacheString(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
+
     /**
       * Performs the float to u int 32 operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
       * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
@@ -1870,6 +2066,82 @@ public static class WorldPacketBuilders
         writer.WriteUInt32(character.Race);
         writer.WriteUInt32(character.Gender);
         writer.WriteUInt32(character.Class);
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds the static creature query response used by the Vanilla client cache.
+      * Without this response visible NPC names stay as "Unknown" even when UNIT create updates render the model correctly.
+      */
+    public static byte[] BuildCreatureQueryResponse(CreatureTemplateRecord template, CreatureSpawnRecord? spawn = null)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+
+        WorldPacketWriter writer = new();
+        uint displayId = spawn is null
+            ? template.GetPreferredModelId()
+            : CreatureDataValidation.ResolveDisplayModelId(spawn, template);
+
+        writer.WriteUInt32(template.Entry);
+        writer.WriteCString(SanitizeClientCacheString(template.Name));
+        writer.WriteCString(string.Empty); // name2
+        writer.WriteCString(string.Empty); // name3
+        writer.WriteCString(string.Empty); // name4
+        writer.WriteCString(SanitizeClientCacheString(template.SubName));
+        writer.WriteUInt32(template.CreatureTypeFlags);
+        writer.WriteUInt32(template.CreatureType);
+        writer.WriteUInt32(template.Family < 0 ? 0u : (uint)template.Family);
+        writer.WriteUInt32(template.Rank);
+        writer.WriteUInt32(0); // unknown field used by the Vanilla WDB cache.
+        writer.WriteUInt32(template.PetSpellDataId);
+        writer.WriteUInt32(displayId);
+        writer.WriteUInt8(template.Civilian);
+        writer.WriteUInt8(template.RacialLeader);
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds a negative creature query response so the client stops retrying bad entries.
+      */
+    public static byte[] BuildCreatureQueryNotFound(uint entry)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(entry | 0x80000000u);
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds the static gameobject query response used by the Vanilla client cache.
+      */
+    public static byte[] BuildGameObjectQueryResponse(GameObjectTemplateRecord template)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(template.Entry);
+        writer.WriteUInt32(template.Type);
+        writer.WriteUInt32(template.DisplayId);
+        writer.WriteCString(SanitizeClientCacheString(template.Name));
+        writer.WriteCString(string.Empty); // name2
+        writer.WriteCString(string.Empty); // name3
+        writer.WriteCString(string.Empty); // name4
+        writer.WriteCString(string.Empty); // name5
+
+        for (int index = 0; index < GameObjectTemplateRecord.DataFieldCount; index++)
+        {
+            writer.WriteUInt32(template.GetDataField(index));
+        }
+
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds a negative gameobject query response so the client stops retrying bad entries.
+      */
+    public static byte[] BuildGameObjectQueryNotFound(uint entry)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(entry | 0x80000000u);
         return writer.ToArray();
     }
 

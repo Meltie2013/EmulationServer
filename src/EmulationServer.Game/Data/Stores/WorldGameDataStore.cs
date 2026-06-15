@@ -19,6 +19,7 @@
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Game.Data.Dbc.Characters;
 using EmulationServer.Game.Data.Dbc.Chat;
+using EmulationServer.Game.Data.Dbc.Creatures;
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Data.Dbc.Items;
 using EmulationServer.Game.Data.Dbc.Maps;
@@ -56,6 +57,7 @@ public sealed class WorldGameDataStore
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly ItemDbcDataStore _itemData;
+    private readonly CreatureDbcDataStore _creatureData;
     /**
       * Holds the private spell data state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -87,6 +89,7 @@ public sealed class WorldGameDataStore
         MapDbcDataStore mapData,
         CharacterDbcDataStore characterData,
         ItemDbcDataStore itemData,
+        CreatureDbcDataStore creatureData,
         SpellDbcDataStore spellData,
         FactionDbcDataStore factionData,
         ChatChannelDbcDataStore chatData,
@@ -96,6 +99,7 @@ public sealed class WorldGameDataStore
         _mapData = mapData;
         _characterData = characterData;
         _itemData = itemData;
+        _creatureData = creatureData;
         _spellData = spellData;
         _factionData = factionData;
         _chatData = chatData;
@@ -111,6 +115,7 @@ public sealed class WorldGameDataStore
         MapDbcDataStore.Empty,
         CharacterDbcDataStore.Empty,
         ItemDbcDataStore.Empty,
+        CreatureDbcDataStore.Empty,
         SpellDbcDataStore.Empty,
         FactionDbcDataStore.Empty,
         ChatChannelDbcDataStore.Empty,
@@ -132,6 +137,11 @@ public sealed class WorldGameDataStore
       * Gets typed item class, subclass, display, set, and bag-family DBC data.
       */
     public ItemDbcDataStore ItemData => _itemData;
+
+    /**
+      * Gets typed creature display, model, family, type, sound, and spell DBC data.
+      */
+    public CreatureDbcDataStore CreatureData => _creatureData;
 
     /**
       * Gets typed spell, skill, range, duration, icon, and cast-time DBC data.
@@ -183,6 +193,7 @@ public sealed class WorldGameDataStore
         MapDbcDataStore mapData = MapDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
         CharacterDbcDataStore characterData = CharacterDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
         ItemDbcDataStore itemData = ItemDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
+        CreatureDbcDataStore creatureData = CreatureDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
         SpellDbcDataStore spellData = SpellDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
         FactionDbcDataStore factionData = FactionDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
         ChatChannelDbcDataStore chatData = ChatChannelDbcDataStore.FromDbcStores(dbcStores, "WorldGameDataStore");
@@ -193,6 +204,6 @@ public sealed class WorldGameDataStore
             $"World game data loaded (dbcStores={dbcStores.Count}, mapTileOwners=MapServer/InstanceServer).",
             "WorldGameDataStore");
 
-        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, spellData, factionData, chatData, languageData);
+        return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, creatureData, spellData, factionData, chatData, languageData);
     }
 }
