@@ -19,6 +19,8 @@
 using EmulationServer.Game.Data;
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Game.Data.Dbc.Maps;
+using EmulationServer.Game.GameObjects;
+using EmulationServer.Game.WorldData;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Timing;
@@ -48,6 +50,8 @@ public sealed class MapServiceManager : IAsyncDisposable
       */
     private readonly MapRuntimeSettings _settings;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
+    private readonly Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>>? _loadGameObjectSpawnsAsync;
+    private readonly Func<uint, GameObjectTemplateRecord?>? _resolveGameObjectTemplate;
     private readonly ISteadyClock _clock;
     /**
       * Holds the private services state used by the owning component.
@@ -89,6 +93,8 @@ public sealed class MapServiceManager : IAsyncDisposable
         string ownerServerName,
         MapRuntimeSettings settings,
         Func<MapServiceSnapshot, CancellationToken, Task> reportStatusAsync,
+        Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>>? loadGameObjectSpawnsAsync = null,
+        Func<uint, GameObjectTemplateRecord?>? resolveGameObjectTemplate = null,
         ISteadyClock? clock = null)
     {
         if (string.IsNullOrWhiteSpace(ownerServerName))
@@ -102,6 +108,8 @@ public sealed class MapServiceManager : IAsyncDisposable
         _ownerServerName = ownerServerName;
         _settings = settings;
         _reportStatusAsync = reportStatusAsync ?? throw new ArgumentNullException();
+        _loadGameObjectSpawnsAsync = loadGameObjectSpawnsAsync;
+        _resolveGameObjectTemplate = resolveGameObjectTemplate;
         _clock = clock ?? SystemSteadyClock.Instance;
 
         if (!settings.Enabled)
@@ -132,7 +140,9 @@ public sealed class MapServiceManager : IAsyncDisposable
                 definition,
                 mapsDirectory);
 
-            _services.Add(new MapService(ownerServerName, definition, gridManager, _reportStatusAsync, _clock));
+            GameObjectMapRuntime? gameObjectRuntime = CreateGameObjectRuntime(definition);
+
+            _services.Add(new MapService(ownerServerName, definition, gridManager, gameObjectRuntime, _reportStatusAsync, _clock));
         }
     }
 
@@ -150,6 +160,22 @@ public sealed class MapServiceManager : IAsyncDisposable
       * Gets typed map, area, trigger, continent, and overlay DBC data for the hosted services.
       */
     public MapDbcDataStore MapData => _mapData;
+
+    /**
+      * Creates the optional game object runtime bridge used by start/restart/shutdown map lifecycle hooks.
+      */
+    private GameObjectMapRuntime? CreateGameObjectRuntime(MapServiceDefinition definition)
+    {
+        if (_loadGameObjectSpawnsAsync is null || _resolveGameObjectTemplate is null)
+        {
+            return null;
+        }
+
+        return new GameObjectMapRuntime(
+            definition.MapId,
+            _loadGameObjectSpawnsAsync,
+            _resolveGameObjectTemplate);
+    }
 
     /**
       * Returns snapshots for every registered map service.
@@ -347,6 +373,17 @@ public sealed class MapServiceManager : IAsyncDisposable
     }
 
     /**
+      * Reloads game object runtime state for every hosted service on one map from the latest received WorldServer snapshot.
+      */
+    public async Task ReloadGameObjectsAsync(int mapId, CancellationToken cancellationToken)
+    {
+        foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
+        {
+            await service.ReloadGameObjectsAsync(cancellationToken);
+        }
+    }
+
+    /**
       * Executes a map control command against a single service and converts the result to a protocol-safe response.
       */
     private async Task<MapServiceControlResult> ExecuteControlCommandAsync(
@@ -508,12 +545,25 @@ public sealed class MapServiceManager : IAsyncDisposable
             $"Tick: {snapshot.Tick}",
             $"Players: {snapshot.ActivePlayers}",
             $"Grids: {snapshot.ActiveGrids}",
+            $"GameObjects: {GetActiveGameObjectsForSnapshot(snapshot)}",
             $"Load: {snapshot.LoadPercent:0.##}%",
             $"Average Tick: {snapshot.AverageTickMilliseconds:0.###} ms"
         ];
 
         AppendMapMetadata(lines, snapshot.MapId);
         return string.Join('\n', lines);
+    }
+
+    /**
+      * Resolves the active game object count for the service represented by a snapshot.
+      */
+    private int GetActiveGameObjectsForSnapshot(MapServiceSnapshot snapshot)
+    {
+        return _services.FirstOrDefault(service =>
+                service.Definition.MapId == snapshot.MapId &&
+                service.Definition.InstanceId == snapshot.InstanceId &&
+                service.Definition.Kind == snapshot.Kind)
+            ?.ActiveGameObjectCount ?? 0;
     }
 
     /**

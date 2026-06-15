@@ -23,8 +23,11 @@ using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Services;
 using EmulationServer.Game.Characters;
 using EmulationServer.Game.Commands;
+using EmulationServer.Game.Data;
+using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Data.Stores;
+using EmulationServer.Game.GameObjects;
 using EmulationServer.Game.Movement;
 using EmulationServer.Game.Players;
 using EmulationServer.Game.WorldData;
@@ -62,6 +65,8 @@ namespace EmulationServer.WorldServer.Core;
   */
 public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandExecutor, IInGameServerCommandExecutor, IAsyncDisposable
 {
+    private static readonly int[] DefaultWorldGameObjectSnapshotMapIds = [0, 1];
+
     /**
       * Holds the private settings state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -153,6 +158,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _sentGameObjectSnapshotKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _scheduledMapControlTimers = new(StringComparer.OrdinalIgnoreCase);
     private readonly SystemSteadyClock _clock = SystemSteadyClock.Instance;
     private CancellationTokenSource? _serverControlTimerCancellation;
@@ -231,6 +237,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
                 NotifyMapServicePlayerLeftWorldAsync,
                 NotifyMapServicePlayerMovementAsync,
                 NotifyMapServicePlayerClientPacketAsync,
+                () => _worldTemplateData,
                 settings.MessageOfTheDay,
                 settings.PlayerSaveInterval,
                 NotifyActivePlayerCountChanged,
@@ -347,6 +354,11 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             await AnnounceWorldCapacityAsync(session.SendPacketAsync, remoteServerName, cancellationToken);
             await AnnounceWorldHealthStatusAsync(session.SendPacketAsync, remoteServerName, cancellationToken);
         }
+
+        if (IsMapControlServer(remoteServerName))
+        {
+            await SendInitialGameObjectSnapshotsToMapOwnerAsync(remoteServerName, cancellationToken);
+        }
     }
 
     /**
@@ -371,6 +383,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
 
         if (IsMapControlServer(remoteServerName))
         {
+            ClearGameObjectSnapshotKeysForOwner(remoteServerName);
             await MarkMapOwnerUnavailableAsync(remoteServerName, "incoming internal connection disconnected", cancellationToken);
         }
     }
@@ -392,6 +405,11 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         {
             await AnnounceWorldCapacityAsync(connection.SendPacketAsync, remoteServerName, cancellationToken);
             await AnnounceWorldHealthStatusAsync(connection.SendPacketAsync, remoteServerName, cancellationToken);
+        }
+
+        if (IsMapControlServer(remoteServerName))
+        {
+            await SendInitialGameObjectSnapshotsToMapOwnerAsync(remoteServerName, cancellationToken);
         }
     }
 
@@ -417,6 +435,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
 
         if (IsMapControlServer(remoteServerName))
         {
+            ClearGameObjectSnapshotKeysForOwner(remoteServerName);
             await MarkMapOwnerUnavailableAsync(remoteServerName, "outgoing internal peer disconnected", cancellationToken);
         }
     }
@@ -661,6 +680,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
       */
     private async Task<MapCommandDispatchResult> SendMapCommandToTargetsAsync(string action, int mapId, CancellationToken cancellationToken)
     {
+        bool shouldRefreshGameObjectSnapshot = string.Equals(action, "start", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase);
+        if (shouldRefreshGameObjectSnapshot)
+        {
+            await ReloadGameObjectDataForMapAsync(mapId, cancellationToken);
+        }
+
         string commandId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         InternalMapServiceCommandPacket command = new(commandId, action, mapId);
         string packet = command.ToPacketLine();
@@ -675,6 +700,11 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         int sentConnections = 0;
         foreach (string target in targets)
         {
+            if (shouldRefreshGameObjectSnapshot)
+            {
+                await SendGameObjectSnapshotToTargetAsync(target, mapId, cancellationToken);
+            }
+
             int sent = await SendPacketToServerAsync(target, packet, cancellationToken);
             if (sent == 0)
             {
@@ -815,6 +845,140 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
 
         return sent;
+    }
+
+    /**
+      * Sends startup game object snapshots to a newly connected map owner before players depend on that owner for runtime state.
+      */
+    private async Task SendInitialGameObjectSnapshotsToMapOwnerAsync(string ownerServerName, CancellationToken cancellationToken)
+    {
+        foreach (int mapId in GetInitialGameObjectSnapshotMapIds(ownerServerName))
+        {
+            await SendGameObjectSnapshotIfNeededAsync(ownerServerName, mapId, cancellationToken);
+        }
+    }
+
+    /**
+      * Resolves the maps that should be pushed to a map owner when it authenticates.
+      */
+    private int[] GetInitialGameObjectSnapshotMapIds(string ownerServerName)
+    {
+        IEnumerable<int> reportedMaps = _mapServiceStatuses.Values
+            .Where(status => string.Equals(status.OwnerServerName, ownerServerName, StringComparison.OrdinalIgnoreCase))
+            .Select(status => status.MapId);
+
+        if (string.Equals(ownerServerName, "MapServer", StringComparison.OrdinalIgnoreCase))
+        {
+            reportedMaps = reportedMaps.Concat(DefaultWorldGameObjectSnapshotMapIds);
+        }
+
+        return [.. reportedMaps
+            .Where(mapId => mapId >= 0 && mapId <= ushort.MaxValue)
+            .Distinct()
+            .OrderBy(mapId => mapId)];
+    }
+
+    /**
+      * Avoids resending the same startup snapshot repeatedly while still allowing explicit map start/restart commands to force a fresh snapshot.
+      */
+    private async Task SendGameObjectSnapshotIfNeededAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
+    {
+        string key = GetGameObjectSnapshotKey(ownerServerName, mapId);
+        if (!_sentGameObjectSnapshotKeys.TryAdd(key, 0))
+        {
+            return;
+        }
+
+        int sentLines = await SendGameObjectSnapshotToTargetAsync(ownerServerName, mapId, cancellationToken);
+        if (sentLines == 0)
+        {
+            _sentGameObjectSnapshotKeys.TryRemove(key, out _);
+            return;
+        }
+
+        _sentGameObjectSnapshotKeys[key] = 1;
+    }
+
+    /**
+      * Sends one full game object template/spawn snapshot to a MapServer or InstanceServer target.
+      */
+    private async Task<int> SendGameObjectSnapshotToTargetAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
+    {
+        if (mapId < 0 || mapId > ushort.MaxValue)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer cannot send gameobject snapshot for invalid MapId={mapId} to {ownerServerName}.", "WorldServer");
+            return 0;
+        }
+
+        ushort safeMapId = unchecked((ushort)mapId);
+        IReadOnlyList<GameObjectSpawnRecord> spawns = _worldTemplateData.GetGameObjectSpawnsForMap(safeMapId);
+        GameObjectTemplateRecord[] templates = [.. spawns
+            .Select(spawn => spawn.Entry)
+            .Distinct()
+            .Select(entry => _worldTemplateData.TryGetGameObjectTemplate(entry, out GameObjectTemplateRecord template) ? template : null)
+            .OfType<GameObjectTemplateRecord>()
+            .OrderBy(template => template.Entry)];
+
+        string snapshotId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+        int sentLines = 0;
+
+        async Task SendSnapshotLineAsync(string line)
+        {
+            if (line.Length > InternalProtocol.MaximumPacketLineLength)
+            {
+                Logger.Write(LogType.WARNING, $"WorldServer skipped oversized gameobject snapshot packet for MapId={mapId} to {ownerServerName}: {line.Length} characters.", "WorldServer");
+                return;
+            }
+
+            int sent = await SendPacketToServerAsync(ownerServerName, line, cancellationToken);
+            if (sent > 0)
+            {
+                sentLines++;
+            }
+        }
+
+        await SendSnapshotLineAsync(GameObjectSnapshotProtocol.CreateBeginPacket(snapshotId, mapId, templates.Length, spawns.Count));
+        foreach (GameObjectTemplateRecord template in templates)
+        {
+            await SendSnapshotLineAsync(GameObjectSnapshotProtocol.CreateTemplatePacket(snapshotId, template));
+        }
+
+        foreach (GameObjectSpawnRecord spawn in spawns.OrderBy(spawn => spawn.Guid))
+        {
+            await SendSnapshotLineAsync(GameObjectSnapshotProtocol.CreateSpawnPacket(snapshotId, spawn));
+        }
+
+        await SendSnapshotLineAsync(GameObjectSnapshotProtocol.CreateEndPacket(snapshotId, mapId));
+
+        if (sentLines == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer could not send gameobject snapshot for MapId={mapId} to {ownerServerName}; no active connection was available.", "WorldServer");
+            return 0;
+        }
+
+        _sentGameObjectSnapshotKeys[GetGameObjectSnapshotKey(ownerServerName, mapId)] = 1;
+        Logger.Write(LogType.NETWORK, $"WorldServer sent gameobject snapshot {snapshotId} for MapId={mapId} to {ownerServerName}: templates={templates.Length}, spawns={spawns.Count}, packetLines={sentLines}.", "WorldServer");
+        return sentLines;
+    }
+
+    /**
+      * Removes startup snapshot cache entries when a map owner disconnects so the next connection receives fresh data.
+      */
+    private void ClearGameObjectSnapshotKeysForOwner(string ownerServerName)
+    {
+        string prefix = string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|");
+        foreach (string key in _sentGameObjectSnapshotKeys.Keys.Where(key => key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            _sentGameObjectSnapshotKeys.TryRemove(key, out _);
+        }
+    }
+
+    /**
+      * Builds the startup snapshot cache key for one map owner/map pair.
+      */
+    private static string GetGameObjectSnapshotKey(string ownerServerName, int mapId)
+    {
+        return string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|{mapId}");
     }
 
     /**
@@ -1037,6 +1201,11 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         bool loadWarning = isOnline && status.LoadPercent >= 85d;
         bool loadWarningStarted = loadWarning && (previous is null || previous.LoadPercent < 85d);
 
+        if (isOnline && IsConnectedMapOwner(status.OwnerServerName))
+        {
+            await SendGameObjectSnapshotIfNeededAsync(status.OwnerServerName, status.MapId, cancellationToken);
+        }
+
         // WorldServer receives map service snapshots from both the direct MapServer/InstanceServer
         // connection and ProxyServer's cached forwarding path. Only log and perform forced logout on
         // an actual Online -> non-Online transition so duplicate Offline snapshots do not double-post.
@@ -1136,6 +1305,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         string dbcDescription = _gameData.MapData.DescribeMap(mapId);
         List<string> lines = [$"Map {mapId} info:"];
         AppendMapMetadataLines(lines, mapId);
+        AppendGameObjectMetadataLines(lines, mapId);
 
         if (statuses.Length == 0)
         {
@@ -1164,6 +1334,61 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
 
         return string.Join('\n', lines);
+    }
+
+    /**
+      * Reloads the world cache gameobject rows for a map before a map start or restart command is dispatched.
+      */
+    private async Task ReloadGameObjectDataForMapAsync(int mapId, CancellationToken cancellationToken)
+    {
+        if (mapId < 0 || mapId > ushort.MaxValue)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer cannot reload gameobject spawns for invalid MapId={mapId}.", "WorldServer");
+            return;
+        }
+
+        ushort safeMapId = unchecked((ushort)mapId);
+        IReadOnlyList<GameObjectTemplateRecord> templates = await _worldTemplateRepository.LoadGameObjectTemplatesAsync(cancellationToken);
+        IReadOnlyList<GameObjectSpawnRecord> spawns = await _worldTemplateRepository.LoadGameObjectSpawnsForMapAsync(safeMapId, cancellationToken);
+        spawns = await ResolveAndPersistGameObjectAreaDataAsync(spawns, $"MapId={mapId} reload", cancellationToken);
+
+        _worldTemplateData = _worldTemplateData.WithGameObjectDataForMap(safeMapId, templates, spawns);
+
+        HashSet<uint> templateEntries = templates.Select(template => template.Entry).ToHashSet();
+        int zones = spawns.Where(spawn => spawn.ZoneId != 0).Select(spawn => spawn.ZoneId).Distinct().Count();
+        int areas = spawns.Where(spawn => spawn.AreaId != 0).Select(spawn => spawn.AreaId).Distinct().Count();
+        int missingTemplates = spawns.Count(spawn => !templateEntries.Contains(spawn.Entry));
+
+        Logger.Write(
+            missingTemplates == 0 ? LogType.DATABASE : LogType.WARNING,
+            $"WorldServer reloaded gameobject data for MapId={mapId}: spawns={spawns.Count}, templates={templates.Count}, zones={zones}, areas={areas}, missingTemplates={missingTemplates}.",
+            "WorldServer");
+    }
+
+    /**
+      * Appends cached game object spawn metadata as short chat-safe lines.
+      */
+    private void AppendGameObjectMetadataLines(List<string> lines, int mapId)
+    {
+        if (mapId < 0 || mapId > ushort.MaxValue)
+        {
+            lines.Add("GameObjects: unsupported map id for spawn cache lookup.");
+            return;
+        }
+
+        IReadOnlyList<GameObjectSpawnRecord> spawns = _worldTemplateData.GetGameObjectSpawnsForMap(unchecked((ushort)mapId));
+        int templateReferences = spawns.Select(spawn => spawn.Entry).Distinct().Count();
+        int missingTemplates = spawns.Count(spawn => !_worldTemplateData.GameObjectTemplates.ContainsKey(spawn.Entry));
+        int zones = spawns.Where(spawn => spawn.ZoneId != 0).Select(spawn => spawn.ZoneId).Distinct().Count();
+        int areas = spawns.Where(spawn => spawn.AreaId != 0).Select(spawn => spawn.AreaId).Distinct().Count();
+
+        lines.Add($"GameObjects: {spawns.Count} spawn(s)");
+        lines.Add($"GO Templates: {templateReferences} referenced / {_worldTemplateData.GameObjectTemplateCount} loaded");
+        lines.Add($"GO Location Index: {zones} zone(s), {areas} area(s)");
+        if (missingTemplates > 0)
+        {
+            lines.Add($"GO Missing Templates: {missingTemplates}");
+        }
     }
 
     /**
@@ -1507,6 +1732,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private async Task LoadWorldTemplateDataAsync(CancellationToken cancellationToken)
     {
         _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
+        await EnrichAndPersistGameObjectAreaDataAsync(cancellationToken);
 
         if (_worldTemplateData.PlayerCreateInfo.Count == 0)
         {
@@ -1526,11 +1752,77 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         LogOptionalWorldTemplateCount("playercreateinfo_action", _worldTemplateData.PlayerCreateActionCount, "new characters will fall back to hardcoded starter action buttons");
         LogOptionalWorldTemplateCount("playercreateinfo_item", _worldTemplateData.PlayerCreateItemCount, "new characters will fall back to CharStartOutfit.dbc starter items");
         LogOptionalWorldTemplateCount("playercreateinfo_spell", _worldTemplateData.PlayerCreateSpellCount, "new characters will fall back to hardcoded starter spells");
+        LogOptionalWorldTemplateCount("gameobject_template", _worldTemplateData.GameObjectTemplateCount, "game object templates are unavailable until Mangos Zero data is imported");
+        LogOptionalWorldTemplateCount("gameobject", _worldTemplateData.GameObjectSpawnCount, "no game object spawns will be tracked by map/zone/area until data is imported");
 
         Logger.Write(
             LogType.DATABASE,
-            $"World database templates ready (playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}).",
+            $"World database templates ready (playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}, gameobject_template={_worldTemplateData.GameObjectTemplateCount}, gameobject={_worldTemplateData.GameObjectSpawnCount}, gameobject_maps={_worldTemplateData.GameObjectSpawnMapCount}, gameobject_zones={_worldTemplateData.GameObjectSpawnZoneCount}, gameobject_areas={_worldTemplateData.GameObjectSpawnAreaCount}).",
             "WorldServer");
+    }
+
+    /**
+      * Resolves and persists gameobject zoneId/areaId for the full startup cache.
+      */
+    private async Task EnrichAndPersistGameObjectAreaDataAsync(CancellationToken cancellationToken)
+    {
+        if (_worldTemplateData.GameObjectSpawnCount == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<GameObjectSpawnRecord> enrichedSpawns = await ResolveAndPersistGameObjectAreaDataAsync(
+            _worldTemplateData.GameObjectSpawns.Values.ToArray(),
+            "startup",
+            cancellationToken);
+
+        _worldTemplateData = _worldTemplateData.WithGameObjectSpawns(enrichedSpawns);
+    }
+
+    /**
+      * Resolves and persists gameobject zoneId/areaId for supplied spawns using exact mapstore terrain area flags when available.
+      */
+    private async Task<IReadOnlyList<GameObjectSpawnRecord>> ResolveAndPersistGameObjectAreaDataAsync(
+        IReadOnlyList<GameObjectSpawnRecord> spawns,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        if (spawns.Count == 0)
+        {
+            return spawns;
+        }
+
+        if (!_settings.GameData.Enabled || _gameData.MapData.Areas.Count == 0)
+        {
+            Logger.Write(LogType.WARNING, $"WorldServer skipped gameobject zone/area resolution for {reason}; game data or AreaTable.dbc is unavailable.", "WorldServer");
+            return spawns;
+        }
+
+        string mapStoreDirectory = GameDataPathResolver.ResolveDirectory(_settings.GameData.DataDirectory, _settings.GameData.MapStoreDirectory);
+        MapStoreAreaLookupService areaLookup = new(mapStoreDirectory, _gameData.MapData);
+        GameObjectAreaEnrichmentResult result = await _worldTemplateRepository.ResolveAndPersistGameObjectAreasAsync(spawns, areaLookup, cancellationToken);
+
+        string sourceSummary = FormatGameObjectAreaSourceSummary(result.SourceCounts);
+        LogType logType = result.UnresolvedCount == 0 ? LogType.DATABASE : LogType.WARNING;
+        Logger.Write(
+            logType,
+            $"WorldServer resolved gameobject zone/area data for {reason}: spawns={result.Spawns.Count}, resolved={result.ResolvedCount}, unresolved={result.UnresolvedCount}, changed={result.ChangedCount}, persisted={result.PersistedCount}, sources={sourceSummary}.",
+            "WorldServer");
+
+        return result.Spawns;
+    }
+
+    /**
+      * Formats zone/area lookup source counts for startup diagnostics.
+      */
+    private static string FormatGameObjectAreaSourceSummary(IReadOnlyDictionary<string, int> sourceCounts)
+    {
+        if (sourceCounts.Count == 0)
+        {
+            return "none";
+        }
+
+        return string.Join(", ", sourceCounts.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase).Select(entry => $"{entry.Key}:{entry.Value}"));
     }
 
     /**

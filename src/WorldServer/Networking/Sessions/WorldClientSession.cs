@@ -59,6 +59,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const float MaximumMovementBroadcastDistanceSquared = 200.0f * 200.0f;
+    private const float GameObjectVisibilityDistance = 90.0f;
+    private const float GameObjectVisibilityDistanceSquared = GameObjectVisibilityDistance * GameObjectVisibilityDistance;
+    private const float GameObjectVisibilityUnloadDistance = 120.0f;
+    private const float GameObjectVisibilityUnloadDistanceSquared = GameObjectVisibilityUnloadDistance * GameObjectVisibilityUnloadDistance;
+    private const int MaximumGameObjectCreateUpdatesPerRefresh = 96;
 
     /**
       * Defines the short grace window used after terminal auth failures so the vanilla client can render the exact failure text before the socket closes.
@@ -76,6 +81,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Limits internal movement telemetry to Map/Instance services so client packet handling is not blocked by every movement opcode.
       */
     private static readonly TimeSpan MapServiceMovementRouteInterval = TimeSpan.FromSeconds(1);
+    /**
+      * Limits gameobject visibility work so high-frequency movement packets do not scan all static spawns every frame.
+      */
+    private static readonly TimeSpan GameObjectVisibilityRefreshInterval = TimeSpan.FromMilliseconds(750);
     /**
       * Defines how often account/IP ban state is rechecked after authentication.
       * The check runs on a background monitor so movement and ping packets never wait on database queries.
@@ -173,6 +182,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private readonly Func<PlayerLoginRecord, string, CancellationToken, Task> _playerLeftWorldAsync;
     private readonly Func<PlayerLoginRecord, string, PlayerMovementState, CancellationToken, Task> _playerMovementAsync;
     private readonly Func<PlayerLoginRecord, string, WorldPacket, CancellationToken, Task> _playerClientPacketAsync;
+    private readonly Func<WorldTemplateDataStore> _worldTemplateDataResolver;
     /**
       * Holds the private player save interval state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -241,6 +251,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly HashSet<WorldOpcode> _reportedUnhandledOpcodes = [];
+    private readonly Dictionary<ulong, uint> _visibleGameObjectClientGuids = [];
     /**
       * Holds the private server seed state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -332,6 +343,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private uint _lastMapServiceMovementRouteMap;
     private uint _lastMapServiceMovementRouteZone;
     private bool _hasLastMapServiceMovementRoute;
+    private DateTimeOffset _lastGameObjectVisibilityRefreshUtc = DateTimeOffset.MinValue;
     /**
       * Prevents the automatic CMSG_CHAR_ENUM sent by the client after SMSG_CHARACTER_LOGIN_FAILED from hiding the failure dialog immediately.
       */
@@ -367,6 +379,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         Func<PlayerLoginRecord, string, CancellationToken, Task> playerLeftWorldAsync,
         Func<PlayerLoginRecord, string, PlayerMovementState, CancellationToken, Task> playerMovementAsync,
         Func<PlayerLoginRecord, string, WorldPacket, CancellationToken, Task> playerClientPacketAsync,
+        Func<WorldTemplateDataStore> worldTemplateDataResolver,
         string messageOfTheDay,
         TimeSpan playerSaveInterval,
         Action<int>? activePlayerCountChanged = null,
@@ -387,6 +400,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         _playerLeftWorldAsync = playerLeftWorldAsync ?? throw new ArgumentNullException();
         _playerMovementAsync = playerMovementAsync ?? throw new ArgumentNullException();
         _playerClientPacketAsync = playerClientPacketAsync ?? throw new ArgumentNullException();
+        _worldTemplateDataResolver = worldTemplateDataResolver ?? throw new ArgumentNullException();
         _messageOfTheDay = string.IsNullOrWhiteSpace(messageOfTheDay) ? "Welcome to Emulation Server." : messageOfTheDay;
         _playerSaveInterval = playerSaveInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(60) : playerSaveInterval;
         _activePlayerCountChanged = activePlayerCountChanged ?? (_ => { });
@@ -923,7 +937,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
             if (WorldMovementOpcode.IsMovementOpcode(packet.Opcode))
             {
-                HandleMovementPacket(packet);
+                await HandleMovementPacketAsync(packet, cancellationToken);
                 continue;
             }
 
@@ -1124,7 +1138,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                     break;
 
                 case var movementOpcode when WorldMovementOpcode.IsMovementOpcode(movementOpcode):
-                    HandleMovementPacket(packet);
+                    await HandleMovementPacketAsync(packet, cancellationToken);
                     break;
 
                 default:
@@ -1257,6 +1271,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             _playerStateDirty = true;
             _currentMapOwnerServerName = mapAvailability.OwnerServerName;
             ResetMapServiceMovementRoute();
+            ResetGameObjectVisibility();
             StartPlayerSaveTimer();
             await _playerEnteredWorldAsync(player, _currentMapOwnerServerName, cancellationToken);
             await SendWorldEntryPacketsAsync(player, cancellationToken);
@@ -1271,6 +1286,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             CurrentMovement = null;
             _currentMapOwnerServerName = string.Empty;
             ResetMapServiceMovementRoute();
+            ResetGameObjectVisibility();
             _playerSessionRegistry.Unregister(player, this);
             await _characterRepository.SetCharacterOnlineAsync(player.Guid, false, CancellationToken.None);
 
@@ -1393,6 +1409,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await SendAsync(WorldOpcode.SMSG_INITIALIZE_FACTIONS, WorldPacketBuilders.BuildInitializeFactions(player), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_LOGIN_SETTIMESPEED, WorldPacketBuilders.BuildLoginSetTimeSpeed(localTime), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildPlayerCreateUpdate(player), _crypt, cancellationToken);
+        await RefreshVisibleGameObjectsAsync(player, force: true, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(new CharacterNameQueryResult(player.Guid, player.Name, player.Race, player.Gender, player.Class)), _crypt, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_MOTD, WorldPacketBuilders.BuildMessageOfTheDay(_messageOfTheDay), _crypt, cancellationToken);
         await JoinDefaultChatChannelsAsync(cancellationToken);
@@ -1432,7 +1449,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
       * Inputs used by this operation: packet, cancellationToken.
       * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
       */
-    private void HandleMovementPacket(WorldPacket packet)
+    private async Task HandleMovementPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
         string ownerServerName = _currentMapOwnerServerName;
@@ -1461,6 +1478,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         PlayerLoginRecord updatedPlayer = RequireCurrentPlayer();
 
         QueueMovementBroadcastToNearbyPlayers(packet, movement);
+        await RefreshVisibleGameObjectsAsync(updatedPlayer, force: false, cancellationToken);
 
         if (!ShouldRouteMovementToMapService(movement))
         {
@@ -1758,7 +1776,157 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             }
         }
 
+        await RefreshVisibleGameObjectsAsync(RequireCurrentPlayer(), force: true, cancellationToken);
         await ForwardPacketToMapServiceAsync(packet, cancellationToken);
+    }
+
+    /**
+      * Clears client-visible gameobject state when the player enters or leaves the world.
+      */
+    private void ResetGameObjectVisibility()
+    {
+        _visibleGameObjectClientGuids.Clear();
+        _lastGameObjectVisibilityRefreshUtc = DateTimeOffset.MinValue;
+    }
+
+    /**
+      * Sends guarded gameobject create/destroy updates for the player's local visibility bubble.
+      * This is a WorldServer bridge until MapServer can push object visibility deltas over the internal protocol.
+      */
+    private async Task RefreshVisibleGameObjectsAsync(PlayerLoginRecord player, bool force, CancellationToken cancellationToken)
+    {
+        if (_crypt is null)
+        {
+            return;
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (!force && now - _lastGameObjectVisibilityRefreshUtc < GameObjectVisibilityRefreshInterval)
+        {
+            return;
+        }
+
+        _lastGameObjectVisibilityRefreshUtc = now;
+        WorldTemplateDataStore worldData = _worldTemplateDataResolver();
+        if (worldData.GameObjectSpawnCount == 0 || worldData.GameObjectTemplateCount == 0)
+        {
+            return;
+        }
+
+        (uint map, float x, float y, float z) = ResolveCurrentVisibilityPosition(player);
+        if (map > ushort.MaxValue || !IsFiniteWorldPosition(x, y, z))
+        {
+            return;
+        }
+
+        ushort mapId = unchecked((ushort)map);
+        IReadOnlyList<GameObjectSpawnRecord> mapSpawns = worldData.GetGameObjectSpawnsForMap(mapId);
+        if (mapSpawns.Count == 0)
+        {
+            return;
+        }
+
+        List<GameObjectClientCreateRecord> nearbyCreates = [];
+        List<ulong> removeClientGuids = [];
+
+        foreach (KeyValuePair<ulong, uint> visible in _visibleGameObjectClientGuids.ToArray())
+        {
+            if (!worldData.TryGetGameObjectSpawn(visible.Value, out GameObjectSpawnRecord visibleSpawn) ||
+                visibleSpawn.Map != mapId ||
+                !worldData.TryGetGameObjectTemplate(visibleSpawn.Entry, out GameObjectTemplateRecord visibleTemplate) ||
+                !GameObjectDataValidation.IsClientVisibleStaticGameObject(visibleSpawn, visibleTemplate) ||
+                CalculateDistanceSquared2D(x, y, visibleSpawn.PositionX, visibleSpawn.PositionY) > GameObjectVisibilityUnloadDistanceSquared)
+            {
+                removeClientGuids.Add(visible.Key);
+            }
+        }
+
+        foreach (ulong clientGuid in removeClientGuids)
+        {
+            _visibleGameObjectClientGuids.Remove(clientGuid);
+            await SendAsync(WorldOpcode.SMSG_DESTROY_OBJECT, WorldPacketBuilders.BuildDestroyObject(clientGuid), _crypt, cancellationToken);
+        }
+
+        foreach (GameObjectSpawnRecord spawn in mapSpawns)
+        {
+            if (CalculateDistanceSquared2D(x, y, spawn.PositionX, spawn.PositionY) > GameObjectVisibilityDistanceSquared)
+            {
+                continue;
+            }
+
+            if (!worldData.TryGetGameObjectTemplate(spawn.Entry, out GameObjectTemplateRecord template) ||
+                !GameObjectDataValidation.IsClientVisibleStaticGameObject(spawn, template))
+            {
+                continue;
+            }
+
+            ulong clientGuid = CharacterGuid.ToGameObjectGuid(spawn.Guid, spawn.Entry);
+            if (clientGuid == 0)
+            {
+                continue;
+            }
+
+            if (_visibleGameObjectClientGuids.ContainsKey(clientGuid))
+            {
+                continue;
+            }
+
+            nearbyCreates.Add(new GameObjectClientCreateRecord(spawn, template));
+        }
+
+        if (nearbyCreates.Count == 0)
+        {
+            return;
+        }
+
+        GameObjectClientCreateRecord[] selectedCreates = nearbyCreates
+            .OrderBy(record => CalculateDistanceSquared2D(x, y, record.Spawn.PositionX, record.Spawn.PositionY))
+            .Take(MaximumGameObjectCreateUpdatesPerRefresh)
+            .ToArray();
+
+        byte[] payload = WorldPacketBuilders.BuildGameObjectCreateUpdate(selectedCreates);
+        if (payload.Length == 0)
+        {
+            return;
+        }
+
+        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, payload, _crypt, cancellationToken);
+        foreach (GameObjectClientCreateRecord record in selectedCreates)
+        {
+            ulong clientGuid = CharacterGuid.ToGameObjectGuid(record.Spawn.Guid, record.Spawn.Entry);
+            _visibleGameObjectClientGuids[clientGuid] = record.Spawn.Guid;
+        }
+
+        if (selectedCreates.Length != 0)
+        {
+            Logger.Write(
+                LogType.TRACE,
+                $"Sent {selectedCreates.Length} gameobject create update(s) to player '{player.Name}' ({player.Guid}) near map={mapId}, x={x:F2}, y={y:F2}.",
+                "WorldClientSession");
+        }
+    }
+
+    private (uint Map, float X, float Y, float Z) ResolveCurrentVisibilityPosition(PlayerLoginRecord player)
+    {
+        PlayerMovementState? movement = CurrentMovement;
+        if (movement is not null)
+        {
+            return (movement.Map, movement.PositionX, movement.PositionY, movement.PositionZ);
+        }
+
+        return (player.Map, player.PositionX, player.PositionY, player.PositionZ);
+    }
+
+    private static bool IsFiniteWorldPosition(float x, float y, float z)
+    {
+        return float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z);
+    }
+
+    private static float CalculateDistanceSquared2D(float x1, float y1, float x2, float y2)
+    {
+        float dx = x1 - x2;
+        float dy = y1 - y2;
+        return (dx * dx) + (dy * dy);
     }
 
     /**
@@ -2981,6 +3149,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         CurrentMovement = null;
         _currentMapOwnerServerName = string.Empty;
         ResetMapServiceMovementRoute();
+        ResetGameObjectVisibility();
         _chatChannels.Clear();
 
         if (notifyMapService && !string.IsNullOrWhiteSpace(ownerServerName))

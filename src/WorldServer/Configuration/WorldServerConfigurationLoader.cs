@@ -202,6 +202,7 @@ public static class WorldServerConfigurationLoader
             Enabled = configuration.GetBool(GameDataSection, "Enabled", true),
             DataDirectory = configuration.GetString(GameDataSection, "DataDirectory", "Data"),
             DbcDirectory = configuration.GetString(GameDataSection, "DbcDirectory", "dbc"),
+            MapStoreDirectory = configuration.GetString(GameDataSection, "MapStoreDirectory", "mapstore"),
             RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
         };
     }

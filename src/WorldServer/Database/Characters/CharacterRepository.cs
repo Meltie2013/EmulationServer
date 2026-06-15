@@ -42,13 +42,18 @@ namespace EmulationServer.WorldServer.Database.Characters;
   * Owns the character repository behavior for the world database repositories and persisted player/account records layer.
   * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
   */
-public sealed class CharacterRepository
+public sealed class CharacterRepository(
+    IDatabaseService databaseService,
+    Func<uint, ItemTemplateRecord?> itemTemplateAccessor,
+    Func<WorldTemplateDataStore> worldTemplateAccessor,
+    Func<WorldGameDataStore> worldGameDataAccessor)
 {
     /**
       * Defines the constant value for character equipment slot count.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     private const int CharacterEquipmentSlotCount = 19;
+
     /**
       * Defines the constant value for at login first.
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
@@ -71,34 +76,17 @@ public sealed class CharacterRepository
       * Holds the private database service state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly IDatabaseService _databaseService;
-    private readonly Func<uint, ItemTemplateRecord?> _itemTemplateAccessor;
+    private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException();
+    private readonly Func<uint, ItemTemplateRecord?> _itemTemplateAccessor = itemTemplateAccessor ?? throw new ArgumentNullException();
     /**
       * Holds the private world template accessor state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
-    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor;
+    private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
     /**
       * Holds the private world game data accessor state used by reputation and DBC-backed character systems.
       */
-    private readonly Func<WorldGameDataStore> _worldGameDataAccessor;
-
-    /**
-      * Initializes a new CharacterRepository instance with the dependencies required by the world database repositories and persisted player/account records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: databaseService, itemTemplateAccessor, worldTemplateAccessor, worldGameDataAccessor.
-      */
-    public CharacterRepository(
-        IDatabaseService databaseService,
-        Func<uint, ItemTemplateRecord?> itemTemplateAccessor,
-        Func<WorldTemplateDataStore> worldTemplateAccessor,
-        Func<WorldGameDataStore> worldGameDataAccessor)
-    {
-        _databaseService = databaseService ?? throw new ArgumentNullException();
-        _itemTemplateAccessor = itemTemplateAccessor ?? throw new ArgumentNullException();
-        _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
-        _worldGameDataAccessor = worldGameDataAccessor ?? throw new ArgumentNullException();
-    }
+    private readonly Func<WorldGameDataStore> _worldGameDataAccessor = worldGameDataAccessor ?? throw new ArgumentNullException();
 
     /**
       * Resolves the characters for account value requested by the caller.
@@ -109,7 +97,7 @@ public sealed class CharacterRepository
     public async Task<IReadOnlyList<CharacterListEntry>> GetCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `guid`, `name`, `race`, `class`, `gender`,
@@ -217,7 +205,7 @@ public sealed class CharacterRepository
     public async Task<bool> CharacterNameExistsAsync(string name, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT 1
@@ -234,7 +222,7 @@ public sealed class CharacterRepository
     public async Task<IReadOnlyDictionary<uint, byte>> GetCharacterCountsByAccountAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `account`, COUNT(*) AS `character_count`
@@ -263,7 +251,7 @@ public sealed class CharacterRepository
     public async Task<int> CountCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = "SELECT COUNT(*) FROM `characters` WHERE `account` = @account;";
         command.Parameters.AddWithValue("@account", accountId);
@@ -555,7 +543,7 @@ public sealed class CharacterRepository
         }
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `guid`, `account`, `name`, `race`, `class`, `gender`, `level`, `xp`, `zone`, `map`,
@@ -676,7 +664,7 @@ public sealed class CharacterRepository
         }
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `guid`, `name`, `race`, `gender`, `class`
@@ -714,7 +702,7 @@ public sealed class CharacterRepository
         }
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `characters`
@@ -743,7 +731,7 @@ public sealed class CharacterRepository
         }
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `characters`
@@ -792,7 +780,7 @@ public sealed class CharacterRepository
 
         try
         {
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
                 UPDATE `characters`
@@ -934,7 +922,7 @@ public sealed class CharacterRepository
         string columnName,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = $"SELECT COALESCE(MAX(`{columnName}`), 0) + 1 FROM `{tableName}`;";
         object? result = await command.ExecuteScalarAsync(cancellationToken);
@@ -960,7 +948,7 @@ public sealed class CharacterRepository
         PlayerStats initialStats,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `characters`
@@ -1016,7 +1004,7 @@ public sealed class CharacterRepository
         PlayerCreateInfoRecord createInfo,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `character_homebind`
@@ -1052,7 +1040,7 @@ public sealed class CharacterRepository
             return;
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `character_stats`
@@ -1115,7 +1103,7 @@ public sealed class CharacterRepository
             return;
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT IGNORE INTO `character_tutorial`
@@ -1168,7 +1156,7 @@ public sealed class CharacterRepository
 
         foreach (uint spellId in spellIds)
         {
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT IGNORE INTO `character_spell`
@@ -1207,7 +1195,7 @@ public sealed class CharacterRepository
                 continue;
             }
 
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO `character_action`
@@ -1246,7 +1234,7 @@ public sealed class CharacterRepository
 
         foreach (PlayerReputation reputation in reputations)
         {
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO `character_reputation`
@@ -1285,7 +1273,7 @@ public sealed class CharacterRepository
 
         foreach (PlayerSkill skill in skills)
         {
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO `character_skills`
@@ -1319,7 +1307,7 @@ public sealed class CharacterRepository
         ItemTemplateRecord itemTemplate,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `item_instance`
@@ -1349,7 +1337,7 @@ public sealed class CharacterRepository
         byte storageSlot,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `character_inventory`
@@ -1377,7 +1365,7 @@ public sealed class CharacterRepository
         uint characterGuid,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             SELECT `account`, `name`, `online`
@@ -1417,7 +1405,7 @@ public sealed class CharacterRepository
             return false;
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             SELECT 1
@@ -1494,7 +1482,7 @@ public sealed class CharacterRepository
             return;
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = $"DELETE FROM `{tableName}` WHERE `{columnName}` = @value;";
         command.Parameters.AddWithValue("@value", value);
@@ -1514,7 +1502,7 @@ public sealed class CharacterRepository
         string columnName,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             SELECT 1
@@ -1543,7 +1531,7 @@ public sealed class CharacterRepository
         string tableName,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             SELECT 1
@@ -1569,7 +1557,7 @@ public sealed class CharacterRepository
         string tableName,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT 1
             FROM `information_schema`.`TABLES`
@@ -1605,7 +1593,7 @@ public sealed class CharacterRepository
             return null;
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `maxhealth`, `maxpower1`, `maxpower2`, `maxpower3`, `maxpower4`, `maxpower5`,
                    `strength`, `agility`, `stamina`, `intellect`, `spirit`, `armor`
@@ -1652,7 +1640,7 @@ public sealed class CharacterRepository
         List<PlayerSpell> spells = [];
         if (await TableExistsAsync(connection, "character_spell", cancellationToken))
         {
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.CommandText = """
                 SELECT `spell`, `active`, `disabled`
                 FROM `character_spell`
@@ -1698,7 +1686,7 @@ public sealed class CharacterRepository
         List<PlayerActionButton> actions = [];
         if (await TableExistsAsync(connection, "character_action", cancellationToken))
         {
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
             command.CommandText = """
                 SELECT `button`, `action`, `type`
                 FROM `character_action`
@@ -1741,7 +1729,7 @@ public sealed class CharacterRepository
             return CreateDefaultTutorialFlags();
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `tut0`, `tut1`, `tut2`, `tut3`, `tut4`, `tut5`, `tut6`, `tut7`
             FROM `character_tutorial`
@@ -1784,7 +1772,7 @@ public sealed class CharacterRepository
             return ReputationSystem.BuildInitialReputations(factionData, race, playerClass);
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `faction`, `standing`, `flags`
             FROM `character_reputation`
@@ -1874,7 +1862,7 @@ public sealed class CharacterRepository
             return result;
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         List<string> parameterNames = [];
         for (int index = 0; index < guids.Length; index++)
         {
@@ -2113,7 +2101,7 @@ public sealed class CharacterRepository
         string instanceData,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             UPDATE `item_instance`
@@ -2136,7 +2124,7 @@ public sealed class CharacterRepository
         string instanceData,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `item_instance`
@@ -2163,7 +2151,7 @@ public sealed class CharacterRepository
         byte storageSlot,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `character_inventory`

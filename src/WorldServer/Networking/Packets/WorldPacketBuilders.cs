@@ -459,6 +459,147 @@ public static class WorldPacketBuilders
     }
 
     /**
+      * Builds create update blocks for static gameobjects that are newly visible to a player.
+      * The caller limits range/count and filters unsafe templates before passing records here.
+      */
+    public static byte[] BuildGameObjectCreateUpdate(IReadOnlyList<GameObjectClientCreateRecord> gameObjects)
+    {
+        ArgumentNullException.ThrowIfNull(gameObjects);
+
+        if (gameObjects.Count == 0)
+        {
+            return [];
+        }
+
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32((uint)gameObjects.Count);
+        writer.WriteUInt8(0); // has_transport
+
+        foreach (GameObjectClientCreateRecord gameObject in gameObjects)
+        {
+            WriteGameObjectCreateUpdateBlock(writer, gameObject.Spawn, gameObject.Template);
+        }
+
+        return writer.ToArray();
+    }
+
+    /**
+      * Builds the Vanilla destroy-object packet for an object leaving a player's visible set.
+      */
+    public static byte[] BuildDestroyObject(ulong clientGuid)
+    {
+        WorldPacketWriter writer = new();
+        writer.WriteUInt64(clientGuid);
+        return writer.ToArray();
+    }
+
+    /**
+      * Writes one static gameobject CREATE_OBJECT2 block.
+      */
+    private static void WriteGameObjectCreateUpdateBlock(
+        WorldPacketWriter writer,
+        GameObjectSpawnRecord spawn,
+        GameObjectTemplateRecord template)
+    {
+        ulong clientGuid = CharacterGuid.ToGameObjectGuid(spawn.Guid, spawn.Entry);
+
+        writer.WriteUInt8(3); // CREATE_OBJECT2
+        WritePackedGuid(writer, clientGuid);
+        writer.WriteUInt8(5); // TYPEID_GAMEOBJECT
+        WriteGameObjectMovementBlock(writer, spawn);
+        WriteGameObjectCreateUpdateMask(writer, spawn, template, clientGuid);
+    }
+
+    /**
+      * Writes the non-living movement block used by static gameobjects.
+      */
+    private static void WriteGameObjectMovementBlock(WorldPacketWriter writer, GameObjectSpawnRecord spawn)
+    {
+        const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.All | VanillaUpdateFlags.HasPosition;
+
+        writer.WriteUInt8((byte)updateFlags);
+        writer.WriteFloat(spawn.PositionX);
+        writer.WriteFloat(spawn.PositionY);
+        writer.WriteFloat(spawn.PositionZ);
+        writer.WriteFloat(spawn.Orientation);
+        writer.WriteUInt32(1);
+    }
+
+    /**
+      * Writes the Vanilla 1.12 gameobject value fields needed for first render.
+      */
+    private static void WriteGameObjectCreateUpdateMask(
+        WorldPacketWriter writer,
+        GameObjectSpawnRecord spawn,
+        GameObjectTemplateRecord template,
+        ulong clientGuid)
+    {
+        const int ObjectFieldGuid = 0x0000;
+        const int ObjectFieldType = 0x0002;
+        const int ObjectFieldEntry = 0x0003;
+        const int ObjectFieldScaleX = 0x0004;
+        const int GameObjectFieldCreatedBy = 0x0006;
+        const int GameObjectDisplayId = 0x0008;
+        const int GameObjectFlags = 0x0009;
+        const int GameObjectRotation = 0x000A;
+        const int GameObjectState = 0x000E;
+        const int GameObjectPositionX = 0x000F;
+        const int GameObjectPositionY = 0x0010;
+        const int GameObjectPositionZ = 0x0011;
+        const int GameObjectFacing = 0x0012;
+        const int GameObjectDynamicFlags = 0x0013;
+        const int GameObjectFaction = 0x0014;
+        const int GameObjectTypeId = 0x0015;
+        const int GameObjectLevel = 0x0016;
+        const int GameObjectArtKit = 0x0017;
+        const int GameObjectAnimProgress = 0x0018;
+
+        Dictionary<int, uint> fields = [];
+        float scale = float.IsFinite(template.Size) && template.Size > 0.0f && template.Size <= 100.0f
+            ? template.Size
+            : 1.0f;
+
+        WriteGuidFields(fields, ObjectFieldGuid, clientGuid);
+        fields[ObjectFieldType] = 0x21; // OBJECT | GAMEOBJECT
+        fields[ObjectFieldEntry] = spawn.Entry;
+        fields[ObjectFieldScaleX] = FloatToUInt32(scale);
+        WriteGuidFields(fields, GameObjectFieldCreatedBy, 0);
+        fields[GameObjectDisplayId] = template.DisplayId;
+        fields[GameObjectFlags] = template.Flags;
+        fields[GameObjectRotation] = FloatToUInt32(NormalizeFiniteFloat(spawn.Rotation0));
+        fields[GameObjectRotation + 1] = FloatToUInt32(NormalizeFiniteFloat(spawn.Rotation1));
+        fields[GameObjectRotation + 2] = FloatToUInt32(NormalizeFiniteFloat(spawn.Rotation2));
+        fields[GameObjectRotation + 3] = FloatToUInt32(NormalizeFiniteFloat(spawn.Rotation3));
+        fields[GameObjectState] = spawn.State;
+        fields[GameObjectPositionX] = FloatToUInt32(spawn.PositionX);
+        fields[GameObjectPositionY] = FloatToUInt32(spawn.PositionY);
+        fields[GameObjectPositionZ] = FloatToUInt32(spawn.PositionZ);
+        fields[GameObjectFacing] = FloatToUInt32(spawn.Orientation);
+        fields[GameObjectDynamicFlags] = ResolveGameObjectDynamicFlags(template.Type);
+        fields[GameObjectFaction] = template.Faction;
+        fields[GameObjectTypeId] = template.Type;
+        fields[GameObjectLevel] = 1;
+        fields[GameObjectArtKit] = 0;
+        fields[GameObjectAnimProgress] = spawn.AnimProgress;
+
+        WriteUpdateMask(writer, fields);
+    }
+
+
+    private static uint ResolveGameObjectDynamicFlags(byte gameObjectType)
+    {
+        const uint GoDynamicFlagActivate = 0x00000001;
+        const uint GoDynamicFlagSparkle = 0x00000002;
+
+        return gameObjectType switch
+        {
+            2 => GoDynamicFlagActivate,
+            3 or 5 or 8 or 10 => GoDynamicFlagActivate | GoDynamicFlagSparkle,
+            _ => 0u,
+        };
+    }
+
+    /**
       * Writes write player movement block data to the target packet, stream, or persistent store.
       * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
       * Inputs used by this operation: writer, player.
@@ -1244,6 +1385,11 @@ public static class WorldPacketBuilders
             8 => female ? 1477u : 1476u,
             _ => 49u,
         };
+    }
+
+    private static float NormalizeFiniteFloat(float value)
+    {
+        return float.IsFinite(value) ? value : 0.0f;
     }
 
     /**

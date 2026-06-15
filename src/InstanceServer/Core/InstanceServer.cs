@@ -21,6 +21,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using EmulationServer.Core.Servers;
+using EmulationServer.Game.GameObjects;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.InstanceServer.Configuration;
 using EmulationServer.Network.Networking.Callbacks;
@@ -66,6 +67,7 @@ public sealed class InstanceServer : IAsyncDisposable
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly MapPlayerTracker _playerTracker = new();
+    private readonly GameObjectSnapshotStore _gameObjectSnapshots = new("InstanceServer");
     /**
       * Holds the private world capacity limit state used by the owning component.
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
@@ -157,7 +159,9 @@ public sealed class InstanceServer : IAsyncDisposable
         return new MapServiceManager(
             "InstanceServer",
             _settings.InstanceServices,
-            ReportInstanceServiceStatusAsync);
+            ReportInstanceServiceStatusAsync,
+            (mapId, cancellationToken) => Task.FromResult(_gameObjectSnapshots.GetSpawnsForMap(mapId)),
+            entry => _gameObjectSnapshots.GetTemplateOrDefault(entry));
     }
 
     /**
@@ -294,6 +298,11 @@ public sealed class InstanceServer : IAsyncDisposable
         Func<string, Task> sendResponseAsync,
         CancellationToken cancellationToken)
     {
+        if (await HandleGameObjectSnapshotPacketAsync(remoteServerName, packet, cancellationToken))
+        {
+            return;
+        }
+
         if (InternalMapServiceCommandPacket.TryParse(packet, out InternalMapServiceCommandPacket command))
         {
             await HandleMapServiceCommandAsync(remoteServerName, command, sendResponseAsync, cancellationToken);
@@ -326,6 +335,31 @@ public sealed class InstanceServer : IAsyncDisposable
         string capacitySource = parts.Length == 3 ? parts[1] : remoteServerName;
         Volatile.Write(ref _worldCapacityLimit, capacityLimit);
         Logger.Write(LogType.NETWORK, $"InstanceServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", "InstanceServer");
+    }
+
+    /**
+      * Applies game object snapshot packets from WorldServer and refreshes hosted instance runtimes when a snapshot completes.
+      */
+    private async Task<bool> HandleGameObjectSnapshotPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
+    {
+        if (!_gameObjectSnapshots.TryHandleSnapshotPacket(remoteServerName, packet, out GameObjectSnapshotApplyResult result))
+        {
+            return false;
+        }
+
+        if (result.Completed)
+        {
+            MapServiceManager? instanceServices = _instanceServices;
+            if (instanceServices is not null)
+            {
+                await instanceServices.ReloadGameObjectsAsync(result.MapId, cancellationToken);
+                await instanceServices.ReportServicesAsync(result.MapId, cancellationToken);
+            }
+
+            Logger.Write(LogType.SYSTEM, $"InstanceServer refreshed gameobject runtime for MapId={result.MapId} from WorldServer snapshot: templates={result.TemplateCount}, spawns={result.SpawnCount}.", "InstanceServer");
+        }
+
+        return true;
     }
 
     /**

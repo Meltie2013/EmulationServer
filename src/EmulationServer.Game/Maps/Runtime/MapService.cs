@@ -17,6 +17,7 @@
 //
 
 using EmulationServer.Game.Data.Maps;
+using EmulationServer.Game.GameObjects;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Timing;
@@ -60,6 +61,7 @@ public sealed class MapService : IAsyncDisposable
       * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
       */
     private readonly MapGridManager? _gridManager;
+    private readonly GameObjectMapRuntime? _gameObjectRuntime;
     private readonly Func<MapServiceSnapshot, CancellationToken, Task>? _reportStatusAsync;
     private readonly ISteadyClock _clock;
 
@@ -123,6 +125,7 @@ public sealed class MapService : IAsyncDisposable
         string ownerServerName,
         MapServiceDefinition definition,
         MapGridManager? gridManager = null,
+        GameObjectMapRuntime? gameObjectRuntime = null,
         Func<MapServiceSnapshot, CancellationToken, Task>? reportStatusAsync = null,
         ISteadyClock? clock = null)
     {
@@ -136,6 +139,7 @@ public sealed class MapService : IAsyncDisposable
         _ownerServerName = ownerServerName;
         _definition = definition;
         _gridManager = gridManager;
+        _gameObjectRuntime = gameObjectRuntime;
         _reportStatusAsync = reportStatusAsync;
         _clock = clock ?? SystemSteadyClock.Instance;
     }
@@ -158,6 +162,38 @@ public sealed class MapService : IAsyncDisposable
             {
                 return _state;
             }
+        }
+    }
+
+    /**
+      * Gets the number of active game object runtime spawns currently owned by this map service.
+      */
+    public int ActiveGameObjectCount => _gameObjectRuntime?.ActiveSpawnCount ?? 0;
+
+    /**
+      * Reloads game object runtime state from the latest WorldServer snapshot without restarting the entire map service.
+      */
+    public async Task ReloadGameObjectsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_gameObjectRuntime is null)
+        {
+            return;
+        }
+
+        await _lifecycleLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (State == MapServiceState.Offline)
+            {
+                return;
+            }
+
+            await _gameObjectRuntime.LoadAsync(cancellationToken);
+            await PublishStatusAsync(cancellationToken);
+        }
+        finally
+        {
+            _lifecycleLock.Release();
         }
     }
 
@@ -224,12 +260,18 @@ public sealed class MapService : IAsyncDisposable
             await SetStateAsync(MapServiceState.UnloadingObjects, "despawning creatures, gameobjects, and active grids", cancellationToken);
 
             await StopTickLoopAsync(cancellationToken);
+            _gameObjectRuntime?.DespawnAll("map restart");
             _gridManager?.UnloadAllGrids("map restart");
 
             await SetStateAsync(MapServiceState.ReloadingData, "reloading map runtime data", cancellationToken);
             if (_gridManager is not null)
             {
                 await _gridManager.InitializeAsync(cancellationToken);
+            }
+
+            if (_gameObjectRuntime is not null)
+            {
+                await _gameObjectRuntime.LoadAsync(cancellationToken);
             }
 
             ResetRuntimeCounters(_clock.UtcNow);
@@ -400,6 +442,11 @@ public sealed class MapService : IAsyncDisposable
             await _gridManager.InitializeAsync(_stopCancellation.Token);
         }
 
+        if (_gameObjectRuntime is not null)
+        {
+            await _gameObjectRuntime.LoadAsync(_stopCancellation.Token);
+        }
+
         StartTickLoop(cancellationToken);
         await SetStateAsync(MapServiceState.Online, "map service is online and accepting work", cancellationToken);
     }
@@ -443,6 +490,7 @@ public sealed class MapService : IAsyncDisposable
 
         await SetStateAsync(MapServiceState.Stopping, reason, cancellationToken);
         await StopTickLoopAsync(cancellationToken);
+        _gameObjectRuntime?.DespawnAll(reason);
         _gridManager?.UnloadAllGrids(reason);
         await SetStateAsync(MapServiceState.Offline, "map service is offline", cancellationToken);
     }

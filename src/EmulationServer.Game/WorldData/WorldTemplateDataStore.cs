@@ -46,7 +46,9 @@ public sealed class WorldTemplateDataStore
         Array.Empty<PlayerLevelExperienceRecord>(),
         Array.Empty<PlayerCreateActionRecord>(),
         Array.Empty<PlayerCreateItemRecord>(),
-        Array.Empty<PlayerCreateSpellRecord>());
+        Array.Empty<PlayerCreateSpellRecord>(),
+        Array.Empty<GameObjectTemplateRecord>(),
+        Array.Empty<GameObjectSpawnRecord>());
 
     private readonly Dictionary<(byte Race, byte Class), PlayerCreateInfoRecord> _playerCreateInfo;
     private readonly Dictionary<uint, ItemTemplateRecord> _itemTemplates;
@@ -56,6 +58,11 @@ public sealed class WorldTemplateDataStore
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateActionRecord>> _playerCreateActions;
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> _playerCreateItems;
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> _playerCreateSpells;
+    private readonly Dictionary<uint, GameObjectTemplateRecord> _gameObjectTemplates;
+    private readonly Dictionary<uint, GameObjectSpawnRecord> _gameObjectSpawns;
+    private readonly Dictionary<ushort, IReadOnlyList<GameObjectSpawnRecord>> _gameObjectSpawnsByMap;
+    private readonly Dictionary<(ushort Map, uint ZoneId), IReadOnlyList<GameObjectSpawnRecord>> _gameObjectSpawnsByZone;
+    private readonly Dictionary<(ushort Map, uint AreaId), IReadOnlyList<GameObjectSpawnRecord>> _gameObjectSpawnsByArea;
 
     /**
       * Initializes a new WorldTemplateDataStore instance with the dependencies required by the world database template loading and cache construction workflow.
@@ -70,7 +77,9 @@ public sealed class WorldTemplateDataStore
         IEnumerable<PlayerLevelExperienceRecord> playerLevelExperience,
         IEnumerable<PlayerCreateActionRecord> playerCreateActions,
         IEnumerable<PlayerCreateItemRecord> playerCreateItems,
-        IEnumerable<PlayerCreateSpellRecord> playerCreateSpells)
+        IEnumerable<PlayerCreateSpellRecord> playerCreateSpells,
+        IEnumerable<GameObjectTemplateRecord> gameObjectTemplates,
+        IEnumerable<GameObjectSpawnRecord> gameObjectSpawns)
     {
         ArgumentNullException.ThrowIfNull(playerCreateInfo);
         ArgumentNullException.ThrowIfNull(itemTemplates);
@@ -80,6 +89,8 @@ public sealed class WorldTemplateDataStore
         ArgumentNullException.ThrowIfNull(playerCreateActions);
         ArgumentNullException.ThrowIfNull(playerCreateItems);
         ArgumentNullException.ThrowIfNull(playerCreateSpells);
+        ArgumentNullException.ThrowIfNull(gameObjectTemplates);
+        ArgumentNullException.ThrowIfNull(gameObjectSpawns);
 
         _playerCreateInfo = playerCreateInfo
             .GroupBy(record => (record.Race, record.Class))
@@ -112,6 +123,33 @@ public sealed class WorldTemplateDataStore
         _playerCreateSpells = playerCreateSpells
             .GroupBy(record => (record.Race, record.Class))
             .ToDictionary(group => group.Key, group => (IReadOnlyList<PlayerCreateSpellRecord>)group.OrderBy(record => record.SpellId).ToArray());
+
+        _gameObjectTemplates = gameObjectTemplates
+            .Where(GameObjectDataValidation.IsLoadableTemplate)
+            .GroupBy(record => record.Entry)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        HashSet<uint> loadableGameObjectTemplateEntries = _gameObjectTemplates.Keys.ToHashSet();
+
+        _gameObjectSpawns = gameObjectSpawns
+            .Where(GameObjectDataValidation.IsLoadableSpawn)
+            .Where(record => loadableGameObjectTemplateEntries.Contains(record.Entry))
+            .GroupBy(record => record.Guid)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        _gameObjectSpawnsByMap = _gameObjectSpawns.Values
+            .GroupBy(record => record.Map)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<GameObjectSpawnRecord>)group.OrderBy(record => record.Guid).ToArray());
+
+        _gameObjectSpawnsByZone = _gameObjectSpawns.Values
+            .Where(record => record.ZoneId != 0)
+            .GroupBy(record => (record.Map, record.ZoneId))
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<GameObjectSpawnRecord>)group.OrderBy(record => record.Guid).ToArray());
+
+        _gameObjectSpawnsByArea = _gameObjectSpawns.Values
+            .Where(record => record.AreaId != 0)
+            .GroupBy(record => (record.Map, record.AreaId))
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<GameObjectSpawnRecord>)group.OrderBy(record => record.Guid).ToArray());
     }
 
     public IReadOnlyDictionary<(byte Race, byte Class), PlayerCreateInfoRecord> PlayerCreateInfo => _playerCreateInfo;
@@ -129,6 +167,12 @@ public sealed class WorldTemplateDataStore
     public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> PlayerCreateItems => _playerCreateItems;
 
     public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> PlayerCreateSpells => _playerCreateSpells;
+
+    public IReadOnlyDictionary<uint, GameObjectTemplateRecord> GameObjectTemplates => _gameObjectTemplates;
+
+    public IReadOnlyDictionary<uint, GameObjectSpawnRecord> GameObjectSpawns => _gameObjectSpawns;
+
+    public IReadOnlyDictionary<ushort, IReadOnlyList<GameObjectSpawnRecord>> GameObjectSpawnsByMap => _gameObjectSpawnsByMap;
 
     /**
       * Stores the default player level stats count value used when the caller does not supply an override.
@@ -166,6 +210,16 @@ public sealed class WorldTemplateDataStore
       */
     public int PlayerCreateSpellCount => _playerCreateSpells.Values.Sum(records => records.Count);
 
+    public int GameObjectTemplateCount => _gameObjectTemplates.Count;
+
+    public int GameObjectSpawnCount => _gameObjectSpawns.Count;
+
+    public int GameObjectSpawnMapCount => _gameObjectSpawnsByMap.Count;
+
+    public int GameObjectSpawnZoneCount => _gameObjectSpawnsByZone.Count;
+
+    public int GameObjectSpawnAreaCount => _gameObjectSpawnsByArea.Count;
+
     /**
       * Tries to resolve the get player create info value requested by the caller.
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
@@ -184,6 +238,44 @@ public sealed class WorldTemplateDataStore
     public bool TryGetItemTemplate(uint entry, out ItemTemplateRecord itemTemplate)
     {
         return _itemTemplates.TryGetValue(entry, out itemTemplate!);
+    }
+
+    public bool TryGetGameObjectTemplate(uint entry, out GameObjectTemplateRecord gameObjectTemplate)
+    {
+        return _gameObjectTemplates.TryGetValue(entry, out gameObjectTemplate!);
+    }
+
+    public GameObjectTemplateRecord? GetGameObjectTemplateOrDefault(uint entry)
+    {
+        return _gameObjectTemplates.TryGetValue(entry, out GameObjectTemplateRecord? template)
+            ? template
+            : null;
+    }
+
+    public bool TryGetGameObjectSpawn(uint guid, out GameObjectSpawnRecord gameObjectSpawn)
+    {
+        return _gameObjectSpawns.TryGetValue(guid, out gameObjectSpawn!);
+    }
+
+    public IReadOnlyList<GameObjectSpawnRecord> GetGameObjectSpawnsForMap(ushort mapId)
+    {
+        return _gameObjectSpawnsByMap.TryGetValue(mapId, out IReadOnlyList<GameObjectSpawnRecord>? records)
+            ? records
+            : Array.Empty<GameObjectSpawnRecord>();
+    }
+
+    public IReadOnlyList<GameObjectSpawnRecord> GetGameObjectSpawnsForZone(ushort mapId, uint zoneId)
+    {
+        return _gameObjectSpawnsByZone.TryGetValue((mapId, zoneId), out IReadOnlyList<GameObjectSpawnRecord>? records)
+            ? records
+            : Array.Empty<GameObjectSpawnRecord>();
+    }
+
+    public IReadOnlyList<GameObjectSpawnRecord> GetGameObjectSpawnsForArea(ushort mapId, uint areaId)
+    {
+        return _gameObjectSpawnsByArea.TryGetValue((mapId, areaId), out IReadOnlyList<GameObjectSpawnRecord>? records)
+            ? records
+            : Array.Empty<GameObjectSpawnRecord>();
     }
 
     /**
@@ -310,6 +402,56 @@ public sealed class WorldTemplateDataStore
         }
 
         return result;
+    }
+
+    /**
+      * Rebuilds the immutable world cache with the same templates and a fully replaced game object spawn set.
+      * This is used after startup coordinate enrichment so map/zone/area indexes reflect persisted per-guid locations.
+      */
+    public WorldTemplateDataStore WithGameObjectSpawns(IEnumerable<GameObjectSpawnRecord> gameObjectSpawns)
+    {
+        ArgumentNullException.ThrowIfNull(gameObjectSpawns);
+
+        return new WorldTemplateDataStore(
+            _playerCreateInfo.Values,
+            _itemTemplates.Values,
+            _playerLevelStats.Values,
+            _playerClassLevelStats.Values,
+            _playerLevelExperience.Values,
+            _playerCreateActions.Values.SelectMany(records => records),
+            _playerCreateItems.Values.SelectMany(records => records),
+            _playerCreateSpells.Values.SelectMany(records => records),
+            _gameObjectTemplates.Values,
+            gameObjectSpawns);
+    }
+
+    /**
+      * Rebuilds the immutable world cache with refreshed game object templates and one refreshed map's spawn rows.
+      * This is used by map restart/start control paths so DB edits to gameobject rows can be observed without rebooting WorldServer.
+      */
+    public WorldTemplateDataStore WithGameObjectDataForMap(
+        ushort mapId,
+        IEnumerable<GameObjectTemplateRecord> gameObjectTemplates,
+        IEnumerable<GameObjectSpawnRecord> mapGameObjectSpawns)
+    {
+        ArgumentNullException.ThrowIfNull(gameObjectTemplates);
+        ArgumentNullException.ThrowIfNull(mapGameObjectSpawns);
+
+        IEnumerable<GameObjectSpawnRecord> mergedSpawns = _gameObjectSpawns.Values
+            .Where(spawn => spawn.Map != mapId)
+            .Concat(mapGameObjectSpawns);
+
+        return new WorldTemplateDataStore(
+            _playerCreateInfo.Values,
+            _itemTemplates.Values,
+            _playerLevelStats.Values,
+            _playerClassLevelStats.Values,
+            _playerLevelExperience.Values,
+            _playerCreateActions.Values.SelectMany(records => records),
+            _playerCreateItems.Values.SelectMany(records => records),
+            _playerCreateSpells.Values.SelectMany(records => records),
+            gameObjectTemplates,
+            mergedSpawns);
     }
 
     /**

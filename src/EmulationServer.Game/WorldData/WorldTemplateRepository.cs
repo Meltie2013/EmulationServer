@@ -19,6 +19,7 @@
 using System.Globalization;
 
 using EmulationServer.Database.Interfaces;
+using EmulationServer.Game.Data.Maps;
 
 using MySqlConnector;
 
@@ -68,6 +69,8 @@ public sealed class WorldTemplateRepository
         IReadOnlyList<PlayerCreateActionRecord> playerCreateActions = await LoadPlayerCreateActionsAsync(cancellationToken);
         IReadOnlyList<PlayerCreateItemRecord> playerCreateItems = await LoadPlayerCreateItemsAsync(cancellationToken);
         IReadOnlyList<PlayerCreateSpellRecord> playerCreateSpells = await LoadPlayerCreateSpellsAsync(cancellationToken);
+        IReadOnlyList<GameObjectTemplateRecord> gameObjectTemplates = await LoadGameObjectTemplatesAsync(cancellationToken);
+        IReadOnlyList<GameObjectSpawnRecord> gameObjectSpawns = await LoadGameObjectSpawnsAsync(cancellationToken);
 
         return new WorldTemplateDataStore(
             playerCreateInfo,
@@ -77,7 +80,9 @@ public sealed class WorldTemplateRepository
             playerLevelExperience,
             playerCreateActions,
             playerCreateItems,
-            playerCreateSpells);
+            playerCreateSpells,
+            gameObjectTemplates,
+            gameObjectSpawns);
     }
 
     /**
@@ -348,6 +353,208 @@ public sealed class WorldTemplateRepository
     }
 
     /**
+      * Loads every gameobject_template row into the startup world cache.
+      * The schema mirrors Mangos Zero and keeps all 24 data fields available for type-specific object behavior later.
+      */
+    public async Task<IReadOnlyList<GameObjectTemplateRecord>> LoadGameObjectTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "gameobject_template", cancellationToken))
+        {
+            return Array.Empty<GameObjectTemplateRecord>();
+        }
+
+        bool hasScriptName = await ColumnExistsAsync(connection, "gameobject_template", "ScriptName", cancellationToken);
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT {FormatGameObjectTemplateSelectColumns(hasScriptName)}
+            FROM `gameobject_template`;
+            """;
+
+        List<GameObjectTemplateRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadGameObjectTemplateRecord(reader));
+        }
+
+        return records;
+    }
+
+    /**
+      * Loads every gameobject spawn row into the startup world cache.
+      * zoneId and areaId are read when present, or safely defaulted while older databases are being migrated.
+      */
+    public async Task<IReadOnlyList<GameObjectSpawnRecord>> LoadGameObjectSpawnsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "gameobject", cancellationToken))
+        {
+            return Array.Empty<GameObjectSpawnRecord>();
+        }
+
+        bool hasZoneId = await ColumnExistsAsync(connection, "gameobject", "zoneId", cancellationToken);
+        bool hasAreaId = await ColumnExistsAsync(connection, "gameobject", "areaId", cancellationToken);
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT `guid`, `id`, `map`, {FormatOptionalColumnSelect(hasZoneId, "zoneId")}, {FormatOptionalColumnSelect(hasAreaId, "areaId")},
+                   `position_x`, `position_y`, `position_z`, `orientation`,
+                   `rotation0`, `rotation1`, `rotation2`, `rotation3`,
+                   `spawntimesecs`, `animprogress`, `state`
+            FROM `gameobject`
+            ORDER BY `map`, `guid`;
+            """;
+
+        List<GameObjectSpawnRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadGameObjectSpawnRecord(reader));
+        }
+
+        return records;
+    }
+
+    /**
+      * Loads gameobject rows for one map. Used by map start/restart control flows so object DB edits can be picked up without rebooting WorldServer.
+      */
+    public async Task<IReadOnlyList<GameObjectSpawnRecord>> LoadGameObjectSpawnsForMapAsync(ushort mapId, CancellationToken cancellationToken = default)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "gameobject", cancellationToken))
+        {
+            return Array.Empty<GameObjectSpawnRecord>();
+        }
+
+        bool hasZoneId = await ColumnExistsAsync(connection, "gameobject", "zoneId", cancellationToken);
+        bool hasAreaId = await ColumnExistsAsync(connection, "gameobject", "areaId", cancellationToken);
+
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = $"""
+            SELECT `guid`, `id`, `map`, {FormatOptionalColumnSelect(hasZoneId, "zoneId")}, {FormatOptionalColumnSelect(hasAreaId, "areaId")},
+                   `position_x`, `position_y`, `position_z`, `orientation`,
+                   `rotation0`, `rotation1`, `rotation2`, `rotation3`,
+                   `spawntimesecs`, `animprogress`, `state`
+            FROM `gameobject`
+            WHERE `map` = @map
+            ORDER BY `guid`;
+            """;
+        command.Parameters.AddWithValue("@map", mapId);
+
+        List<GameObjectSpawnRecord> records = [];
+        await using MySqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            records.Add(ReadGameObjectSpawnRecord(reader));
+        }
+
+        return records;
+    }
+
+    /**
+      * Resolves zoneId/areaId per gameobject guid from world coordinates and persists changed values back to the world database.
+      * This method deliberately works from the spawn position, not grouped counts, so each row receives its own area identifiers.
+      */
+    public async Task<GameObjectAreaEnrichmentResult> ResolveAndPersistGameObjectAreasAsync(
+        IEnumerable<GameObjectSpawnRecord> spawns,
+        MapStoreAreaLookupService areaLookup,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(spawns);
+        ArgumentNullException.ThrowIfNull(areaLookup);
+
+        List<GameObjectSpawnRecord> enrichedSpawns = [];
+        List<GameObjectSpawnRecord> changedSpawns = [];
+        Dictionary<string, int> sourceCounts = new(StringComparer.OrdinalIgnoreCase);
+        int resolvedCount = 0;
+        int unresolvedCount = 0;
+
+        foreach (GameObjectSpawnRecord spawn in spawns)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!areaLookup.TryResolve(spawn.Map, spawn.PositionX, spawn.PositionY, out WorldAreaLookupResult lookup) || !lookup.IsResolved)
+            {
+                enrichedSpawns.Add(spawn);
+                unresolvedCount++;
+                continue;
+            }
+
+            resolvedCount++;
+            sourceCounts[lookup.Source] = sourceCounts.TryGetValue(lookup.Source, out int count) ? count + 1 : 1;
+
+            GameObjectSpawnRecord enrichedSpawn = spawn with
+            {
+                ZoneId = lookup.ZoneId,
+                AreaId = lookup.AreaId,
+            };
+
+            enrichedSpawns.Add(enrichedSpawn);
+
+            if (spawn.ZoneId != lookup.ZoneId || spawn.AreaId != lookup.AreaId)
+            {
+                changedSpawns.Add(enrichedSpawn);
+            }
+        }
+
+        int persistedCount = changedSpawns.Count == 0
+            ? 0
+            : await PersistGameObjectAreaIdsAsync(changedSpawns, cancellationToken);
+
+        return new GameObjectAreaEnrichmentResult(
+            enrichedSpawns,
+            resolvedCount,
+            unresolvedCount,
+            changedSpawns.Count,
+            persistedCount,
+            sourceCounts);
+    }
+
+    /**
+      * Persists changed gameobject zone/area identifiers by guid.
+      */
+    private async Task<int> PersistGameObjectAreaIdsAsync(IReadOnlyList<GameObjectSpawnRecord> changedSpawns, CancellationToken cancellationToken)
+    {
+        await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
+        if (!await TableExistsAsync(connection, "gameobject", cancellationToken) ||
+            !await ColumnExistsAsync(connection, "gameobject", "zoneId", cancellationToken) ||
+            !await ColumnExistsAsync(connection, "gameobject", "areaId", cancellationToken))
+        {
+            return 0;
+        }
+
+        await using MySqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken);
+        using MySqlCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE `gameobject`
+            SET `zoneId` = @zoneId,
+                `areaId` = @areaId
+            WHERE `guid` = @guid
+              AND (`zoneId` <> @zoneId OR `areaId` <> @areaId);
+            """;
+
+        MySqlParameter guidParameter = command.Parameters.Add("@guid", MySqlDbType.UInt32);
+        MySqlParameter zoneParameter = command.Parameters.Add("@zoneId", MySqlDbType.UInt32);
+        MySqlParameter areaParameter = command.Parameters.Add("@areaId", MySqlDbType.UInt32);
+
+        int updated = 0;
+        foreach (GameObjectSpawnRecord spawn in changedSpawns)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            guidParameter.Value = spawn.Guid;
+            zoneParameter.Value = spawn.ZoneId;
+            areaParameter.Value = spawn.AreaId;
+            updated += await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return updated;
+    }
+
+    /**
       * Resolves the player create info value requested by the caller.
       * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
       * Inputs used by this operation: race, characterClass, cancellationToken.
@@ -418,6 +625,87 @@ public sealed class WorldTemplateRepository
         }
 
         return result;
+    }
+
+    private const string GameObjectTemplateSelectColumns = """
+        `entry`, `type`, `displayId`, `name`, `faction`, `flags`, `size`,
+        `data0`, `data1`, `data2`, `data3`, `data4`, `data5`, `data6`, `data7`,
+        `data8`, `data9`, `data10`, `data11`, `data12`, `data13`, `data14`, `data15`,
+        `data16`, `data17`, `data18`, `data19`, `data20`, `data21`, `data22`, `data23`,
+        `mingold`, `maxgold`
+        """;
+
+    private static string FormatGameObjectTemplateSelectColumns(bool hasScriptName)
+    {
+        return hasScriptName
+            ? $"{GameObjectTemplateSelectColumns}, `ScriptName`"
+            : $"{GameObjectTemplateSelectColumns}, '' AS `ScriptName`";
+    }
+
+    /**
+      * Parses one gameobject_template row into the immutable template cache record.
+      */
+    private static GameObjectTemplateRecord ReadGameObjectTemplateRecord(MySqlDataReader reader)
+    {
+        int index = 0;
+        uint entry = ReadUInt32(reader, index++);
+        byte type = ReadByte(reader, index++);
+        uint displayId = ReadUInt32(reader, index++);
+        string name = ReadString(reader, index++);
+        ushort faction = ReadUInt16(reader, index++);
+        uint flags = ReadUInt32(reader, index++);
+        float size = ReadSingle(reader, index++);
+
+        List<uint> dataFields = [];
+        for (int dataIndex = 0; dataIndex < GameObjectTemplateRecord.DataFieldCount; dataIndex++)
+        {
+            dataFields.Add(ReadUInt32(reader, index++));
+        }
+
+        return new GameObjectTemplateRecord(
+            entry,
+            type,
+            displayId,
+            name,
+            faction,
+            flags,
+            size,
+            dataFields,
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadString(reader, index++));
+    }
+
+    /**
+      * Parses one gameobject spawn row into the immutable spawn cache record.
+      */
+    private static GameObjectSpawnRecord ReadGameObjectSpawnRecord(MySqlDataReader reader)
+    {
+        int index = 0;
+        return new GameObjectSpawnRecord(
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt16(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadUInt32(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadSingle(reader, index++),
+            ReadInt32(reader, index++),
+            ReadByte(reader, index++),
+            ReadByte(reader, index++));
+    }
+
+    private static string FormatOptionalColumnSelect(bool columnExists, string columnName)
+    {
+        return columnExists
+            ? $"`{columnName}`"
+            : $"0 AS `{columnName}`";
     }
 
     private const string ItemTemplateSelectColumns = """
@@ -606,6 +894,27 @@ public sealed class WorldTemplateRepository
     private static float ReadSingle(MySqlDataReader reader, int index)
     {
         return Convert.ToSingle(reader.GetValue(index), CultureInfo.InvariantCulture);
+    }
+
+    /**
+      * Checks whether a table column exists before optional migration fields are selected.
+      */
+    private static async Task<bool> ColumnExistsAsync(MySqlConnection connection, string tableName, string columnName, CancellationToken cancellationToken)
+    {
+        using MySqlCommand command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT 1
+            FROM `information_schema`.`COLUMNS`
+            WHERE `TABLE_SCHEMA` = DATABASE()
+              AND `TABLE_NAME` = @tableName
+              AND `COLUMN_NAME` = @columnName
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("@tableName", tableName);
+        command.Parameters.AddWithValue("@columnName", columnName);
+
+        object? result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is not null;
     }
 
     /**

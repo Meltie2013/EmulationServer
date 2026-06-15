@@ -35,6 +35,7 @@ public static class CharacterGuid
       * Keeping these helpers centralized prevents low-guid collisions between character rows and item_instance rows.
       */
     private const ushort HighGuidItem = 0x4000;
+    private const ushort HighGuidGameObject = 0xF110;
 
     /**
       * Performs the to client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
@@ -61,6 +62,22 @@ public static class CharacterGuid
     {
         return lowGuid == 0 ? 0 : ((ulong)HighGuidItem << 48) | lowGuid;
     }
+
+    /**
+      * Builds a Vanilla gameobject ObjectGuid from a spawn low guid and template entry.
+      * The high-guid and entry bits keep gameobject spawns isolated from players and items.
+      */
+    public static ulong ToGameObjectGuid(uint lowGuid, uint entry)
+    {
+        return lowGuid == 0 || entry == 0
+            ? 0
+            : ((ulong)HighGuidGameObject << 48) | (((ulong)entry & 0xFFFFFFUL) << 24) | ((ulong)lowGuid & 0xFFFFFFUL);
+    }
+
+    /**
+      * Exposes the Vanilla gameobject high GUID value written in non-living movement create blocks.
+      */
+    public static uint GameObjectHighGuidValue => HighGuidGameObject;
 
     /**
       * Performs the from client guid operation for the logged-in player state, persistence models, and gameplay records workflow.

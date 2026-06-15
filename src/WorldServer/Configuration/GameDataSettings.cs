@@ -56,6 +56,12 @@ public sealed class GameDataSettings
     public string DbcDirectory { get; init; } = "dbc";
 
     /**
+      * Gets or stores the extracted mapstore directory value used for terrain area lookups.
+      * Relative paths are resolved under DataDirectory.
+      */
+    public string MapStoreDirectory { get; init; } = "mapstore";
+
+    /**
       * Gets or stores the required dbc files value used by GameDataSettings.
       * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
       */
@@ -130,6 +136,11 @@ public sealed class GameDataSettings
         if (string.IsNullOrWhiteSpace(DbcDirectory))
         {
             throw new InvalidOperationException("WorldServer DBC directory is required when game data loading is enabled.");
+        }
+
+        if (string.IsNullOrWhiteSpace(MapStoreDirectory))
+        {
+            throw new InvalidOperationException("WorldServer mapstore directory is required when game data loading is enabled.");
         }
 
         if (RequiredDbcFiles.Count == 0)

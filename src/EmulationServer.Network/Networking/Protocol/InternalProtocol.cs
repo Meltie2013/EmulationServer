@@ -151,6 +151,26 @@ public static class InternalProtocol
       * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
       */
     public const string PlayerClientPacket = "PLAYER_CLIENT_PACKET";
+    /**
+      * Defines the constant value for game object snapshot begin.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
+    public const string GameObjectSnapshotBegin = "GAMEOBJECT_SNAPSHOT_BEGIN";
+    /**
+      * Defines the constant value for game object template snapshot.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
+    public const string GameObjectTemplateSnapshot = "GAMEOBJECT_TEMPLATE_SNAPSHOT";
+    /**
+      * Defines the constant value for game object spawn snapshot.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
+    public const string GameObjectSpawnSnapshot = "GAMEOBJECT_SPAWN_SNAPSHOT";
+    /**
+      * Defines the constant value for game object snapshot end.
+      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
+      */
+    public const string GameObjectSnapshotEnd = "GAMEOBJECT_SNAPSHOT_END";
 
     /**
       * Reads a single protocol line without consuming bytes after the line terminator.
