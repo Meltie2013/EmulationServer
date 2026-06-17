@@ -15,42 +15,40 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Peers/InternalPeerConnection.cs
+// Purpose: Contains internal peer connection code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Net.Sockets;
 
 using EmulationServer.Network.Configuration;
 using EmulationServer.Network.Networking.Protocol;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnection.cs
-  * Documents the InternalPeerConnection source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Peers;
 
-/**
-  * Owns the internal peer connection behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InternalPeerConnection
+// Purpose: Provides internal peer connection behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalPeerConnection
 {
-    /**
-      * Holds the private stream state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stream state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stream backing value maintained by the owning type.
     private readonly NetworkStream _stream;
-    /**
-      * Holds the private send lock state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the send lock state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current send lock backing value maintained by the owning type.
     private readonly SemaphoreSlim _sendLock;
 
-    /**
-      * Initializes a new InternalPeerConnection instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: localServerName, peer, stream, sendLock.
-      */
+    // Constructor: InternalPeerConnection
+    // Purpose: Initializes a new InternalPeerConnection instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - localServerName: Local server name value supplied by the caller for this operation.
+    // - peer: Peer value supplied by the caller for this operation.
+    // - stream: Stream value supplied by the caller for this operation.
+    // - sendLock: Send lock value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalPeerConnection so callers do not duplicate validation, protocol, or persistence rules.
     internal InternalPeerConnection(
         string localServerName,
         InternalPeerSettings peer,
@@ -68,30 +66,26 @@ public sealed class InternalPeerConnection
         _sendLock = sendLock ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Gets or stores the local server name value used by InternalPeerConnection.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the local server name value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: local server name value exposed by the owning type.
     public string LocalServerName { get; }
 
-    /**
-      * Gets or stores the peer value used by InternalPeerConnection.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the peer value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: peer value exposed by the owning type.
     public InternalPeerSettings Peer { get; }
 
-    /**
-      * Gets or stores the remote server name value used by InternalPeerConnection.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the remote server name value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: remote server name value exposed by the owning type.
     public string RemoteServerName => Peer.Name;
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of InternalPeerConnection and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendPacketAsync
+    // Purpose: Handles send packet work for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnection so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task SendPacketAsync(string packet, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(packet))

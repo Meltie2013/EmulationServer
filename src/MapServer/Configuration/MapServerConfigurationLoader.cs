@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/MapServer/Configuration/MapServerConfigurationLoader.cs
+// Purpose: Contains map server configuration loader code for the map server runtime, world-map ownership, and grid/tile coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Core.Configuration;
 using EmulationServer.Game.Data.Dbc.Creatures;
@@ -22,35 +25,24 @@ using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
-/**
-  * File overview: src/MapServer/Configuration/MapServerConfigurationLoader.cs
-  * Documents the MapServerConfigurationLoader source file in the map service startup, map status reporting, and player location routing area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.MapServer.Configuration;
 
-/**
-  * Owns the map server configuration loader behavior for the map service startup, map status reporting, and player location routing layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapServerConfigurationLoader
+// Purpose: Provides map server configuration loader behavior for the map server runtime, world-map ownership, and grid/tile coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapServerConfigurationLoader
 {
-    /**
-      * Defines the constant value for map server section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the map server section constant used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: fixed map server section value used anywhere this rule or protocol value is needed.
     private const string MapServerSection = "MapServer";
-    /**
-      * Defines the constant value for map services section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the map services section constant used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: fixed map services section value used anywhere this rule or protocol value is needed.
     private const string MapServicesSection = "MapServices";
 
-    /**
-      * Gets or stores the default required dbc files value used by MapServerConfigurationLoader.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the default required DBC files value used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: default required DBC files value exposed by the owning type.
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
         MapDbcFileNames.AreaTable,
@@ -68,10 +60,12 @@ public static class MapServerConfigurationLoader
         "WorldSafeLocs.dbc",
     ];
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the map server settings value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static MapServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -96,10 +90,12 @@ public static class MapServerConfigurationLoader
         return settings;
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadMapServices
+    // Purpose: Retrieves load map services data for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the map runtime settings value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static MapRuntimeSettings LoadMapServices(IniConfiguration configuration)
     {
         TimeSpan tickInterval = configuration.GetTimeSpan(
@@ -132,17 +128,21 @@ public static class MapServerConfigurationLoader
             DbcDirectory = configuration.GetString(MapServicesSection, "DbcDirectory", "dbc"),
             MapsDirectory = configuration.GetString(MapServicesSection, "MapsDirectory", "mapstore"),
             LoadDbcStores = configuration.GetBool(MapServicesSection, "LoadDbcStores", true),
-            // Mapstore grid data is intentionally not a runtime toggle. Terrain, liquid, collision/vmaps,
-            // and navmesh/mmaps are always preloaded and kept resident unless a compile-time symbol disables a component.
+
             RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
             Services = ParseMapServices(maps, MapServiceKind.World, tickInterval, logTicks),
         };
     }
 
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ParseMapServices
+    // Purpose: Converts incoming data into parse map services form for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // - tickInterval: Tick interval value supplied by the caller for this operation.
+    // - logTicks: Log ticks value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<MapServiceDefinition> ParseMapServices(
         string value,
         MapServiceKind kind,
@@ -165,10 +165,15 @@ public static class MapServerConfigurationLoader
         return services;
     }
 
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ParseMapService
+    // Purpose: Converts incoming data into parse map service form for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // - tickInterval: Tick interval value supplied by the caller for this operation.
+    // - logTicks: Log ticks value supplied by the caller for this operation.
+    // Returns: Returns the map service definition value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static MapServiceDefinition ParseMapService(
         string entry,
         MapServiceKind kind,
@@ -196,10 +201,12 @@ public static class MapServerConfigurationLoader
         };
     }
 
-    /**
-      * Splits the supplied text into command parts while preserving quoted values.
-      * The method is part of MapServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: SplitList
+    // Purpose: Executes the split list operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

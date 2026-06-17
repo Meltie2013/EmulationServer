@@ -15,28 +15,29 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Maps/MapTileKey.cs
-  * Documents the MapTileKey source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Maps/MapTileKey.cs
+// Purpose: Contains map tile key code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Represents immutable struct data passed between parts of the server.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: MapId, TileX, TileY.
-  */
+// Type: MapTileKey
+// Purpose: Represents map tile key data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - TileX: Tile X value supplied by the caller for this operation.
+// - TileY: Tile Y value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct MapTileKey(uint MapId, byte TileX, byte TileY)
 {
-    /**
-      * Performs the to string operation for the extracted map data loading and map tile lookup workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+
+    // Method: ToString
+    // Purpose: Executes the to string operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileKey so callers do not duplicate validation, protocol, or persistence rules.
     public override string ToString()
     {
         return MapStoreFileNames.FormatTileKey(MapId, TileX, TileY);

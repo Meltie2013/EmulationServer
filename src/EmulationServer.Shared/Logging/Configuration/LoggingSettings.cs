@@ -15,76 +15,74 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Logging/Configuration/LoggingSettings.cs
+// Purpose: Contains logging settings code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Configuration/LoggingSettings.cs
-  * Documents the LoggingSettings source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Shared.Logging.Configuration;
 
-/**
-  * Owns the logging settings behavior for the shared configuration, logging, and utility support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: LoggingSettings
+// Purpose: Provides logging settings behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class LoggingSettings
 {
-    /**
-      * Gets or stores the server name value used by LoggingSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the server name value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: server name value exposed by the owning type.
     public string ServerName { get; init; } = "EmulationServer";
 
-    /**
-      * Gets or stores the output value used by LoggingSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the output value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: output value exposed by the owning type.
     public LogOutputMode Output { get; init; } = LogOutputMode.Console;
 
-    /**
-      * Gets or stores the log folder value used by LoggingSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: Combine
+    // Purpose: Executes the combine operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - BaseDirectory: Base directory value supplied by the caller for this operation.
+    // - logs: Logs value supplied by the caller for this operation.
+    // Returns: Returns the string log folder { get; init; } = path. value produced by this operation.
+    // Notes: This keeps the operation scoped to LoggingSettings so callers do not duplicate validation, protocol, or persistence rules.
     public string LogFolder { get; init; } = Path.Combine(AppContext.BaseDirectory, "logs");
 
-    /**
-      * Gets or stores the file name value used by LoggingSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the file name value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: file name value exposed by the owning type.
     public string FileName { get; init; } = "EmulationServer.log";
 
-    /**
-      * Gets or stores the enabled types value used by LoggingSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: LogType
+    // Purpose: Executes the log type operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: Returns the I read only set enabled types { get; init; } = enum.get values< value produced by this operation.
+    // Notes: This keeps the operation scoped to LoggingSettings so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlySet<LogType> EnabledTypes { get; init; } = Enum.GetValues<LogType>().ToHashSet();
 
-    /**
-      * Determines whether enabled for the shared configuration, logging, and utility support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: type.
-      */
+    // Method: IsEnabled
+    // Purpose: Validates or evaluates is enabled rules for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // Returns: Returns true when is enabled succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to LoggingSettings so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsEnabled(LogType type)
     {
         return EnabledTypes.Contains(type);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of LoggingSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: GetLogFilePath
+    // Purpose: Retrieves get log file path data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to LoggingSettings so callers do not duplicate validation, protocol, or persistence rules.
     public string GetLogFilePath()
     {
         return Path.Combine(LogFolder, FileName);
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of LoggingSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to LoggingSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ServerName))

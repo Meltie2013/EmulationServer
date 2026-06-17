@@ -15,25 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/PlayerActionButton.cs
-  * Documents the PlayerActionButton source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/PlayerActionButton.cs
+// Purpose: Contains player action button code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Carries immutable player action button data for the logged-in player state, persistence models, and gameplay records layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Button, Action, Type.
-  */
+// Type: PlayerActionButton
+// Purpose: Represents player action button data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Button: Button value supplied by the caller for this operation.
+// - Action: Action value supplied by the caller for this operation.
+// - Type: Type value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record PlayerActionButton(byte Button, uint Action, byte Type)
 {
-    /**
-      * Stores the default packed value value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
+    // Method: Action
+    // Purpose: Executes the action operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Type: Type value supplied by the caller for this operation.
+    // Returns: Returns the uint packed value => value produced by this operation.
+    // Notes: This keeps the operation scoped to PlayerActionButton so callers do not duplicate validation, protocol, or persistence rules.
     public uint PackedValue => Action | ((uint)Type << 24);
 }

@@ -15,26 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/DbcTypedRecordLoader.cs
+// Purpose: Contains DBC typed record loader code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcTypedRecordLoader.cs
-  * Documents the DbcTypedRecordLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Converts raw DBC stores into typed dictionaries or lists while keeping missing optional stores non-fatal.
-  */
+// Type: DbcTypedRecordLoader
+// Purpose: Provides DBC typed record loader behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 internal static class DbcTypedRecordLoader
 {
-    /**
-      * Reads one DBC file into typed records indexed by a caller-provided key.
-      */
+
+    // Method: TRecord
+    // Purpose: Executes the T record operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - fileName: File name value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // - requiredFieldCount: Required field count value supplied by the caller for this operation.
+    // - readRecord: Read record value supplied by the caller for this operation.
+    // - getKey: Get key value supplied by the caller for this operation.
+    // Returns: Returns the dictionary load indexed<t key, value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcTypedRecordLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static Dictionary<TKey, TRecord> LoadIndexed<TKey, TRecord>(
         IReadOnlyDictionary<string, DbcDataStore> dbcStores,
         string fileName,
@@ -63,9 +69,16 @@ internal static class DbcTypedRecordLoader
         return records;
     }
 
-    /**
-      * Reads one DBC file into a typed list.
-      */
+    // Method: TRecord
+    // Purpose: Executes the T record operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - fileName: File name value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // - requiredFieldCount: Required field count value supplied by the caller for this operation.
+    // - readRecord: Read record value supplied by the caller for this operation.
+    // Returns: Returns the list load list< value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcTypedRecordLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static List<TRecord> LoadList<TRecord>(
         IReadOnlyDictionary<string, DbcDataStore> dbcStores,
         string fileName,

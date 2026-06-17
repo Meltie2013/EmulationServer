@@ -15,20 +15,18 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/WorldData/PlayerLevelExperienceRecord.cs
-  * Documents the PlayerLevelExperienceRecord source file in the world database template loading and cache construction area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/WorldData/PlayerLevelExperienceRecord.cs
+// Purpose: Contains player level experience record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries immutable player level experience record data for the world database template loading and cache construction layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Level, ExperienceForNextLevel.
-  */
+// Type: PlayerLevelExperienceRecord
+// Purpose: Represents player level experience record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Level: Level value supplied by the caller for this operation.
+// - ExperienceForNextLevel: Experience for next level value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record PlayerLevelExperienceRecord(
     byte Level,
     uint ExperienceForNextLevel);

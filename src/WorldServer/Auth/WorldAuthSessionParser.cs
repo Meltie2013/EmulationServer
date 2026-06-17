@@ -15,28 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Auth/WorldAuthSessionParser.cs
+// Purpose: Contains world auth session parser code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * File overview: src/WorldServer/Auth/WorldAuthSessionParser.cs
-  * Documents the WorldAuthSessionParser source file in the world authentication parsing and session key handling area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Auth;
 
-/**
-  * Owns the world auth session parser behavior for the world authentication parsing and session key handling layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldAuthSessionParser
+// Purpose: Provides world auth session parser behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldAuthSessionParser
 {
-    /**
-      * Parses parse input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: payload.
-      */
+
+    // Method: Parse
+    // Purpose: Converts incoming data into parse form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - bytepayload: Bytepayload value supplied by the caller for this operation.
+    // Returns: Returns the world auth session request value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldAuthSessionParser so callers do not duplicate validation, protocol, or persistence rules.
     public static WorldAuthSessionRequest Parse(byte[] payload)
     {
         WorldPacketReader reader = new(payload);

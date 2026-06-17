@@ -15,37 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: tests/EmulationServer.Tests/Database/DatabaseIntegrationFactAttribute.cs
-  * Documents the DatabaseIntegrationFactAttribute source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: tests/EmulationServer.Tests/Database/DatabaseIntegrationFactAttribute.cs
+// Purpose: Contains database integration fact attribute code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Tests.Database;
 
-/**
-  * Owns the database integration fact attribute behavior for the automated test coverage for server behavior and data helpers layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
 [AttributeUsage(AttributeTargets.Method)]
+// Type: DatabaseIntegrationFactAttribute
+// Purpose: Provides database integration fact attribute behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class DatabaseIntegrationFactAttribute : FactAttribute
 {
-    /**
-      * Defines the constant value for enabled value.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the enabled value constant used by the automated test and verification layer.
+    // Value: fixed enabled value value used anywhere this rule or protocol value is needed.
     private const string EnabledValue = "true";
-    /**
-      * Defines the constant value for environment variable name.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the environment variable name constant used by the automated test and verification layer.
+    // Value: fixed environment variable name value used anywhere this rule or protocol value is needed.
     private const string EnvironmentVariableName = "EMULATIONSERVER_RUN_DATABASE_TESTS";
 
-    /**
-      * Initializes a new DatabaseIntegrationFactAttribute instance with the dependencies required by the automated test coverage for server behavior and data helpers workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      */
+    // Constructor: DatabaseIntegrationFactAttribute
+    // Purpose: Initializes a new DatabaseIntegrationFactAttribute instance with dependencies and values required by the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DatabaseIntegrationFactAttribute so callers do not duplicate validation, protocol, or persistence rules.
     public DatabaseIntegrationFactAttribute()
     {
         string? enabled = Environment.GetEnvironmentVariable(EnvironmentVariableName);

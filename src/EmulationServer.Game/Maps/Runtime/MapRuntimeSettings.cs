@@ -15,85 +15,69 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapRuntimeSettings.cs
-  * Documents the MapRuntimeSettings source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapRuntimeSettings.cs
+// Purpose: Contains map runtime settings code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Owns the map runtime settings behavior for the runtime map-player state tracking layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapRuntimeSettings
+// Purpose: Provides map runtime settings behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapRuntimeSettings
 {
-    /**
-      * Gets or stores the enabled value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the enabled value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: enabled value exposed by the owning type.
     public bool Enabled { get; init; } = true;
 
-    /**
-      * Gets or stores the tick interval value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the time span tick interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapRuntimeSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan TickInterval { get; init; } = TimeSpan.FromMilliseconds(100);
 
-    /**
-      * Gets or stores the status report interval value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the time span status report interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapRuntimeSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan StatusReportInterval { get; init; } = TimeSpan.FromSeconds(15);
 
-    /**
-      * Gets or stores the log ticks value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the log ticks value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: log ticks value exposed by the owning type.
     public bool LogTicks { get; init; }
 
-    /**
-      * Gets or stores the data directory value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the data directory value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: data directory value exposed by the owning type.
     public string DataDirectory { get; init; } = "Data";
 
-    /**
-      * Gets or stores the dbc directory value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the DBC directory value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: DBC directory value exposed by the owning type.
     public string DbcDirectory { get; init; } = "dbc";
 
-    /**
-      * Gets or stores the maps directory value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the maps directory value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: maps directory value exposed by the owning type.
     public string MapsDirectory { get; init; } = "mapstore";
 
-    /**
-      * Gets or stores the load dbc stores value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the load DBC stores value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: load DBC stores value exposed by the owning type.
     public bool LoadDbcStores { get; init; } = true;
 
-    /**
-      * Gets or stores the required dbc files value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the required DBC files value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: required DBC files value exposed by the owning type.
     public IReadOnlyList<string> RequiredDbcFiles { get; init; } = [];
 
-    /**
-      * Gets or stores the services value used by MapRuntimeSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the services value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: services value exposed by the owning type.
     public IReadOnlyList<MapServiceDefinition> Services { get; init; } = [];
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of MapRuntimeSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapRuntimeSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (TickInterval <= TimeSpan.Zero)

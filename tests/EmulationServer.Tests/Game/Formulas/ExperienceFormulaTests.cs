@@ -15,11 +15,17 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Game/Formulas/ExperienceFormulaTests.cs
+// Purpose: Contains experience formula tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Formulas;
 
 namespace EmulationServer.Tests.Game.Formulas;
 
+// Type: ExperienceFormulaTests
+// Purpose: Provides experience formula tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ExperienceFormulaTests
 {
     [Theory]
@@ -29,6 +35,13 @@ public sealed class ExperienceFormulaTests
     [InlineData(39, 31)]
     [InlineData(40, 31)]
     [InlineData(60, 51)]
+    // Method: GetGrayLevel_MatchesVanillaThresholds
+    // Purpose: Retrieves get gray level matches vanilla thresholds data for the automated test and verification layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // - expectedGrayLevel: Expected gray level value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GetGrayLevel_MatchesVanillaThresholds(uint playerLevel, uint expectedGrayLevel)
     {
         Assert.Equal(expectedGrayLevel, ExperienceFormula.GetGrayLevel(playerLevel));
@@ -40,6 +53,14 @@ public sealed class ExperienceFormulaTests
     [InlineData(10, 8, ExperienceColor.Yellow)]
     [InlineData(10, 5, ExperienceColor.Green)]
     [InlineData(10, 4, ExperienceColor.Gray)]
+    // Method: GetColorCode_UsesVanillaConBands
+    // Purpose: Retrieves get color code uses vanilla con bands data for the automated test and verification layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // - targetLevel: Target level value supplied by the caller for this operation.
+    // - expectedColor: Expected color value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GetColorCode_UsesVanillaConBands(uint playerLevel, uint targetLevel, ExperienceColor expectedColor)
     {
         Assert.Equal(expectedColor, ExperienceFormula.GetColorCode(playerLevel, targetLevel));
@@ -51,12 +72,25 @@ public sealed class ExperienceFormulaTests
     [InlineData(10, 14, 114)]
     [InlineData(10, 5, 27)]
     [InlineData(10, 4, 0)]
+    // Method: CalculateBaseKillExperience_MatchesMangosFormula
+    // Purpose: Calculates calculate base kill experience matches mangos formula values for the automated test and verification layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // - targetLevel: Target level value supplied by the caller for this operation.
+    // - expectedExperience: Expected experience value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void CalculateBaseKillExperience_MatchesMangosFormula(uint playerLevel, uint targetLevel, uint expectedExperience)
     {
         Assert.Equal(expectedExperience, ExperienceFormula.CalculateBaseKillExperience(playerLevel, targetLevel));
     }
 
     [Fact]
+    // Method: CalculateKillExperience_AppliesEliteAndServerRateAfterBaseGain
+    // Purpose: Calculates calculate kill experience applies elite and server rate after base gain values for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void CalculateKillExperience_AppliesEliteAndServerRateAfterBaseGain()
     {
         Assert.Equal(190u, ExperienceFormula.CalculateKillExperience(10, 10, isElite: true));
@@ -71,12 +105,25 @@ public sealed class ExperienceFormulaTests
     [InlineData(4, false, 1.3f)]
     [InlineData(5, false, 1.4f)]
     [InlineData(40, true, 1.0f)]
+    // Method: GetGroupRate_MatchesMangosGroupRates
+    // Purpose: Retrieves get group rate matches mangos group rates data for the automated test and verification layer.
+    // Parameters:
+    // - memberCount: Member count value supplied by the caller for this operation.
+    // - isRaid: Is raid value supplied by the caller for this operation.
+    // - expectedRate: Expected rate value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GetGroupRate_MatchesMangosGroupRates(uint memberCount, bool isRaid, float expectedRate)
     {
         Assert.Equal(expectedRate, ExperienceFormula.GetGroupRate(memberCount, isRaid), precision: 3);
     }
 
     [Fact]
+    // Method: CalculateGroupMemberKillExperience_DistributesByLevelWeight
+    // Purpose: Calculates calculate group member kill experience distributes by level weight values for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void CalculateGroupMemberKillExperience_DistributesByLevelWeight()
     {
         Assert.Equal(47u, ExperienceFormula.CalculateGroupMemberKillExperience(95, 10, 20, 2, false));
@@ -87,6 +134,13 @@ public sealed class ExperienceFormulaTests
     [InlineData(1, 400)]
     [InlineData(10, 7600)]
     [InlineData(11, 8700)]
+    // Method: GetFallbackNextLevelExperience_ProvidesStableFallback
+    // Purpose: Retrieves get fallback next level experience provides stable fallback data for the automated test and verification layer.
+    // Parameters:
+    // - level: Level value supplied by the caller for this operation.
+    // - expectedExperience: Expected experience value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExperienceFormulaTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GetFallbackNextLevelExperience_ProvidesStableFallback(uint level, uint expectedExperience)
     {
         Assert.Equal(expectedExperience, ExperienceFormula.GetFallbackNextLevelExperience(level));

@@ -15,22 +15,43 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Reputation/ReputationFlags.cs
+// Purpose: Contains reputation flags code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Reputation;
 
-/**
-  * Defines the client reputation state flags used by Faction.dbc and character_reputation.
-  */
 [Flags]
+// Type: ReputationFlags
+// Purpose: Defines the allowed reputation flags values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum ReputationFlags : uint
 {
+    // Enum Value: Defines the none enum value.
+    // Value: explicit expression 0x00.
     None = 0x00,
+    // Enum Value: Defines the visible enum value.
+    // Value: explicit expression 0x01.
     Visible = 0x01,
+    // Enum Value: Defines the at war enum value.
+    // Value: explicit expression 0x02.
     AtWar = 0x02,
+    // Enum Value: Defines the hidden enum value.
+    // Value: explicit expression 0x04.
     Hidden = 0x04,
+    // Enum Value: Defines the invisible forced enum value.
+    // Value: explicit expression 0x08.
     InvisibleForced = 0x08,
+    // Enum Value: Defines the peace forced enum value.
+    // Value: explicit expression 0x10.
     PeaceForced = 0x10,
+    // Enum Value: Defines the inactive enum value.
+    // Value: explicit expression 0x20.
     Inactive = 0x20,
+    // Enum Value: Defines the rival enum value.
+    // Value: explicit expression 0x40.
     Rival = 0x40,
+    // Enum Value: Defines the special enum value.
+    // Value: explicit expression 0x80.
     Special = 0x80,
 }

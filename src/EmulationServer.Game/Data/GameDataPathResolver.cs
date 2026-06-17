@@ -15,26 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/GameDataPathResolver.cs
-  * Documents the GameDataPathResolver source file in the server runtime support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/GameDataPathResolver.cs
+// Purpose: Contains game data path resolver code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data;
 
-/**
-  * Owns the game data path resolver behavior for the server runtime support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: GameDataPathResolver
+// Purpose: Provides game data path resolver behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class GameDataPathResolver
 {
-    /**
-      * Resolves the directory value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: dataDirectory, childDirectory.
-      */
+
+    // Method: ResolveDirectory
+    // Purpose: Retrieves resolve directory data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dataDirectory: Data directory value supplied by the caller for this operation.
+    // - childDirectory: Child directory value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to GameDataPathResolver so callers do not duplicate validation, protocol, or persistence rules.
     public static string ResolveDirectory(string dataDirectory, string childDirectory)
     {
         if (string.IsNullOrWhiteSpace(dataDirectory))

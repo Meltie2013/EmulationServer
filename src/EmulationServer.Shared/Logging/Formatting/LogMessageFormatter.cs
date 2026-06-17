@@ -15,41 +15,41 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Logging/Formatting/LogMessageFormatter.cs
+// Purpose: Contains log message formatter code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Formatting/LogMessageFormatter.cs
-  * Keeps console and file log output in one readable format so every log type is printed consistently.
-  * The formatter keeps the prefix short, wraps long messages before the terminal does, and aligns continuation lines under the message text.
-  */
-
 namespace EmulationServer.Shared.Logging.Formatting;
 
-/**
-  * Builds stable log lines for console and file log writers.
-  * The formatter owns timestamp, log-type, category, and long-line wrapping rules so callers only need to supply the message they want to record.
-  */
+// Type: LogMessageFormatter
+// Purpose: Provides log message formatter behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class LogMessageFormatter
 {
-    /**
-      * Defines the fallback line length used when the current output target does not report a usable width.
-      */
+
+    // Constant: Defines the default maximum line length constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed default maximum line length value used anywhere this rule or protocol value is needed.
     public const int DefaultMaximumLineLength = 140;
 
-    /**
-      * Prevents wrapping from becoming unreadable when a terminal is extremely narrow or reports an invalid width.
-      */
+    // Constant: Defines the minimum maximum line length constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed minimum maximum line length value used anywhere this rule or protocol value is needed.
     private const int MinimumMaximumLineLength = 80;
 
-    /**
-      * Keeps all log type labels visually stable without printing wide enum names such as INFORMATION.
-      */
+    // Constant: Defines the type label width constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed type label width value used anywhere this rule or protocol value is needed.
     private const int TypeLabelWidth = 5;
 
-    /**
-      * Formats one log message into a single string that may contain wrapped continuation lines.
-      */
+    // Method: Format
+    // Purpose: Executes the format operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - category: Category value supplied by the caller for this operation.
+    // - maximumLineLength: Maximum line length value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     public static string Format(LogType type, string message, string? category = null, int? maximumLineLength = null)
     {
         return string.Join(
@@ -57,10 +57,15 @@ public static class LogMessageFormatter
             FormatLines(type, message, category, maximumLineLength));
     }
 
-    /**
-      * Formats one log message into physical output lines.
-      * Console and file writers use this method so both outputs get the same wrapping and alignment behavior.
-      */
+    // Method: FormatLines
+    // Purpose: Executes the format lines operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - category: Category value supplied by the caller for this operation.
+    // - maximumLineLength: Maximum line length value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<string> FormatLines(
         LogType type,
         string message,
@@ -70,9 +75,16 @@ public static class LogMessageFormatter
         return FormatLines(type, message, category, maximumLineLength, DateTime.UtcNow);
     }
 
-    /**
-      * Formats one log message using a caller-supplied timestamp so multiple output targets can write the same event without drift.
-      */
+    // Method: FormatLines
+    // Purpose: Executes the format lines operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - category: Category value supplied by the caller for this operation.
+    // - maximumLineLength: Maximum line length value supplied by the caller for this operation.
+    // - timestamp: Timestamp value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<string> FormatLines(
         LogType type,
         string message,
@@ -111,10 +123,15 @@ public static class LogMessageFormatter
         return lines;
     }
 
-    /**
-      * Builds the compact prefix used by normal log lines.
-      * The prefix intentionally avoids padded bracket blocks so the useful message text starts earlier in the terminal.
-      */
+    // Method: BuildPrefix
+    // Purpose: Builds or writes build prefix output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - category: Category value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - timestamp: Timestamp value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static string BuildPrefix(LogType type, string? category, string message, DateTime timestamp)
     {
         string timestampText = timestamp.ToString("yyyy-MM-dd HH:mm:ss");
@@ -126,9 +143,12 @@ public static class LogMessageFormatter
             : $"{timestampText}  [{typeText}]  [{categoryText}] ";
     }
 
-    /**
-      * Converts verbose enum names into short labels that scan quickly in a busy terminal.
-      */
+    // Method: FormatType
+    // Purpose: Executes the format type operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatType(LogType type)
     {
         return type switch
@@ -152,9 +172,13 @@ public static class LogMessageFormatter
         };
     }
 
-    /**
-      * Formats the category prefix unless the caller already included the same category at the start of the message.
-      */
+    // Method: FormatCategory
+    // Purpose: Executes the format category operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - category: Category value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatCategory(string? category, string message)
     {
         if (string.IsNullOrWhiteSpace(category))
@@ -168,17 +192,23 @@ public static class LogMessageFormatter
             : normalizedCategory;
     }
 
-    /**
-      * Normalizes caller-supplied line length values into a safe range for console and file output.
-      */
+    // Method: NormalizeLineLength
+    // Purpose: Converts incoming data into normalize line length form for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - maximumLineLength: Maximum line length value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static int NormalizeLineLength(int? maximumLineLength)
     {
         return Math.Max(MinimumMaximumLineLength, maximumLineLength ?? DefaultMaximumLineLength);
     }
 
-    /**
-      * Converts Windows, Unix, and old Mac line endings into one separator before wrapping starts.
-      */
+    // Method: NormalizeLineEndings
+    // Purpose: Converts incoming data into normalize line endings form for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeLineEndings(string message)
     {
         return (message ?? string.Empty)
@@ -186,10 +216,13 @@ public static class LogMessageFormatter
             .Replace('\r', '\n');
     }
 
-    /**
-      * Breaks a logical message line into terminal-friendly physical lines.
-      * The method prefers commas, semicolons, periods, arrows, and spaces so status summaries wrap at natural boundaries.
-      */
+    // Method: WrapMessageLine
+    // Purpose: Executes the wrap message line operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - line: Line value supplied by the caller for this operation.
+    // - maximumMessageLength: Maximum message length value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<string> WrapMessageLine(string line, int maximumMessageLength)
     {
         if (line.Length == 0)
@@ -218,9 +251,13 @@ public static class LogMessageFormatter
         yield return remaining;
     }
 
-    /**
-      * Finds the most readable split point inside the requested line width.
-      */
+    // Method: FindBreakIndex
+    // Purpose: Retrieves find break index data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - maximumMessageLength: Maximum message length value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to LogMessageFormatter so callers do not duplicate validation, protocol, or persistence rules.
     private static int FindBreakIndex(string value, int maximumMessageLength)
     {
         int searchStart = Math.Min(maximumMessageLength, value.Length - 1);

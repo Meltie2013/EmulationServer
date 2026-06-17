@@ -15,36 +15,36 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcFormatException.cs
-  * Documents the DbcFormatException source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/DbcFormatException.cs
+// Purpose: Contains DBC format exception code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Owns the dbc format exception behavior for the DBC loading and strongly typed client data records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: DbcFormatException
+// Purpose: Provides DBC format exception behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class DbcFormatException : IOException
 {
-    /**
-      * Initializes a new DbcFormatException instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: message.
-      */
+
+    // Constructor: DbcFormatException
+    // Purpose: Initializes a new DbcFormatException instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcFormatException so callers do not duplicate validation, protocol, or persistence rules.
     public DbcFormatException(string message)
         : base(message)
     {
     }
 
-    /**
-      * Initializes a new DbcFormatException instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: message, innerException.
-      */
+    // Constructor: DbcFormatException
+    // Purpose: Initializes a new DbcFormatException instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // - innerException: Inner exception value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcFormatException so callers do not duplicate validation, protocol, or persistence rules.
     public DbcFormatException(string message, Exception innerException)
         : base(message, innerException)
     {

@@ -15,12 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreFileHeader.cs
+// Purpose: Contains map store file header code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Represents the fixed header placed at the start of every mapstore tile file.
-  */
+// Type: MapStoreFileHeader
+// Purpose: Represents map store file header data passed through the shared infrastructure, logging, timing, and cross-service utility layer.
+// Constructor values:
+// - Magic: Magic value supplied by the caller for this operation.
+// - Version: Version value supplied by the caller for this operation.
+// - Build: Build value supplied by the caller for this operation.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - TileX: Tile X value supplied by the caller for this operation.
+// - TileY: Tile Y value supplied by the caller for this operation.
+// - Kind: Kind value supplied by the caller for this operation.
+// - PayloadSize: Payload size value supplied by the caller for this operation.
+// - PayloadCrc32: Payload crc32 value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapStoreFileHeader(
     string Magic,
     ushort Version,

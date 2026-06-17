@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapStoreAreaLookupService.cs
+// Purpose: Contains map store area lookup service code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Shared.Data.MapStore;
@@ -23,23 +26,47 @@ using EmulationServer.Shared.Logging.Enums;
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Resolves world-space coordinates to AreaTable ids for spawned world objects.
-  * The resolver prefers exact ADT area flags from extracted terrain bins, then falls back to WorldMapArea/WorldMapOverlay rectangles.
-  */
+// Type: MapStoreAreaLookupService
+// Purpose: Provides map store area lookup service behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapStoreAreaLookupService
 {
+    // Constant: Defines the tile size constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed tile size value used anywhere this rule or protocol value is needed.
     private const float TileSize = 1600.0f / 3.0f;
+    // Constant: Defines the map half grid constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed map half grid value used anywhere this rule or protocol value is needed.
     private const float MapHalfGrid = 32.0f;
+    // Constant: Defines the world map pixel width constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed world map pixel width value used anywhere this rule or protocol value is needed.
     private const float WorldMapPixelWidth = 1002.0f;
+    // Constant: Defines the world map pixel height constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed world map pixel height value used anywhere this rule or protocol value is needed.
     private const float WorldMapPixelHeight = 668.0f;
 
+    // Field: Stores the map store root directory state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map store root directory backing value maintained by the owning type.
     private readonly string _mapStoreRootDirectory;
+    // Field: Stores the map data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map data backing value maintained by the owning type.
     private readonly MapDbcDataStore _mapData;
+    // Field: Stores the ushort state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current ushort backing value maintained by the owning type.
     private readonly Dictionary<ushort, uint> _areaIdsByExplorationFlag;
+    // Field: Stores the map tile key state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map tile key backing value maintained by the owning type.
     private readonly Dictionary<MapTileKey, MapTileTerrainData?> _terrainCache = [];
+    // Field: Stores the missing terrain tiles state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current missing terrain tiles backing value maintained by the owning type.
     private readonly HashSet<MapTileKey> _missingTerrainTiles = [];
 
+    // Constructor: MapStoreAreaLookupService
+    // Purpose: Initializes a new MapStoreAreaLookupService instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - mapData: Map data value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     public MapStoreAreaLookupService(string mapStoreRootDirectory, MapDbcDataStore mapData)
     {
         if (string.IsNullOrWhiteSpace(mapStoreRootDirectory))
@@ -52,9 +79,15 @@ public sealed class MapStoreAreaLookupService
         _areaIdsByExplorationFlag = BuildAreaFlagReverseLookup(mapData);
     }
 
-    /**
-      * Attempts to resolve one map coordinate to a non-zero ZoneId/AreaId pair.
-      */
+    // Method: TryResolve
+    // Purpose: Attempts to retrieve or parse try resolve data without treating normal misses as failures.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - worldX: World X value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns true when try resolve succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryResolve(uint mapId, float worldX, float worldY, out WorldAreaLookupResult result)
     {
         if (TryResolveFromTerrain(mapId, worldX, worldY, out result))
@@ -76,6 +109,15 @@ public sealed class MapStoreAreaLookupService
         return false;
     }
 
+    // Method: TryResolveFromTerrain
+    // Purpose: Attempts to retrieve or parse try resolve from terrain data without treating normal misses as failures.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - worldX: World X value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns true when try resolve from terrain succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private bool TryResolveFromTerrain(uint mapId, float worldX, float worldY, out WorldAreaLookupResult result)
     {
         result = default;
@@ -111,6 +153,12 @@ public sealed class MapStoreAreaLookupService
         return true;
     }
 
+    // Method: GetTerrainOrDefault
+    // Purpose: Retrieves get terrain or default data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - key: Key value supplied by the caller for this operation.
+    // Returns: Returns the map tile terrain data? value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private MapTileTerrainData? GetTerrainOrDefault(MapTileKey key)
     {
         if (_terrainCache.TryGetValue(key, out MapTileTerrainData? cachedTerrain))
@@ -146,6 +194,13 @@ public sealed class MapStoreAreaLookupService
         }
     }
 
+    // Method: ValidateTerrainKey
+    // Purpose: Validates or evaluates validate terrain key rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - key: Key value supplied by the caller for this operation.
+    // - terrainFile: Terrain file value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateTerrainKey(MapTileKey key, MapStoreFile terrainFile)
     {
         if (terrainFile.Header.MapId != key.MapId || terrainFile.Header.TileX != key.TileX || terrainFile.Header.TileY != key.TileY)
@@ -156,6 +211,15 @@ public sealed class MapStoreAreaLookupService
         }
     }
 
+    // Method: TryResolveFromWorldMapArea
+    // Purpose: Attempts to retrieve or parse try resolve from world map area data without treating normal misses as failures.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - worldX: World X value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns true when try resolve from world map area succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private bool TryResolveFromWorldMapArea(uint mapId, float worldX, float worldY, out WorldAreaLookupResult result)
     {
         result = default;
@@ -188,6 +252,15 @@ public sealed class MapStoreAreaLookupService
         return true;
     }
 
+    // Method: TryResolveOverlayArea
+    // Purpose: Attempts to retrieve or parse try resolve overlay area data without treating normal misses as failures.
+    // Parameters:
+    // - worldMapArea: World map area value supplied by the caller for this operation.
+    // - worldX: World X value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // - areaId: Area ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when try resolve overlay area succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private bool TryResolveOverlayArea(WorldMapAreaDbcRecord worldMapArea, float worldX, float worldY, out uint areaId)
     {
         areaId = 0;
@@ -219,6 +292,13 @@ public sealed class MapStoreAreaLookupService
         return true;
     }
 
+    // Method: TryResolveFromAreaTableFallback
+    // Purpose: Attempts to retrieve or parse try resolve from area table fallback data without treating normal misses as failures.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns true when try resolve from area table fallback succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private bool TryResolveFromAreaTableFallback(uint mapId, out WorldAreaLookupResult result)
     {
         result = default;
@@ -247,6 +327,12 @@ public sealed class MapStoreAreaLookupService
         return true;
     }
 
+    // Method: GetZoneId
+    // Purpose: Retrieves get zone ID data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - areaId: Area ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private uint GetZoneId(uint areaId)
     {
         if (areaId == 0 || !_mapData.Areas.TryGetValue(unchecked((int)areaId), out AreaTableDbcRecord? area))
@@ -262,6 +348,17 @@ public sealed class MapStoreAreaLookupService
         return unchecked((uint)area.Id);
     }
 
+    // Method: TryConvertWorldToTile
+    // Purpose: Executes the try convert world to tile operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - worldX: World X value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - gridX: Grid X value supplied by the caller for this operation.
+    // - gridY: Grid Y value supplied by the caller for this operation.
+    // Returns: Returns true when try convert world to tile succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryConvertWorldToTile(uint mapId, float worldX, float worldY, out MapTileKey key, out float gridX, out float gridY)
     {
         key = default;
@@ -288,6 +385,14 @@ public sealed class MapStoreAreaLookupService
         return true;
     }
 
+    // Method: ContainsWorldPosition
+    // Purpose: Executes the contains world position operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - area: Area value supplied by the caller for this operation.
+    // - worldX: World X value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // Returns: Returns true when contains world position succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static bool ContainsWorldPosition(WorldMapAreaDbcRecord area, float worldX, float worldY)
     {
         float minX = MathF.Min(area.LocationTop, area.LocationBottom);
@@ -298,11 +403,24 @@ public sealed class MapStoreAreaLookupService
         return worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY;
     }
 
+    // Method: AreaRectangleSize
+    // Purpose: Executes the area rectangle size operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - area: Area value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static float AreaRectangleSize(WorldMapAreaDbcRecord area)
     {
         return MathF.Abs(area.LocationTop - area.LocationBottom) * MathF.Abs(area.LocationLeft - area.LocationRight);
     }
 
+    // Method: ConvertWorldYToMapPixelX
+    // Purpose: Converts incoming data into convert world Y to map pixel X form for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - area: Area value supplied by the caller for this operation.
+    // - worldY: World Y value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static float ConvertWorldYToMapPixelX(WorldMapAreaDbcRecord area, float worldY)
     {
         float left = area.LocationLeft;
@@ -315,6 +433,13 @@ public sealed class MapStoreAreaLookupService
         return ((left - worldY) / (left - right)) * WorldMapPixelWidth;
     }
 
+    // Method: ConvertWorldXToMapPixelY
+    // Purpose: Converts incoming data into convert world X to map pixel Y form for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - area: Area value supplied by the caller for this operation.
+    // - worldX: World X value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static float ConvertWorldXToMapPixelY(WorldMapAreaDbcRecord area, float worldX)
     {
         float top = area.LocationTop;
@@ -327,6 +452,14 @@ public sealed class MapStoreAreaLookupService
         return ((top - worldX) / (top - bottom)) * WorldMapPixelHeight;
     }
 
+    // Method: ContainsOverlayPixel
+    // Purpose: Executes the contains overlay pixel operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - overlay: Overlay value supplied by the caller for this operation.
+    // - mapPixelX: Map pixel X value supplied by the caller for this operation.
+    // - mapPixelY: Map pixel Y value supplied by the caller for this operation.
+    // Returns: Returns true when contains overlay pixel succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static bool ContainsOverlayPixel(WorldMapOverlayDbcRecord overlay, float mapPixelX, float mapPixelY)
     {
         int minX = Math.Min(overlay.HitRectLeft, overlay.HitRectRight);
@@ -337,11 +470,23 @@ public sealed class MapStoreAreaLookupService
         return mapPixelX >= minX && mapPixelX <= maxX && mapPixelY >= minY && mapPixelY <= maxY;
     }
 
+    // Method: OverlayRectangleSize
+    // Purpose: Executes the overlay rectangle size operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - overlay: Overlay value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static int OverlayRectangleSize(WorldMapOverlayDbcRecord overlay)
     {
         return Math.Abs(overlay.HitRectRight - overlay.HitRectLeft) * Math.Abs(overlay.HitRectBottom - overlay.HitRectTop);
     }
 
+    // Method: BuildAreaFlagReverseLookup
+    // Purpose: Builds or writes build area flag reverse lookup output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapData: Map data value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreAreaLookupService so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<ushort, uint> BuildAreaFlagReverseLookup(MapDbcDataStore mapData)
     {
         Dictionary<ushort, uint> result = [];

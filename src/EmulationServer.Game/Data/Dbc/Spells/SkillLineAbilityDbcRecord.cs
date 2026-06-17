@@ -15,19 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SkillLineAbilityDbcRecord.cs
-  * Documents the SkillLineAbilityDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Spells/SkillLineAbilityDbcRecord.cs
+// Purpose: Contains skill line ability DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * Represents one SkillLineAbility.dbc row.
-  * Positional fields carried by this record: Id, SkillLineId, SpellId, RaceMask, ClassMask, ExcludeRaceMask, ExcludeClassMask, MinSkillLineRank, SupercededBySpell, AcquireMethod, CharacterPoints, NumSkillUps.
-  */
+// Type: SkillLineAbilityDbcRecord
+// Purpose: Represents skill line ability DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - SkillLineId: Skill line ID identifier used to select the exact record, object, or runtime owner.
+// - SpellId: Spell ID identifier used to select the exact record, object, or runtime owner.
+// - RaceMask: Race mask value supplied by the caller for this operation.
+// - ClassMask: Class mask value supplied by the caller for this operation.
+// - ExcludeRaceMask: Exclude race mask value supplied by the caller for this operation.
+// - ExcludeClassMask: Exclude class mask value supplied by the caller for this operation.
+// - MinSkillLineRank: Min skill line rank value supplied by the caller for this operation.
+// - SupercededBySpell: Superceded by spell value supplied by the caller for this operation.
+// - AcquireMethod: Acquire method value supplied by the caller for this operation.
+// - CharacterPoints: Character points value supplied by the caller for this operation.
+// - NumSkillUps: Num skill ups value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record SkillLineAbilityDbcRecord(
     int Id,
     int SkillLineId,

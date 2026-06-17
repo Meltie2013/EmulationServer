@@ -15,19 +15,29 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcRecord.cs
-  * Documents the MapDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcRecord.cs
+// Purpose: Contains map DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Represents one Map.dbc row with the fields needed by WorldServer, MapServer, and InstanceServer.
-  * Positional fields carried by this record: Id, InternalName, InstanceType, IsBattleground, Name, MinLevel, MaxLevel, MaxPlayers, ParentMapId, LoadingScreenId, RaidOffset, ContinentName, BattlefieldMapIconScale.
-  */
+// Type: MapDbcRecord
+// Purpose: Represents map DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - InternalName: Internal name value supplied by the caller for this operation.
+// - InstanceType: Instance type value supplied by the caller for this operation.
+// - IsBattleground: Is battleground value supplied by the caller for this operation.
+// - Name: Name value supplied by the caller for this operation.
+// - MinLevel: Min level value supplied by the caller for this operation.
+// - MaxLevel: Max level value supplied by the caller for this operation.
+// - MaxPlayers: Max players value supplied by the caller for this operation.
+// - ParentMapId: Parent map ID identifier used to select the exact record, object, or runtime owner.
+// - LoadingScreenId: Loading screen ID identifier used to select the exact record, object, or runtime owner.
+// - RaidOffset: Raid offset value supplied by the caller for this operation.
+// - ContinentName: Continent name value supplied by the caller for this operation.
+// - BattlefieldMapIconScale: Battlefield map icon scale value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapDbcRecord(
     int Id,
     string InternalName,
@@ -43,25 +53,37 @@ public sealed record MapDbcRecord(
     string ContinentName,
     float BattlefieldMapIconScale)
 {
-    /**
-      * Returns the map type as a named enum when the DBC value matches a known map kind.
-      */
+
+    // Method: IsDefined
+    // Purpose: Validates or evaluates is defined rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - MapInstanceType: Map instance type value supplied by the caller for this operation.
+    // - InstanceType: Instance type value supplied by the caller for this operation.
+    // Returns: Returns the map instance type type => enum. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public MapInstanceType Type => Enum.IsDefined(typeof(MapInstanceType), InstanceType)
         ? (MapInstanceType)InstanceType
         : MapInstanceType.Unknown;
 
-    /**
-      * Indicates whether this map is a persistent outdoor world service candidate.
-      */
+    // Method: InstanceType
+    // Purpose: Executes the instance type operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the bool is world map => value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsWorldMap => InstanceType == (int)MapInstanceType.World;
 
-    /**
-      * Indicates whether this map should normally be hosted by InstanceServer instead of the shared outdoor MapServer.
-      */
+    // Method: InstanceType
+    // Purpose: Executes the instance type operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the bool is instance map => value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsInstanceMap => InstanceType != (int)MapInstanceType.World;
 
-    /**
-      * Returns the best available human-readable name for logging and status output.
-      */
+    // Method: IsNullOrWhiteSpace
+    // Purpose: Validates or evaluates is null or white space rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Name: Name value supplied by the caller for this operation.
+    // Returns: Returns the string display name => string. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? InternalName : Name;
 }

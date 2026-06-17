@@ -15,63 +15,55 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Realms/ConfiguredRealm.cs
+// Purpose: Contains configured realm code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.RealmServer.Configuration;
 
-/**
-  * File overview: src/RealmServer/Realms/ConfiguredRealm.cs
-  * Documents the ConfiguredRealm source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Realms;
 
-/**
-  * Owns the configured realm behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ConfiguredRealm
+// Purpose: Provides configured realm behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ConfiguredRealm
 {
-    /**
-      * Holds the private sync root state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly object _syncRoot = new();
 
-    /**
-      * Holds the private online state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the online state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current online backing value maintained by the owning type.
     private bool _online;
-    /**
-      * Holds the private active connections state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the active connections state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current active connections backing value maintained by the owning type.
     private int _activeConnections;
-    /**
-      * Holds the private capacity limit state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the capacity limit state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current capacity limit backing value maintained by the owning type.
     private int _capacityLimit;
-    /**
-      * Holds whether this realm has been registered by at least one WorldServer status packet during the current RealmServer process lifetime.
-      */
+
+    // Field: Stores the has received world server status state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current has received world server status backing value maintained by the owning type.
     private bool _hasReceivedWorldServerStatus;
-    /**
-      * Holds the last time RealmServer accepted a status update for this realm.
-      */
+
+    // Field: Stores the last status update utc state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current last status update utc backing value maintained by the owning type.
     private DateTimeOffset? _lastStatusUpdateUtc;
-    /**
-      * Holds whether the realm has already been hidden because its WorldServer status became stale.
-      */
+
+    // Field: Stores the hidden because stale state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current hidden because stale backing value maintained by the owning type.
     private bool _hiddenBecauseStale;
+    // Field: Stores the uint state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current uint backing value maintained by the owning type.
     private Dictionary<uint, byte> _characterCountsByAccount = [];
 
-    /**
-      * Initializes a new ConfiguredRealm instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: ConfiguredRealm
+    // Purpose: Initializes a new ConfiguredRealm instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public ConfiguredRealm(ConfiguredRealmSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -92,64 +84,42 @@ public sealed class ConfiguredRealm
         _capacityLimit = 1;
     }
 
-    /**
-      * Gets or stores the id value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the ID value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: ID value exposed by the owning type.
     public uint Id { get; }
 
-    /**
-      * Gets or stores the name value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the name value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: name value exposed by the owning type.
     public string Name { get; }
 
-    /**
-      * Gets or stores the address value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the address value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: address value exposed by the owning type.
     public string Address { get; }
 
-    /**
-      * Gets or stores the port value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the port value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: port value exposed by the owning type.
     public ushort Port { get; }
 
-    /**
-      * Gets or stores the icon value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the icon value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: icon value exposed by the owning type.
     public byte Icon { get; }
 
-    /**
-      * Gets or stores the base realm flags value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the base realm flags value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: base realm flags value exposed by the owning type.
     public RealmFlags BaseRealmFlags { get; }
 
-    /**
-      * Gets or stores the timezone value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the timezone value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: timezone value exposed by the owning type.
     public byte Timezone { get; }
 
-    /**
-      * Gets or stores the allowed security level value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the allowed security level value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: allowed security level value exposed by the owning type.
     public byte AllowedSecurityLevel { get; }
 
-    /**
-      * Gets or stores the builds value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the builds value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: builds value exposed by the owning type.
     public IReadOnlySet<ushort> Builds { get; }
 
-    /**
-      * Gets or stores the is online value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public bool IsOnline
     {
         get
@@ -161,10 +131,6 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets or stores the active connections value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public int ActiveConnections
     {
         get
@@ -176,10 +142,6 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets or stores the capacity limit value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public int CapacityLimit
     {
         get
@@ -191,10 +153,6 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets or stores the population value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public float Population
     {
         get
@@ -206,9 +164,6 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets whether this configured realm has received a WorldServer status packet during the current RealmServer process lifetime.
-      */
     public bool HasReceivedWorldServerStatus
     {
         get
@@ -220,9 +175,6 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets whether this realm is currently hidden because its WorldServer status became stale.
-      */
     public bool IsHiddenBecauseStale
     {
         get
@@ -234,9 +186,6 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets the last time this realm accepted a WorldServer status packet.
-      */
     public DateTimeOffset? LastStatusUpdateUtc
     {
         get
@@ -248,9 +197,12 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Returns the number of characters this account has on this realm from the latest WorldServer snapshot.
-      */
+    // Method: GetCharacterCount
+    // Purpose: Retrieves get character count data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public byte GetCharacterCount(uint accountId)
     {
         lock (_syncRoot)
@@ -261,9 +213,12 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Replaces the in-memory account character counts for this realm.
-      */
+    // Method: ReplaceCharacterCounts
+    // Purpose: Executes the replace character counts operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - characterCountsByAccount: Character counts by account value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public void ReplaceCharacterCounts(IReadOnlyDictionary<uint, byte> characterCountsByAccount)
     {
         ArgumentNullException.ThrowIfNull(characterCountsByAccount);
@@ -275,9 +230,11 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Clears cached character counts when the owning WorldServer is offline.
-      */
+    // Method: ClearCharacterCounts
+    // Purpose: Applies clear character counts changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public void ClearCharacterCounts()
     {
         lock (_syncRoot)
@@ -286,24 +243,32 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Gets or stores the client address value used by ConfiguredRealm.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the client address value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: client address value exposed by the owning type.
     public string ClientAddress => $"{Address}:{Port}";
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of ConfiguredRealm and keeps this workflow isolated from the caller.
-      */
+    // Method: SetStatus
+    // Purpose: Applies set status changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - online: Online value supplied by the caller for this operation.
+    // - activeConnections: Active connections value supplied by the caller for this operation.
+    // - capacityLimit: Capacity limit value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public void SetStatus(bool online, int activeConnections, int capacityLimit)
     {
         SetStatus(online, activeConnections, capacityLimit, DateTimeOffset.UtcNow);
     }
 
-    /**
-      * Updates the stored value and records when a trusted WorldServer last refreshed this realm.
-      */
+    // Method: SetStatus
+    // Purpose: Applies set status changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - online: Online value supplied by the caller for this operation.
+    // - activeConnections: Active connections value supplied by the caller for this operation.
+    // - capacityLimit: Capacity limit value supplied by the caller for this operation.
+    // - updatedUtc: Updated utc value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public void SetStatus(bool online, int activeConnections, int capacityLimit, DateTimeOffset updatedUtc)
     {
         lock (_syncRoot)
@@ -322,9 +287,13 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Returns whether the last trusted WorldServer status update has exceeded the configured stale timeout.
-      */
+    // Method: IsStatusStale
+    // Purpose: Validates or evaluates is status stale rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - nowUtc: Now utc value supplied by the caller for this operation.
+    // - staleTimeout: Stale timeout value supplied by the caller for this operation.
+    // Returns: Returns true when is status stale succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsStatusStale(DateTimeOffset nowUtc, TimeSpan staleTimeout)
     {
         lock (_syncRoot)
@@ -338,9 +307,11 @@ public sealed class ConfiguredRealm
         }
     }
 
-    /**
-      * Hides this realm from future realm-list packets because WorldServer stopped refreshing it in time.
-      */
+    // Method: TryHideAsStale
+    // Purpose: Executes the try hide as stale operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns true when try hide as stale succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ConfiguredRealm so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryHideAsStale()
     {
         lock (_syncRoot)
@@ -360,4 +331,3 @@ public sealed class ConfiguredRealm
         }
     }
 }
-

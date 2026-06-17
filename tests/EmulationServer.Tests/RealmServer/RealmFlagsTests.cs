@@ -15,29 +15,31 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/RealmServer/RealmFlagsTests.cs
+// Purpose: Contains realm flags tests code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.RealmServer.Auth;
 using EmulationServer.RealmServer.Configuration;
 using EmulationServer.RealmServer.Realms;
 
-/**
-  * File overview: tests/EmulationServer.Tests/RealmServer/RealmFlagsTests.cs
-  * Documents realm flag parsing, validation, and packet output behavior.
-  */
-
 namespace EmulationServer.Tests.RealmServer;
 
-/**
-  * Owns tests for realm-list flags used by configured realms.
-  */
+// Type: RealmFlagsTests
+// Purpose: Provides realm flags tests behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmFlagsTests
 {
+    // Constant: Defines the supported build constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed supported build value used anywhere this rule or protocol value is needed.
     private const ushort SupportedBuild = RealmBuilds.Vanilla1123;
 
-    /**
-      * Verifies the project keeps the same numeric realm flag values as MaNGOS Zero.
-      */
     [Fact]
+    // Method: RealmFlags_ShouldMatchMangosZeroValues
+    // Purpose: Executes the realm flags should match mangos zero values operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void RealmFlags_ShouldMatchMangosZeroValues()
     {
         Assert.Equal(0x00, (byte)RealmFlags.None);
@@ -49,10 +51,12 @@ public sealed class RealmFlagsTests
         Assert.Equal(0x80, (byte)RealmFlags.Full);
     }
 
-    /**
-      * Verifies named flags can be used in realmserver.ini instead of hard-to-read numeric sums.
-      */
     [Fact]
+    // Method: ParseConfigurationValue_ShouldAcceptNamedConfiguredFlags
+    // Purpose: Converts incoming data into parse configuration value should accept named configured flags form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void ParseConfigurationValue_ShouldAcceptNamedConfiguredFlags()
     {
         RealmFlags flags = RealmFlagUtilities.ParseConfigurationValue("NewPlayers, Recommended");
@@ -60,10 +64,12 @@ public sealed class RealmFlagsTests
         Assert.Equal(RealmFlags.NewPlayers | RealmFlags.Recommended, flags);
     }
 
-    /**
-      * Verifies hexadecimal values can be used in realmserver.ini comments and configuration.
-      */
     [Fact]
+    // Method: ParseConfigurationValue_ShouldAcceptHexConfiguredFlags
+    // Purpose: Converts incoming data into parse configuration value should accept hex configured flags form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void ParseConfigurationValue_ShouldAcceptHexConfiguredFlags()
     {
         RealmFlags flags = RealmFlagUtilities.ParseConfigurationValue("0x20|0x40");
@@ -71,10 +77,12 @@ public sealed class RealmFlagsTests
         Assert.Equal(RealmFlags.NewPlayers | RealmFlags.Recommended, flags);
     }
 
-    /**
-      * Verifies Invalid can be used as do-not-show flag.
-      */
     [Fact]
+    // Method: ParseConfigurationValue_ShouldAcceptInvalidAsConfiguredHideFlag
+    // Purpose: Converts incoming data into parse configuration value should accept invalid as configured hide flag form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void ParseConfigurationValue_ShouldAcceptInvalidAsConfiguredHideFlag()
     {
         RealmFlags flags = RealmFlagUtilities.ParseConfigurationValue("Invalid");
@@ -82,10 +90,12 @@ public sealed class RealmFlagsTests
         Assert.Equal(RealmFlags.Invalid, flags);
     }
 
-    /**
-      * Verifies unsupported protocol-only flags are rejected from administrator configuration.
-      */
     [Fact]
+    // Method: ParseConfigurationValue_ShouldRejectUnsupportedConfiguredFlags
+    // Purpose: Converts incoming data into parse configuration value should reject unsupported configured flags form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void ParseConfigurationValue_ShouldRejectUnsupportedConfiguredFlags()
     {
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
@@ -94,10 +104,12 @@ public sealed class RealmFlagsTests
         Assert.Contains("Unsupported value: 0x80", exception.Message);
     }
 
-    /**
-      * Verifies configured flags are written into the vanilla realm-list packet.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldWriteConfiguredRealmFlags
+    // Purpose: Builds or writes build realm list should write configured realm flags output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldWriteConfiguredRealmFlags()
     {
         RealmListPacketBuilder builder = CreatePacketBuilder(RealmFlags.NewPlayers | RealmFlags.Recommended, online: true);
@@ -107,10 +119,12 @@ public sealed class RealmFlagsTests
         Assert.Equal((byte)(RealmFlags.NewPlayers | RealmFlags.Recommended), packet[12]);
     }
 
-    /**
-      * Verifies offline status is applied automatically even when it is not part of the configured base flags.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldAddOfflineFlagWhenRealmIsOffline
+    // Purpose: Builds or writes build realm list should add offline flag when realm is offline output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldAddOfflineFlagWhenRealmIsOffline()
     {
         RealmListPacketBuilder builder = CreatePacketBuilder(RealmFlags.None, online: false);
@@ -120,10 +134,12 @@ public sealed class RealmFlagsTests
         Assert.Equal((byte)RealmFlags.Offline, packet[12]);
     }
 
-    /**
-      * Verifies Invalid hides a realm from the packet list.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldHideInvalidRealmFlags
+    // Purpose: Builds or writes build realm list should hide invalid realm flags output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldHideInvalidRealmFlags()
     {
         RealmListPacketBuilder builder = CreatePacketBuilder(RealmFlags.Invalid, online: true);
@@ -133,10 +149,12 @@ public sealed class RealmFlagsTests
         Assert.Equal((byte)0, packet[7]);
     }
 
-    /**
-      * Verifies vanilla clients receive a readable version suffix when SpecifyBuild is configured.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldAppendVersionToVanillaRealmNameWhenSpecifyBuildIsEnabled
+    // Purpose: Builds or writes build realm list should append version to vanilla realm name when specify build is enabled output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldAppendVersionToVanillaRealmNameWhenSpecifyBuildIsEnabled()
     {
         RealmListPacketBuilder builder = CreatePacketBuilder(RealmFlags.SpecifyBuild, online: true);
@@ -147,10 +165,12 @@ public sealed class RealmFlagsTests
         Assert.Contains("Test Realm (1,12,3)", packetText);
     }
 
-    /**
-      * Verifies newer clients receive the version bytes required by the SpecifyBuild flag.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldWriteModernVersionBytesWhenSpecifyBuildIsEnabled
+    // Purpose: Builds or writes build realm list should write modern version bytes when specify build is enabled output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldWriteModernVersionBytesWhenSpecifyBuildIsEnabled()
     {
         RealmListPacketBuilder builder = CreatePacketBuilder(RealmFlags.SpecifyBuild, online: true, build: RealmBuilds.TheBurningCrusade243);
@@ -161,6 +181,14 @@ public sealed class RealmFlagsTests
         Assert.Equal(expectedTail, packet[^expectedTail.Length..]);
     }
 
+    // Method: CreatePacketBuilder
+    // Purpose: Applies create packet builder changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - flags: Flags value supplied by the caller for this operation.
+    // - online: Online value supplied by the caller for this operation.
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns the realm list packet builder value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagsTests so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmListPacketBuilder CreatePacketBuilder(RealmFlags flags, bool online, ushort build = SupportedBuild)
     {
         ConfiguredRealmStore store = new(

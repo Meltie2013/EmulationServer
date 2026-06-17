@@ -15,39 +15,35 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Networking/Packets/TransferAbortReason.cs
-  * Documents the TransferAbortReason source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Networking/Packets/TransferAbortReason.cs
+// Purpose: Contains transfer abort reason code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Lists the supported transfer abort reason values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: TransferAbortReason
+// Purpose: Defines the allowed transfer abort reason values used by the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum TransferAbortReason : byte
 {
-    /**
-      * Represents the none value for transfer abort reason handling.
-      */
+
+    // Enum Value: Defines the none enum value.
+    // Value: explicit expression 0.
     None = 0,
-    /**
-      * Represents the map not allowed value for transfer abort reason handling.
-      */
+
+    // Enum Value: Defines the map not allowed enum value.
+    // Value: explicit expression 1.
     MapNotAllowed = 1,
-    /**
-      * Represents the instance not found value for transfer abort reason handling.
-      */
+
+    // Enum Value: Defines the instance not found enum value.
+    // Value: explicit expression 2.
     InstanceNotFound = 2,
-    /**
-      * Represents the instance full value for transfer abort reason handling.
-      */
+
+    // Enum Value: Defines the instance full enum value.
+    // Value: explicit expression 3.
     InstanceFull = 3,
-    /**
-      * Represents the zone in combat value for transfer abort reason handling.
-      */
+
+    // Enum Value: Defines the zone in combat enum value.
+    // Value: explicit expression 6.
     ZoneInCombat = 6,
 }

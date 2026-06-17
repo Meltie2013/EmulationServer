@@ -15,19 +15,30 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapOverlayDbcRecord.cs
-  * Documents the WorldMapOverlayDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapOverlayDbcRecord.cs
+// Purpose: Contains world map overlay DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Represents one WorldMapOverlay.dbc row and the area ids that the overlay covers.
-  * Positional fields carried by this record: Id, WorldMapAreaId, AreaTableIds, LocationX, LocationY, TextureName, TextureWidth, TextureHeight, OffsetX, OffsetY, HitRectTop, HitRectLeft, HitRectBottom, HitRectRight.
-  */
+// Type: WorldMapOverlayDbcRecord
+// Purpose: Represents world map overlay DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - WorldMapAreaId: World map area ID identifier used to select the exact record, object, or runtime owner.
+// - AreaTableIds: Area table ids value supplied by the caller for this operation.
+// - LocationX: Location X value supplied by the caller for this operation.
+// - LocationY: Location Y value supplied by the caller for this operation.
+// - TextureName: Texture name value supplied by the caller for this operation.
+// - TextureWidth: Texture width value supplied by the caller for this operation.
+// - TextureHeight: Texture height value supplied by the caller for this operation.
+// - OffsetX: Offset X value supplied by the caller for this operation.
+// - OffsetY: Offset Y value supplied by the caller for this operation.
+// - HitRectTop: Hit rect top value supplied by the caller for this operation.
+// - HitRectLeft: Hit rect left value supplied by the caller for this operation.
+// - HitRectBottom: Hit rect bottom value supplied by the caller for this operation.
+// - HitRectRight: Hit rect right value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record WorldMapOverlayDbcRecord(
     int Id,
     int WorldMapAreaId,

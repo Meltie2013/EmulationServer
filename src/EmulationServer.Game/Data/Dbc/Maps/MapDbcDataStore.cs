@@ -15,26 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcDataStore.cs
+// Purpose: Contains map DBC data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcDataStore.cs
-  * Documents the MapDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Owns typed map-related DBC data and precomputed indexes so runtime systems can query map metadata without parsing raw rows.
-  */
+// Type: MapDbcDataStore
+// Purpose: Provides map DBC data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapDbcDataStore
 {
-    /**
-      * Creates an empty typed map-data store for disabled DBC loading paths.
-      */
+
+    // Constructor: MapDbcDataStore
+    // Purpose: Initializes a new MapDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private MapDbcDataStore()
     {
         Maps = new Dictionary<int, MapDbcRecord>();
@@ -49,9 +49,21 @@ public sealed class MapDbcDataStore
         OverlaysByWorldMapArea = new Dictionary<int, IReadOnlyList<WorldMapOverlayDbcRecord>>();
     }
 
-    /**
-      * Creates a typed map-data store from all parsed records and indexes.
-      */
+    // Constructor: MapDbcDataStore
+    // Purpose: Initializes a new MapDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - maps: Maps value supplied by the caller for this operation.
+    // - areas: Areas value supplied by the caller for this operation.
+    // - areaTriggers: Area triggers value supplied by the caller for this operation.
+    // - worldMapAreas: World map areas value supplied by the caller for this operation.
+    // - worldMapContinents: World map continents value supplied by the caller for this operation.
+    // - worldMapOverlays: World map overlays value supplied by the caller for this operation.
+    // - areasByMap: Areas by map value supplied by the caller for this operation.
+    // - triggersByMap: Triggers by map value supplied by the caller for this operation.
+    // - worldMapAreasByContinent: World map areas by continent value supplied by the caller for this operation.
+    // - overlaysByWorldMapArea: Overlays by world map area value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private MapDbcDataStore(
         IReadOnlyDictionary<int, MapDbcRecord> maps,
         IReadOnlyDictionary<int, AreaTableDbcRecord> areas,
@@ -76,66 +88,55 @@ public sealed class MapDbcDataStore
         OverlaysByWorldMapArea = overlaysByWorldMapArea;
     }
 
-    /**
-      * Gets an empty typed map-data store for servers that run with DBC loading disabled.
-      */
     public static MapDbcDataStore Empty { get; } = new();
 
-    /**
-      * Gets all Map.dbc records indexed by map id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, MapDbcRecord> Maps { get; }
 
-    /**
-      * Gets all AreaTable.dbc records indexed by area id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, AreaTableDbcRecord> Areas { get; }
 
-    /**
-      * Gets all AreaTrigger.dbc records indexed by trigger id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, AreaTriggerDbcRecord> AreaTriggers { get; }
 
-    /**
-      * Gets all WorldMapArea.dbc records indexed by world-map area id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, WorldMapAreaDbcRecord> WorldMapAreas { get; }
 
-    /**
-      * Gets all WorldMapContinent.dbc records indexed by world-map continent id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, WorldMapContinentDbcRecord> WorldMapContinents { get; }
 
-    /**
-      * Gets all WorldMapOverlay.dbc records indexed by overlay id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, WorldMapOverlayDbcRecord> WorldMapOverlays { get; }
 
-    /**
-      * Gets areas grouped by their owning map id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, IReadOnlyList<AreaTableDbcRecord>> AreasByMap { get; }
 
-    /**
-      * Gets area triggers grouped by their owning map id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, IReadOnlyList<AreaTriggerDbcRecord>> TriggersByMap { get; }
 
-    /**
-      * Gets world-map display areas grouped by their world-map continent id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, IReadOnlyList<WorldMapAreaDbcRecord>> WorldMapAreasByContinent { get; }
 
-    /**
-      * Gets world-map overlays grouped by their owning world-map area id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, IReadOnlyList<WorldMapOverlayDbcRecord>> OverlaysByWorldMapArea { get; }
 
-    /**
-      * Performs the from dbc stores operation for the DBC loading and strongly typed client data records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: dbcStores, ownerName.
-      */
+    // Method: FromDbcStores
+    // Purpose: Executes the from DBC stores operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the map DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static MapDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -162,23 +163,37 @@ public sealed class MapDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName}: map DBC loaded (maps={mapData.Maps.Count}, areas={mapData.Areas.Count}, triggers={mapData.AreaTriggers.Count}, worldMapAreas={mapData.WorldMapAreas.Count}, continents={mapData.WorldMapContinents.Count}, overlays={mapData.WorldMapOverlays.Count}).",
+            string.Join(Environment.NewLine,
+                $"{ownerName}: map DBC loaded:",
+                $"  Map.dbc: {mapData.Maps.Count}",
+                $"  AreaTable.dbc: {mapData.Areas.Count}",
+                $"  AreaTrigger.dbc: {mapData.AreaTriggers.Count}",
+                $"  WorldMapArea.dbc: {mapData.WorldMapAreas.Count}",
+                $"  WorldMapContinent.dbc: {mapData.WorldMapContinents.Count}",
+                $"  WorldMapOverlay.dbc: {mapData.WorldMapOverlays.Count}"),
             "MapDbcDataStore");
 
         return mapData;
     }
 
-    /**
-      * Attempts to get one Map.dbc record by map id.
-      */
+    // Method: TryGetMap
+    // Purpose: Attempts to retrieve or parse try get map data without treating normal misses as failures.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - map: Map value supplied by the caller for this operation.
+    // Returns: Returns true when try get map succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetMap(int mapId, out MapDbcRecord map)
     {
         return Maps.TryGetValue(mapId, out map!);
     }
 
-    /**
-      * Returns all AreaTable rows assigned to the supplied map id.
-      */
+    // Method: GetAreasForMap
+    // Purpose: Retrieves get areas for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<AreaTableDbcRecord> GetAreasForMap(int mapId)
     {
         return AreasByMap.TryGetValue(mapId, out IReadOnlyList<AreaTableDbcRecord>? areas)
@@ -186,9 +201,12 @@ public sealed class MapDbcDataStore
             : [];
     }
 
-    /**
-      * Returns all AreaTrigger rows assigned to the supplied map id.
-      */
+    // Method: GetTriggersForMap
+    // Purpose: Retrieves get triggers for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<AreaTriggerDbcRecord> GetTriggersForMap(int mapId)
     {
         return TriggersByMap.TryGetValue(mapId, out IReadOnlyList<AreaTriggerDbcRecord>? triggers)
@@ -196,9 +214,12 @@ public sealed class MapDbcDataStore
             : [];
     }
 
-    /**
-      * Returns all WorldMapContinent rows associated with the supplied map id.
-      */
+    // Method: GetContinentsForMap
+    // Purpose: Retrieves get continents for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<WorldMapContinentDbcRecord> GetContinentsForMap(int mapId)
     {
         return WorldMapContinents.Values
@@ -206,9 +227,12 @@ public sealed class MapDbcDataStore
             .ToArray();
     }
 
-    /**
-      * Builds a short description used by map info commands and startup logs.
-      */
+    // Method: DescribeMap
+    // Purpose: Executes the describe map operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public string DescribeMap(int mapId)
     {
         if (!TryGetMap(mapId, out MapDbcRecord map))
@@ -223,9 +247,16 @@ public sealed class MapDbcDataStore
         return $"{map.DisplayName} (MapId={map.Id}, Type={map.Type}, Areas={areaCount}, Triggers={triggerCount}, Continents={continentCount})";
     }
 
-    /**
-      * Reads one DBC file into typed records indexed by record id.
-      */
+    // Method: TRecord
+    // Purpose: Executes the T record operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - fileName: File name value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // - requiredFieldCount: Required field count value supplied by the caller for this operation.
+    // - readRecord: Read record value supplied by the caller for this operation.
+    // Returns: Returns the dictionary load indexed< value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<int, TRecord> LoadIndexed<TRecord>(
         IReadOnlyDictionary<string, DbcDataStore> dbcStores,
         string fileName,
@@ -252,9 +283,14 @@ public sealed class MapDbcDataStore
         return records;
     }
 
-    /**
-      * Validates that the loaded DBC schema matches the CSV layout used for the typed reader.
-      */
+    // Method: ValidateFieldCount
+    // Purpose: Validates or evaluates validate field count rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - store: Store value supplied by the caller for this operation.
+    // - fileName: File name value supplied by the caller for this operation.
+    // - requiredFieldCount: Required field count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateFieldCount(DbcDataStore store, string fileName, int requiredFieldCount)
     {
         if (store.FieldCount < requiredFieldCount)
@@ -263,9 +299,12 @@ public sealed class MapDbcDataStore
         }
     }
 
-    /**
-      * Returns the typed record id without forcing every record type through an interface.
-      */
+    // Method: TRecord
+    // Purpose: Executes the T record operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the int get record id< value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static int GetRecordId<TRecord>(TRecord record)
     {
         return record switch
@@ -280,9 +319,12 @@ public sealed class MapDbcDataStore
         };
     }
 
-    /**
-      * Reads one Map.dbc row using the field order from the supplied CSV export.
-      */
+    // Method: ReadMapRecord
+    // Purpose: Retrieves read map record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the map DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static MapDbcRecord ReadMapRecord(DbcRecord record)
     {
         return new MapDbcRecord(
@@ -301,9 +343,12 @@ public sealed class MapDbcDataStore
             ReadSingle(record, 41));
     }
 
-    /**
-      * Reads one AreaTable.dbc row using the field order from the supplied CSV export.
-      */
+    // Method: ReadAreaRecord
+    // Purpose: Retrieves read area record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the area table DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static AreaTableDbcRecord ReadAreaRecord(DbcRecord record)
     {
         return new AreaTableDbcRecord(
@@ -326,9 +371,12 @@ public sealed class MapDbcDataStore
             ReadInt32(record, 24));
     }
 
-    /**
-      * Reads one AreaTrigger.dbc row using the field order from the supplied CSV export.
-      */
+    // Method: ReadAreaTriggerRecord
+    // Purpose: Retrieves read area trigger record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the area trigger DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static AreaTriggerDbcRecord ReadAreaTriggerRecord(DbcRecord record)
     {
         return new AreaTriggerDbcRecord(
@@ -344,9 +392,12 @@ public sealed class MapDbcDataStore
             ReadSingle(record, 9));
     }
 
-    /**
-      * Reads one WorldMapArea.dbc row using the field order from the supplied CSV export.
-      */
+    // Method: ReadWorldMapAreaRecord
+    // Purpose: Retrieves read world map area record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the world map area DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static WorldMapAreaDbcRecord ReadWorldMapAreaRecord(DbcRecord record)
     {
         return new WorldMapAreaDbcRecord(
@@ -360,9 +411,12 @@ public sealed class MapDbcDataStore
             ReadSingle(record, 7));
     }
 
-    /**
-      * Reads one WorldMapContinent.dbc row using the field order from the supplied CSV export.
-      */
+    // Method: ReadWorldMapContinentRecord
+    // Purpose: Retrieves read world map continent record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the world map continent DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static WorldMapContinentDbcRecord ReadWorldMapContinentRecord(DbcRecord record)
     {
         return new WorldMapContinentDbcRecord(
@@ -381,9 +435,12 @@ public sealed class MapDbcDataStore
             ReadSingle(record, 12));
     }
 
-    /**
-      * Reads one WorldMapOverlay.dbc row using the field order from the supplied CSV export.
-      */
+    // Method: ReadWorldMapOverlayRecord
+    // Purpose: Retrieves read world map overlay record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the world map overlay DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static WorldMapOverlayDbcRecord ReadWorldMapOverlayRecord(DbcRecord record)
     {
         int[] areaIds =
@@ -411,9 +468,12 @@ public sealed class MapDbcDataStore
             ReadInt32(record, 16));
     }
 
-    /**
-      * Groups AreaTable records by map id for map service startup summaries and future area lookups.
-      */
+    // Method: GroupByMapId
+    // Purpose: Executes the group by map ID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the I read only dictionary> value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyDictionary<int, IReadOnlyList<AreaTableDbcRecord>> GroupByMapId(IEnumerable<AreaTableDbcRecord> records)
     {
         return records
@@ -421,9 +481,12 @@ public sealed class MapDbcDataStore
             .ToDictionary(group => group.Key, group => (IReadOnlyList<AreaTableDbcRecord>)group.OrderBy(record => record.Id).ToArray());
     }
 
-    /**
-      * Groups AreaTrigger records by map id for future portal and trigger processing.
-      */
+    // Method: GroupByMapId
+    // Purpose: Executes the group by map ID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the I read only dictionary> value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyDictionary<int, IReadOnlyList<AreaTriggerDbcRecord>> GroupByMapId(IEnumerable<AreaTriggerDbcRecord> records)
     {
         return records
@@ -431,9 +494,12 @@ public sealed class MapDbcDataStore
             .ToDictionary(group => group.Key, group => (IReadOnlyList<AreaTriggerDbcRecord>)group.OrderBy(record => record.Id).ToArray());
     }
 
-    /**
-      * Groups world-map area records by continent id so continent map services can quickly inspect available area overlays.
-      */
+    // Method: GroupByWorldMapContinentId
+    // Purpose: Executes the group by world map continent ID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the I read only dictionary> value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyDictionary<int, IReadOnlyList<WorldMapAreaDbcRecord>> GroupByWorldMapContinentId(IEnumerable<WorldMapAreaDbcRecord> records)
     {
         return records
@@ -441,9 +507,12 @@ public sealed class MapDbcDataStore
             .ToDictionary(group => group.Key, group => (IReadOnlyList<WorldMapAreaDbcRecord>)group.OrderBy(record => record.Id).ToArray());
     }
 
-    /**
-      * Groups overlay records by world-map area id for future map and minimap lookup features.
-      */
+    // Method: GroupByWorldMapAreaId
+    // Purpose: Executes the group by world map area ID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the I read only dictionary> value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyDictionary<int, IReadOnlyList<WorldMapOverlayDbcRecord>> GroupByWorldMapAreaId(IEnumerable<WorldMapOverlayDbcRecord> records)
     {
         return records
@@ -451,25 +520,37 @@ public sealed class MapDbcDataStore
             .ToDictionary(group => group.Key, group => (IReadOnlyList<WorldMapOverlayDbcRecord>)group.OrderBy(record => record.Id).ToArray());
     }
 
-    /**
-      * Reads a signed integer field from a raw DBC record.
-      */
+    // Method: ReadInt32
+    // Purpose: Retrieves read int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static int ReadInt32(DbcRecord record, int fieldIndex)
     {
         return record.GetInt32(fieldIndex);
     }
 
-    /**
-      * Reads a floating-point field from a raw DBC record.
-      */
+    // Method: ReadSingle
+    // Purpose: Retrieves read single data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static float ReadSingle(DbcRecord record, int fieldIndex)
     {
         return record.GetSingle(fieldIndex);
     }
 
-    /**
-      * Reads a string field from a raw DBC record and trims null-only or whitespace-only values.
-      */
+    // Method: ReadString
+    // Purpose: Retrieves read string data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static string ReadString(DbcRecord record, int fieldIndex)
     {
         return record.GetString(fieldIndex).Trim('\0', ' ', '\t', '\r', '\n');

@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Movement/WorldMovementDiagnostics.cs
+// Purpose: Contains world movement diagnostics code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -25,46 +28,94 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * File overview: src/WorldServer/Networking/Movement/WorldMovementDiagnostics.cs
-  * Provides targeted movement and position packet diagnostics for rubber-banding investigations.
-  * The diagnostics are disabled by default so normal movement traffic does not become noisy or slower.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Movement;
 
-/**
-  * Provides opt-in diagnostics for movement-sensitive world traffic.
-  * Enable with EMULATIONSERVER_MOVEMENT_DIAGNOSTICS=true when investigating rubber-banding or unexpected position correction packets.
-  */
+// Type: WorldMovementDiagnostics
+// Purpose: Provides world movement diagnostics behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldMovementDiagnostics
 {
+    // Constant: Defines the enabled environment variable constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed enabled environment variable value used anywhere this rule or protocol value is needed.
     private const string EnabledEnvironmentVariable = "EMULATIONSERVER_MOVEMENT_DIAGNOSTICS";
+    // Constant: Defines the incoming environment variable constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed incoming environment variable value used anywhere this rule or protocol value is needed.
     private const string IncomingEnvironmentVariable = "EMULATIONSERVER_MOVEMENT_DIAGNOSTICS_INCOMING";
+    // Constant: Defines the outgoing environment variable constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed outgoing environment variable value used anywhere this rule or protocol value is needed.
     private const string OutgoingEnvironmentVariable = "EMULATIONSERVER_MOVEMENT_DIAGNOSTICS_OUTGOING";
+    // Constant: Defines the map route environment variable constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed map route environment variable value used anywhere this rule or protocol value is needed.
     private const string MapRouteEnvironmentVariable = "EMULATIONSERVER_MOVEMENT_DIAGNOSTICS_MAP_ROUTE";
 
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span incoming movement trace interval = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan IncomingMovementTraceInterval = TimeSpan.FromSeconds(1);
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span outgoing position trace interval = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan OutgoingPositionTraceInterval = TimeSpan.FromMilliseconds(500);
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span map route trace interval = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan MapRouteTraceInterval = TimeSpan.FromSeconds(2);
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span slow map route warning threshold = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan SlowMapRouteWarningThreshold = TimeSpan.FromMilliseconds(75);
 
+    // Method: IsEnabled
+    // Purpose: Validates or evaluates is enabled rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - EnabledEnvironmentVariable: Enabled environment variable value supplied by the caller for this operation.
+    // Returns: Returns the bool diagnostics enabled = value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly bool DiagnosticsEnabled = IsEnabled(Environment.GetEnvironmentVariable(EnabledEnvironmentVariable));
+    // Method: IsDisabled
+    // Purpose: Validates or evaluates is disabled rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - IncomingEnvironmentVariable: Incoming environment variable value supplied by the caller for this operation.
+    // Returns: Returns the bool incoming diagnostics enabled = diagnostics enabled && ! value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly bool IncomingDiagnosticsEnabled = DiagnosticsEnabled && !IsDisabled(Environment.GetEnvironmentVariable(IncomingEnvironmentVariable));
+    // Method: IsDisabled
+    // Purpose: Validates or evaluates is disabled rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - OutgoingEnvironmentVariable: Outgoing environment variable value supplied by the caller for this operation.
+    // Returns: Returns the bool outgoing diagnostics enabled = diagnostics enabled && ! value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly bool OutgoingDiagnosticsEnabled = DiagnosticsEnabled && !IsDisabled(Environment.GetEnvironmentVariable(OutgoingEnvironmentVariable));
+    // Method: IsDisabled
+    // Purpose: Validates or evaluates is disabled rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - MapRouteEnvironmentVariable: Map route environment variable value supplied by the caller for this operation.
+    // Returns: Returns the bool map route diagnostics enabled = diagnostics enabled && ! value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly bool MapRouteDiagnosticsEnabled = DiagnosticsEnabled && !IsDisabled(Environment.GetEnvironmentVariable(MapRouteEnvironmentVariable));
 
     private static readonly ConcurrentDictionary<string, long> LastLogTicksByKey = new(StringComparer.Ordinal);
+    // Field: Stores the enabled banner logged state used by the world server gameplay, session, and character runtime layer.
+    // Value: current enabled banner logged backing value maintained by the owning type.
     private static int _enabledBannerLogged;
 
-    /**
-      * Gets whether the diagnostic system is enabled for the current WorldServer process.
-      */
+    // Property: Gets or sets the enabled value used by the world server gameplay, session, and character runtime layer.
+    // Value: enabled value exposed by the owning type.
     public static bool Enabled => DiagnosticsEnabled;
 
-    /**
-      * Emits one startup line when movement diagnostics are enabled.
-      */
+    // Method: LogEnabledOnce
+    // Purpose: Executes the log enabled once operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogEnabledOnce()
     {
         if (!DiagnosticsEnabled || Interlocked.Exchange(ref _enabledBannerLogged, 1) == 1)
@@ -77,10 +128,17 @@ public static class WorldMovementDiagnostics
             "MovementDiagnostics");
     }
 
-    /**
-      * Logs a throttled snapshot of incoming client movement state.
-      * Suspicious jumps, backwards client time, and map/zone changes are logged immediately.
-      */
+    // Method: LogIncomingMovement
+    // Purpose: Executes the log incoming movement operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - payloadLength: Payload length value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // - movement: Movement value supplied by the caller for this operation.
+    // - previousMovement: Previous movement value supplied by the caller for this operation.
+    // - remoteEndPoint: Remote end point value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogIncomingMovement(
         WorldOpcode opcode,
         int payloadLength,
@@ -113,10 +171,16 @@ public static class WorldMovementDiagnostics
             "MovementDiagnostics");
     }
 
-    /**
-      * Logs server-to-client packets that can affect movement, position, speed, or world transfer state.
-      * A movement packet whose packed source GUID equals the receiving player's GUID is logged as a possible self-echo.
-      */
+    // Method: LogOutgoingPositionPacket
+    // Purpose: Executes the log outgoing position packet operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - payload: Payload bytes or structured payload consumed by this operation.
+    // - targetPlayer: Target player value supplied by the caller for this operation.
+    // - targetMovement: Target movement value supplied by the caller for this operation.
+    // - remoteEndPoint: Remote end point value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogOutgoingPositionPacket(
         WorldOpcode opcode,
         ReadOnlySpan<byte> payload,
@@ -153,9 +217,16 @@ public static class WorldMovementDiagnostics
             "MovementDiagnostics");
     }
 
-    /**
-      * Logs when the broadcast fanout detects another registered session for the same player GUID/client GUID.
-      */
+    // Method: LogSkippedSelfMovementBroadcast
+    // Purpose: Executes the log skipped self movement broadcast operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sourcePlayer: Source player value supplied by the caller for this operation.
+    // - recipientPlayer: Recipient player value supplied by the caller for this operation.
+    // - movement: Movement value supplied by the caller for this operation.
+    // - sourceRemoteEndPoint: Source remote end point value supplied by the caller for this operation.
+    // - recipientRemoteEndPoint: Recipient remote end point value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogSkippedSelfMovementBroadcast(
         PlayerLoginRecord sourcePlayer,
         PlayerLoginRecord recipientPlayer,
@@ -178,9 +249,17 @@ public static class WorldMovementDiagnostics
             "MovementDiagnostics");
     }
 
-    /**
-      * Logs movement telemetry sent from WorldServer to the owning Map/Instance service.
-      */
+    // Method: LogMapServiceMovementRoute
+    // Purpose: Executes the log map service movement route operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - movement: Movement value supplied by the caller for this operation.
+    // - routeStartedUtc: Route started utc value supplied by the caller for this operation.
+    // - elapsed: Elapsed value supplied by the caller for this operation.
+    // - remoteEndPoint: Remote end point value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogMapServiceMovementRoute(
         PlayerLoginRecord player,
         string ownerServerName,
@@ -208,6 +287,12 @@ public static class WorldMovementDiagnostics
             "MovementDiagnostics");
     }
 
+    // Method: IsEnabled
+    // Purpose: Validates or evaluates is enabled rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when is enabled succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsEnabled(string? value)
     {
         return value is not null &&
@@ -217,6 +302,12 @@ public static class WorldMovementDiagnostics
              value.Equals("on", StringComparison.OrdinalIgnoreCase));
     }
 
+    // Method: IsDisabled
+    // Purpose: Validates or evaluates is disabled rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when is disabled succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsDisabled(string? value)
     {
         return value is not null &&
@@ -226,6 +317,12 @@ public static class WorldMovementDiagnostics
              value.Equals("off", StringComparison.OrdinalIgnoreCase));
     }
 
+    // Method: IsPositionAffectingServerOpcode
+    // Purpose: Validates or evaluates is position affecting server opcode rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // Returns: Returns true when is position affecting server opcode succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsPositionAffectingServerOpcode(WorldOpcode opcode)
     {
         return WorldMovementOpcode.IsMovementOpcode(opcode) || opcode is
@@ -249,6 +346,12 @@ public static class WorldMovementDiagnostics
             WorldOpcode.SMSG_MOVE_UNSET_HOVER;
     }
 
+    // Method: IsForceOrTransferOpcode
+    // Purpose: Validates or evaluates is force or transfer opcode rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // Returns: Returns true when is force or transfer opcode succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsForceOrTransferOpcode(WorldOpcode opcode)
     {
         return opcode is
@@ -263,6 +366,13 @@ public static class WorldMovementDiagnostics
             WorldOpcode.SMSG_MOVE_KNOCK_BACK;
     }
 
+    // Method: TryReadPackedGuid
+    // Purpose: Attempts to retrieve or parse try read packed GUID data without treating normal misses as failures.
+    // Parameters:
+    // - payload: Payload bytes or structured payload consumed by this operation.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when try read packed GUID succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadPackedGuid(ReadOnlySpan<byte> payload, out ulong guid)
     {
         guid = 0UL;
@@ -293,6 +403,13 @@ public static class WorldMovementDiagnostics
         return true;
     }
 
+    // Method: ShouldLog
+    // Purpose: Validates or evaluates should log rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - key: Key value supplied by the caller for this operation.
+    // - interval: Interval value supplied by the caller for this operation.
+    // Returns: Returns true when should log succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static bool ShouldLog(string key, TimeSpan interval)
     {
         if (interval <= TimeSpan.Zero)
@@ -316,6 +433,13 @@ public static class WorldMovementDiagnostics
         }
     }
 
+    // Method: CalculateDistance
+    // Purpose: Calculates calculate distance values for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - previous: Previous value supplied by the caller for this operation.
+    // - current: Current value supplied by the caller for this operation.
+    // Returns: Returns the double value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static double CalculateDistance(MovementPosition previous, MovementPosition current)
     {
         double deltaX = current.X - previous.X;
@@ -324,11 +448,23 @@ public static class WorldMovementDiagnostics
         return Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY) + (deltaZ * deltaZ));
     }
 
+    // Method: Format
+    // Purpose: Executes the format operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(float value)
     {
         return value.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
+    // Method: Format
+    // Purpose: Executes the format operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementDiagnostics so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(double value)
     {
         return value.ToString("0.###", CultureInfo.InvariantCulture);

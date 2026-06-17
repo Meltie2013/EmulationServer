@@ -15,53 +15,44 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcFileNames.cs
-  * Documents the MapDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/MapDbcFileNames.cs
+// Purpose: Contains map DBC file names code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Centralizes map-related DBC file names so WorldServer, MapServer, and InstanceServer can share the same required data list.
-  */
+// Type: MapDbcFileNames
+// Purpose: Provides map DBC file names behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapDbcFileNames
 {
-    /**
-      * Required for map identity, map type, display names, loading screens, and world-vs-instance classification.
-      */
+
+    // Constant: Defines the map constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed map value used anywhere this rule or protocol value is needed.
     public const string Map = "Map.dbc";
 
-    /**
-      * Required for zones, sub-zones, area flags, faction groups, liquid defaults, and area names.
-      */
+    // Constant: Defines the area table constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed area table value used anywhere this rule or protocol value is needed.
     public const string AreaTable = "AreaTable.dbc";
 
-    /**
-      * Required for map-area triggers such as portals, instance entrances, and positional trigger volumes.
-      */
+    // Constant: Defines the area trigger constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed area trigger value used anywhere this rule or protocol value is needed.
     public const string AreaTrigger = "AreaTrigger.dbc";
 
-    /**
-      * Required for connecting rendered world-map areas back to area table records.
-      */
+    // Constant: Defines the world map area constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed world map area value used anywhere this rule or protocol value is needed.
     public const string WorldMapArea = "WorldMapArea.dbc";
 
-    /**
-      * Required for continent-level world-map coordinate data for maps such as Eastern Kingdoms and Kalimdor.
-      */
+    // Constant: Defines the world map continent constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed world map continent value used anywhere this rule or protocol value is needed.
     public const string WorldMapContinent = "WorldMapContinent.dbc";
 
-    /**
-      * Required for overlay texture and area-highlight data used by map and area lookup systems.
-      */
+    // Constant: Defines the world map overlay constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed world map overlay value used anywhere this rule or protocol value is needed.
     public const string WorldMapOverlay = "WorldMapOverlay.dbc";
 
-    /**
-      * Contains the core map DBC files that should be available anywhere map services or map routing are enabled.
-      */
+    // Property: Gets or sets the core map DBC files value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: core map DBC files value exposed by the owning type.
     public static IReadOnlyList<string> CoreMapDbcFiles { get; } =
     [
         Map,

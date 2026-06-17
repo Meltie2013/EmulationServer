@@ -15,29 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Maps/Runtime/MapPlayerRuntimeLogger.cs
+// Purpose: Contains map player runtime logger code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapPlayerRuntimeLogger.cs
-  * Documents the MapPlayerRuntimeLogger source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Writes graceful map and zone transition logs for runtime player tracking.
-  * The helper logs only confirmed state transitions so high-frequency movement packets do not spam console or file output.
-  */
+// Type: MapPlayerRuntimeLogger
+// Purpose: Provides map player runtime logger behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapPlayerRuntimeLogger
 {
-    /**
-      * Logs a player entering the currently owned map and zone.
-      */
+
+    // Method: LogPlayerEntered
+    // Purpose: Executes the log player entered operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - category: Category value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // - activePlayerCount: Active player count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapPlayerRuntimeLogger so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogPlayerEntered(string category, string remoteServerName, MapPlayerRuntimeState player, int activePlayerCount)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -47,9 +50,15 @@ public static class MapPlayerRuntimeLogger
         Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({player.Guid}) entered zone {player.Zone} on map {player.Map} from {remoteServerName}.", category);
     }
 
-    /**
-      * Logs a player leaving the last tracked zone and map.
-      */
+    // Method: LogPlayerLeft
+    // Purpose: Executes the log player left operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - category: Category value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // - activePlayerCount: Active player count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapPlayerRuntimeLogger so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogPlayerLeft(string category, string remoteServerName, MapPlayerRuntimeState player, int activePlayerCount)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -59,9 +68,16 @@ public static class MapPlayerRuntimeLogger
         Logger.Write(LogType.SYSTEM, $"{category} player '{displayName}' ({player.Guid}) left map {player.Map} from {remoteServerName}. Active players={activePlayerCount}.", category);
     }
 
-    /**
-      * Logs confirmed map and zone transitions after movement or zone-update routing changes the tracked state.
-      */
+    // Method: LogPlayerTransition
+    // Purpose: Executes the log player transition operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - category: Category value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - previousPlayer: Previous player value supplied by the caller for this operation.
+    // - currentPlayer: Current player value supplied by the caller for this operation.
+    // - activePlayerCount: Active player count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapPlayerRuntimeLogger so callers do not duplicate validation, protocol, or persistence rules.
     public static void LogPlayerTransition(string category, string remoteServerName, MapPlayerRuntimeState? previousPlayer, MapPlayerRuntimeState currentPlayer, int activePlayerCount)
     {
         ArgumentNullException.ThrowIfNull(currentPlayer);
@@ -95,11 +111,24 @@ public static class MapPlayerRuntimeLogger
         }
     }
 
+    // Method: FormatPlayerName
+    // Purpose: Executes the format player name operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapPlayerRuntimeLogger so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatPlayerName(MapPlayerRuntimeState player)
     {
         return FormatPlayerName(player, null);
     }
 
+    // Method: FormatPlayerName
+    // Purpose: Executes the format player name operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - fallbackPlayer: Fallback player value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapPlayerRuntimeLogger so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatPlayerName(MapPlayerRuntimeState player, MapPlayerRuntimeState? fallbackPlayer)
     {
         if (!string.IsNullOrWhiteSpace(player.Name))

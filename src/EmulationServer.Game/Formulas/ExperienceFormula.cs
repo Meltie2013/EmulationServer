@@ -15,20 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Formulas/ExperienceFormula.cs
+// Purpose: Contains experience formula code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Formulas;
 
-/**
-  * Centralized Vanilla experience formulas.
-  * This class intentionally stays pure/static so kill, quest, pet, group, and packet paths can share the same rules.
-  */
+// Type: ExperienceFormula
+// Purpose: Provides experience formula behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class ExperienceFormula
 {
+    // Constant: Defines the base kill experience constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed base kill experience value used anywhere this rule or protocol value is needed.
     private const uint BaseKillExperience = 45;
 
-    /**
-      * Resolves the highest gray mob level for the supplied player level.
-      */
+    // Method: GetGrayLevel
+    // Purpose: Retrieves get gray level data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static uint GetGrayLevel(uint playerLevel)
     {
         uint safeLevel = Math.Max(playerLevel, 1u);
@@ -50,9 +57,13 @@ public static class ExperienceFormula
         return safeLevel - 1u - (safeLevel / 5u);
     }
 
-    /**
-      * Resolves the client-style XP color/con relationship between a player and target.
-      */
+    // Method: GetColorCode
+    // Purpose: Retrieves get color code data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // - targetLevel: Target level value supplied by the caller for this operation.
+    // Returns: Returns the experience color value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static ExperienceColor GetColorCode(uint playerLevel, uint targetLevel)
     {
         uint safePlayerLevel = Math.Max(playerLevel, 1u);
@@ -78,9 +89,12 @@ public static class ExperienceFormula
             : ExperienceColor.Gray;
     }
 
-    /**
-      * Gets the zero-difference divisor used when a lower-level target still grants reduced XP.
-      */
+    // Method: GetZeroDifference
+    // Purpose: Retrieves get zero difference data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static uint GetZeroDifference(uint playerLevel)
     {
         uint safeLevel = Math.Max(playerLevel, 1u);
@@ -142,9 +156,13 @@ public static class ExperienceFormula
         return 17;
     }
 
-    /**
-      * Calculates base kill XP before elite, server-rate, rested, group, or pet modifiers are applied.
-      */
+    // Method: CalculateBaseKillExperience
+    // Purpose: Calculates calculate base kill experience values for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // - targetLevel: Target level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static uint CalculateBaseKillExperience(uint playerLevel, uint targetLevel)
     {
         uint safePlayerLevel = Math.Max(playerLevel, 1u);
@@ -171,9 +189,16 @@ public static class ExperienceFormula
         return ((safePlayerLevel * 5u) + BaseKillExperience) * (zeroDifference + safeTargetLevel - safePlayerLevel) / zeroDifference;
     }
 
-    /**
-      * Calculates kill XP after target eligibility, elite, and server-rate modifiers.
-      */
+    // Method: CalculateKillExperience
+    // Purpose: Calculates calculate kill experience values for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerLevel: Player level value supplied by the caller for this operation.
+    // - targetLevel: Target level value supplied by the caller for this operation.
+    // - isElite: Is elite value supplied by the caller for this operation.
+    // - targetGrantsExperience: Target grants experience value supplied by the caller for this operation.
+    // - killRate: Kill rate value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static uint CalculateKillExperience(
         uint playerLevel,
         uint targetLevel,
@@ -200,14 +225,18 @@ public static class ExperienceFormula
         return (uint)MathF.Floor(experience * killRate);
     }
 
-    /**
-      * Calculates the group XP rate multiplier for non-raid groups.
-      */
+    // Method: GetGroupRate
+    // Purpose: Retrieves get group rate data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - memberCount: Member count value supplied by the caller for this operation.
+    // - isRaid: Is raid value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static float GetGroupRate(uint memberCount, bool isRaid)
     {
         if (isRaid)
         {
-            // Fix-me: Doesn't appear to apply the same group rate scaling to raids, but this may need to be revisited if we add raid support.
+
             return 1.0f;
         }
 
@@ -220,9 +249,17 @@ public static class ExperienceFormula
         };
     }
 
-    /**
-      * Calculates the group-member share for a kill reward using MaNGOS Zero's level-weighted distribution.
-      */
+    // Method: CalculateGroupMemberKillExperience
+    // Purpose: Calculates calculate group member kill experience values for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - baseKillExperience: Base kill experience value supplied by the caller for this operation.
+    // - memberLevel: Member level value supplied by the caller for this operation.
+    // - groupLevelSum: Group level sum value supplied by the caller for this operation.
+    // - memberCount: Member count value supplied by the caller for this operation.
+    // - isRaid: Is raid value supplied by the caller for this operation.
+    // - hasHigherGrayParticipant: Has higher gray participant value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static uint CalculateGroupMemberKillExperience(
         uint baseKillExperience,
         uint memberLevel,
@@ -242,9 +279,12 @@ public static class ExperienceFormula
             : (uint)(baseKillExperience * memberRate);
     }
 
-    /**
-      * Fallback next-level XP values used when the world database table is missing or incomplete.
-      */
+    // Method: GetFallbackNextLevelExperience
+    // Purpose: Retrieves get fallback next level experience data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - level: Level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ExperienceFormula so callers do not duplicate validation, protocol, or persistence rules.
     public static uint GetFallbackNextLevelExperience(uint level)
     {
         uint safeLevel = Math.Max(level, 1u);

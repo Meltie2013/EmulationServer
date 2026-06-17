@@ -15,27 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcDataStore.cs
+// Purpose: Contains item DBC data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcDataStore.cs
-  * Documents the ItemDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Owns typed item DBC data and item classification/display indexes.
-  */
+// Type: ItemDbcDataStore
+// Purpose: Provides item DBC data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ItemDbcDataStore
 {
-    /**
-      * Initializes an empty typed item store for disabled DBC loading paths.
-      */
+
+    // Constructor: ItemDbcDataStore
+    // Purpose: Initializes a new ItemDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private ItemDbcDataStore()
     {
         Classes = new Dictionary<int, ItemClassDbcRecord>();
@@ -49,9 +49,20 @@ public sealed class ItemDbcDataStore
         DurabilityQualities = new Dictionary<int, DurabilityQualityDbcRecord>();
     }
 
-    /**
-      * Initializes a populated item DBC store.
-      */
+    // Constructor: ItemDbcDataStore
+    // Purpose: Initializes a new ItemDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - classes: Classes value supplied by the caller for this operation.
+    // - subClasses: Sub classes value supplied by the caller for this operation.
+    // - displayInfo: Display info value supplied by the caller for this operation.
+    // - sets: Sets value supplied by the caller for this operation.
+    // - bagFamilies: Bag families value supplied by the caller for this operation.
+    // - randomProperties: Random properties value supplied by the caller for this operation.
+    // - spellItemEnchantments: Spell item enchantments value supplied by the caller for this operation.
+    // - durabilityCosts: Durability costs value supplied by the caller for this operation.
+    // - durabilityQualities: Durability qualities value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private ItemDbcDataStore(
         IReadOnlyDictionary<int, ItemClassDbcRecord> classes,
         IReadOnlyDictionary<(int ItemClassId, int SubClassId), ItemSubClassDbcRecord> subClasses,
@@ -74,59 +85,56 @@ public sealed class ItemDbcDataStore
         DurabilityQualities = durabilityQualities;
     }
 
-    /**
-      * Gets an empty typed item store for disabled DBC loading paths.
-      */
     public static ItemDbcDataStore Empty { get; } = new();
 
-    /**
-      * Gets item classes indexed by class id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ItemClassDbcRecord> Classes { get; }
 
-    /**
-      * Gets item subclasses indexed by class/subclass id.
-      */
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - ItemClassId: Item class ID identifier used to select the exact record, object, or runtime owner.
+    // - SubClassId: Sub class ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(int ItemClassId, int SubClassId), ItemSubClassDbcRecord> SubClasses { get; }
 
-    /**
-      * Gets item display rows indexed by display id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ItemDisplayInfoDbcRecord> DisplayInfo { get; }
 
-    /**
-      * Gets item sets indexed by set id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ItemSetDbcRecord> Sets { get; }
 
-    /**
-      * Gets bag-family rows indexed by family id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ItemBagFamilyDbcRecord> BagFamilies { get; }
 
-    /**
-      * Gets random-property rows indexed by random property id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ItemRandomPropertyDbcRecord> RandomProperties { get; }
 
-    /**
-      * Gets spell-item enchantment rows indexed by enchantment id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SpellItemEnchantmentDbcRecord> SpellItemEnchantments { get; }
 
-    /**
-      * Gets durability-cost rows indexed by item level.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, DurabilityCostDbcRecord> DurabilityCosts { get; }
 
-    /**
-      * Gets durability-quality rows indexed by quality id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, DurabilityQualityDbcRecord> DurabilityQualities { get; }
 
-    /**
-      * Converts loaded raw DBC stores into typed item DBC indexes.
-      */
+    // Method: FromDbcStores
+    // Purpose: Executes the from DBC stores operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the item DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static ItemDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -217,55 +225,89 @@ public sealed class ItemDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName}: item DBC loaded (classes={data.Classes.Count}, subclasses={data.SubClasses.Count}, displays={data.DisplayInfo.Count}, sets={data.Sets.Count}, bagFamilies={data.BagFamilies.Count}, randomProperties={data.RandomProperties.Count}, enchantments={data.SpellItemEnchantments.Count}, durabilityCosts={data.DurabilityCosts.Count}, durabilityQualities={data.DurabilityQualities.Count}).",
+            string.Join(Environment.NewLine,
+                $"{ownerName}: item DBC loaded:",
+                $"  ItemClass.dbc: {data.Classes.Count}",
+                $"  ItemSubClass.dbc: {data.SubClasses.Count}",
+                $"  ItemDisplayInfo.dbc: {data.DisplayInfo.Count}",
+                $"  ItemSet.dbc: {data.Sets.Count}",
+                $"  ItemBagFamily.dbc: {data.BagFamilies.Count}",
+                $"  ItemRandomProperties.dbc: {data.RandomProperties.Count}",
+                $"  SpellItemEnchantment.dbc: {data.SpellItemEnchantments.Count}",
+                $"  DurabilityCosts.dbc: {data.DurabilityCosts.Count}",
+                $"  DurabilityQuality.dbc: {data.DurabilityQualities.Count}"),
             "ItemDbcDataStore");
 
         return data;
     }
 
-    /**
-      * Attempts to get one item class by id.
-      */
+    // Method: TryGetClass
+    // Purpose: Attempts to retrieve or parse try get class data without treating normal misses as failures.
+    // Parameters:
+    // - classId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // - itemClass: Item class value supplied by the caller for this operation.
+    // Returns: Returns true when try get class succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetClass(int classId, out ItemClassDbcRecord itemClass)
     {
         return Classes.TryGetValue(classId, out itemClass!);
     }
 
-    /**
-      * Attempts to get one item subclass by class/subclass id.
-      */
+    // Method: TryGetSubClass
+    // Purpose: Attempts to retrieve or parse try get sub class data without treating normal misses as failures.
+    // Parameters:
+    // - classId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // - subClassId: Sub class ID identifier used to select the exact record, object, or runtime owner.
+    // - subClass: Sub class value supplied by the caller for this operation.
+    // Returns: Returns true when try get sub class succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetSubClass(int classId, int subClassId, out ItemSubClassDbcRecord subClass)
     {
         return SubClasses.TryGetValue((classId, subClassId), out subClass!);
     }
 
-    /**
-      * Attempts to get one item display row by display id.
-      */
+    // Method: TryGetDisplayInfo
+    // Purpose: Attempts to retrieve or parse try get display info data without treating normal misses as failures.
+    // Parameters:
+    // - displayId: Display ID identifier used to select the exact record, object, or runtime owner.
+    // - displayInfo: Display info value supplied by the caller for this operation.
+    // Returns: Returns true when try get display info succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetDisplayInfo(int displayId, out ItemDisplayInfoDbcRecord displayInfo)
     {
         return DisplayInfo.TryGetValue(displayId, out displayInfo!);
     }
 
-    /**
-      * Attempts to get one random-property row by id.
-      */
+    // Method: TryGetRandomProperty
+    // Purpose: Attempts to retrieve or parse try get random property data without treating normal misses as failures.
+    // Parameters:
+    // - randomPropertyId: Random property ID identifier used to select the exact record, object, or runtime owner.
+    // - randomProperty: Random property value supplied by the caller for this operation.
+    // Returns: Returns true when try get random property succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetRandomProperty(int randomPropertyId, out ItemRandomPropertyDbcRecord randomProperty)
     {
         return RandomProperties.TryGetValue(randomPropertyId, out randomProperty!);
     }
 
-    /**
-      * Attempts to get one spell item enchantment row by id.
-      */
+    // Method: TryGetSpellItemEnchantment
+    // Purpose: Attempts to retrieve or parse try get spell item enchantment data without treating normal misses as failures.
+    // Parameters:
+    // - enchantmentId: Enchantment ID identifier used to select the exact record, object, or runtime owner.
+    // - enchantment: Enchantment value supplied by the caller for this operation.
+    // Returns: Returns true when try get spell item enchantment succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetSpellItemEnchantment(int enchantmentId, out SpellItemEnchantmentDbcRecord enchantment)
     {
         return SpellItemEnchantments.TryGetValue(enchantmentId, out enchantment!);
     }
 
-    /**
-      * Parses read item class record input into the strongly typed server representation.
-      */
+    // Method: ReadItemClassRecord
+    // Purpose: Retrieves read item class record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the item class DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemClassDbcRecord ReadItemClassRecord(DbcRecord record)
     {
         return new ItemClassDbcRecord(
@@ -275,9 +317,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadString(record, 3));
     }
 
-    /**
-      * Parses read item sub class record input into the strongly typed server representation.
-      */
+    // Method: ReadItemSubClassRecord
+    // Purpose: Retrieves read item sub class record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the item sub class DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemSubClassDbcRecord ReadItemSubClassRecord(DbcRecord record)
     {
         return new ItemSubClassDbcRecord(
@@ -291,9 +336,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadString(record, 19));
     }
 
-    /**
-      * Parses read item display info record input into the strongly typed server representation.
-      */
+    // Method: ReadItemDisplayInfoRecord
+    // Purpose: Retrieves read item display info record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the item display info DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemDisplayInfoDbcRecord ReadItemDisplayInfoRecord(DbcRecord record)
     {
         string[] textures =
@@ -327,9 +375,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadInt32(record, 22));
     }
 
-    /**
-      * Parses read item set record input into the strongly typed server representation.
-      */
+    // Method: ReadItemSetRecord
+    // Purpose: Retrieves read item set record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the item set DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemSetDbcRecord ReadItemSetRecord(DbcRecord record)
     {
         int[] itemIds = Enumerable.Range(10, 17)
@@ -355,9 +406,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadInt32(record, 44));
     }
 
-    /**
-      * Parses read item bag family record input into the strongly typed server representation.
-      */
+    // Method: ReadItemBagFamilyRecord
+    // Purpose: Retrieves read item bag family record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the item bag family DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemBagFamilyDbcRecord ReadItemBagFamilyRecord(DbcRecord record)
     {
         return new ItemBagFamilyDbcRecord(
@@ -365,9 +419,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadString(record, 1));
     }
 
-    /**
-      * Parses read item random property record input into the strongly typed server representation.
-      */
+    // Method: ReadItemRandomPropertyRecord
+    // Purpose: Retrieves read item random property record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the item random property DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemRandomPropertyDbcRecord ReadItemRandomPropertyRecord(DbcRecord record)
     {
         int[] enchantmentIds = Enumerable.Range(2, 5)
@@ -381,9 +438,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadString(record, 7));
     }
 
-    /**
-      * Parses read spell item enchantment record input into the strongly typed server representation.
-      */
+    // Method: ReadSpellItemEnchantmentRecord
+    // Purpose: Retrieves read spell item enchantment record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the spell item enchantment DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SpellItemEnchantmentDbcRecord ReadSpellItemEnchantmentRecord(DbcRecord record)
     {
         return new SpellItemEnchantmentDbcRecord(
@@ -397,9 +457,12 @@ public sealed class ItemDbcDataStore
             DbcRecordReader.ReadInt32(record, 23));
     }
 
-    /**
-      * Parses read durability cost record input into the strongly typed server representation.
-      */
+    // Method: ReadDurabilityCostRecord
+    // Purpose: Retrieves read durability cost record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the durability cost DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static DurabilityCostDbcRecord ReadDurabilityCostRecord(DbcRecord record)
     {
         return new DurabilityCostDbcRecord(
@@ -408,9 +471,12 @@ public sealed class ItemDbcDataStore
             Enumerable.Range(22, 8).Select(fieldIndex => DbcRecordReader.ReadInt32(record, fieldIndex)).ToArray());
     }
 
-    /**
-      * Parses read durability quality record input into the strongly typed server representation.
-      */
+    // Method: ReadDurabilityQualityRecord
+    // Purpose: Retrieves read durability quality record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the durability quality DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static DurabilityQualityDbcRecord ReadDurabilityQualityRecord(DbcRecord record)
     {
         return new DurabilityQualityDbcRecord(

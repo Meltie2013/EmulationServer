@@ -15,117 +15,129 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/ProxyServer/Configuration/ProxyDependencySettings.cs
-  * Documents the ProxyDependencySettings source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/ProxyServer/Configuration/ProxyDependencySettings.cs
+// Purpose: Contains proxy dependency settings code for the proxy server gateway, internal routing, and public connection coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.ProxyServer.Configuration;
 
-/**
-  * Owns the proxy dependency settings behavior for the proxy startup, service discovery, and client-routing support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ProxyDependencySettings
+// Purpose: Provides proxy dependency settings behavior for the proxy server gateway, internal routing, and public connection coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ProxyDependencySettings
 {
-    /**
-      * Gets or stores the critical servers value used by ProxyDependencySettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Method: string
+    // Purpose: Executes the string operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - OrdinalIgnoreCase: Ordinal ignore case value supplied by the caller for this operation.
+    // Returns: Returns the I read only set critical servers { get; init; } = new hash set< value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlySet<string> CriticalServers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "WorldServer",
     };
 
-    /**
-      * Gets or stores the non critical servers value used by ProxyDependencySettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: string
+    // Purpose: Executes the string operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - OrdinalIgnoreCase: Ordinal ignore case value supplied by the caller for this operation.
+    // Returns: Returns the I read only set non critical servers { get; init; } = new hash set< value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlySet<string> NonCriticalServers { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "MapServer",
         "InstanceServer",
     };
 
-    /**
-      * Gets or stores the critical server packet timeout value used by ProxyDependencySettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span critical server packet timeout { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan CriticalServerPacketTimeout { get; init; } = TimeSpan.FromSeconds(45);
 
-    /**
-      * Gets or stores the non critical reconnect report interval value used by ProxyDependencySettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span non critical reconnect report interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan NonCriticalReconnectReportInterval { get; init; } = TimeSpan.FromSeconds(30);
 
-    /**
-      * Gets or stores the maximum window where ProxyServer keeps reporting that a non-critical service is down.
-      * Once this timeout expires, ProxyServer resets the dependency to passive wait mode and stops repeated reconnect warnings.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span non critical reconnect timeout { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan NonCriticalReconnectTimeout { get; init; } = TimeSpan.FromSeconds(120);
 
-    /**
-      * Gets whether ProxyServer should log health state changes and periodic health summaries.
-      */
+    // Property: Gets or sets the health logging enabled value used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: health logging enabled value exposed by the owning type.
     public bool HealthLoggingEnabled { get; init; } = true;
 
-    /**
-      * Gets how often unchanged health state summaries can be logged again.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span health report interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan HealthReportInterval { get; init; } = TimeSpan.FromSeconds(30);
 
-    /**
-      * Gets how long a health data source can go without reporting before it is treated as stale.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span health status stale timeout { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan HealthStatusStaleTimeout { get; init; } = TimeSpan.FromSeconds(45);
 
-    /**
-      * Gets the latency where a connected internal server starts becoming degraded.
-      */
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span degraded latency threshold { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan DegradedLatencyThreshold { get; init; } = TimeSpan.FromMilliseconds(150);
 
-    /**
-      * Gets the latency where a connected internal server is treated as unhealthy.
-      */
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span unhealthy latency threshold { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan UnhealthyLatencyThreshold { get; init; } = TimeSpan.FromMilliseconds(500);
 
-    /**
-      * Gets the percent load pressure where a server or map service starts becoming degraded.
-      */
+    // Property: Gets or sets the degraded load percent value used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: degraded load percent value exposed by the owning type.
     public double DegradedLoadPercent { get; init; } = 70d;
 
-    /**
-      * Gets the percent load pressure where a server or map service is treated as unhealthy.
-      */
+    // Property: Gets or sets the unhealthy load percent value used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: unhealthy load percent value exposed by the owning type.
     public double UnhealthyLoadPercent { get; init; } = 90d;
 
-    /**
-      * Gets the average map tick time where a map service starts becoming degraded.
-      */
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span degraded average tick threshold { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan DegradedAverageTickThreshold { get; init; } = TimeSpan.FromMilliseconds(50);
 
-    /**
-      * Gets the average map tick time where a map service is treated as unhealthy.
-      */
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span unhealthy average tick threshold { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan UnhealthyAverageTickThreshold { get; init; } = TimeSpan.FromMilliseconds(200);
 
-    /**
-      * Gets how many consecutive missed pongs make ping health degraded.
-      */
+    // Property: Gets or sets the degraded ping miss count value used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: degraded ping miss count value exposed by the owning type.
     public int DegradedPingMissCount { get; init; } = 1;
 
-    /**
-      * Gets how many consecutive missed pongs make ping health unhealthy.
-      */
+    // Property: Gets or sets the unhealthy ping miss count value used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: unhealthy ping miss count value exposed by the owning type.
     public int UnhealthyPingMissCount { get; init; } = 3;
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (CriticalServers.Count == 0)
@@ -204,10 +216,12 @@ public sealed class ProxyDependencySettings
         }
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of ProxyDependencySettings and keeps this workflow isolated from the caller.
-      */
+    // Method: ValidateServerName
+    // Purpose: Validates or evaluates validate server name rules for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencySettings so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateServerName(string serverName)
     {
         if (string.IsNullOrWhiteSpace(serverName))

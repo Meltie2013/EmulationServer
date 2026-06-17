@@ -15,21 +15,39 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/InGameCommandService.cs
+// Purpose: Contains in game command service code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Parses in-game chat command text, resolves the matching handler, checks RBAC permissions, and executes the command.
-  * Command behavior is owned by individual command files; this service only handles common routing and validation.
-  */
+// Type: InGameCommandService
+// Purpose: Provides in game command service behavior for the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - dependencies: Dependencies value supplied by the caller for this operation.
+// - registry: Registry value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InGameCommandService(InGameCommandDependencies? dependencies = null, InGameCommandRegistry? registry = null)
 {
+    // Method: CreateDefault
+    // Purpose: Applies create default changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the in game command registry registry = registry ?? in game command registry. value produced by this operation.
+    // Notes: This keeps the operation scoped to InGameCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private readonly InGameCommandRegistry _registry = registry ?? InGameCommandRegistry.CreateDefault();
+    // Field: Stores the dependencies state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current dependencies backing value maintained by the owning type.
     private readonly InGameCommandDependencies _dependencies = dependencies ?? InGameCommandDependencies.Empty;
 
-    /**
-      * Executes an in-game command and returns the system message text that should be sent back to the player.
-      */
+    // Method: ExecuteAsync
+    // Purpose: Controls the execute lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - commandText: Command text value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to InGameCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<string> ExecuteAsync(IInGameCommandSession session, string commandText, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -59,9 +77,12 @@ public sealed class InGameCommandService(InGameCommandDependencies? dependencies
         return await command.ExecuteAsync(context, cancellationToken);
     }
 
-    /**
-      * Removes the leading chat command prefix before token parsing.
-      */
+    // Method: NormalizeCommandText
+    // Purpose: Converts incoming data into normalize command text form for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - commandText: Command text value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InGameCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeCommandText(string commandText)
     {
         string normalized = (commandText ?? string.Empty).Trim();

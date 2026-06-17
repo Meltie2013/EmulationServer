@@ -15,87 +15,62 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/RealmServer/Configuration/ConfiguredRealmSettings.cs
-  * Documents the ConfiguredRealmSettings source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/RealmServer/Configuration/ConfiguredRealmSettings.cs
+// Purpose: Contains configured realm settings code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.RealmServer.Realms;
 
 namespace EmulationServer.RealmServer.Configuration;
 
-/**
-  * Owns the configured realm settings behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ConfiguredRealmSettings
+// Purpose: Provides configured realm settings behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ConfiguredRealmSettings
 {
-    /**
-      * Gets or stores the id value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the ID value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: ID value exposed by the owning type.
     public uint Id { get; init; }
 
-    /**
-      * Gets or stores the name value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the name value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: name value exposed by the owning type.
     public string Name { get; init; } = "Emulation Server";
 
-    /**
-      * Gets or stores the address value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the address value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: address value exposed by the owning type.
     public string Address { get; init; } = "127.0.0.1";
 
-    /**
-      * Gets or stores the port value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the port value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: port value exposed by the owning type.
     public ushort Port { get; init; } = 8085;
 
-    /**
-      * Gets or stores the icon value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the icon value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: icon value exposed by the owning type.
     public byte Icon { get; init; }
 
-    /**
-      * Gets or stores the realm flags value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the realm flags value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: realm flags value exposed by the owning type.
     public RealmFlags RealmFlags { get; init; }
 
-    /**
-      * Gets or stores the timezone value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the timezone value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: timezone value exposed by the owning type.
     public byte Timezone { get; init; } = 1;
 
-    /**
-      * Gets or stores the allowed security level value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the allowed security level value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: allowed security level value exposed by the owning type.
     public byte AllowedSecurityLevel { get; init; }
 
-    /**
-      * Gets or stores the online value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the online value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: online value exposed by the owning type.
     public bool Online { get; init; }
 
-    /**
-      * Gets or stores the active connections value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the active connections value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: active connections value exposed by the owning type.
     public int ActiveConnections { get; init; }
 
-    /**
-      * Gets or stores the builds value used by ConfiguredRealmSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the builds value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: builds value exposed by the owning type.
     public IReadOnlySet<ushort> Builds { get; init; } = new HashSet<ushort>
     {
         5875,
@@ -106,10 +81,11 @@ public sealed class ConfiguredRealmSettings
         15595
     };
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of ConfiguredRealmSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealmSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (Id == 0)

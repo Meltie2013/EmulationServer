@@ -15,17 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/InGameCommandRegistry.cs
+// Purpose: Contains in game command registry code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Registers chat command handlers and resolves command names or aliases to a single handler.
-  * The registry replaces the old switch-based command list so new commands can be added as separate files.
-  */
+// Type: InGameCommandRegistry
+// Purpose: Provides in game command registry behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InGameCommandRegistry
 {
+    // Field: Stores the string state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current string backing value maintained by the owning type.
     private readonly Dictionary<string, IChatCommand> _commandsByToken;
 
+    // Constructor: InGameCommandRegistry
+    // Purpose: Initializes a new InGameCommandRegistry instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - commands: Commands value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public InGameCommandRegistry(IEnumerable<IChatCommand> commands)
     {
         ArgumentNullException.ThrowIfNull(commands);
@@ -42,9 +52,11 @@ public sealed class InGameCommandRegistry
         Commands = [.. commandList.OrderBy(command => command.Name, StringComparer.OrdinalIgnoreCase)];
     }
 
-    /**
-      * Creates the built-in command registry used by WorldServer.
-      */
+    // Method: CreateDefault
+    // Purpose: Applies create default changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the in game command registry value produced by this operation.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public static InGameCommandRegistry CreateDefault()
     {
         return new InGameCommandRegistry(
@@ -59,9 +71,13 @@ public sealed class InGameCommandRegistry
         ]);
     }
 
-    /**
-      * Attempts to resolve a command name or alias.
-      */
+    // Method: TryGetCommand
+    // Purpose: Attempts to retrieve or parse try get command data without treating normal misses as failures.
+    // Parameters:
+    // - token: Token value supplied by the caller for this operation.
+    // - command: Database command used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns true when try get command succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetCommand(string token, out IChatCommand command)
     {
         if (_commandsByToken.TryGetValue(token, out IChatCommand? resolved))
@@ -74,14 +90,16 @@ public sealed class InGameCommandRegistry
         return false;
     }
 
-    /**
-      * Returns one entry per command, excluding aliases.
-      */
+    // Property: Gets or sets the commands value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: commands value exposed by the owning type.
     public IReadOnlyList<IChatCommand> Commands { get; }
 
-    /**
-      * Returns the commands visible to the supplied session after RBAC checks.
-      */
+    // Method: GetAvailableCommands
+    // Purpose: Retrieves get available commands data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<IChatCommand> GetAvailableCommands(IInGameCommandSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -89,9 +107,14 @@ public sealed class InGameCommandRegistry
         return [.. Commands.Where(command => session.HasPermission(command.RequiredPermission))];
     }
 
-    /**
-      * Registers the primary command name and every alias while rejecting duplicate tokens early during startup.
-      */
+    // Method: RegisterCommand
+    // Purpose: Executes the register command operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - command: Database command used to execute this operation without opening unnecessary additional state.
+    // - commandsByToken: Commands by token value supplied by the caller for this operation.
+    // - commandList: Command list value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     private static void RegisterCommand(
         IChatCommand command,
         Dictionary<string, IChatCommand> commandsByToken,
@@ -118,9 +141,14 @@ public sealed class InGameCommandRegistry
         commandList.Add(command);
     }
 
-    /**
-      * Adds one lookup token to the registry.
-      */
+    // Method: AddToken
+    // Purpose: Applies add token changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - token: Token value supplied by the caller for this operation.
+    // - command: Database command used to execute this operation without opening unnecessary additional state.
+    // - commandsByToken: Commands by token value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     private static void AddToken(string token, IChatCommand command, Dictionary<string, IChatCommand> commandsByToken)
     {
         if (commandsByToken.TryGetValue(token, out IChatCommand? existing))
@@ -131,9 +159,12 @@ public sealed class InGameCommandRegistry
         commandsByToken[token] = command;
     }
 
-    /**
-      * Normalizes command tokens so handlers do not need to care whether an alias was configured with a dot prefix.
-      */
+    // Method: NormalizeToken
+    // Purpose: Converts incoming data into normalize token form for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - token: Token value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InGameCommandRegistry so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeToken(string token)
     {
         token = token.Trim();

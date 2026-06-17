@@ -15,45 +15,42 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/DbcRecord.cs
+// Purpose: Contains DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Text;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecord.cs
-  * Documents the DbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Owns the dbc record behavior for the DBC loading and strongly typed client data records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: DbcRecord
+// Purpose: Represents the DBC record value type used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly struct DbcRecord
 {
-    /**
-      * Holds the private record data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the record data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current record data backing value maintained by the owning type.
     private readonly ReadOnlyMemory<byte> _recordData;
-    /**
-      * Holds the private string block state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the string block state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current string block backing value maintained by the owning type.
     private readonly ReadOnlyMemory<byte> _stringBlock;
-    /**
-      * Holds the private field size state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the field size state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current field size backing value maintained by the owning type.
     private readonly int _fieldSize;
 
-    /**
-      * Initializes a new DbcRecord instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: recordData, stringBlock, fieldCount, fieldSize.
-      */
+    // Constructor: DbcRecord
+    // Purpose: Initializes a new DbcRecord instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - recordData: Record data value supplied by the caller for this operation.
+    // - stringBlock: String block value supplied by the caller for this operation.
+    // - fieldCount: Field count value supplied by the caller for this operation.
+    // - fieldSize: Field size value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     internal DbcRecord(ReadOnlyMemory<byte> recordData, ReadOnlyMemory<byte> stringBlock, int fieldCount, int fieldSize)
     {
         _recordData = recordData;
@@ -62,22 +59,23 @@ public readonly struct DbcRecord
         _fieldSize = fieldSize;
     }
 
-    /**
-      * Gets or stores the field count value used by DbcRecord.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the field count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: field count value exposed by the owning type.
     public int FieldCount { get; }
 
-    /**
-      * Gets or stores the id value used by DbcRecord.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: GetUInt32
+    // Purpose: Retrieves get U int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the uint ID => value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public uint Id => GetUInt32(0);
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetUInt8
+    // Purpose: Retrieves get U int8 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public byte GetUInt8(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -86,10 +84,12 @@ public readonly struct DbcRecord
         return _recordData.Span[GetFieldOffset(fieldIndex)];
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetUInt16
+    // Purpose: Retrieves get U int16 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the ushort value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public ushort GetUInt16(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -99,10 +99,12 @@ public readonly struct DbcRecord
             _recordData.Span.Slice(GetFieldOffset(fieldIndex), sizeof(ushort)));
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetUInt32
+    // Purpose: Retrieves get U int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetUInt32(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -120,19 +122,23 @@ public readonly struct DbcRecord
         };
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetInt32
+    // Purpose: Retrieves get int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public int GetInt32(int fieldIndex)
     {
         return unchecked((int)GetUInt32(fieldIndex));
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetSingle
+    // Purpose: Retrieves get single data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public float GetSingle(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -141,10 +147,12 @@ public readonly struct DbcRecord
         return BitConverter.Int32BitsToSingle(unchecked((int)GetUInt32(fieldIndex)));
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetString
+    // Purpose: Retrieves get string data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public string GetString(int fieldIndex)
     {
         ValidateFieldIndex(fieldIndex);
@@ -153,10 +161,12 @@ public readonly struct DbcRecord
         return GetStringAtOffset(GetUInt32(fieldIndex));
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetStringAtOffset
+    // Purpose: Retrieves get string at offset data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - offset: Offset value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public string GetStringAtOffset(uint offset)
     {
         ReadOnlySpan<byte> strings = _stringBlock.Span;
@@ -177,19 +187,22 @@ public readonly struct DbcRecord
         return Encoding.UTF8.GetString(text[..terminator]);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetRawData
+    // Purpose: Retrieves get raw data data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the read only span value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     public ReadOnlySpan<byte> GetRawData()
     {
         return _recordData.Span;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: GetFieldOffset
+    // Purpose: Retrieves get field offset data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     private int GetFieldOffset(int fieldIndex)
     {
         if (_fieldSize <= 0)
@@ -201,10 +214,12 @@ public readonly struct DbcRecord
         return fieldIndex * _fieldSize;
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of DbcRecord and keeps this workflow isolated from the caller.
-      */
+    // Method: ValidateFieldIndex
+    // Purpose: Validates or evaluates validate field index rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     private void ValidateFieldIndex(int fieldIndex)
     {
         if (fieldIndex < 0 || fieldIndex >= FieldCount)
@@ -213,11 +228,13 @@ public readonly struct DbcRecord
         }
     }
 
-    /**
-      * Validates ensure field size state before it is used by another server component.
-      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-      * Inputs used by this operation: fieldIndex, minimumFieldSize.
-      */
+    // Method: EnsureFieldSize
+    // Purpose: Validates or evaluates ensure field size rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // - minimumFieldSize: Minimum field size value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcRecord so callers do not duplicate validation, protocol, or persistence rules.
     private void EnsureFieldSize(int fieldIndex, int minimumFieldSize)
     {
         if (_fieldSize < minimumFieldSize)

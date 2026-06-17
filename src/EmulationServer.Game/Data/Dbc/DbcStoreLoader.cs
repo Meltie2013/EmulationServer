@@ -15,24 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/DbcStoreLoader.cs
+// Purpose: Contains DBC store loader code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcStoreLoader.cs
-  * Documents the DbcStoreLoader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Owns the dbc store loader behavior for the DBC loading and strongly typed client data records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: DbcStoreLoader
+// Purpose: Provides DBC store loader behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class DbcStoreLoader
 {
+    // Method: LoadRequiredStores
+    // Purpose: Retrieves load required stores data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcDirectory: Dbc directory value supplied by the caller for this operation.
+    // - requiredDbcFiles: Required DBC files value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcStoreLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static Dictionary<string, DbcDataStore> LoadRequiredStores(string dbcDirectory, IEnumerable<string> requiredDbcFiles, string ownerName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dbcDirectory);
@@ -58,16 +62,24 @@ public static class DbcStoreLoader
             string path = Path.Combine(fullDbcDirectory, fileName);
             DbcDataStore store = DbcDataStore.Load(path);
             stores[store.Name] = store;
+
+            Logger.Write(
+                LogType.DATABASE,
+                $"{ownerName}: DBC `{store.Name}` loaded {store.RecordCount} record(s), {store.FieldCount} field(s).",
+                "DbcStoreLoader");
         }
 
         Logger.Write(LogType.SUCCESS, $"{ownerName}: loaded required DBC files (count={stores.Count}, path='{fullDbcDirectory}').", "DbcStoreLoader");
         return stores;
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of DbcStoreLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ValidateRequiredDbcFiles
+    // Purpose: Validates or evaluates validate required DBC files rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcDirectory: Dbc directory value supplied by the caller for this operation.
+    // - requiredDbcFiles: Required DBC files value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcStoreLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateRequiredDbcFiles(string dbcDirectory, IEnumerable<string> requiredDbcFiles)
     {
         List<string> missingFiles = [];

@@ -15,19 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcRecord.cs
-  * Documents the SpellDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcRecord.cs
+// Purpose: Contains spell DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * Represents one Spell.dbc row with core fields needed by early character data validation.
-  * Positional fields carried by this record: Id, School, Category, DispelType, Mechanic, Attributes, AttributesEx, CastingTimeIndex, DurationIndex, PowerType, ManaCost, RangeIndex, SpellIconId, Name, NameSubText, Description.
-  */
+// Type: SpellDbcRecord
+// Purpose: Represents spell DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - School: School value supplied by the caller for this operation.
+// - Category: Category value supplied by the caller for this operation.
+// - DispelType: Dispel type value supplied by the caller for this operation.
+// - Mechanic: Mechanic value supplied by the caller for this operation.
+// - Attributes: Attributes value supplied by the caller for this operation.
+// - AttributesEx: Attributes ex value supplied by the caller for this operation.
+// - CastingTimeIndex: Casting time index value supplied by the caller for this operation.
+// - DurationIndex: Duration index value supplied by the caller for this operation.
+// - PowerType: Power type value supplied by the caller for this operation.
+// - ManaCost: Mana cost value supplied by the caller for this operation.
+// - RangeIndex: Range index value supplied by the caller for this operation.
+// - SpellIconId: Spell icon ID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - NameSubText: Name sub text value supplied by the caller for this operation.
+// - Description: Description value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record SpellDbcRecord(
     int Id,
     int School,

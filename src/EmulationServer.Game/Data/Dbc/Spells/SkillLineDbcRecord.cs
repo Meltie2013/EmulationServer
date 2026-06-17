@@ -15,17 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SkillLineDbcRecord.cs
-  * Documents the SkillLineDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Spells/SkillLineDbcRecord.cs
+// Purpose: Contains skill line DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * Represents one SkillLine.dbc row.
-  * Positional fields carried by this record: Id, SkillLineCategoryId, SkillCostId, DisplayName, Description, SpellIconId.
-  */
+// Type: SkillLineDbcRecord
+// Purpose: Represents skill line DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - SkillLineCategoryId: Skill line category ID identifier used to select the exact record, object, or runtime owner.
+// - SkillCostId: Skill cost ID identifier used to select the exact record, object, or runtime owner.
+// - DisplayName: Display name value supplied by the caller for this operation.
+// - Description: Description value supplied by the caller for this operation.
+// - SpellIconId: Spell icon ID identifier used to select the exact record, object, or runtime owner.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record SkillLineDbcRecord(int Id, int SkillLineCategoryId, int SkillCostId, string DisplayName, string Description, int SpellIconId);

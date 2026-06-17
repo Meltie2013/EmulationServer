@@ -15,19 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemSubClassDbcRecord.cs
-  * Documents the ItemSubClassDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Items/ItemSubClassDbcRecord.cs
+// Purpose: Contains item sub class DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Represents one ItemSubClass.dbc row used to classify item templates.
-  * Positional fields carried by this record: ItemClassId, SubClassId, PrerequisiteProficiency, PostrequisiteProficiency, Flags, DisplayFlags, DisplayName, VerboseName.
-  */
+// Type: ItemSubClassDbcRecord
+// Purpose: Represents item sub class DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - ItemClassId: Item class ID identifier used to select the exact record, object, or runtime owner.
+// - SubClassId: Sub class ID identifier used to select the exact record, object, or runtime owner.
+// - PrerequisiteProficiency: Prerequisite proficiency value supplied by the caller for this operation.
+// - PostrequisiteProficiency: Postrequisite proficiency value supplied by the caller for this operation.
+// - Flags: Flags value supplied by the caller for this operation.
+// - DisplayFlags: Display flags value supplied by the caller for this operation.
+// - DisplayName: Display name value supplied by the caller for this operation.
+// - VerboseName: Verbose name value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record ItemSubClassDbcRecord(
     int ItemClassId,
     int SubClassId,

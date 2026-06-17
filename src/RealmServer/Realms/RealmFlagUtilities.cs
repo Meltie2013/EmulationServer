@@ -15,30 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Realms/RealmFlagUtilities.cs
+// Purpose: Contains realm flag utilities code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
 namespace EmulationServer.RealmServer.Realms;
 
-/**
-  * Provides parsing and validation helpers for realm-list flags configured by administrators.
-  */
+// Type: RealmFlagUtilities
+// Purpose: Provides realm flag utilities behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class RealmFlagUtilities
 {
-    /**
-      * Flags accepted from realm configuration.
-      * Keeps only these config flags and masks the remaining protocol bits out.
-      */
+
     public const RealmFlags ConfigurableFlags = RealmFlags.Invalid
         | RealmFlags.Offline
         | RealmFlags.SpecifyBuild
         | RealmFlags.NewPlayers
         | RealmFlags.Recommended;
 
-    /**
-      * Parses RealmFlags from decimal, hexadecimal, or symbolic text.
-      * Examples: 0, 0x20, NewPlayers, Recommended, NewPlayers|Recommended.
-      */
+    // Method: ParseConfigurationValue
+    // Purpose: Converts incoming data into parse configuration value form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the realm flags value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     public static RealmFlags ParseConfigurationValue(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -58,17 +60,23 @@ public static class RealmFlagUtilities
         return flags;
     }
 
-    /**
-      * Removes unsupported config flags and preserves only supported configured bits.
-      */
+    // Method: SanitizeConfiguredFlags
+    // Purpose: Executes the sanitize configured flags operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - flags: Flags value supplied by the caller for this operation.
+    // Returns: Returns the realm flags value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     public static RealmFlags SanitizeConfiguredFlags(RealmFlags flags)
     {
         return flags & ConfigurableFlags;
     }
 
-    /**
-      * Throws when unsupported protocol-only flags are supplied through configuration.
-      */
+    // Method: EnsureConfigurationFlagsAreSupported
+    // Purpose: Validates or evaluates ensure configuration flags are supported rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - flags: Flags value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     public static void EnsureConfigurationFlagsAreSupported(RealmFlags flags)
     {
         RealmFlags unsupportedFlags = flags & ~ConfigurableFlags;
@@ -80,19 +88,33 @@ public static class RealmFlagUtilities
         }
     }
 
-    /**
-      * Returns a user-readable list of safe configuration flags.
-      */
+    // Method: FormatAllowedConfigurationFlags
+    // Purpose: Executes the format allowed configuration flags operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatAllowedConfigurationFlags()
     {
         return "Invalid (0x01), Offline (0x02), SpecifyBuild (0x04), NewPlayers (0x20), Recommended (0x40)";
     }
 
+    // Method: SplitFlagTokens
+    // Purpose: Executes the split flag tokens operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<string> SplitFlagTokens(string value)
     {
         return value.Split([';', ',', '|'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
 
+    // Method: ParseToken
+    // Purpose: Converts incoming data into parse token form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - token: Token value supplied by the caller for this operation.
+    // Returns: Returns the realm flags value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmFlags ParseToken(string token)
     {
         if (TryParseNumericToken(token, out byte numericValue))
@@ -115,6 +137,13 @@ public static class RealmFlagUtilities
         };
     }
 
+    // Method: TryParseNumericToken
+    // Purpose: Attempts to retrieve or parse try parse numeric token data without treating normal misses as failures.
+    // Parameters:
+    // - token: Token value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try parse numeric token succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseNumericToken(string token, out byte value)
     {
         string text = token.Trim();
@@ -127,6 +156,12 @@ public static class RealmFlagUtilities
         return byte.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
     }
 
+    // Method: NormalizeToken
+    // Purpose: Converts incoming data into normalize token form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - token: Token value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmFlagUtilities so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeToken(string token)
     {
         return token

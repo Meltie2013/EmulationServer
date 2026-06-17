@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Movement/WorldMovementPacketParser.cs
+// Purpose: Contains world movement packet parser code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Diagnostics.CodeAnalysis;
 
@@ -22,50 +25,34 @@ using EmulationServer.Game.Movement;
 using EmulationServer.Game.Players;
 using EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * File overview: src/WorldServer/Networking/Movement/WorldMovementPacketParser.cs
-  * Documents the WorldMovementPacketParser source file in the world movement opcode parsing and server-side movement state updates area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Movement;
 
-/**
-  * Owns the world movement packet parser behavior for the world movement opcode parsing and server-side movement state updates layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldMovementPacketParser
+// Purpose: Provides world movement packet parser behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldMovementPacketParser
 {
-    /**
-      * Defines the constant value for ack movement info offset.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the ack movement info offset constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed ack movement info offset value used anywhere this rule or protocol value is needed.
     private const int AckMovementInfoOffset = 12;
-    /**
-      * Defines the constant value for maximum map coordinate.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum map coordinate constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed maximum map coordinate value used anywhere this rule or protocol value is needed.
     private const float MaximumMapCoordinate = 100000.0f;
-    /**
-      * Defines the constant value for minimum map height.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the minimum map height constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed minimum map height value used anywhere this rule or protocol value is needed.
     private const float MinimumMapHeight = -5000.0f;
-    /**
-      * Defines the constant value for maximum map height.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum map height constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed maximum map height value used anywhere this rule or protocol value is needed.
     private const float MaximumMapHeight = 10000.0f;
-    /**
-      * Defines the constant value for maximum transport offset.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum transport offset constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed maximum transport offset value used anywhere this rule or protocol value is needed.
     private const float MaximumTransportOffset = 500.0f;
 
-    /**
-      * Defines the constant value for pitch flags.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
     private const MovementFlags PitchFlags =
         MovementFlags.Swimming |
         MovementFlags.Flying |
@@ -74,11 +61,15 @@ public static class WorldMovementPacketParser
         MovementFlags.PitchUp |
         MovementFlags.PitchDown;
 
-    /**
-      * Tries to resolve the read movement state value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player, opcode, payload, state.
-      */
+    // Method: TryReadMovementState
+    // Purpose: Attempts to retrieve or parse try read movement state data without treating normal misses as failures.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - bytepayload: Bytepayload value supplied by the caller for this operation.
+    // - state: State value supplied by the caller for this operation.
+    // Returns: Returns true when try read movement state succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementPacketParser so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryReadMovementState(
         PlayerLoginRecord player,
         WorldOpcode opcode,
@@ -174,11 +165,13 @@ public static class WorldMovementPacketParser
         }
     }
 
-    /**
-      * Resolves the movement info offset value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: opcode, payloadLength.
-      */
+    // Method: ResolveMovementInfoOffset
+    // Purpose: Retrieves resolve movement info offset data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - payloadLength: Payload length value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldMovementPacketParser so callers do not duplicate validation, protocol, or persistence rules.
     private static int ResolveMovementInfoOffset(WorldOpcode opcode, int payloadLength)
     {
         if (WorldMovementOpcode.HasMovementInfoAtPayloadStart(opcode))
@@ -194,11 +187,12 @@ public static class WorldMovementPacketParser
         return -1;
     }
 
-    /**
-      * Determines whether valid position for the world movement opcode parsing and server-side movement state updates workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: position.
-      */
+    // Method: IsValidPosition
+    // Purpose: Validates or evaluates is valid position rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - position: Position value supplied by the caller for this operation.
+    // Returns: Returns true when is valid position succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementPacketParser so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsValidPosition(MovementPosition position)
     {
         return position.IsFinite &&
@@ -210,11 +204,12 @@ public static class WorldMovementPacketParser
             position.Orientation <= 100.0f;
     }
 
-    /**
-      * Determines whether valid transport for the world movement opcode parsing and server-side movement state updates workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: transport.
-      */
+    // Method: IsValidTransport
+    // Purpose: Validates or evaluates is valid transport rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - transport: Transport value supplied by the caller for this operation.
+    // Returns: Returns true when is valid transport succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldMovementPacketParser so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsValidTransport(TransportMovementInfo? transport)
     {
         if (transport is null)

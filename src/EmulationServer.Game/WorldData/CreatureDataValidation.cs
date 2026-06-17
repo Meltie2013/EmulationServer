@@ -15,27 +15,30 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/CreatureDataValidation.cs
+// Purpose: Contains creature data validation code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Centralizes creature/NPC data gates used by the world cache, internal snapshots, and map runtime.
-  * The loader must be permissive enough to cache real Mangos Zero rows. Some valid creature templates rely on
-  * spawn-level model ids, UnitClass defaults, or runtime health defaults, so those fields are normalized later
-  * instead of causing the whole row to be dropped during startup.
-  */
+// Type: CreatureDataValidation
+// Purpose: Provides creature data validation behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class CreatureDataValidation
 {
+    // Constant: Defines the minimum creature scale constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed minimum creature scale value used anywhere this rule or protocol value is needed.
     private const float MinimumCreatureScale = 0.0001f;
+    // Constant: Defines the maximum creature scale constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed maximum creature scale value used anywhere this rule or protocol value is needed.
     private const float MaximumCreatureScale = 100.0f;
 
-    /**
-      * Returns whether a creature_template row is safe to cache and forward to MapServer/InstanceServer.
-      * Keep this gate intentionally permissive: Mangos Zero data contains valid helper/trigger/templates with
-      * zero levels, zero models, zero UnitClass, or incomplete stat pools. Runtime/client visibility decides
-      * which rows are renderable; the world cache should not drop valid template entries before spawns can
-      * resolve their references.
-      */
+    // Method: IsLoadableTemplate
+    // Purpose: Validates or evaluates is loadable template rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when is loadable template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsLoadableTemplate(CreatureTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -53,11 +56,12 @@ public static class CreatureDataValidation
             IsFiniteNonNegative(template.ExperienceMultiplier);
     }
 
-    /**
-      * Returns whether a creature spawn row is safe to cache and hand to map runtime.
-      * zoneId/areaId remain required because the project uses those resolved fields to prevent unresolved rows
-      * from entering runtime map ownership. curhealth can be zero in imported data and is normalized at runtime.
-      */
+    // Method: IsLoadableSpawn
+    // Purpose: Validates or evaluates is loadable spawn rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // Returns: Returns true when is loadable spawn succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsLoadableSpawn(CreatureSpawnRecord spawn)
     {
         ArgumentNullException.ThrowIfNull(spawn);
@@ -71,10 +75,13 @@ public static class CreatureDataValidation
             IsFiniteNonNegative(spawn.SpawnDistance);
     }
 
-    /**
-      * Resolves the display model that should be used for a creature spawn.
-      * The spawn override wins because Mangos creature rows can set modelid even when template ModelId1-4 are zero.
-      */
+    // Method: ResolveDisplayModelId
+    // Purpose: Retrieves resolve display model ID data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static uint ResolveDisplayModelId(CreatureSpawnRecord spawn, CreatureTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(spawn);
@@ -83,17 +90,25 @@ public static class CreatureDataValidation
         return spawn.ModelId != 0 ? spawn.ModelId : template.GetPreferredModelId();
     }
 
-    /**
-      * Returns whether a creature spawn/template pair has enough display data for future client create packets.
-      */
+    // Method: HasClientVisibleDisplay
+    // Purpose: Validates or evaluates has client visible display rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when has client visible display succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool HasClientVisibleDisplay(CreatureSpawnRecord spawn, CreatureTemplateRecord template)
     {
         return ResolveDisplayModelId(spawn, template) != 0;
     }
 
-    /**
-      * Returns whether a creature spawn/template pair is safe to serialize into a first-pass client UNIT create block.
-      */
+    // Method: IsClientVisibleCreature
+    // Purpose: Validates or evaluates is client visible creature rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when is client visible creature succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsClientVisibleCreature(CreatureSpawnRecord spawn, CreatureTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(spawn);
@@ -107,21 +122,47 @@ public static class CreatureDataValidation
             template.GetEffectiveMaxLevel() >= template.GetEffectiveMinLevel();
     }
 
+    // Method: IsFiniteRecoverableScale
+    // Purpose: Validates or evaluates is finite recoverable scale rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when is finite recoverable scale succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsFiniteRecoverableScale(float value)
     {
         return float.IsFinite(value) && value >= 0.0f && value <= MaximumCreatureScale;
     }
 
+    // Method: IsFinitePositiveScale
+    // Purpose: Validates or evaluates is finite positive scale rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when is finite positive scale succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsFinitePositiveScale(float value)
     {
         return float.IsFinite(value) && value >= MinimumCreatureScale && value <= MaximumCreatureScale;
     }
 
+    // Method: IsFiniteNonNegative
+    // Purpose: Validates or evaluates is finite non negative rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when is finite non negative succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsFiniteNonNegative(float value)
     {
         return float.IsFinite(value) && value >= 0.0f;
     }
 
+    // Method: IsFiniteWorldPosition
+    // Purpose: Validates or evaluates is finite world position rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - x: X value supplied by the caller for this operation.
+    // - y: Y value supplied by the caller for this operation.
+    // - z: Z value supplied by the caller for this operation.
+    // Returns: Returns true when is finite world position succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsFiniteWorldPosition(float x, float y, float z)
     {
         return float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z);

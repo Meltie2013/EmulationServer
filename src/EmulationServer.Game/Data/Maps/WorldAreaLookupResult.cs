@@ -15,14 +15,22 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/WorldAreaLookupResult.cs
+// Purpose: Contains world area lookup result code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Carries the result of resolving a world coordinate to AreaTable identifiers.
-  * ZoneId is always the parent/root AreaTable id and AreaId is the exact sub-area when terrain data can provide it.
-  */
+// Type: WorldAreaLookupResult
+// Purpose: Represents world area lookup result data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - ZoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+// - AreaId: Area ID identifier used to select the exact record, object, or runtime owner.
+// - Source: Source value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct WorldAreaLookupResult(uint ZoneId, uint AreaId, string Source)
 {
+    // Property: Gets or sets the is resolved value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: is resolved value exposed by the owning type.
     public bool IsResolved => ZoneId != 0 && AreaId != 0;
 }

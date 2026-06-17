@@ -15,13 +15,15 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/CreatureTemplateRecord.cs
+// Purpose: Contains creature template record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries immutable creature_template data from the world database.
-  * The layout mirrors the Mangos Zero core columns used to construct creature/NPC runtime state.
-  */
+// Type: CreatureTemplateRecord
+// Purpose: Represents creature template record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record CreatureTemplateRecord(
     uint Entry,
     string Name,
@@ -98,44 +100,87 @@ public sealed record CreatureTemplateRecord(
     byte Civilian,
     string AIName)
 {
+    // Property: Gets or sets the model ids value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: model ids value exposed by the owning type.
     public IReadOnlyList<uint> ModelIds => [ModelId1, ModelId2, ModelId3, ModelId4];
 
+    // Method: GetPreferredModelId
+    // Purpose: Retrieves get preferred model ID data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetPreferredModelId()
     {
         return ModelIds.FirstOrDefault(modelId => modelId != 0);
     }
 
+    // Method: GetEffectiveMinLevel
+    // Purpose: Retrieves get effective min level data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public byte GetEffectiveMinLevel()
     {
         return MinLevel == 0 ? (byte)1 : MinLevel;
     }
 
+    // Method: GetEffectiveMaxLevel
+    // Purpose: Retrieves get effective max level data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public byte GetEffectiveMaxLevel()
     {
         byte effectiveMinLevel = GetEffectiveMinLevel();
         return MaxLevel == 0 || MaxLevel < effectiveMinLevel ? effectiveMinLevel : MaxLevel;
     }
 
+    // Method: GetEffectiveUnitClass
+    // Purpose: Retrieves get effective unit class data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public byte GetEffectiveUnitClass()
     {
         return UnitClass == 0 ? (byte)1 : UnitClass;
     }
 
+    // Method: GetEffectiveInhabitType
+    // Purpose: Retrieves get effective inhabit type data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public byte GetEffectiveInhabitType()
     {
         return InhabitType == 0 ? (byte)3 : InhabitType;
     }
 
+    // Method: GetEffectiveWalkSpeed
+    // Purpose: Retrieves get effective walk speed data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public float GetEffectiveWalkSpeed()
     {
         return SpeedWalk <= 0 || !float.IsFinite(SpeedWalk) ? 1.0f : SpeedWalk;
     }
 
+    // Method: GetEffectiveRunSpeed
+    // Purpose: Retrieves get effective run speed data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public float GetEffectiveRunSpeed()
     {
         return SpeedRun <= 0 || !float.IsFinite(SpeedRun) ? 1.14286f : SpeedRun;
     }
 
+    // Method: GetEffectiveHealth
+    // Purpose: Retrieves get effective health data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawnHealth: Spawn health value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetEffectiveHealth(uint spawnHealth)
     {
         if (spawnHealth != 0)
@@ -152,6 +197,12 @@ public sealed record CreatureTemplateRecord(
         return Math.Max((uint)GetEffectiveMaxLevel(), 1u) * 42u;
     }
 
+    // Method: GetEffectiveMana
+    // Purpose: Retrieves get effective mana data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawnMana: Spawn mana value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetEffectiveMana(uint spawnMana)
     {
         if (spawnMana != 0)

@@ -15,14 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Game/WorldData/GameObjectWorldTemplateDataStoreTests.cs
+// Purpose: Contains game object world template data store tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.WorldData;
 
 namespace EmulationServer.Tests.Game.WorldData;
 
+// Type: GameObjectWorldTemplateDataStoreTests
+// Purpose: Provides game object world template data store tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class GameObjectWorldTemplateDataStoreTests
 {
     [Fact]
+    // Method: GameObjectSpawns_AreIndexedByMapZoneAndArea
+    // Purpose: Executes the game object spawns are indexed by map zone and area operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GameObjectSpawns_AreIndexedByMapZoneAndArea()
     {
         WorldTemplateDataStore store = CreateStore(
@@ -41,8 +52,12 @@ public sealed class GameObjectWorldTemplateDataStoreTests
         Assert.Equal("Test GameObject 100", template.Name);
     }
 
-
     [Fact]
+    // Method: GameObjectSpawns_SkipRowsWithoutDisplayZoneOrArea
+    // Purpose: Executes the game object spawns skip rows without display zone or area operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GameObjectSpawns_SkipRowsWithoutDisplayZoneOrArea()
     {
         WorldTemplateDataStore store = CreateStore(
@@ -63,6 +78,11 @@ public sealed class GameObjectWorldTemplateDataStoreTests
     }
 
     [Fact]
+    // Method: WithGameObjectSpawns_RebuildsZoneAndAreaIndexes
+    // Purpose: Executes the with game object spawns rebuilds zone and area indexes operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     public void WithGameObjectSpawns_RebuildsZoneAndAreaIndexes()
     {
         WorldTemplateDataStore store = CreateStore(
@@ -79,6 +99,11 @@ public sealed class GameObjectWorldTemplateDataStoreTests
     }
 
     [Fact]
+    // Method: WithGameObjectDataForMap_ReplacesOnlyRequestedMapSpawns
+    // Purpose: Executes the with game object data for map replaces only requested map spawns operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     public void WithGameObjectDataForMap_ReplacesOnlyRequestedMapSpawns()
     {
         WorldTemplateDataStore store = CreateStore(
@@ -101,6 +126,13 @@ public sealed class GameObjectWorldTemplateDataStoreTests
         Assert.False(updated.TryGetGameObjectSpawn(1, out _));
     }
 
+    // Method: CreateStore
+    // Purpose: Applies create store changes for the automated test and verification layer.
+    // Parameters:
+    // - templates: Templates value supplied by the caller for this operation.
+    // - spawns: Spawns value supplied by the caller for this operation.
+    // Returns: Returns the world template data store value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     private static WorldTemplateDataStore CreateStore(
         IEnumerable<GameObjectTemplateRecord> templates,
         IEnumerable<GameObjectSpawnRecord> spawns)
@@ -118,6 +150,12 @@ public sealed class GameObjectWorldTemplateDataStoreTests
             spawns);
     }
 
+    // Method: CreateTemplate
+    // Purpose: Applies create template changes for the automated test and verification layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the game object template record value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     private static GameObjectTemplateRecord CreateTemplate(uint entry)
     {
         return new GameObjectTemplateRecord(
@@ -134,6 +172,16 @@ public sealed class GameObjectWorldTemplateDataStoreTests
             string.Empty);
     }
 
+    // Method: CreateSpawn
+    // Purpose: Applies create spawn changes for the automated test and verification layer.
+    // Parameters:
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - entry: Entry value supplied by the caller for this operation.
+    // - map: Map value supplied by the caller for this operation.
+    // - zone: Zone value supplied by the caller for this operation.
+    // - area: Area value supplied by the caller for this operation.
+    // Returns: Returns the game object spawn record value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectWorldTemplateDataStoreTests so callers do not duplicate validation, protocol, or persistence rules.
     private static GameObjectSpawnRecord CreateSpawn(uint guid, uint entry, ushort map, uint zone, uint area)
     {
         return new GameObjectSpawnRecord(

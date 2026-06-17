@@ -15,34 +15,36 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Items/ItemSystem.cs
+// Purpose: Contains item system code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.WorldData;
 
-/**
-  * File overview: src/EmulationServer.Game/Items/ItemSystem.cs
-  * Documents the ItemSystem source file in the item lookup and item validation support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Items;
 
-/**
-  * Owns the item system behavior for the item lookup and item validation support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ItemSystem
+// Purpose: Provides item system behavior for the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - worldTemplateAccessor: World template accessor value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ItemSystem(Func<WorldTemplateDataStore> worldTemplateAccessor)
 {
-    /**
-      * Holds the private world template accessor state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the func world template accessor = world template accessor ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to ItemSystem so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
 
-    /**
-      * Tries to resolve the get item template value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: entry, itemTemplate.
-      */
+    // Method: TryGetItemTemplate
+    // Purpose: Attempts to retrieve or parse try get item template data without treating normal misses as failures.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns true when try get item template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ItemSystem so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetItemTemplate(uint entry, out ItemTemplateRecord itemTemplate)
     {
         return _worldTemplateAccessor().TryGetItemTemplate(entry, out itemTemplate);

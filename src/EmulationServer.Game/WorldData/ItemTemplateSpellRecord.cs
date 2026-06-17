@@ -15,18 +15,23 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/WorldData/ItemTemplateSpellRecord.cs
-  * Documents one spell trigger row from item_template for item query packets.
-  */
+// File: src/EmulationServer.Game/WorldData/ItemTemplateSpellRecord.cs
+// Purpose: Contains item template spell record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries one item_template spell slot.
-  * Proc-per-minute is retained in the template cache for future item-proc calculations but is not serialized in the vanilla item query packet.
-  */
+// Type: ItemTemplateSpellRecord
+// Purpose: Represents item template spell record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - SpellId: Spell ID identifier used to select the exact record, object, or runtime owner.
+// - Trigger: Trigger value supplied by the caller for this operation.
+// - Charges: Charges value supplied by the caller for this operation.
+// - ProcPerMinuteRate: Proc per minute rate value supplied by the caller for this operation.
+// - Cooldown: Cooldown value supplied by the caller for this operation.
+// - Category: Category value supplied by the caller for this operation.
+// - CategoryCooldown: Category cooldown value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record ItemTemplateSpellRecord(
     uint SpellId,
     byte Trigger,

@@ -15,19 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/AreaTriggerDbcRecord.cs
-  * Documents the AreaTriggerDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/AreaTriggerDbcRecord.cs
+// Purpose: Contains area trigger DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Represents one AreaTrigger.dbc row including its map id, center point, radius, and optional box volume.
-  * Positional fields carried by this record: Id, MapId, LocationX, LocationY, LocationZ, Radius, BoxLength, BoxWidth, BoxHeight, BoxOrientation.
-  */
+// Type: AreaTriggerDbcRecord
+// Purpose: Represents area trigger DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - LocationX: Location X value supplied by the caller for this operation.
+// - LocationY: Location Y value supplied by the caller for this operation.
+// - LocationZ: Location Z value supplied by the caller for this operation.
+// - Radius: Radius value supplied by the caller for this operation.
+// - BoxLength: Box length value supplied by the caller for this operation.
+// - BoxWidth: Box width value supplied by the caller for this operation.
+// - BoxHeight: Box height value supplied by the caller for this operation.
+// - BoxOrientation: Box orientation value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record AreaTriggerDbcRecord(
     int Id,
     int MapId,
@@ -40,8 +47,8 @@ public sealed record AreaTriggerDbcRecord(
     float BoxHeight,
     float BoxOrientation)
 {
-    /**
-      * Indicates whether the trigger uses a box volume instead of only a spherical radius.
-      */
+
+    // Property: Gets or sets the has box volume value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: has box volume value exposed by the owning type.
     public bool HasBoxVolume => BoxLength > 0 || BoxWidth > 0 || BoxHeight > 0;
 }

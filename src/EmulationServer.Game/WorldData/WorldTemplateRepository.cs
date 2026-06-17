@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/WorldTemplateRepository.cs
+// Purpose: Contains world template repository code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
@@ -23,42 +26,36 @@ using EmulationServer.Game.Data.Maps;
 
 using MySqlConnector;
 
-/**
-  * File overview: src/EmulationServer.Game/WorldData/WorldTemplateRepository.cs
-  * Documents the WorldTemplateRepository source file in the world database template loading and cache construction area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Owns the world template repository behavior for the world database template loading and cache construction layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldTemplateRepository
+// Purpose: Provides world template repository behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldTemplateRepository
 {
-    /**
-      * Holds the private database service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the database service state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current database service backing value maintained by the owning type.
     private readonly IDatabaseService _databaseService;
 
-    /**
-      * Initializes a new WorldTemplateRepository instance with the dependencies required by the world database template loading and cache construction workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: databaseService.
-      */
+    // Constructor: WorldTemplateRepository
+    // Purpose: Initializes a new WorldTemplateRepository instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - databaseService: Database service value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     public WorldTemplateRepository(IDatabaseService databaseService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Loads the startup world data cache from persistent storage.
-      * item_template is loaded in full here so item lookups and item query responses use the in-memory world cache instead of runtime table reads.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadAsync
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<WorldTemplateDataStore> LoadAsync(CancellationToken cancellationToken = default)
     {
         IReadOnlyList<PlayerCreateInfoRecord> playerCreateInfo = await LoadPlayerCreateInfoAsync(cancellationToken);
@@ -89,12 +86,13 @@ public sealed class WorldTemplateRepository
             creatureSpawns);
     }
 
-    /**
-      * Loads load player create info information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerCreateInfoAsync
+    // Purpose: Retrieves load player create info data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerCreateInfoRecord>> LoadPlayerCreateInfoAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -123,12 +121,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads every item_template row into the startup world cache.
-      * Runtime item systems resolve item stats, damage, spells, armor, resistances, durability, and tooltip data from this cache.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadItemTemplatesAsync
+    // Purpose: Retrieves load item templates data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<ItemTemplateRecord>> LoadItemTemplatesAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -149,12 +148,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads load player level stats information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerLevelStatsAsync
+    // Purpose: Retrieves load player level stats data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerLevelStatsRecord>> LoadPlayerLevelStatsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -187,12 +187,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads load player class level stats information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerClassLevelStatsAsync
+    // Purpose: Retrieves load player class level stats data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerClassLevelStatsRecord>> LoadPlayerClassLevelStatsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -221,12 +222,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads load player level experience information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerLevelExperienceAsync
+    // Purpose: Retrieves load player level experience data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerLevelExperienceRecord>> LoadPlayerLevelExperienceAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -253,12 +255,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads load player create actions information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerCreateActionsAsync
+    // Purpose: Retrieves load player create actions data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerCreateActionRecord>> LoadPlayerCreateActionsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -288,12 +291,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads load player create items information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerCreateItemsAsync
+    // Purpose: Retrieves load player create items data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerCreateItemRecord>> LoadPlayerCreateItemsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -322,12 +326,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads load player create spells information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerCreateSpellsAsync
+    // Purpose: Retrieves load player create spells data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerCreateSpellRecord>> LoadPlayerCreateSpellsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -356,10 +361,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads every gameobject_template row into the startup world cache.
-      * The schema mirrors Mangos Zero and keeps all 24 data fields available for type-specific object behavior later.
-      */
+    // Method: LoadGameObjectTemplatesAsync
+    // Purpose: Retrieves load game object templates data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<GameObjectTemplateRecord>> LoadGameObjectTemplatesAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -386,10 +394,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads every gameobject spawn row into the startup world cache.
-      * zoneId and areaId are read when present, or safely defaulted while older databases are being migrated.
-      */
+    // Method: LoadGameObjectSpawnsAsync
+    // Purpose: Retrieves load game object spawns data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<GameObjectSpawnRecord>> LoadGameObjectSpawnsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -421,9 +432,14 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads gameobject rows for one map. Used by map start/restart control flows so object DB edits can be picked up without rebooting WorldServer.
-      */
+    // Method: LoadGameObjectSpawnsForMapAsync
+    // Purpose: Retrieves load game object spawns for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<GameObjectSpawnRecord>> LoadGameObjectSpawnsForMapAsync(ushort mapId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -457,10 +473,15 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Resolves zoneId/areaId per gameobject guid from world coordinates and persists changed values back to the world database.
-      * This method deliberately works from the spawn position, not grouped counts, so each row receives its own area identifiers.
-      */
+    // Method: ResolveAndPersistGameObjectAreasAsync
+    // Purpose: Retrieves resolve and persist game object areas data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawns: Spawns value supplied by the caller for this operation.
+    // - areaLookup: Area lookup value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<GameObjectAreaEnrichmentResult> ResolveAndPersistGameObjectAreasAsync(
         IEnumerable<GameObjectSpawnRecord> spawns,
         MapStoreAreaLookupService areaLookup,
@@ -516,9 +537,14 @@ public sealed class WorldTemplateRepository
             sourceCounts);
     }
 
-    /**
-      * Persists changed gameobject zone/area identifiers by guid.
-      */
+    // Method: PersistGameObjectAreaIdsAsync
+    // Purpose: Executes the persist game object area ids operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - changedSpawns: Changed spawns value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<int> PersistGameObjectAreaIdsAsync(IReadOnlyList<GameObjectSpawnRecord> changedSpawns, CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -558,9 +584,13 @@ public sealed class WorldTemplateRepository
         return updated;
     }
 
-    /**
-      * Loads every creature_template row into the startup world cache.
-      */
+    // Method: LoadCreatureTemplatesAsync
+    // Purpose: Retrieves load creature templates data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<CreatureTemplateRecord>> LoadCreatureTemplatesAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -585,9 +615,13 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads every creature spawn row into the startup world cache.
-      */
+    // Method: LoadCreatureSpawnsAsync
+    // Purpose: Retrieves load creature spawns data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<CreatureSpawnRecord>> LoadCreatureSpawnsAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -618,9 +652,14 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Loads creature rows for one map. Used by map start/restart control flows so creature DB edits can be picked up without rebooting WorldServer.
-      */
+    // Method: LoadCreatureSpawnsForMapAsync
+    // Purpose: Retrieves load creature spawns for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<CreatureSpawnRecord>> LoadCreatureSpawnsForMapAsync(ushort mapId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -653,9 +692,15 @@ public sealed class WorldTemplateRepository
         return records;
     }
 
-    /**
-      * Resolves zoneId/areaId per creature guid from world coordinates and persists changed values back to the world database.
-      */
+    // Method: ResolveAndPersistCreatureAreasAsync
+    // Purpose: Retrieves resolve and persist creature areas data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawns: Spawns value supplied by the caller for this operation.
+    // - areaLookup: Area lookup value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<CreatureAreaEnrichmentResult> ResolveAndPersistCreatureAreasAsync(
         IEnumerable<CreatureSpawnRecord> spawns,
         MapStoreAreaLookupService areaLookup,
@@ -711,9 +756,14 @@ public sealed class WorldTemplateRepository
             sourceCounts);
     }
 
-    /**
-      * Persists changed creature zone/area identifiers by guid.
-      */
+    // Method: PersistCreatureAreaIdsAsync
+    // Purpose: Executes the persist creature area ids operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - changedSpawns: Changed spawns value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<int> PersistCreatureAreaIdsAsync(IReadOnlyList<CreatureSpawnRecord> changedSpawns, CancellationToken cancellationToken)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -753,13 +803,15 @@ public sealed class WorldTemplateRepository
         return updated;
     }
 
-
-    /**
-      * Resolves the player create info value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetPlayerCreateInfoAsync
+    // Purpose: Retrieves get player create info data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<PlayerCreateInfoRecord?> GetPlayerCreateInfoAsync(byte race, byte characterClass, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -791,6 +843,14 @@ public sealed class WorldTemplateRepository
             Convert.ToSingle(reader.GetValue(7), CultureInfo.InvariantCulture));
     }
 
+    // Method: GetItemTemplatesAsync
+    // Purpose: Retrieves get item templates data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - itemEntries: Item entries value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyDictionary<uint, ItemTemplateRecord>> GetItemTemplatesAsync(IEnumerable<uint> itemEntries, CancellationToken cancellationToken = default)
     {
         uint[] entries = itemEntries.Where(entry => entry != 0).Distinct().ToArray();
@@ -842,9 +902,12 @@ public sealed class WorldTemplateRepository
         `TrainerTemplateId`, `VendorTemplateId`, `GossipMenuId`, `EquipmentTemplateId`, `Civilian`, COALESCE(`AIName`, '') AS `AIName`
         """;
 
-    /**
-      * Parses one creature_template row into the immutable template cache record.
-      */
+    // Method: ReadCreatureTemplateRecord
+    // Purpose: Retrieves read creature template record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the creature template record value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureTemplateRecord ReadCreatureTemplateRecord(MySqlDataReader reader)
     {
         int index = 0;
@@ -925,9 +988,12 @@ public sealed class WorldTemplateRepository
             AIName: ReadString(reader, index++));
     }
 
-    /**
-      * Parses one creature spawn row into the immutable spawn cache record.
-      */
+    // Method: ReadCreatureSpawnRecord
+    // Purpose: Retrieves read creature spawn record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the creature spawn record value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureSpawnRecord ReadCreatureSpawnRecord(MySqlDataReader reader)
     {
         int index = 0;
@@ -960,6 +1026,12 @@ public sealed class WorldTemplateRepository
         `mingold`, `maxgold`
         """;
 
+    // Method: FormatGameObjectTemplateSelectColumns
+    // Purpose: Executes the format game object template select columns operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - hasScriptName: Has script name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatGameObjectTemplateSelectColumns(bool hasScriptName)
     {
         return hasScriptName
@@ -967,9 +1039,12 @@ public sealed class WorldTemplateRepository
             : $"{GameObjectTemplateSelectColumns}, '' AS `ScriptName`";
     }
 
-    /**
-      * Parses one gameobject_template row into the immutable template cache record.
-      */
+    // Method: ReadGameObjectTemplateRecord
+    // Purpose: Retrieves read game object template record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the game object template record value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static GameObjectTemplateRecord ReadGameObjectTemplateRecord(MySqlDataReader reader)
     {
         int index = 0;
@@ -1001,9 +1076,12 @@ public sealed class WorldTemplateRepository
             ReadString(reader, index++));
     }
 
-    /**
-      * Parses one gameobject spawn row into the immutable spawn cache record.
-      */
+    // Method: ReadGameObjectSpawnRecord
+    // Purpose: Retrieves read game object spawn record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the game object spawn record value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static GameObjectSpawnRecord ReadGameObjectSpawnRecord(MySqlDataReader reader)
     {
         int index = 0;
@@ -1026,6 +1104,13 @@ public sealed class WorldTemplateRepository
             ReadByte(reader, index++));
     }
 
+    // Method: FormatOptionalColumnSelect
+    // Purpose: Executes the format optional column select operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - columnExists: Column exists value supplied by the caller for this operation.
+    // - columnName: Column name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatOptionalColumnSelect(bool columnExists, string columnName)
     {
         return columnExists
@@ -1054,9 +1139,12 @@ public sealed class WorldTemplateRepository
         `minMoneyLoot`, `maxMoneyLoot`, `Duration`, `ExtraFlags`
         """;
 
-    /**
-      * Parses one item_template row into the full immutable template cache record.
-      */
+    // Method: ReadItemTemplateRecord
+    // Purpose: Retrieves read item template record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the item template record value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static ItemTemplateRecord ReadItemTemplateRecord(MySqlDataReader reader)
     {
         int index = 0;
@@ -1186,49 +1274,112 @@ public sealed class WorldTemplateRepository
             ReadByte(reader, index++));
     }
 
+    // Method: ReadString
+    // Purpose: Retrieves read string data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string ReadString(MySqlDataReader reader, int index)
     {
         return reader.IsDBNull(index) ? string.Empty : reader.GetString(index);
     }
 
+    // Method: ReadByte
+    // Purpose: Retrieves read byte data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static byte ReadByte(MySqlDataReader reader, int index)
     {
         return Convert.ToByte(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
+    // Method: ReadSByte
+    // Purpose: Retrieves read S byte data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the sbyte value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static sbyte ReadSByte(MySqlDataReader reader, int index)
     {
         return Convert.ToSByte(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
+    // Method: ReadUInt16
+    // Purpose: Retrieves read U int16 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the ushort value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static ushort ReadUInt16(MySqlDataReader reader, int index)
     {
         return Convert.ToUInt16(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
+    // Method: ReadUInt32
+    // Purpose: Retrieves read U int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ReadUInt32(MySqlDataReader reader, int index)
     {
         return Convert.ToUInt32(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
+    // Method: ReadInt32
+    // Purpose: Retrieves read int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static int ReadInt32(MySqlDataReader reader, int index)
     {
         return Convert.ToInt32(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
+    // Method: ReadInt16
+    // Purpose: Retrieves read int16 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the short value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static short ReadInt16(MySqlDataReader reader, int index)
     {
         return Convert.ToInt16(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
+    // Method: ReadSingle
+    // Purpose: Retrieves read single data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static float ReadSingle(MySqlDataReader reader, int index)
     {
         return Convert.ToSingle(reader.GetValue(index), CultureInfo.InvariantCulture);
     }
 
-    /**
-      * Checks whether a table column exists before optional migration fields are selected.
-      */
+    // Method: ColumnExistsAsync
+    // Purpose: Executes the column exists operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - columnName: Column name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when column exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> ColumnExistsAsync(MySqlConnection connection, string tableName, string columnName, CancellationToken cancellationToken)
     {
         using MySqlCommand command = connection.CreateCommand();
@@ -1247,12 +1398,15 @@ public sealed class WorldTemplateRepository
         return result is not null;
     }
 
-    /**
-      * Performs the table exists operation for the world database template loading and cache construction workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, tableName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: TableExistsAsync
+    // Purpose: Executes the table exists operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when table exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to WorldTemplateRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> TableExistsAsync(MySqlConnection connection, string tableName, CancellationToken cancellationToken)
     {
         using MySqlCommand command = connection.CreateCommand();

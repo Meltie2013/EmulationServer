@@ -15,71 +15,67 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/RealmServer/Auth/RealmAuthResult.cs
-  * Documents the RealmAuthResult source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/RealmServer/Auth/RealmAuthResult.cs
+// Purpose: Contains realm auth result code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Lists the supported realm auth result values used by the realm authentication, realm-list handling, and external client login services layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: RealmAuthResult
+// Purpose: Defines the allowed realm auth result values used by the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum RealmAuthResult : byte
 {
-    /**
-      * Represents the success value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the success enum value.
+    // Value: explicit expression 0x00.
     Success = 0x00,
-    /**
-      * Represents the failed value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: explicit expression 0x01.
     Failed = 0x01,
-    /**
-      * Represents the banned value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the banned enum value.
+    // Value: explicit expression 0x03.
     Banned = 0x03,
-    /**
-      * Represents the unknown account value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the unknown account enum value.
+    // Value: explicit expression 0x04.
     UnknownAccount = 0x04,
-    /**
-      * Represents the already online value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the already online enum value.
+    // Value: explicit expression 0x06.
     AlreadyOnline = 0x06,
-    /**
-      * Represents the no time value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the no time enum value.
+    // Value: explicit expression 0x07.
     NoTime = 0x07,
-    /**
-      * Represents the database busy value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the database busy enum value.
+    // Value: explicit expression 0x08.
     DatabaseBusy = 0x08,
-    /**
-      * Represents the version invalid value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the version invalid enum value.
+    // Value: explicit expression 0x09.
     VersionInvalid = 0x09,
-    /**
-      * Represents the version update value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the version update enum value.
+    // Value: explicit expression 0x0A.
     VersionUpdate = 0x0A,
-    /**
-      * Represents the invalid server value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the invalid server enum value.
+    // Value: explicit expression 0x0B.
     InvalidServer = 0x0B,
-    /**
-      * Represents the suspended value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the suspended enum value.
+    // Value: explicit expression 0x0C.
     Suspended = 0x0C,
-    /**
-      * Represents the no access value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the no access enum value.
+    // Value: explicit expression 0x0D.
     NoAccess = 0x0D,
-    /**
-      * Represents the locked enforced value for realm auth result handling.
-      */
+
+    // Enum Value: Defines the locked enforced enum value.
+    // Value: explicit expression 0x10.
     LockedEnforced = 0x10,
 }

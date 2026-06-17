@@ -15,16 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapTileCollisionReader.cs
+// Purpose: Contains map tile collision reader code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Reads the typed collision placement model from a validated mapstore collision payload.
-  */
+// Type: MapTileCollisionReader
+// Purpose: Provides map tile collision reader behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapTileCollisionReader
 {
+    // Method: Read
+    // Purpose: Retrieves read data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - file: File value supplied by the caller for this operation.
+    // Returns: Returns the map tile collision data value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileCollisionReader so callers do not duplicate validation, protocol, or persistence rules.
     public static MapTileCollisionData Read(MapStoreFile file)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -87,6 +96,12 @@ public static class MapTileCollisionReader
         return new MapTileCollisionData(key, file.Header.Build, version, placements);
     }
 
+    // Method: ReadVector
+    // Purpose: Retrieves read vector data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the map tile vector3 value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileCollisionReader so callers do not duplicate validation, protocol, or persistence rules.
     private static MapTileVector3 ReadVector(BinaryReader reader)
     {
         return new MapTileVector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());

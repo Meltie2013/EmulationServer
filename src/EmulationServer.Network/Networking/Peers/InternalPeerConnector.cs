@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Peers/InternalPeerConnector.cs
+// Purpose: Contains internal peer connector code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Net.Sockets;
 using System.Threading.Channels;
@@ -23,128 +26,115 @@ using EmulationServer.Network.Configuration;
 using EmulationServer.Network.Networking.Callbacks;
 using EmulationServer.Network.Networking.Health;
 using EmulationServer.Network.Networking.Protocol;
+using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Peers/InternalPeerConnector.cs
-  * Documents the InternalPeerConnector source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Peers;
 
-/**
-  * Owns the internal peer connector behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InternalPeerConnector
+// Purpose: Provides internal peer connector behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalPeerConnector : IAsyncDisposable
 {
-    /**
-      * Keeps peer packet dispatch bounded so internal routing can use worker scheduling without unbounded memory growth.
-      */
+
+    // Constant: Defines the internal peer packet dispatch queue capacity constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed internal peer packet dispatch queue capacity value used anywhere this rule or protocol value is needed.
     private const int InternalPeerPacketDispatchQueueCapacity = 4096;
 
-    /**
-      * Holds the private server name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the server name state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current server name backing value maintained by the owning type.
     private readonly string _serverName;
-    /**
-      * Holds the private peers state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the peers state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current peers backing value maintained by the owning type.
     private readonly IReadOnlyList<InternalPeerSettings> _peers;
-    /**
-      * Holds the private registration key state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the registration key state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current registration key backing value maintained by the owning type.
     private readonly string _registrationKey;
-    /**
-      * Holds the private latency report interval state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the latency report interval state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current latency report interval backing value maintained by the owning type.
     private readonly TimeSpan _latencyReportInterval;
-    /**
-      * Holds whether successful latency values should be logged during normal runtime.
-      */
+
+    // Field: Stores the latency logging enabled state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current latency logging enabled backing value maintained by the owning type.
     private readonly bool _latencyLoggingEnabled;
-    /**
-      * Holds the minimum delay between visible latency log lines for active peer connections.
-      */
+
+    // Field: Stores the latency log interval state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current latency log interval backing value maintained by the owning type.
     private readonly TimeSpan _latencyLogInterval;
-    /**
-      * Holds the private ping timeout state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the ping timeout state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current ping timeout backing value maintained by the owning type.
     private readonly TimeSpan _pingTimeout;
-    /**
-      * Holds the private receive buffer size state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the receive buffer size state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current receive buffer size backing value maintained by the owning type.
     private readonly int _receiveBufferSize;
-    /**
-      * Holds the private send buffer size state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the send buffer size state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current send buffer size backing value maintained by the owning type.
     private readonly int _sendBufferSize;
-    /**
-      * Holds the private keep alive state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the keep alive state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current keep alive backing value maintained by the owning type.
     private readonly bool _keepAlive;
-    /**
-      * Holds the private keep alive time seconds state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the keep alive time seconds state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current keep alive time seconds backing value maintained by the owning type.
     private readonly int _keepAliveTimeSeconds;
-    /**
-      * Holds the private keep alive interval seconds state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the keep alive interval seconds state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current keep alive interval seconds backing value maintained by the owning type.
     private readonly int _keepAliveIntervalSeconds;
-    /**
-      * Holds the private authentication timeout state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the authentication timeout state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current authentication timeout backing value maintained by the owning type.
     private readonly TimeSpan _authenticationTimeout;
-    /**
-      * Holds the private callbacks state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the callbacks state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current callbacks backing value maintained by the owning type.
     private readonly InternalNetworkCallbacks _callbacks;
-    /**
-      * Holds the private connection tasks state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the connection tasks state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current connection tasks backing value maintained by the owning type.
     private readonly List<Task> _connectionTasks = [];
-    /**
-      * Holds the private sync root state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly object _syncRoot = new();
 
-    /**
-      * Holds the private stop cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stop cancellation state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Holds the private started state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the started state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current started backing value maintained by the owning type.
     private int _started;
-    /**
-      * Holds the private stopping state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stopping state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stopping backing value maintained by the owning type.
     private int _stopping;
 
-    /**
-      * Initializes a new InternalPeerConnector instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: serverName, peers, registrationKey, latencyReportInterval, pingTimeout, receiveBufferSize....
-      */
+    // Constructor: InternalPeerConnector
+    // Purpose: Initializes a new InternalPeerConnector instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // - peers: Peers value supplied by the caller for this operation.
+    // - registrationKey: Registration key value supplied by the caller for this operation.
+    // - latencyReportInterval: Latency report interval value supplied by the caller for this operation.
+    // - latencyLoggingEnabled: Latency logging enabled value supplied by the caller for this operation.
+    // - latencyLogInterval: Latency log interval value supplied by the caller for this operation.
+    // - pingTimeout: Ping timeout value supplied by the caller for this operation.
+    // - receiveBufferSize: Receive buffer size value supplied by the caller for this operation.
+    // - sendBufferSize: Send buffer size value supplied by the caller for this operation.
+    // - keepAlive: Keep alive value supplied by the caller for this operation.
+    // - keepAliveTimeSeconds: Keep alive time seconds value supplied by the caller for this operation.
+    // - keepAliveIntervalSeconds: Keep alive interval seconds value supplied by the caller for this operation.
+    // - authenticationTimeout: Authentication timeout value supplied by the caller for this operation.
+    // - callbacks: Callbacks value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
     public InternalPeerConnector(
         string serverName,
         IReadOnlyList<InternalPeerSettings> peers,
@@ -227,12 +217,13 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         _callbacks = callbacks ?? InternalNetworkCallbacks.Empty;
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -265,12 +256,13 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -311,22 +303,25 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"{_serverName} internal peer connector stopped.", "InternalPeerConnector");
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RunPeerLoopAsync
+    // Purpose: Controls the run peer loop lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - peer: Peer value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunPeerLoopAsync(InternalPeerSettings peer, CancellationToken cancellationToken)
     {
         bool everAuthenticated = false;
@@ -399,7 +394,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
                 }
                 else
                 {
-                    // Keep startup clean: before the first successful authentication, the peer may simply not be online yet.
+
                 }
             }
             finally
@@ -459,55 +454,31 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-    /**
-      * Applies low-latency socket options to outgoing internal peer connections.
-      */
+    // Method: ConfigureClient
+    // Purpose: Executes the configure client operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - client: Client value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
     private void ConfigureClient(TcpClient client)
     {
-        client.NoDelay = true;
-        client.ReceiveBufferSize = _receiveBufferSize;
-        client.SendBufferSize = _sendBufferSize;
-
-        if (!_keepAlive)
-        {
-            return;
-        }
-
-        client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveTime, _keepAliveTimeSeconds);
-        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveInterval, _keepAliveIntervalSeconds);
+        TcpSocketOptions.ConfigureClient(
+            client,
+            _receiveBufferSize,
+            _sendBufferSize,
+            _keepAlive,
+            _keepAliveTimeSeconds,
+            _keepAliveIntervalSeconds);
     }
 
-    /**
-      * Tries to resolve the set tcp keep alive option value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: client, optionName, valueSeconds.
-      */
-    private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
-    {
-        if (valueSeconds <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            client.Client.SetSocketOption(SocketOptionLevel.Tcp, optionName, valueSeconds);
-        }
-        catch (SocketException)
-        {
-            // Some platforms do not expose per-socket TCP keep-alive tuning. KeepAlive itself is still enabled.
-        }
-        catch (ObjectDisposedException)
-        {
-            // The socket is already closed.
-        }
-    }
-
-    /**
-      * Calculates the amount of time left before reconnect attempts must be stopped for a previously seen peer.
-      * Keeping this calculation in one place prevents each reconnect path from interpreting the timeout differently.
-      */
+    // Method: GetRemainingReconnectWindow
+    // Purpose: Retrieves get remaining reconnect window data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - peer: Peer value supplied by the caller for this operation.
+    // - reconnectWindowStartedUtc: Reconnect window started utc value supplied by the caller for this operation.
+    // - nowUtc: Now utc value supplied by the caller for this operation.
+    // Returns: Returns the time span value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
     private static TimeSpan GetRemainingReconnectWindow(
         InternalPeerSettings peer,
         DateTimeOffset reconnectWindowStartedUtc,
@@ -519,10 +490,14 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
-    /**
-      * Stops active reconnect attempts for a peer after its configured reconnect window expires.
-      * The listener remains online, so the remote service can still register inbound when it comes back.
-      */
+    // Method: StopReconnectAttemptsAsync
+    // Purpose: Controls the stop reconnect attempts lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - peer: Peer value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task StopReconnectAttemptsAsync(InternalPeerSettings peer, CancellationToken cancellationToken)
     {
         Logger.Write(
@@ -540,11 +515,17 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-    /**
-      * Completes the internal authentication flow before normal packets are exchanged.
-      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: AuthenticateWithPeerAsync
+    // Purpose: Executes the authenticate with peer operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - peer: Peer value supplied by the caller for this operation.
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - stream: Stream value supplied by the caller for this operation.
+    // - sendLock: Send lock value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AuthenticateWithPeerAsync(
         InternalPeerSettings peer,
         InternalProtocolReader reader,
@@ -611,11 +592,17 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: ProcessAuthenticatedPeerAsync
+    // Purpose: Executes the process authenticated peer operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - stream: Stream value supplied by the caller for this operation.
+    // - sendLock: Send lock value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ProcessAuthenticatedPeerAsync(
         InternalPeerConnection connection,
         InternalProtocolReader reader,
@@ -683,12 +670,16 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of InternalPeerConnector and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: TryProcessPeerControlPacketAsync
+    // Purpose: Executes the try process peer control packet operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - line: Line value supplied by the caller for this operation.
+    // - latencyMonitor: Latency monitor value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when try process peer control packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> TryProcessPeerControlPacketAsync(
         InternalPeerConnection connection,
         string line,
@@ -725,9 +716,15 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         return false;
     }
 
-    /**
-      * Dispatches non-control packets from an authenticated peer on a worker path.
-      */
+    // Method: ProcessQueuedPeerPacketsAsync
+    // Purpose: Executes the process queued peer packets operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ProcessQueuedPeerPacketsAsync(
         InternalPeerConnection connection,
         ChannelReader<string> reader,
@@ -750,7 +747,7 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown/reconnect.
+
         }
         catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
         {
@@ -762,9 +759,13 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-    /**
-      * Waits briefly for queued peer dispatch to stop without delaying reconnects for a long time.
-      */
+    // Method: WaitForPeerPacketDispatchLoopAsync
+    // Purpose: Handles wait for peer packet dispatch loop work for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - packetDispatchLoop: Packet dispatch loop value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task WaitForPeerPacketDispatchLoopAsync(Task packetDispatchLoop)
     {
         if (packetDispatchLoop.IsCompleted)
@@ -789,9 +790,13 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-    /**
-      * Keeps normal peer packet logging out of the socket reader loop body.
-      */
+    // Method: LogPeerPacket
+    // Purpose: Executes the log peer packet operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - line: Line value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
     private void LogPeerPacket(InternalPeerConnection connection, string line)
     {
         string[] parts = line.Split(' ', 2, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -810,10 +815,12 @@ public sealed class InternalPeerConnector : IAsyncDisposable
         }
     }
 
-
-    /**
-      * Returns true for high-volume map-service packets that should be dispatched without per-packet connector logging.
-      */
+    // Method: IsQuietMapServicePacket
+    // Purpose: Validates or evaluates is quiet map service packet rules for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // Returns: Returns true when is quiet map service packet succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalPeerConnector so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsQuietMapServicePacket(string opcode)
     {
         return string.Equals(opcode, InternalProtocol.MapServiceStatus, StringComparison.OrdinalIgnoreCase) ||

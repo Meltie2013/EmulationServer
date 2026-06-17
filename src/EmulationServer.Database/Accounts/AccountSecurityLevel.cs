@@ -15,27 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Database/Accounts/AccountSecurityLevel.cs
+// Purpose: Contains account security level code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Represents the account security level resolved from RBAC permissions.
-  * The numeric values follow the same visible security-level meaning used by TrinityCore-style auth data.
-  */
+// Type: AccountSecurityLevel
+// Purpose: Defines the allowed account security level values used by the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum AccountSecurityLevel : byte
 {
-    /**
-      * Normal player account.
-      */
+
+    // Enum Value: Defines the player enum value.
+    // Value: explicit expression 0.
     Player = 0,
 
-    /**
-      * Game Master account.
-      */
+    // Enum Value: Defines the game master enum value.
+    // Value: explicit expression 1.
     GameMaster = 1,
 
-    /**
-      * Administrator account.
-      */
+    // Enum Value: Defines the administrator enum value.
+    // Value: explicit expression 2.
     Administrator = 2,
 }

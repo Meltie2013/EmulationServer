@@ -15,20 +15,30 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceSnapshot.cs
-  * Documents the MapServiceSnapshot source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceSnapshot.cs
+// Purpose: Contains map service snapshot code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Captures the observable runtime health of a map service for status packets and command output.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: OwnerServerName, Kind, MapId, InstanceId, Name, State, Tick, ActivePlayers, ActiveGrids, LastTickMilliseconds, AverageTickMilliseconds, LoadPercent, StartedUtc, LastTickUtc.
-  */
+// Type: MapServiceSnapshot
+// Purpose: Represents map service snapshot data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - OwnerServerName: Owner server name value supplied by the caller for this operation.
+// - Kind: Kind value supplied by the caller for this operation.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - InstanceId: Instance ID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - State: State value supplied by the caller for this operation.
+// - Tick: Tick value supplied by the caller for this operation.
+// - ActivePlayers: Active players value supplied by the caller for this operation.
+// - ActiveGrids: Active grids value supplied by the caller for this operation.
+// - LastTickMilliseconds: Last tick milliseconds value supplied by the caller for this operation.
+// - AverageTickMilliseconds: Average tick milliseconds value supplied by the caller for this operation.
+// - LoadPercent: Load percent value supplied by the caller for this operation.
+// - StartedUtc: Started utc value supplied by the caller for this operation.
+// - LastTickUtc: Last tick utc value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapServiceSnapshot(
     string OwnerServerName,
     MapServiceKind Kind,

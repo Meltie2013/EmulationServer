@@ -15,36 +15,36 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Maps/MapFormatException.cs
-  * Documents the MapFormatException source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Maps/MapFormatException.cs
+// Purpose: Contains map format exception code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Owns the map format exception behavior for the extracted map data loading and map tile lookup layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapFormatException
+// Purpose: Provides map format exception behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapFormatException : IOException
 {
-    /**
-      * Initializes a new MapFormatException instance with the dependencies required by the extracted map data loading and map tile lookup workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: message.
-      */
+
+    // Constructor: MapFormatException
+    // Purpose: Initializes a new MapFormatException instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapFormatException so callers do not duplicate validation, protocol, or persistence rules.
     public MapFormatException(string message)
         : base(message)
     {
     }
 
-    /**
-      * Initializes a new MapFormatException instance with the dependencies required by the extracted map data loading and map tile lookup workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: message, innerException.
-      */
+    // Constructor: MapFormatException
+    // Purpose: Initializes a new MapFormatException instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // - innerException: Inner exception value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapFormatException so callers do not duplicate validation, protocol, or persistence rules.
     public MapFormatException(string message, Exception innerException)
         : base(message, innerException)
     {

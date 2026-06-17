@@ -15,70 +15,118 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreFileNames.cs
+// Purpose: Contains map store file names code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Centralizes the folder and filename rules for extracted mapstore files.
-  */
+// Type: MapStoreFileNames
+// Purpose: Provides map store file names behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapStoreFileNames
 {
+    // Constant: Defines the map ID digit count constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed map ID digit count value used anywhere this rule or protocol value is needed.
     public const int MapIdDigitCount = 3;
+    // Constant: Defines the tile coordinate digit count constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed tile coordinate digit count value used anywhere this rule or protocol value is needed.
     public const int TileCoordinateDigitCount = 2;
+    // Constant: Defines the maps directory name constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed maps directory name value used anywhere this rule or protocol value is needed.
     public const string MapsDirectoryName = "maps";
+    // Constant: Defines the tiles directory name constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed tiles directory name value used anywhere this rule or protocol value is needed.
     public const string TilesDirectoryName = "tiles";
+    // Constant: Defines the index file name constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed index file name value used anywhere this rule or protocol value is needed.
     public const string IndexFileName = "map.index.bin";
+    // Constant: Defines the terrain suffix constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed terrain suffix value used anywhere this rule or protocol value is needed.
     public const string TerrainSuffix = ".terrain.bin";
+    // Constant: Defines the liquid suffix constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed liquid suffix value used anywhere this rule or protocol value is needed.
     public const string LiquidSuffix = ".liquid.bin";
+    // Constant: Defines the collision suffix constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed collision suffix value used anywhere this rule or protocol value is needed.
     public const string CollisionSuffix = ".collision.bin";
+    // Constant: Defines the navmesh suffix constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed navmesh suffix value used anywhere this rule or protocol value is needed.
     public const string NavmeshSuffix = ".navmesh.bin";
 
-    /**
-      * Resolves the directory for one map inside the mapstore root.
-      */
+    // Method: GetMapDirectory
+    // Purpose: Retrieves get map directory data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetMapDirectory(string mapStoreRootDirectory, uint mapId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mapStoreRootDirectory);
         return Path.Combine(mapStoreRootDirectory, MapsDirectoryName, FormatMapId(mapId));
     }
 
-    /**
-      * Resolves the tiles directory for one map inside the mapstore root.
-      */
+    // Method: GetTilesDirectory
+    // Purpose: Retrieves get tiles directory data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetTilesDirectory(string mapStoreRootDirectory, uint mapId)
     {
         return Path.Combine(GetMapDirectory(mapStoreRootDirectory, mapId), TilesDirectoryName);
     }
 
-    /**
-      * Resolves the map index file path for one map inside the mapstore root.
-      */
+    // Method: GetIndexPath
+    // Purpose: Retrieves get index path data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetIndexPath(string mapStoreRootDirectory, uint mapId)
     {
         return Path.Combine(GetMapDirectory(mapStoreRootDirectory, mapId), IndexFileName);
     }
 
-    /**
-      * Resolves the filename for one tile payload.
-      */
+    // Method: GetTileFileName
+    // Purpose: Retrieves get tile file name data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetTileFileName(byte tileX, byte tileY, MapStoreDataKind kind)
     {
         return FormatTileCoordinate(tileX) + "_" + FormatTileCoordinate(tileY) + GetSuffix(kind);
     }
 
-    /**
-      * Resolves the path for one tile payload inside the mapstore root.
-      */
+    // Method: GetTileFilePath
+    // Purpose: Retrieves get tile file path data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetTileFilePath(string mapStoreRootDirectory, uint mapId, byte tileX, byte tileY, MapStoreDataKind kind)
     {
         return Path.Combine(GetTilesDirectory(mapStoreRootDirectory, mapId), GetTileFileName(tileX, tileY, kind));
     }
 
-    /**
-      * Resolves the suffix assigned to a runtime payload kind.
-      */
+    // Method: GetSuffix
+    // Purpose: Retrieves get suffix data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetSuffix(MapStoreDataKind kind)
     {
         return kind switch
@@ -91,10 +139,13 @@ public static class MapStoreFileNames
         };
     }
 
-
-    /**
-      * Tries to parse a canonical map directory name such as 000.
-      */
+    // Method: TryParseMapDirectoryName
+    // Purpose: Attempts to retrieve or parse try parse map directory name data without treating normal misses as failures.
+    // Parameters:
+    // - directoryName: Directory name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when try parse map directory name succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseMapDirectoryName(string directoryName, out uint mapId)
     {
         mapId = 0;
@@ -102,9 +153,15 @@ public static class MapStoreFileNames
                uint.TryParse(directoryName, NumberStyles.None, CultureInfo.InvariantCulture, out mapId);
     }
 
-    /**
-      * Tries to parse a tile filename such as 31_48.terrain.bin.
-      */
+    // Method: TryParseTileFileName
+    // Purpose: Attempts to retrieve or parse try parse tile file name data without treating normal misses as failures.
+    // Parameters:
+    // - fileName: File name value supplied by the caller for this operation.
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns true when try parse tile file name succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseTileFileName(string fileName, out byte tileX, out byte tileY, out MapStoreDataKind kind)
     {
         tileX = 0;
@@ -137,44 +194,62 @@ public static class MapStoreFileNames
                byte.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out tileY);
     }
 
-    /**
-      * Formats a map id with the canonical mapstore width.
-      */
+    // Method: FormatMapId
+    // Purpose: Executes the format map ID operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatMapId(uint mapId)
     {
         return mapId.ToString("D" + MapIdDigitCount.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
     }
 
-    /**
-      * Formats one tile coordinate with the canonical mapstore width.
-      */
+    // Method: FormatTileCoordinate
+    // Purpose: Executes the format tile coordinate operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - tileCoordinate: Tile coordinate value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatTileCoordinate(byte tileCoordinate)
     {
         return tileCoordinate.ToString("D" + TileCoordinateDigitCount.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
     }
 
-    /**
-      * Formats one map/tile identifier for logs and validation messages.
-      */
+    // Method: FormatTileKey
+    // Purpose: Executes the format tile key operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatTileKey(uint mapId, byte tileX, byte tileY)
     {
         return FormatTileKey(mapId, (int)tileX, (int)tileY);
     }
 
-    /**
-      * Formats one map/tile identifier when an inner payload used wider coordinate fields.
-      */
+    // Method: FormatTileKey
+    // Purpose: Executes the format tile key operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatTileKey(uint mapId, int tileX, int tileY)
     {
         return FormatMapId(mapId) + "/" + FormatTileCoordinate(tileX) + "_" + FormatTileCoordinate(tileY);
     }
 
-    /**
-      * Formats one tile coordinate with the canonical mapstore width.
-      */
+    // Method: FormatTileCoordinate
+    // Purpose: Executes the format tile coordinate operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - tileCoordinate: Tile coordinate value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFileNames so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatTileCoordinate(int tileCoordinate)
     {
         return tileCoordinate.ToString("D" + TileCoordinateDigitCount.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
     }
 }
-

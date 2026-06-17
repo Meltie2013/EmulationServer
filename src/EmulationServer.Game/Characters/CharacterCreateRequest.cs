@@ -15,20 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Characters/CharacterCreateRequest.cs
-  * Documents the CharacterCreateRequest source file in the character creation, listing, and identity transfer models area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Characters/CharacterCreateRequest.cs
+// Purpose: Contains character create request code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Characters;
 
-/**
-  * Carries immutable character create request data for the character creation, listing, and identity transfer models layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Name, Race, Class, Gender, Skin, Face, HairStyle, HairColor, FacialHair, OutfitId.
-  */
+// Type: CharacterCreateRequest
+// Purpose: Represents character create request data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Name: Name value supplied by the caller for this operation.
+// - Race: Race value supplied by the caller for this operation.
+// - Class: Class value supplied by the caller for this operation.
+// - Gender: Gender value supplied by the caller for this operation.
+// - Skin: Skin value supplied by the caller for this operation.
+// - Face: Face value supplied by the caller for this operation.
+// - HairStyle: Hair style value supplied by the caller for this operation.
+// - HairColor: Hair color value supplied by the caller for this operation.
+// - FacialHair: Facial hair value supplied by the caller for this operation.
+// - OutfitId: Outfit ID identifier used to select the exact record, object, or runtime owner.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record CharacterCreateRequest(
     string Name,
     byte Race,

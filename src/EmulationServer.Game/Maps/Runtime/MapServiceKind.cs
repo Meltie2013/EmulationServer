@@ -15,27 +15,23 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceKind.cs
-  * Documents the MapServiceKind source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceKind.cs
+// Purpose: Contains map service kind code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Lists the supported map service kind values used by the runtime map-player state tracking layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: MapServiceKind
+// Purpose: Defines the allowed map service kind values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MapServiceKind
 {
-    /**
-      * Represents the world value for map service kind handling.
-      */
+
+    // Enum Value: Defines the world enum value.
+    // Value: explicit expression 0.
     World = 0,
-    /**
-      * Represents the instance value for map service kind handling.
-      */
+
+    // Enum Value: Defines the instance enum value.
+    // Value: explicit expression 1.
     Instance = 1,
 }

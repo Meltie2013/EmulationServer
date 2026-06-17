@@ -15,22 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Database/Accounts/WorldAccountSessionRecord.cs
+// Purpose: Contains world account session record code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Accounts;
 
-/**
-  * File overview: src/WorldServer/Database/Accounts/WorldAccountSessionRecord.cs
-  * Documents the WorldAccountSessionRecord source file in the world database repositories and persisted player/account records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Database.Accounts;
 
-/**
-  * Carries immutable world account session record data for the world database repositories and persisted player/account records layer.
-  * Security information is resolved from RBAC permissions instead of a legacy account field.
-  * Positional fields carried by this record: Id, Username, SecurityLevel, Permissions, Locked, SessionKey.
-  */
+// Type: WorldAccountSessionRecord
+// Purpose: Represents world account session record data passed through the world server gameplay, session, and character runtime layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - Username: Username value supplied by the caller for this operation.
+// - SecurityLevel: Security level value supplied by the caller for this operation.
+// - Permissions: Permissions value supplied by the caller for this operation.
+// - Locked: Locked value supplied by the caller for this operation.
+// - SessionKey: Session key value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record WorldAccountSessionRecord(
     uint Id,
     string Username,

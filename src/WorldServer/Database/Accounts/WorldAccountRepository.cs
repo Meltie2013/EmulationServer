@@ -15,59 +15,64 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Database/Accounts/WorldAccountRepository.cs
+// Purpose: Contains world account repository code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
-/**
-  * File overview: src/WorldServer/Database/Accounts/WorldAccountRepository.cs
-  * Documents the WorldAccountRepository source file in the world database repositories and persisted player/account records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Database.Accounts;
 
-/**
-  * Owns the world account repository behavior for the world database repositories and persisted player/account records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldAccountRepository
+// Purpose: Provides world account repository behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldAccountRepository
 {
-    /**
-      * Holds the private database service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the database service state used by the world server gameplay, session, and character runtime layer.
+    // Value: current database service backing value maintained by the owning type.
     private readonly IDatabaseService _databaseService;
+    // Field: Stores the account repository state used by the world server gameplay, session, and character runtime layer.
+    // Value: current account repository backing value maintained by the owning type.
     private readonly AccountRepository _accountRepository;
 
-    /**
-      * Initializes a new WorldAccountRepository instance with the dependencies required by the world database repositories and persisted player/account records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: databaseService.
-      */
+    // Constructor: WorldAccountRepository
+    // Purpose: Initializes a new WorldAccountRepository instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - databaseService: Database service value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldAccountRepository so callers do not duplicate validation, protocol, or persistence rules.
     public WorldAccountRepository(IDatabaseService databaseService)
     {
         _databaseService = databaseService ?? throw new ArgumentNullException();
         _accountRepository = new AccountRepository(_databaseService);
     }
 
-    /**
-      * Returns whether the remote address is currently blocked by the account database IP ban table.
-      * The WorldServer repeats this check because a client can receive a realm list before an IP ban is applied and then attempt to enter the world.
-      */
+    // Method: IsIpBannedAsync
+    // Purpose: Validates or evaluates is IP banned rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ipAddress: Ip address value used when binding, connecting, or routing network traffic.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when is IP banned async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to WorldAccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
     {
         return _accountRepository.IsIpBannedAsync(ipAddress, cancellationToken);
     }
 
-    /**
-      * Resolves the account session value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: username, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetAccountSessionAsync
+    // Purpose: Retrieves get account session data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldAccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<WorldAccountSessionRecord?> GetAccountSessionAsync(string username, uint realmId, CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
@@ -105,21 +110,28 @@ public sealed class WorldAccountRepository
             sessionKey);
     }
 
-    /**
-      * Returns the active account ban status during world authentication.
-      * The WorldServer repeats this check so bans applied after realm login still block entering the world.
-      */
+    // Method: GetAccountBanStatusAsync
+    // Purpose: Retrieves get account ban status data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldAccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task<AccountBanStatus> GetAccountBanStatusAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         return _accountRepository.GetAccountBanStatusAsync(accountId, cancellationToken);
     }
 
-    /**
-      * Performs the set active realm operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountId, realmId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: SetActiveRealmAsync
+    // Purpose: Applies set active realm changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldAccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task SetActiveRealmAsync(uint accountId, uint realmId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -136,11 +148,12 @@ public sealed class WorldAccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Normalizes the username for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: username.
-      */
+    // Method: NormalizeUsername
+    // Purpose: Converts incoming data into normalize username form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldAccountRepository so callers do not duplicate validation, protocol, or persistence rules.
     public static string NormalizeUsername(string username)
     {
         return AccountRepository.NormalizeUsername(username);

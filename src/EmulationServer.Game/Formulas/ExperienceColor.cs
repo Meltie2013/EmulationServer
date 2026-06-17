@@ -15,17 +15,30 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Formulas/ExperienceColor.cs
+// Purpose: Contains experience color code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Formulas;
 
-/**
-  * Defines Vanilla con color bands used by experience and honor eligibility checks.
-  */
+// Type: ExperienceColor
+// Purpose: Defines the allowed experience color values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum ExperienceColor
 {
+    // Enum Value: Defines the red enum value.
+    // Value: next sequential value assigned by C#.
     Red,
+    // Enum Value: Defines the orange enum value.
+    // Value: next sequential value assigned by C#.
     Orange,
+    // Enum Value: Defines the yellow enum value.
+    // Value: next sequential value assigned by C#.
     Yellow,
+    // Enum Value: Defines the green enum value.
+    // Value: next sequential value assigned by C#.
     Green,
+    // Enum Value: Defines the gray enum value.
+    // Value: next sequential value assigned by C#.
     Gray,
 }

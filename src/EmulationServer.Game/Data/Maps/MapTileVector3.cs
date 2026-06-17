@@ -15,12 +15,19 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapTileVector3.cs
+// Purpose: Contains map tile vector3 code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Represents a runtime mapstore vector used by collision and future navigation data.
-  */
+// Type: MapTileVector3
+// Purpose: Represents map tile vector3 data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - X: X value supplied by the caller for this operation.
+// - Y: Y value supplied by the caller for this operation.
+// - Z: Z value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct MapTileVector3(float X, float Y, float Z)
 {
     public static MapTileVector3 Zero { get; } = new(0.0f, 0.0f, 0.0f);

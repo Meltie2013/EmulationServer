@@ -15,19 +15,29 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapContinentDbcRecord.cs
-  * Documents the WorldMapContinentDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapContinentDbcRecord.cs
+// Purpose: Contains world map continent DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Represents one WorldMapContinent.dbc row used to understand continent map boundaries and taxi-map extents.
-  * Positional fields carried by this record: Id, MapId, LeftBoundary, RightBoundary, TopBoundary, BottomBoundary, ContinentOffsetX, ContinentOffsetY, Scale, TaxiMinX, TaxiMinY, TaxiMaxX, TaxiMaxY.
-  */
+// Type: WorldMapContinentDbcRecord
+// Purpose: Represents world map continent DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - LeftBoundary: Left boundary value supplied by the caller for this operation.
+// - RightBoundary: Right boundary value supplied by the caller for this operation.
+// - TopBoundary: Top boundary value supplied by the caller for this operation.
+// - BottomBoundary: Bottom boundary value supplied by the caller for this operation.
+// - ContinentOffsetX: Continent offset X value supplied by the caller for this operation.
+// - ContinentOffsetY: Continent offset Y value supplied by the caller for this operation.
+// - Scale: Scale value supplied by the caller for this operation.
+// - TaxiMinX: Taxi min X value supplied by the caller for this operation.
+// - TaxiMinY: Taxi min Y value supplied by the caller for this operation.
+// - TaxiMaxX: Taxi max X value supplied by the caller for this operation.
+// - TaxiMaxY: Taxi max Y value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record WorldMapContinentDbcRecord(
     int Id,
     int MapId,

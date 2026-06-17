@@ -15,43 +15,39 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Networking/Packets/CharacterLoginFailureCode.cs
-  * Documents the CharacterLoginFailureCode source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Networking/Packets/CharacterLoginFailureCode.cs
+// Purpose: Contains character login failure code code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Lists the supported character login failure code values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: CharacterLoginFailureCode
+// Purpose: Defines the allowed character login failure code values used by the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum CharacterLoginFailureCode : byte
 {
-    /**
-      * Represents the no world value for character login failure code handling.
-      */
+
+    // Enum Value: Defines the no world enum value.
+    // Value: explicit expression 0x3E.
     NoWorld = 0x3E,
-    /**
-      * Represents the duplicate login value for character login failure code handling.
-      */
+
+    // Enum Value: Defines the duplicate login enum value.
+    // Value: explicit expression 0x3F.
     DuplicateLogin = 0x3F,
-    /**
-      * Represents the no instances value for character login failure code handling.
-      */
+
+    // Enum Value: Defines the no instances enum value.
+    // Value: explicit expression 0x40.
     NoInstances = 0x40,
-    /**
-      * Represents the failed value for character login failure code handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: explicit expression 0x41.
     Failed = 0x41,
-    /**
-      * Represents the disabled value for character login failure code handling.
-      */
+
+    // Enum Value: Defines the disabled enum value.
+    // Value: explicit expression 0x42.
     Disabled = 0x42,
-    /**
-      * Represents the not found value for character login failure code handling.
-      */
+
+    // Enum Value: Defines the not found enum value.
+    // Value: explicit expression 0x43.
     NotFound = 0x43,
 }

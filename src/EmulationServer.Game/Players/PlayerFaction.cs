@@ -15,31 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/PlayerFaction.cs
-  * Documents the PlayerFaction source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/PlayerFaction.cs
+// Purpose: Contains player faction code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Lists the supported player faction values used by the logged-in player state, persistence models, and gameplay records layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: PlayerFaction
+// Purpose: Defines the allowed player faction values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum PlayerFaction
 {
-    /**
-      * Represents the neutral value for player faction handling.
-      */
+
+    // Enum Value: Defines the neutral enum value.
+    // Value: explicit expression 0.
     Neutral = 0,
-    /**
-      * Represents the alliance value for player faction handling.
-      */
+
+    // Enum Value: Defines the alliance enum value.
+    // Value: explicit expression 1.
     Alliance = 1,
-    /**
-      * Represents the horde value for player faction handling.
-      */
+
+    // Enum Value: Defines the horde enum value.
+    // Value: explicit expression 2.
     Horde = 2,
 }

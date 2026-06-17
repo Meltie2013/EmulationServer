@@ -15,17 +15,18 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellCastTimeDbcRecord.cs
-  * Documents the SpellCastTimeDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Spells/SpellCastTimeDbcRecord.cs
+// Purpose: Contains spell cast time DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * Represents one SpellCastTimes.dbc row.
-  * Positional fields carried by this record: Id, CastTime, CastTimePerLevel, MinCastTime.
-  */
+// Type: SpellCastTimeDbcRecord
+// Purpose: Represents spell cast time DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - CastTime: Cast time value supplied by the caller for this operation.
+// - CastTimePerLevel: Cast time per level value supplied by the caller for this operation.
+// - MinCastTime: Min cast time value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record SpellCastTimeDbcRecord(int Id, int CastTime, int CastTimePerLevel, int MinCastTime);

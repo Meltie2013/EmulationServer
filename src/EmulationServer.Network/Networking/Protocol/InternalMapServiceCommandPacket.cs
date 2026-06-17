@@ -15,31 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceCommandPacket.cs
+// Purpose: Contains internal map service command packet code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalMapServiceCommandPacket.cs
-  * Documents the InternalMapServiceCommandPacket source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Protocol;
 
-/**
-  * Represents immutable internal map service command packet data passed between parts of the server.
-  * It represents an internal protocol payload exchanged between server processes.
-  * Positional fields carried by this record: CommandId, Action, MapId.
-  */
+// Type: InternalMapServiceCommandPacket
+// Purpose: Represents internal map service command packet data passed through the packet serialization, socket transport, and protocol framing layer.
+// Constructor values:
+// - CommandId: Command ID identifier used to select the exact record, object, or runtime owner.
+// - Action: Action value supplied by the caller for this operation.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record InternalMapServiceCommandPacket(
     string CommandId,
     string Action,
     int MapId)
 {
-    /**
-      * Performs the to packet line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+
+    // Method: ToPacketLine
+    // Purpose: Executes the to packet line operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalMapServiceCommandPacket so callers do not duplicate validation, protocol, or persistence rules.
     public string ToPacketLine()
     {
         return string.Create(
@@ -47,11 +48,13 @@ public sealed record InternalMapServiceCommandPacket(
             $"{InternalProtocol.MapServiceCommand} {CommandId} {Action} {MapId}");
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of InternalMapServiceCommandPacket and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryParse
+    // Purpose: Attempts to retrieve or parse try parse data without treating normal misses as failures.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - command: Database command used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns true when try parse succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalMapServiceCommandPacket so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParse(string packet, out InternalMapServiceCommandPacket command)
     {
         command = Empty;
@@ -81,9 +84,5 @@ public sealed record InternalMapServiceCommandPacket(
         return true;
     }
 
-    /**
-      * Gets or stores the empty value used by InternalMapServiceCommandPacket.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     private static InternalMapServiceCommandPacket Empty { get; } = new(string.Empty, string.Empty, 0);
 }

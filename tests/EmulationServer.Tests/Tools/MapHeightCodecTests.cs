@@ -15,49 +15,49 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Tools/MapHeightCodecTests.cs
+// Purpose: Contains map height codec tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Validation;
 
-/**
-  * File overview: tests/EmulationServer.Tests/Tools/MapHeightCodecTests.cs
-  * Documents the MapHeightCodecTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Tests.Tools;
 
-/**
-  * Owns the map height codec tests behavior for the automated test coverage for server behavior and data helpers layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapHeightCodecTests
+// Purpose: Provides map height codec tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapHeightCodecTests
 {
-    /**
-      * Performs the select u int 8 step store matches mangos formula operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+
     [Fact]
+    // Method: SelectUInt8StepStore_MatchesMangosFormula
+    // Purpose: Retrieves select U int8 step store matches mangos formula data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapHeightCodecTests so callers do not duplicate validation, protocol, or persistence rules.
     public void SelectUInt8StepStore_MatchesMangosFormula()
     {
         Assert.Equal(127.5f, MapHeightCodec.SelectUInt8StepStore(2.0f));
     }
 
-    /**
-      * Performs the select u int 16 step store matches mangos formula operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
     [Fact]
+    // Method: SelectUInt16StepStore_MatchesMangosFormula
+    // Purpose: Retrieves select U int16 step store matches mangos formula data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapHeightCodecTests so callers do not duplicate validation, protocol, or persistence rules.
     public void SelectUInt16StepStore_MatchesMangosFormula()
     {
         Assert.Equal(32.7675f, MapHeightCodec.SelectUInt16StepStore(2000.0f));
     }
 
-    /**
-      * Performs the u int 8 codec round trips endpoints exactly operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
     [Fact]
+    // Method: UInt8Codec_RoundTripsEndpointsExactly
+    // Purpose: Executes the U int8 codec round trips endpoints exactly operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapHeightCodecTests so callers do not duplicate validation, protocol, or persistence rules.
     public void UInt8Codec_RoundTripsEndpointsExactly()
     {
         const float minimum = -500.0f;
@@ -72,11 +72,12 @@ public sealed class MapHeightCodecTests
         Assert.Equal(maximum, MapHeightCodec.DecodeUInt8(encodedMaximum, minimum, maximum));
     }
 
-    /**
-      * Performs the u int 16 codec round trips endpoints exactly operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
     [Fact]
+    // Method: UInt16Codec_RoundTripsEndpointsExactly
+    // Purpose: Executes the U int16 codec round trips endpoints exactly operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapHeightCodecTests so callers do not duplicate validation, protocol, or persistence rules.
     public void UInt16Codec_RoundTripsEndpointsExactly()
     {
         const float minimum = -500.0f;
@@ -91,11 +92,12 @@ public sealed class MapHeightCodecTests
         Assert.Equal(maximum, MapHeightCodec.DecodeUInt16(encodedMaximum, minimum, maximum));
     }
 
-    /**
-      * Performs the formula verifier stays within expected quantization error operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
     [Fact]
+    // Method: FormulaVerifier_StaysWithinExpectedQuantizationError
+    // Purpose: Executes the formula verifier stays within expected quantization error operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapHeightCodecTests so callers do not duplicate validation, protocol, or persistence rules.
     public void FormulaVerifier_StaysWithinExpectedQuantizationError()
     {
         HeightFormulaVerificationResult result = HeightFormulaVerifier.Verify(-500.0f, 1500.0f, 10000);

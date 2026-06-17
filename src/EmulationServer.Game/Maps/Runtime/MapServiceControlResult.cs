@@ -15,20 +15,23 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlResult.cs
-  * Documents the MapServiceControlResult source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceControlResult.cs
+// Purpose: Contains map service control result code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Represents immutable map service control result data passed between parts of the server.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: OwnerServerName, Kind, MapId, InstanceId, ResultCode, State, Message.
-  */
+// Type: MapServiceControlResult
+// Purpose: Represents map service control result data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - OwnerServerName: Owner server name value supplied by the caller for this operation.
+// - Kind: Kind value supplied by the caller for this operation.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - InstanceId: Instance ID identifier used to select the exact record, object, or runtime owner.
+// - ResultCode: Result code value supplied by the caller for this operation.
+// - State: State value supplied by the caller for this operation.
+// - Message: Message value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapServiceControlResult(
     string OwnerServerName,
     MapServiceKind Kind,
@@ -38,11 +41,15 @@ public sealed record MapServiceControlResult(
     MapServiceState State,
     string Message)
 {
-    /**
-      * Performs the from snapshot operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: snapshot, resultCode, message.
-      */
+
+    // Method: FromSnapshot
+    // Purpose: Executes the from snapshot operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - resultCode: Result code value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns the map service control result value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceControlResult so callers do not duplicate validation, protocol, or persistence rules.
     public static MapServiceControlResult FromSnapshot(
         MapServiceSnapshot snapshot,
         MapServiceControlResultCode resultCode,

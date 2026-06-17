@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Socket/InternalSocketListener.cs
+// Purpose: Contains internal socket listener code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Net;
 using System.Net.Sockets;
@@ -25,57 +28,43 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Socket/InternalSocketListener.cs
-  * Documents the InternalSocketListener source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Socket;
 
-/**
-  * Owns the internal socket listener behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InternalSocketListener
+// Purpose: Provides internal socket listener behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalSocketListener
 {
-    /**
-      * Holds the private tcp listener state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the tcp listener state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current tcp listener backing value maintained by the owning type.
     private readonly TcpListener _tcpListener;
-    /**
-      * Holds the private session manager state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly InternalSessionManager _sessionManager = new();
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current settings backing value maintained by the owning type.
     private readonly InternalNetworkSettings _settings;
-    /**
-      * Holds the private callbacks state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the callbacks state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current callbacks backing value maintained by the owning type.
     private readonly InternalNetworkCallbacks _callbacks;
 
-    /**
-      * Holds the private started state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the started state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current started backing value maintained by the owning type.
     private int _started;
-    /**
-      * Holds the private stopping state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stopping state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stopping backing value maintained by the owning type.
     private int _stopping;
 
-    /**
-      * Initializes a new InternalSocketListener instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings, callbacks.
-      */
+    // Constructor: InternalSocketListener
+    // Purpose: Initializes a new InternalSocketListener instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // - callbacks: Callbacks value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
     public InternalSocketListener(
         InternalNetworkSettings settings,
         InternalNetworkCallbacks? callbacks = null)
@@ -88,12 +77,13 @@ public sealed class InternalSocketListener
         _tcpListener = new TcpListener(settings.GetBindAddress(), settings.Port);
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -116,12 +106,13 @@ public sealed class InternalSocketListener
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -142,12 +133,13 @@ public sealed class InternalSocketListener
         Logger.Write(LogType.NETWORK, $"{_settings.ServerName} internal network listener stopped.", "InternalSocketListener");
     }
 
-    /**
-      * Accepts an incoming connection or request and transfers it into managed server state.
-      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: AcceptLoopAsync
+    // Purpose: Handles accept loop work for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AcceptLoopAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested && !IsStopping)
@@ -193,12 +185,14 @@ public sealed class InternalSocketListener
         }
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ProcessSessionAsync
+    // Purpose: Executes the process session operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ProcessSessionAsync(InternalServerSession session, CancellationToken cancellationToken)
     {
         try
@@ -215,56 +209,23 @@ public sealed class InternalSocketListener
         }
     }
 
-    /**
-      * Applies configuration to shared runtime services before they are used by the server.
-      * The method is part of InternalSocketListener and keeps this workflow isolated from the caller.
-      */
+    // Method: ConfigureClient
+    // Purpose: Executes the configure client operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - client: Client value supplied by the caller for this operation.
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
     private static void ConfigureClient(TcpClient client, InternalNetworkSettings settings)
     {
-        client.NoDelay = true;
-        client.ReceiveBufferSize = settings.ReceiveBufferSize;
-        client.SendBufferSize = settings.SendBufferSize;
-
-        if (!settings.KeepAlive)
-        {
-            return;
-        }
-
-        client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-
-        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveTime, settings.KeepAliveTimeSeconds);
-        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveInterval, settings.KeepAliveIntervalSeconds);
+        TcpSocketOptions.ConfigureClient(client, settings);
     }
 
-    /**
-      * Tries to resolve the set tcp keep alive option value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: client, optionName, valueSeconds.
-      */
-    private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
-    {
-        if (valueSeconds <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            client.Client.SetSocketOption(SocketOptionLevel.Tcp, optionName, valueSeconds);
-        }
-        catch (SocketException)
-        {
-            // Some platforms do not expose per-socket TCP keep-alive tuning. KeepAlive itself is still enabled.
-        }
-        catch (ObjectDisposedException)
-        {
-            // The socket is already closed.
-        }
-    }
-
-    /**
-      * Gets or stores the is stopping value used by InternalSocketListener.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: Read
+    // Purpose: Retrieves read data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - _stopping: Stopping value supplied by the caller for this operation.
+    // Returns: Returns the bool is stopping => volatile. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalSocketListener so callers do not duplicate validation, protocol, or persistence rules.
     private bool IsStopping => Volatile.Read(ref _stopping) == 1;
 }

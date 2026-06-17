@@ -15,50 +15,85 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/Characters/CharacterDbcDataStore.cs
+// Purpose: Contains character DBC data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharacterDbcDataStore.cs
-  * Documents the CharacterDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
-/**
-  * Owns typed character DBC data and validation indexes for WorldServer character flows.
-  */
+// Type: CharacterDbcDataStore
+// Purpose: Provides character DBC data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class CharacterDbcDataStore
 {
-    /**
-      * Defines the constant value for char start outfit packed header size.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the char start outfit packed header size constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed char start outfit packed header size value used anywhere this rule or protocol value is needed.
     private const int CharStartOutfitPackedHeaderSize = 8;
-    /**
-      * Defines the constant value for char start outfit item count.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the char start outfit item count constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed char start outfit item count value used anywhere this rule or protocol value is needed.
     private const int CharStartOutfitItemCount = 12;
-    /**
-      * Defines the constant value for char start outfit required bytes.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
     private const int CharStartOutfitRequiredBytes = CharStartOutfitPackedHeaderSize + CharStartOutfitItemCount * sizeof(int) * 3;
 
+    // Constructor: HashSet
+    // Purpose: Validates or evaluates hash set rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - ClassId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly HashSet<(int RaceId, int ClassId)> _allowedRaceClasses;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - ClassId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // - GenderId: Gender ID identifier used to select the exact record, object, or runtime owner.
+    // - OutfitId: Outfit ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(int RaceId, int ClassId, int GenderId, int OutfitId), CharStartOutfitDbcRecord> _startOutfitsByCreateKey;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - SectionType: Section type value supplied by the caller for this operation.
+    // - VariationIndex: Variation index value supplied by the caller for this operation.
+    // - ColorIndex: Color index value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(int RaceId, int SexId, int SectionType, int VariationIndex, int ColorIndex), CharSectionDbcRecord> _sectionsByCustomizationKey;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - VariationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(int RaceId, int SexId, int VariationId), CharacterFacialHairStyleDbcRecord> _facialHairByCustomizationKey;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - VariationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(int RaceId, int SexId, int VariationId), CharHairGeosetDbcRecord> _hairGeosetsByCustomizationKey;
 
-    /**
-      * Initializes a new CharacterDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      */
+    // Constructor: CharacterDbcDataStore
+    // Purpose: Initializes a new CharacterDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private CharacterDbcDataStore()
     {
         Races = new Dictionary<int, ChrRaceDbcRecord>();
@@ -75,11 +110,18 @@ public sealed class CharacterDbcDataStore
         _hairGeosetsByCustomizationKey = [];
     }
 
-    /**
-      * Initializes a new CharacterDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: races, classes, baseInfo, startOutfits, sections, facialHairStyles....
-      */
+    // Constructor: CharacterDbcDataStore
+    // Purpose: Initializes a new CharacterDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - races: Races value supplied by the caller for this operation.
+    // - classes: Classes value supplied by the caller for this operation.
+    // - baseInfo: Base info value supplied by the caller for this operation.
+    // - startOutfits: Start outfits value supplied by the caller for this operation.
+    // - sections: Sections value supplied by the caller for this operation.
+    // - facialHairStyles: Facial hair styles value supplied by the caller for this operation.
+    // - hairGeosets: Hair geosets value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private CharacterDbcDataStore(
         IReadOnlyDictionary<int, ChrRaceDbcRecord> races,
         IReadOnlyDictionary<int, ChrClassDbcRecord> classes,
@@ -103,49 +145,43 @@ public sealed class CharacterDbcDataStore
         _hairGeosetsByCustomizationKey = BuildHairGeosetIndex(hairGeosets.Values);
     }
 
-    /**
-      * Gets an empty typed character store for disabled DBC loading paths.
-      */
     public static CharacterDbcDataStore Empty { get; } = new();
 
-    /**
-      * Gets all ChrRaces.dbc records indexed by race id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ChrRaceDbcRecord> Races { get; }
 
-    /**
-      * Gets all ChrClasses.dbc records indexed by class id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, ChrClassDbcRecord> Classes { get; }
 
-    /**
-      * Gets valid race/class combinations from CharBaseInfo.dbc.
-      */
+    // Property: Gets or sets the base info value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: base info value exposed by the owning type.
     public IReadOnlyList<CharBaseInfoDbcRecord> BaseInfo { get; }
 
-    /**
-      * Gets all CharStartOutfit.dbc records indexed by outfit record id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CharStartOutfitDbcRecord> StartOutfits { get; }
 
-    /**
-      * Gets all CharSections.dbc records indexed by section id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CharSectionDbcRecord> Sections { get; }
 
-    /**
-      * Gets all CharacterFacialHairStyles.dbc records.
-      */
+    // Property: Gets or sets the facial hair styles value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: facial hair styles value exposed by the owning type.
     public IReadOnlyList<CharacterFacialHairStyleDbcRecord> FacialHairStyles { get; }
 
-    /**
-      * Gets all CharHairGeosets.dbc records indexed by row id.
-      */
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CharHairGeosetDbcRecord> HairGeosets { get; }
 
-    /**
-      * Converts loaded raw DBC stores into typed character DBC indexes.
-      */
+    // Method: FromDbcStores
+    // Purpose: Executes the from DBC stores operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the character DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static CharacterDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -197,73 +233,118 @@ public sealed class CharacterDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName}: character DBC loaded (races={data.Races.Count}, classes={data.Classes.Count}, raceClassPairs={data.BaseInfo.Count}, startOutfits={data.StartOutfits.Count}, sections={data.Sections.Count}, facialHairStyles={data.FacialHairStyles.Count}, hairGeosets={data.HairGeosets.Count}).",
+            string.Join(Environment.NewLine,
+                $"{ownerName}: character DBC loaded:",
+                $"  ChrRaces.dbc: {data.Races.Count}",
+                $"  ChrClasses.dbc: {data.Classes.Count}",
+                $"  ChrBaseInfo.dbc: {data.BaseInfo.Count}",
+                $"  CharStartOutfit.dbc: {data.StartOutfits.Count}",
+                $"  CharSections.dbc: {data.Sections.Count}",
+                $"  CharacterFacialHairStyles.dbc: {data.FacialHairStyles.Count}",
+                $"  CharHairGeosets.dbc: {data.HairGeosets.Count}"),
             "CharacterDbcDataStore");
 
         return data;
     }
 
-    /**
-      * Attempts to get one race by id.
-      */
+    // Method: TryGetRace
+    // Purpose: Attempts to retrieve or parse try get race data without treating normal misses as failures.
+    // Parameters:
+    // - raceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // Returns: Returns true when try get race succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetRace(int raceId, out ChrRaceDbcRecord race)
     {
         return Races.TryGetValue(raceId, out race!);
     }
 
-    /**
-      * Attempts to get one class by id.
-      */
+    // Method: TryGetClass
+    // Purpose: Attempts to retrieve or parse try get class data without treating normal misses as failures.
+    // Parameters:
+    // - classId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // Returns: Returns true when try get class succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetClass(int classId, out ChrClassDbcRecord characterClass)
     {
         return Classes.TryGetValue(classId, out characterClass!);
     }
 
-    /**
-      * Returns true when the supplied race/class pair is allowed by CharBaseInfo.dbc.
-      */
+    // Method: IsRaceClassAllowed
+    // Purpose: Validates or evaluates is race class allowed rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - raceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - classId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when is race class allowed succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsRaceClassAllowed(int raceId, int classId)
     {
         return _allowedRaceClasses.Contains((raceId, classId));
     }
 
-    /**
-      * Attempts to resolve the starter outfit for a race/class/gender/outfit choice.
-      */
+    // Method: TryGetStartOutfit
+    // Purpose: Attempts to retrieve or parse try get start outfit data without treating normal misses as failures.
+    // Parameters:
+    // - raceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - classId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // - genderId: Gender ID identifier used to select the exact record, object, or runtime owner.
+    // - outfitId: Outfit ID identifier used to select the exact record, object, or runtime owner.
+    // - outfit: Outfit value supplied by the caller for this operation.
+    // Returns: Returns true when try get start outfit succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetStartOutfit(int raceId, int classId, int genderId, int outfitId, out CharStartOutfitDbcRecord outfit)
     {
         return _startOutfitsByCreateKey.TryGetValue((raceId, classId, genderId, outfitId), out outfit!);
     }
 
-    /**
-      * Returns true when the requested CharSections customization tuple exists.
-      */
+    // Method: IsSectionCustomizationValid
+    // Purpose: Validates or evaluates is section customization valid rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - raceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - sexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - sectionType: Section type value supplied by the caller for this operation.
+    // - variationIndex: Variation index value supplied by the caller for this operation.
+    // - colorIndex: Color index value supplied by the caller for this operation.
+    // Returns: Returns true when is section customization valid succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsSectionCustomizationValid(int raceId, int sexId, int sectionType, int variationIndex, int colorIndex)
     {
         return _sectionsByCustomizationKey.ContainsKey((raceId, sexId, sectionType, variationIndex, colorIndex));
     }
 
-    /**
-      * Returns true when the requested facial-hair variation exists for the race/gender pair.
-      */
+    // Method: IsFacialHairValid
+    // Purpose: Validates or evaluates is facial hair valid rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - raceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - sexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - variationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when is facial hair valid succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsFacialHairValid(int raceId, int sexId, int variationId)
     {
         return _facialHairByCustomizationKey.ContainsKey((raceId, sexId, variationId));
     }
 
-    /**
-      * Returns true when the requested hair-style variation exists for the race/gender pair.
-      */
+    // Method: IsHairStyleValid
+    // Purpose: Validates or evaluates is hair style valid rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - raceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - sexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - variationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when is hair style valid succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool IsHairStyleValid(int raceId, int sexId, int variationId)
     {
         return _hairGeosetsByCustomizationKey.ContainsKey((raceId, sexId, variationId));
     }
 
-    /**
-      * Parses read race record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadRaceRecord
+    // Purpose: Retrieves read race record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the chr race DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ChrRaceDbcRecord ReadRaceRecord(DbcRecord record)
     {
         return new ChrRaceDbcRecord(
@@ -289,11 +370,12 @@ public sealed class CharacterDbcDataStore
             DbcRecordReader.ReadString(record, 28));
     }
 
-    /**
-      * Parses read class record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadClassRecord
+    // Purpose: Retrieves read class record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the chr class DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static ChrClassDbcRecord ReadClassRecord(DbcRecord record)
     {
         return new ChrClassDbcRecord(
@@ -307,11 +389,13 @@ public sealed class CharacterDbcDataStore
             DbcRecordReader.ReadInt32(record, 16));
     }
 
-    /**
-      * Loads load base info records information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: dbcStores, ownerName.
-      */
+    // Method: LoadBaseInfoRecords
+    // Purpose: Retrieves load base info records data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the list value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static List<CharBaseInfoDbcRecord> LoadBaseInfoRecords(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         List<CharBaseInfoDbcRecord> records = [];
@@ -329,11 +413,12 @@ public sealed class CharacterDbcDataStore
         return records;
     }
 
-    /**
-      * Parses read base info record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadBaseInfoRecord
+    // Purpose: Retrieves read base info record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the char base info DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CharBaseInfoDbcRecord ReadBaseInfoRecord(DbcRecord record)
     {
         ReadOnlySpan<byte> raw = record.GetRawData();
@@ -347,6 +432,13 @@ public sealed class CharacterDbcDataStore
             DbcRecordReader.ReadByteAtOffset(record, 1));
     }
 
+    // Method: LoadStartOutfitRecords
+    // Purpose: Retrieves load start outfit records data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<int, CharStartOutfitDbcRecord> LoadStartOutfitRecords(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         Dictionary<int, CharStartOutfitDbcRecord> records = [];
@@ -367,11 +459,12 @@ public sealed class CharacterDbcDataStore
         return records;
     }
 
-    /**
-      * Parses read start outfit record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadStartOutfitRecord
+    // Purpose: Retrieves read start outfit record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the char start outfit DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CharStartOutfitDbcRecord ReadStartOutfitRecord(DbcRecord record)
     {
         int id = DbcRecordReader.ReadInt32AtOffset(record, 0);
@@ -397,11 +490,12 @@ public sealed class CharacterDbcDataStore
         return new CharStartOutfitDbcRecord(id, raceId, classId, genderId, outfitId, items);
     }
 
-    /**
-      * Parses read section record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSectionRecord
+    // Purpose: Retrieves read section record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the char section DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CharSectionDbcRecord ReadSectionRecord(DbcRecord record)
     {
         return new CharSectionDbcRecord(
@@ -417,11 +511,12 @@ public sealed class CharacterDbcDataStore
             DbcRecordReader.ReadInt32(record, 9));
     }
 
-    /**
-      * Parses read facial hair style record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadFacialHairStyleRecord
+    // Purpose: Retrieves read facial hair style record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the character facial hair style DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CharacterFacialHairStyleDbcRecord ReadFacialHairStyleRecord(DbcRecord record)
     {
         int[] geosets =
@@ -441,11 +536,12 @@ public sealed class CharacterDbcDataStore
             geosets);
     }
 
-    /**
-      * Parses read hair geoset record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadHairGeosetRecord
+    // Purpose: Retrieves read hair geoset record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the char hair geoset DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CharHairGeosetDbcRecord ReadHairGeosetRecord(DbcRecord record)
     {
         return new CharHairGeosetDbcRecord(
@@ -457,6 +553,13 @@ public sealed class CharacterDbcDataStore
             DbcRecordReader.ReadInt32(record, 5));
     }
 
+    // Constructor: HashSet
+    // Purpose: Validates or evaluates hash set rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - ClassId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static HashSet<(int RaceId, int ClassId)> BuildAllowedRaceClassSet(IEnumerable<CharBaseInfoDbcRecord> records)
     {
         return records
@@ -464,6 +567,15 @@ public sealed class CharacterDbcDataStore
             .ToHashSet();
     }
 
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - ClassId: Class ID identifier used to select the exact record, object, or runtime owner.
+    // - GenderId: Gender ID identifier used to select the exact record, object, or runtime owner.
+    // - OutfitId: Outfit ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<(int RaceId, int ClassId, int GenderId, int OutfitId), CharStartOutfitDbcRecord> BuildStartOutfitIndex(IEnumerable<CharStartOutfitDbcRecord> records)
     {
         Dictionary<(int RaceId, int ClassId, int GenderId, int OutfitId), CharStartOutfitDbcRecord> index = [];
@@ -475,6 +587,16 @@ public sealed class CharacterDbcDataStore
         return index;
     }
 
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - SectionType: Section type value supplied by the caller for this operation.
+    // - VariationIndex: Variation index value supplied by the caller for this operation.
+    // - ColorIndex: Color index value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<(int RaceId, int SexId, int SectionType, int VariationIndex, int ColorIndex), CharSectionDbcRecord> BuildSectionIndex(IEnumerable<CharSectionDbcRecord> records)
     {
         Dictionary<(int RaceId, int SexId, int SectionType, int VariationIndex, int ColorIndex), CharSectionDbcRecord> index = [];
@@ -486,6 +608,14 @@ public sealed class CharacterDbcDataStore
         return index;
     }
 
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - VariationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<(int RaceId, int SexId, int VariationId), CharacterFacialHairStyleDbcRecord> BuildFacialHairIndex(IEnumerable<CharacterFacialHairStyleDbcRecord> records)
     {
         Dictionary<(int RaceId, int SexId, int VariationId), CharacterFacialHairStyleDbcRecord> index = [];
@@ -497,6 +627,14 @@ public sealed class CharacterDbcDataStore
         return index;
     }
 
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+    // - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+    // - VariationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<(int RaceId, int SexId, int VariationId), CharHairGeosetDbcRecord> BuildHairGeosetIndex(IEnumerable<CharHairGeosetDbcRecord> records)
     {
         Dictionary<(int RaceId, int SexId, int VariationId), CharHairGeosetDbcRecord> index = [];

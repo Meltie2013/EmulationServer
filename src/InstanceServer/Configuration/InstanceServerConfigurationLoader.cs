@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/InstanceServer/Configuration/InstanceServerConfigurationLoader.cs
+// Purpose: Contains instance server configuration loader code for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Core.Configuration;
 using EmulationServer.Game.Data.Dbc.Creatures;
@@ -22,35 +25,24 @@ using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Shared.Configuration;
 
-/**
-  * File overview: src/InstanceServer/Configuration/InstanceServerConfigurationLoader.cs
-  * Documents the InstanceServerConfigurationLoader source file in the instance service startup and internal server coordination area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.InstanceServer.Configuration;
 
-/**
-  * Owns the instance server configuration loader behavior for the instance service startup and internal server coordination layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InstanceServerConfigurationLoader
+// Purpose: Provides instance server configuration loader behavior for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class InstanceServerConfigurationLoader
 {
-    /**
-      * Defines the constant value for instance server section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the instance server section constant used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: fixed instance server section value used anywhere this rule or protocol value is needed.
     private const string InstanceServerSection = "InstanceServer";
-    /**
-      * Defines the constant value for instance services section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the instance services section constant used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: fixed instance services section value used anywhere this rule or protocol value is needed.
     private const string InstanceServicesSection = "InstanceServices";
 
-    /**
-      * Gets or stores the default required dbc files value used by InstanceServerConfigurationLoader.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the default required DBC files value used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: default required DBC files value exposed by the owning type.
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
         MapDbcFileNames.AreaTable,
@@ -68,10 +60,12 @@ public static class InstanceServerConfigurationLoader
         "WorldSafeLocs.dbc",
     ];
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the instance server settings value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static InstanceServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -96,10 +90,12 @@ public static class InstanceServerConfigurationLoader
         return settings;
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadInstanceServices
+    // Purpose: Retrieves load instance services data for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the map runtime settings value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static MapRuntimeSettings LoadInstanceServices(IniConfiguration configuration)
     {
         TimeSpan tickInterval = configuration.GetTimeSpan(
@@ -132,17 +128,20 @@ public static class InstanceServerConfigurationLoader
             DbcDirectory = configuration.GetString(InstanceServicesSection, "DbcDirectory", "dbc"),
             MapsDirectory = configuration.GetString(InstanceServicesSection, "MapsDirectory", "mapstore"),
             LoadDbcStores = configuration.GetBool(InstanceServicesSection, "LoadDbcStores", true),
-            // Mapstore grid data is intentionally not a runtime toggle. Terrain, liquid, collision/vmaps,
-            // and navmesh/mmaps are always preloaded and kept resident unless a compile-time symbol disables a component.
+
             RequiredDbcFiles = SplitList(requiredDbcFiles).ToArray(),
             Services = ParseInstanceServices(instances, tickInterval, logTicks),
         };
     }
 
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ParseInstanceServices
+    // Purpose: Converts incoming data into parse instance services form for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - tickInterval: Tick interval value supplied by the caller for this operation.
+    // - logTicks: Log ticks value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<MapServiceDefinition> ParseInstanceServices(
         string value,
         TimeSpan tickInterval,
@@ -164,10 +163,14 @@ public static class InstanceServerConfigurationLoader
         return services;
     }
 
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ParseInstanceService
+    // Purpose: Converts incoming data into parse instance service form for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - tickInterval: Tick interval value supplied by the caller for this operation.
+    // - logTicks: Log ticks value supplied by the caller for this operation.
+    // Returns: Returns the map service definition value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static MapServiceDefinition ParseInstanceService(
         string entry,
         TimeSpan tickInterval,
@@ -212,10 +215,12 @@ public static class InstanceServerConfigurationLoader
         };
     }
 
-    /**
-      * Splits the supplied text into command parts while preserving quoted values.
-      * The method is part of InstanceServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: SplitList
+    // Purpose: Executes the split list operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

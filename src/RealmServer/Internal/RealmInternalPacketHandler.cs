@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Internal/RealmInternalPacketHandler.cs
+// Purpose: Contains realm internal packet handler code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 using EmulationServer.Network.Networking.Callbacks;
@@ -24,55 +27,47 @@ using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/RealmServer/Internal/RealmInternalPacketHandler.cs
-  * Documents the RealmInternalPacketHandler source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Internal;
 
-/**
-  * Owns the realm internal packet handler behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmInternalPacketHandler
+// Purpose: Provides realm internal packet handler behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmInternalPacketHandler
 {
-    /**
-      * Defines the constant value for realm status packet.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm status packet constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed realm status packet value used anywhere this rule or protocol value is needed.
     private const string RealmStatusPacket = "REALM_STATUS";
 
-    /**
-      * Holds the private realm store state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the realm store state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current realm store backing value maintained by the owning type.
     private readonly ConfiguredRealmStore _realmStore;
 
-    /**
-      * Holds the private sync root state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
     private readonly object _syncRoot = new();
 
+    // Field: Stores the internal server session state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current internal server session backing value maintained by the owning type.
     private readonly Dictionary<InternalServerSession, HashSet<uint>> _realmIdsBySession = [];
+    // Field: Stores the internal server session state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current internal server session backing value maintained by the owning type.
     private readonly Dictionary<InternalServerSession, Dictionary<uint, Dictionary<uint, byte>>> _pendingCharacterCountsBySession = [];
 
-    /**
-      * Initializes a new RealmInternalPacketHandler instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: realmStore.
-      */
+    // Constructor: RealmInternalPacketHandler
+    // Purpose: Initializes a new RealmInternalPacketHandler instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmStore: Realm store value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     public RealmInternalPacketHandler(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Creates the callbacks result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: CreateCallbacks
+    // Purpose: Applies create callbacks changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the internal network callbacks value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     public InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -83,12 +78,15 @@ public sealed class RealmInternalPacketHandler
         };
     }
 
-    /**
-      * Handles the on server authenticated event for the realm authentication, realm-list handling, and external client login services workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerAuthenticatedAsync
+    // Purpose: Executes the on server authenticated operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -98,12 +96,16 @@ public sealed class RealmInternalPacketHandler
         return Task.CompletedTask;
     }
 
-    /**
-      * Handles the on packet received event for the realm authentication, realm-list handling, and external client login services workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPacketReceivedAsync
+    // Purpose: Executes the on packet received operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -144,12 +146,15 @@ public sealed class RealmInternalPacketHandler
         return Task.CompletedTask;
     }
 
-    /**
-      * Handles the on server disconnected event for the realm authentication, realm-list handling, and external client login services workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerDisconnectedAsync
+    // Purpose: Executes the on server disconnected operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -181,9 +186,14 @@ public sealed class RealmInternalPacketHandler
         return Task.CompletedTask;
     }
 
-    /**
-      * Starts a new character-count snapshot from a WorldServer.
-      */
+    // Method: HandleCharacterCountSnapshotBegin
+    // Purpose: Handles handle character count snapshot begin work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     private void HandleCharacterCountSnapshotBegin(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length != 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
@@ -204,9 +214,14 @@ public sealed class RealmInternalPacketHandler
         }
     }
 
-    /**
-      * Adds one data chunk to the pending character-count snapshot.
-      */
+    // Method: HandleCharacterCountSnapshotData
+    // Purpose: Handles handle character count snapshot data work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     private void HandleCharacterCountSnapshotData(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length < 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
@@ -240,9 +255,14 @@ public sealed class RealmInternalPacketHandler
         }
     }
 
-    /**
-      * Completes and publishes the pending character-count snapshot for a realm.
-      */
+    // Method: HandleCharacterCountSnapshotEnd
+    // Purpose: Handles handle character count snapshot end work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     private void HandleCharacterCountSnapshotEnd(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length != 2 || !uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint realmId))
@@ -271,10 +291,14 @@ public sealed class RealmInternalPacketHandler
         Logger.Write(LogType.NETWORK, $"Realm {realmId} character-count snapshot updated by '{remoteServerName}': {snapshot.Count} account(s).", "RealmInternalPacketHandler");
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
-      */
+    // Method: HandleRealmStatusPacket
+    // Purpose: Handles handle realm status packet work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     private void HandleRealmStatusPacket(InternalServerSession session, string remoteServerName, string[] parts)
     {
         if (parts.Length < 5)
@@ -329,11 +353,13 @@ public sealed class RealmInternalPacketHandler
         Logger.Write(LogType.TRACE, $"Realm {realmId} status updated by '{remoteServerName}': {(online ? "online" : "offline")}, active connections {Math.Max(0, activeConnections)}/{Math.Max(1, capacityLimit)}, population {population:0.0000}.", "RealmInternalPacketHandler");
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of RealmInternalPacketHandler and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryParseOnlineState
+    // Purpose: Attempts to retrieve or parse try parse online state data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - online: Online value supplied by the caller for this operation.
+    // Returns: Returns true when try parse online state succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmInternalPacketHandler so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseOnlineState(string value, out bool online)
     {
         switch (value.ToLowerInvariant())

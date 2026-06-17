@@ -15,20 +15,21 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcHeader.cs
-  * Documents the DbcHeader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/DbcHeader.cs
+// Purpose: Contains DBC header code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Represents immutable dbc header data passed between parts of the server.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: Magic, RecordCount, FieldCount, RecordSize, StringBlockSize.
-  */
+// Type: DbcHeader
+// Purpose: Represents DBC header data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Magic: Magic value supplied by the caller for this operation.
+// - RecordCount: Record count value supplied by the caller for this operation.
+// - FieldCount: Field count value supplied by the caller for this operation.
+// - RecordSize: Record size value supplied by the caller for this operation.
+// - StringBlockSize: String block size value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record DbcHeader(
     string Magic,
     int RecordCount,
@@ -36,29 +37,27 @@ public sealed record DbcHeader(
     int RecordSize,
     int StringBlockSize)
 {
-    /**
-      * Defines the constant value for expected magic.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the expected magic constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed expected magic value used anywhere this rule or protocol value is needed.
     public const string ExpectedMagic = "WDBC";
 
-    /**
-      * Gets or stores the uses four byte fields value used by DbcHeader.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public bool UsesFourByteFields => RecordSize == FieldCount * sizeof(uint);
 
-    /**
-      * Gets or stores the uses uniform compact fields value used by DbcHeader.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: TryGetUniformFieldSize
+    // Purpose: Attempts to retrieve or parse try get uniform field size data without treating normal misses as failures.
+    // Parameters:
+    // - _: Value value supplied by the caller for this operation.
+    // Returns: Returns a result indicating whether the requested value could be produced without throwing for normal failure cases.
+    // Notes: This keeps the operation scoped to DbcHeader so callers do not duplicate validation, protocol, or persistence rules.
     public bool UsesUniformCompactFields => TryGetUniformFieldSize(out _);
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of DbcHeader and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryGetUniformFieldSize
+    // Purpose: Attempts to retrieve or parse try get uniform field size data without treating normal misses as failures.
+    // Parameters:
+    // - fieldSize: Field size value supplied by the caller for this operation.
+    // Returns: Returns true when try get uniform field size succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to DbcHeader so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetUniformFieldSize(out int fieldSize)
     {
         fieldSize = 0;

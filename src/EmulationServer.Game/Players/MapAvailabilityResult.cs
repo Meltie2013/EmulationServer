@@ -15,37 +15,42 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/MapAvailabilityResult.cs
-  * Documents the MapAvailabilityResult source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/MapAvailabilityResult.cs
+// Purpose: Contains map availability result code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Carries immutable map availability result data for the logged-in player state, persistence models, and gameplay records layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: IsAvailable, Reason, OwnerServerName, RequiresInstanceServer.
-  */
+// Type: MapAvailabilityResult
+// Purpose: Represents map availability result data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - IsAvailable: Is available value supplied by the caller for this operation.
+// - Reason: Reason value supplied by the caller for this operation.
+// - OwnerServerName: Owner server name value supplied by the caller for this operation.
+// - RequiresInstanceServer: Requires instance server value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapAvailabilityResult(bool IsAvailable, string Reason, string OwnerServerName, bool RequiresInstanceServer)
 {
-    /**
-      * Performs the available operation for the logged-in player state, persistence models, and gameplay records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: ownerServerName, requiresInstanceServer.
-      */
+
+    // Method: Available
+    // Purpose: Executes the available operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - requiresInstanceServer: Requires instance server value supplied by the caller for this operation.
+    // Returns: Returns the map availability result value produced by this operation.
+    // Notes: This keeps the operation scoped to MapAvailabilityResult so callers do not duplicate validation, protocol, or persistence rules.
     public static MapAvailabilityResult Available(string ownerServerName, bool requiresInstanceServer = false)
     {
         return new MapAvailabilityResult(true, string.Empty, ownerServerName, requiresInstanceServer);
     }
 
-    /**
-      * Performs the unavailable operation for the logged-in player state, persistence models, and gameplay records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: reason, requiresInstanceServer.
-      */
+    // Method: Unavailable
+    // Purpose: Executes the unavailable operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - requiresInstanceServer: Requires instance server value supplied by the caller for this operation.
+    // Returns: Returns the map availability result value produced by this operation.
+    // Notes: This keeps the operation scoped to MapAvailabilityResult so callers do not duplicate validation, protocol, or persistence rules.
     public static MapAvailabilityResult Unavailable(string reason, bool requiresInstanceServer = false)
     {
         return new MapAvailabilityResult(false, reason, string.Empty, requiresInstanceServer);

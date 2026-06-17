@@ -15,14 +15,18 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/GameObjectClientCreateRecord.cs
+// Purpose: Contains game object client create record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Bundles a gameobject spawn with its resolved template for client-visible create updates.
-  * WorldServer keeps this small bridge type in the shared game-data layer so packet builders do
-  * not need to look templates up while serializing update blocks.
-  */
+// Type: GameObjectClientCreateRecord
+// Purpose: Represents game object client create record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Spawn: Spawn value supplied by the caller for this operation.
+// - Template: Template value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record GameObjectClientCreateRecord(
     GameObjectSpawnRecord Spawn,
     GameObjectTemplateRecord Template);

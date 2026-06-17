@@ -15,13 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/GameObjects/GameObjectSnapshotApplyResult.cs
+// Purpose: Contains game object snapshot apply result code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.GameObjects;
 
-/**
-  * Describes the result of applying one game object snapshot protocol packet.
-  * Completed packets tell a map or instance service to refresh its map-local runtime object set from the newly cached snapshot.
-  */
+// Type: GameObjectSnapshotApplyResult
+// Purpose: Represents game object snapshot apply result data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Completed: Completed value supplied by the caller for this operation.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - TemplateCount: Template count value supplied by the caller for this operation.
+// - SpawnCount: Spawn count value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct GameObjectSnapshotApplyResult(
     bool Completed,
     int MapId,

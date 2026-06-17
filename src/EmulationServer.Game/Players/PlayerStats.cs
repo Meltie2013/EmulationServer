@@ -15,20 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/PlayerStats.cs
-  * Documents the PlayerStats source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/PlayerStats.cs
+// Purpose: Contains player stats code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Carries immutable player stats data for the logged-in player state, persistence models, and gameplay records layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Health, Power1, Power2, Power3, Power4, Power5, Strength, Agility, Stamina, Intellect, Spirit, Armor.
-  */
+// Type: PlayerStats
+// Purpose: Represents player stats data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Health: Health value supplied by the caller for this operation.
+// - Power1: Power1 value supplied by the caller for this operation.
+// - Power2: Power2 value supplied by the caller for this operation.
+// - Power3: Power3 value supplied by the caller for this operation.
+// - Power4: Power4 value supplied by the caller for this operation.
+// - Power5: Power5 value supplied by the caller for this operation.
+// - Strength: Strength value supplied by the caller for this operation.
+// - Agility: Agility value supplied by the caller for this operation.
+// - Stamina: Stamina value supplied by the caller for this operation.
+// - Intellect: Intellect value supplied by the caller for this operation.
+// - Spirit: Spirit value supplied by the caller for this operation.
+// - Armor: Armor value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record PlayerStats(
     uint Health,
     uint Power1,
@@ -43,9 +51,6 @@ public sealed record PlayerStats(
     uint Spirit,
     uint Armor)
 {
-    /**
-      * Exposes the empty value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+
     public static PlayerStats Empty { get; } = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }

@@ -127,7 +127,6 @@ public sealed class MapStoreTileLoader
         return new MapOverviewScene(mapId, build, previewResolution, tiles, messages);
     }
 
-
     private MapOverviewTilePreviewScene? TryBuildOverviewPreview(uint mapId, byte tileX, byte tileY, int previewResolution, List<string> messages, ref int previewErrorCount)
     {
         float[]? terrainHeights = null;

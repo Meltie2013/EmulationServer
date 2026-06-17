@@ -15,13 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/GameObjectTemplateRecord.cs
+// Purpose: Contains game object template record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries immutable gameobject_template data from the world database.
-  * The data fields intentionally mirror the Mangos Zero layout so object-specific behavior can be added per type without changing the row loader later.
-  */
+// Type: GameObjectTemplateRecord
+// Purpose: Represents game object template record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Entry: Entry value supplied by the caller for this operation.
+// - Type: Type value supplied by the caller for this operation.
+// - DisplayId: Display ID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - Faction: Faction value supplied by the caller for this operation.
+// - Flags: Flags value supplied by the caller for this operation.
+// - Size: Size value supplied by the caller for this operation.
+// - DataFields: Data fields value supplied by the caller for this operation.
+// - MinGold: Min gold value supplied by the caller for this operation.
+// - MaxGold: Max gold value supplied by the caller for this operation.
+// - ScriptName: Script name value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record GameObjectTemplateRecord(
     uint Entry,
     byte Type,
@@ -35,14 +49,17 @@ public sealed record GameObjectTemplateRecord(
     uint MaxGold,
     string ScriptName)
 {
-    /**
-      * Mangos Zero stores 24 type-specific data columns on each game object template.
-      */
+
+    // Constant: Defines the data field count constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed data field count value used anywhere this rule or protocol value is needed.
     public const int DataFieldCount = 24;
 
-    /**
-      * Resolves one type-specific data field without exposing callers to list bounds checks.
-      */
+    // Method: GetDataField
+    // Purpose: Retrieves get data field data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectTemplateRecord so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetDataField(int index)
     {
         return index >= 0 && index < DataFields.Count ? DataFields[index] : 0u;

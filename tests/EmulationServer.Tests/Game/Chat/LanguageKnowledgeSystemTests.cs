@@ -15,12 +15,18 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Game/Chat/LanguageKnowledgeSystemTests.cs
+// Purpose: Contains language knowledge system tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Chat;
 using EmulationServer.Game.Players;
 
 namespace EmulationServer.Tests.Game.Chat;
 
+// Type: LanguageKnowledgeSystemTests
+// Purpose: Provides language knowledge system tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class LanguageKnowledgeSystemTests
 {
     [Theory]
@@ -32,6 +38,15 @@ public sealed class LanguageKnowledgeSystemTests
     [InlineData(5, PlayerFaction.Horde, new int[] { 109, 673 }, new int[] { 669, 17737 })]
     [InlineData(6, PlayerFaction.Horde, new int[] { 109, 115 }, new int[] { 669, 670 })]
     [InlineData(8, PlayerFaction.Horde, new int[] { 109, 315 }, new int[] { 669, 7341 })]
+    // Method: BuildInitialLanguageKnowledge_MatchesVanillaPlayableRaces
+    // Purpose: Builds or writes build initial language knowledge matches vanilla playable races output for the automated test and verification layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // - intexpectedSkillIds: Intexpected skill ids value supplied by the caller for this operation.
+    // - intexpectedSpellIds: Intexpected spell ids value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystemTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildInitialLanguageKnowledge_MatchesVanillaPlayableRaces(
         byte race,
         PlayerFaction faction,
@@ -48,6 +63,11 @@ public sealed class LanguageKnowledgeSystemTests
     }
 
     [Fact]
+    // Method: EnsureInitialLanguageSkills_BackfillsMissingFactionAndRaceLanguages
+    // Purpose: Validates or evaluates ensure initial language skills backfills missing faction and race languages rules for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystemTests so callers do not duplicate validation, protocol, or persistence rules.
     public void EnsureInitialLanguageSkills_BackfillsMissingFactionAndRaceLanguages()
     {
         PlayerSkill existingDefense = new(95, 42, 75);
@@ -62,6 +82,11 @@ public sealed class LanguageKnowledgeSystemTests
     }
 
     [Fact]
+    // Method: GetDefaultLanguage_UsesCommonUnlessFactionIsHorde
+    // Purpose: Retrieves get default language uses common unless faction is horde data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystemTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GetDefaultLanguage_UsesCommonUnlessFactionIsHorde()
     {
         Assert.Equal(ChatLanguage.Common, LanguageKnowledgeSystem.GetDefaultLanguage(PlayerFaction.Alliance));

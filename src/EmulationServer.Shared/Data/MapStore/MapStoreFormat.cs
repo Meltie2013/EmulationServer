@@ -15,25 +15,45 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreFormat.cs
+// Purpose: Contains map store format code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Owns the stable binary constants used by extracted mapstore runtime files.
-  */
+// Type: MapStoreFormat
+// Purpose: Provides map store format behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapStoreFormat
 {
+    // Constant: Defines the current version constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed current version value used anywhere this rule or protocol value is needed.
     public const ushort CurrentVersion = 1;
+    // Constant: Defines the file header size constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed file header size value used anywhere this rule or protocol value is needed.
     public const int FileHeaderSize = 24;
+    // Constant: Defines the terrain magic constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed terrain magic value used anywhere this rule or protocol value is needed.
     public const string TerrainMagic = "ESTR";
+    // Constant: Defines the liquid magic constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed liquid magic value used anywhere this rule or protocol value is needed.
     public const string LiquidMagic = "ESLQ";
+    // Constant: Defines the collision magic constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed collision magic value used anywhere this rule or protocol value is needed.
     public const string CollisionMagic = "ESCO";
+    // Constant: Defines the navmesh magic constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed navmesh magic value used anywhere this rule or protocol value is needed.
     public const string NavmeshMagic = "ESNM";
+    // Constant: Defines the index magic constant used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: fixed index magic value used anywhere this rule or protocol value is needed.
     public const string IndexMagic = "ESIX";
 
-    /**
-      * Resolves the expected four-character magic for a runtime payload kind.
-      */
+    // Method: GetMagic
+    // Purpose: Retrieves get magic data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFormat so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetMagic(MapStoreDataKind kind)
     {
         return kind switch
@@ -46,9 +66,12 @@ public static class MapStoreFormat
         };
     }
 
-    /**
-      * Resolves the index bit assigned to a runtime payload kind.
-      */
+    // Method: GetTileDataFlag
+    // Purpose: Retrieves get tile data flag data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns the map store tile data flags value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreFormat so callers do not duplicate validation, protocol, or persistence rules.
     public static MapStoreTileDataFlags GetTileDataFlag(MapStoreDataKind kind)
     {
         return kind switch

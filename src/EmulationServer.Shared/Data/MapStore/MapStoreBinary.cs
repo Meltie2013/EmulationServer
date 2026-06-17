@@ -15,19 +15,36 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreBinary.cs
+// Purpose: Contains map store binary code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Reads and writes the fixed mapstore file header used by every runtime payload.
-  */
+// Type: MapStoreBinary
+// Purpose: Provides map store binary behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapStoreBinary
 {
+    // Method: CreateCrc32Table
+    // Purpose: Applies create crc32 table changes for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: Returns the uint[] crc32 table = value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly uint[] Crc32Table = CreateCrc32Table();
 
-    /**
-      * Writes one complete mapstore file with header, CRC, and payload.
-      */
+    // Method: WriteFile
+    // Purpose: Builds or writes write file output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // - build: Build value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - bytepayload: Bytepayload value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     public static void WriteFile(string path, MapStoreDataKind kind, ushort build, uint mapId, byte tileX, byte tileY, byte[] payload)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -56,9 +73,13 @@ public static class MapStoreBinary
         writer.Write(payload);
     }
 
-    /**
-      * Reads and validates one complete mapstore file.
-      */
+    // Method: ReadFile
+    // Purpose: Retrieves read file data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // - expectedKind: Expected kind value supplied by the caller for this operation.
+    // Returns: Returns the map store file value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     public static MapStoreFile ReadFile(string path, MapStoreDataKind expectedKind)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -84,9 +105,13 @@ public static class MapStoreBinary
         return new MapStoreFile(path, header, payload);
     }
 
-    /**
-      * Reads one fixed mapstore file header from the supplied reader.
-      */
+    // Method: ReadHeader
+    // Purpose: Retrieves read header data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the map store file header value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     public static MapStoreFileHeader ReadHeader(BinaryReader reader, string path)
     {
         if (reader.BaseStream.Length < MapStoreFormat.FileHeaderSize)
@@ -108,9 +133,12 @@ public static class MapStoreBinary
         return new MapStoreFileHeader(magic, version, build, mapId, tileX, tileY, kind, payloadSize, payloadCrc32);
     }
 
-    /**
-      * Computes a standard CRC32 for a mapstore payload.
-      */
+    // Method: ComputeCrc32
+    // Purpose: Calculates compute crc32 values for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - payload: Payload bytes or structured payload consumed by this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     public static uint ComputeCrc32(ReadOnlySpan<byte> payload)
     {
         uint crc = 0xFFFFFFFFu;
@@ -122,9 +150,15 @@ public static class MapStoreBinary
         return ~crc;
     }
 
-    /**
-      * Validates that the supplied header matches the expected file kind and physical file size.
-      */
+    // Method: ValidateHeader
+    // Purpose: Validates or evaluates validate header rules for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - header: Header value supplied by the caller for this operation.
+    // - expectedKind: Expected kind value supplied by the caller for this operation.
+    // - fileLength: File length value supplied by the caller for this operation.
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateHeader(MapStoreFileHeader header, MapStoreDataKind expectedKind, long fileLength, string path)
     {
         string expectedMagic = MapStoreFormat.GetMagic(expectedKind);
@@ -150,9 +184,11 @@ public static class MapStoreBinary
         }
     }
 
-    /**
-      * Builds the CRC32 lookup table once for repeated mapstore reads and writes.
-      */
+    // Method: CreateCrc32Table
+    // Purpose: Applies create crc32 table changes for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: Returns the uint[] value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinary so callers do not duplicate validation, protocol, or persistence rules.
     private static uint[] CreateCrc32Table()
     {
         uint[] table = new uint[256];

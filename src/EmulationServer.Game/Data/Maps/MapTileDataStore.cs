@@ -15,23 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapTileDataStore.cs
+// Purpose: Contains map tile data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Maps/MapTileDataStore.cs
-  * Documents the MapTileDataStore source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Loads extracted mapstore tile files and converts each compile-required runtime payload into typed queryable data.
-  * Terrain, liquid, collision, and navmesh files are required by default unless a dedicated compile-time feature symbol disables one.
-  */
+// Type: MapTileDataStore
+// Purpose: Provides map tile data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapTileDataStore
 {
+    // Constructor: MapTileDataStore
+    // Purpose: Initializes a new MapTileDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - fileHeaders: File headers value supplied by the caller for this operation.
+    // - filePaths: File paths value supplied by the caller for this operation.
+    // - terrain: Terrain value supplied by the caller for this operation.
+    // - liquid: Liquid value supplied by the caller for this operation.
+    // - collision: Collision value supplied by the caller for this operation.
+    // - navmesh: Navmesh value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapTileDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private MapTileDataStore(
         string mapStoreRootDirectory,
         MapTileKey key,
@@ -56,69 +65,60 @@ public sealed class MapTileDataStore
         NavmeshQueries = new MapTileNavmeshQueryService(Navmesh);
     }
 
-    /**
-      * Gets the root mapstore directory used to load this tile.
-      */
+    // Property: Gets or sets the map store root directory value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: map store root directory value exposed by the owning type.
     public string MapStoreRootDirectory { get; }
 
-    /**
-      * Gets the map/tile key represented by this loaded tile.
-      */
+    // Property: Gets or sets the key value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: key value exposed by the owning type.
     public MapTileKey Key { get; }
 
-    /**
-      * Gets the validated mapstore headers used to build the typed tile payloads.
-      */
+    // Property: Gets or sets the file headers value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: file headers value exposed by the owning type.
     public IReadOnlyList<MapStoreFileHeader> FileHeaders { get; }
 
-    /**
-      * Gets the physical mapstore component paths used to build the typed tile payloads.
-      */
+    // Property: Gets or sets the file paths value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: file paths value exposed by the owning type.
     public IReadOnlyList<string> FilePaths { get; }
 
-    /**
-      * Gets parsed terrain data for this tile.
-      */
+    // Property: Gets or sets the terrain value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: terrain value exposed by the owning type.
     public MapTileTerrainData Terrain { get; }
 
-    /**
-      * Gets parsed liquid data for this tile.
-      */
+    // Property: Gets or sets the liquid value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: liquid value exposed by the owning type.
     public MapTileLiquidData Liquid { get; }
 
-    /**
-      * Gets parsed collision placement data for this tile.
-      */
+    // Property: Gets or sets the collision value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: collision value exposed by the owning type.
     public MapTileCollisionData Collision { get; }
 
-    /**
-      * Gets parsed navmesh metadata for this tile.
-      */
+    // Property: Gets or sets the navmesh value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: navmesh value exposed by the owning type.
     public MapTileNavmeshData Navmesh { get; }
 
-    /**
-      * Gets terrain query helpers for this tile.
-      */
+    // Property: Gets or sets the terrain queries value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: terrain queries value exposed by the owning type.
     public MapTileTerrainQueryService TerrainQueries { get; }
 
-    /**
-      * Gets liquid query helpers for this tile.
-      */
+    // Property: Gets or sets the liquid queries value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: liquid queries value exposed by the owning type.
     public MapTileLiquidQueryService LiquidQueries { get; }
 
-    /**
-      * Gets collision query helpers for this tile.
-      */
+    // Property: Gets or sets the collision queries value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: collision queries value exposed by the owning type.
     public MapTileCollisionQueryService CollisionQueries { get; }
 
-    /**
-      * Gets navmesh query helpers for this tile. Real path queries intentionally return false until navmesh payload generation exists.
-      */
+    // Property: Gets or sets the navmesh queries value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: navmesh queries value exposed by the owning type.
     public MapTileNavmeshQueryService NavmeshQueries { get; }
 
-    /**
-      * Loads a complete mapstore tile using a terrain file path as the discovery point.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - terrainPath: Terrain path value supplied by the caller for this operation.
+    // Returns: Returns the map tile data store value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static MapTileDataStore Load(string terrainPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(terrainPath);
@@ -131,9 +131,13 @@ public sealed class MapTileDataStore
         return Load(mapStoreRootDirectory, key);
     }
 
-    /**
-      * Loads a complete mapstore tile from the supplied mapstore root and tile key.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // Returns: Returns the map tile data store value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static MapTileDataStore Load(string mapStoreRootDirectory, MapTileKey key)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mapStoreRootDirectory);
@@ -171,9 +175,14 @@ public sealed class MapTileDataStore
             navmesh);
     }
 
-    /**
-      * Tries to parse a terrain file path into the mapstore root directory and tile key.
-      */
+    // Method: TryParseTerrainTilePath
+    // Purpose: Attempts to retrieve or parse try parse terrain tile path data without treating normal misses as failures.
+    // Parameters:
+    // - terrainPath: Terrain path value supplied by the caller for this operation.
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // Returns: Returns true when try parse terrain tile path succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapTileDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseTerrainTilePath(string terrainPath, out string mapStoreRootDirectory, out MapTileKey key)
     {
         mapStoreRootDirectory = string.Empty;
@@ -206,9 +215,16 @@ public sealed class MapTileDataStore
         return true;
     }
 
-    /**
-      * Loads one required mapstore file when that component is enabled by the current build.
-      */
+    // Method: LoadRequiredIfEnabled
+    // Purpose: Retrieves load required if enabled data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapStoreRootDirectory: Map store root directory value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - kind: Kind value supplied by the caller for this operation.
+    // - fileHeaders: File headers value supplied by the caller for this operation.
+    // - filePaths: File paths value supplied by the caller for this operation.
+    // Returns: Returns the map store file? value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static MapStoreFile? LoadRequiredIfEnabled(
         string mapStoreRootDirectory,
         MapTileKey key,
@@ -234,9 +250,13 @@ public sealed class MapTileDataStore
         return file;
     }
 
-    /**
-      * Validates that a loaded component belongs to the requested tile key.
-      */
+    // Method: ValidateComponentKey
+    // Purpose: Validates or evaluates validate component key rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - key: Key value supplied by the caller for this operation.
+    // - file: File value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapTileDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateComponentKey(MapTileKey key, MapStoreFile file)
     {
         if (file.Header.MapId != key.MapId || file.Header.TileX != key.TileX || file.Header.TileY != key.TileY)

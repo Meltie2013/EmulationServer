@@ -15,67 +15,56 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcFileNames.cs
-  * Documents the ItemDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Items/ItemDbcFileNames.cs
+// Purpose: Contains item DBC file names code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Defines item-related DBC filenames needed by character creation and inventory display validation.
-  */
+// Type: ItemDbcFileNames
+// Purpose: Provides item DBC file names behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class ItemDbcFileNames
 {
-    /**
-      * Defines the constant value for item bag family.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the item bag family constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed item bag family value used anywhere this rule or protocol value is needed.
     public const string ItemBagFamily = "ItemBagFamily.dbc";
-    /**
-      * Defines the constant value for item class.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the item class constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed item class value used anywhere this rule or protocol value is needed.
     public const string ItemClass = "ItemClass.dbc";
-    /**
-      * Defines the constant value for item display info.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the item display info constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed item display info value used anywhere this rule or protocol value is needed.
     public const string ItemDisplayInfo = "ItemDisplayInfo.dbc";
-    /**
-      * Defines the constant value for durability costs.
-      */
+
+    // Constant: Defines the durability costs constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed durability costs value used anywhere this rule or protocol value is needed.
     public const string DurabilityCosts = "DurabilityCosts.dbc";
-    /**
-      * Defines the constant value for durability quality.
-      */
+
+    // Constant: Defines the durability quality constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed durability quality value used anywhere this rule or protocol value is needed.
     public const string DurabilityQuality = "DurabilityQuality.dbc";
-    /**
-      * Defines the constant value for item random properties.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the item random properties constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed item random properties value used anywhere this rule or protocol value is needed.
     public const string ItemRandomProperties = "ItemRandomProperties.dbc";
-    /**
-      * Defines the constant value for item set.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the item set constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed item set value used anywhere this rule or protocol value is needed.
     public const string ItemSet = "ItemSet.dbc";
-    /**
-      * Defines the constant value for item sub class.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the item sub class constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed item sub class value used anywhere this rule or protocol value is needed.
     public const string ItemSubClass = "ItemSubClass.dbc";
-    /**
-      * Defines the constant value for spell item enchantment.
-      */
+
+    // Constant: Defines the spell item enchantment constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed spell item enchantment value used anywhere this rule or protocol value is needed.
     public const string SpellItemEnchantment = "SpellItemEnchantment.dbc";
 
-    /**
-      * Exposes the core item dbc files value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+    // Property: Gets or sets the core item DBC files value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: core item DBC files value exposed by the owning type.
     public static IReadOnlyList<string> CoreItemDbcFiles { get; } =
     [
         DurabilityCosts,

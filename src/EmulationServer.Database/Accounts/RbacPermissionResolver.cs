@@ -15,25 +15,34 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Database/Accounts/RbacPermissionResolver.cs
+// Purpose: Contains RBAC permission resolver code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using MySqlConnector;
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Resolves TrinityCore-style RBAC rows into the final permission set used by auth and chat commands.
-  * The resolver derives account security from RBAC role permissions in this project.
-  */
+// Type: RbacPermissionResolver
+// Purpose: Provides RBAC permission resolver behavior for the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class RbacPermissionResolver
 {
-    /**
-      * The default player security level is applied to every account before account-specific grants and denies are evaluated.
-      */
+
+    // Constant: Defines the default player security level constant used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: fixed default player security level value used anywhere this rule or protocol value is needed.
     private const int DefaultPlayerSecurityLevel = 0;
 
-    /**
-      * Loads default player permissions, account-specific permissions, linked inherited permissions, and explicit deny rows.
-      */
+    // Method: LoadForAccountAsync
+    // Purpose: Retrieves load for account data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to RbacPermissionResolver so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async Task<RbacPermissionSet> LoadForAccountAsync(
         MySqlConnection connection,
         uint accountId,
@@ -55,15 +64,21 @@ public static class RbacPermissionResolver
         return new RbacPermissionSet(granted, denied, effective);
     }
 
-    /**
-      * Reads default permissions for the supplied security level.
-      */
+    // Method: LoadDefaultPermissionsAsync
+    // Purpose: Retrieves load default permissions data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - securityLevel: Security level value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to RbacPermissionResolver so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<HashSet<uint>> LoadDefaultPermissionsAsync(
         MySqlConnection connection,
         int securityLevel,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `permissionId`
             FROM `rbac_default_permissions`
@@ -81,9 +96,18 @@ public static class RbacPermissionResolver
         return permissionIds;
     }
 
-    /**
-      * Reads direct account grants and denies for global rows plus the active realm row when one exists.
-      */
+    // Method: LoadAccountPermissionsAsync
+    // Purpose: Retrieves load account permissions data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - directGranted: Direct granted value supplied by the caller for this operation.
+    // - directDenied: Direct denied value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RbacPermissionResolver so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task LoadAccountPermissionsAsync(
         MySqlConnection connection,
         uint accountId,
@@ -92,7 +116,7 @@ public static class RbacPermissionResolver
         HashSet<uint> directDenied,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `permissionId`, `granted`
             FROM `rbac_account_permissions`
@@ -119,14 +143,19 @@ public static class RbacPermissionResolver
         }
     }
 
-    /**
-      * Reads the permission graph used to expand roles into child roles and command permissions.
-      */
+    // Method: LoadLinkedPermissionsAsync
+    // Purpose: Retrieves load linked permissions data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to RbacPermissionResolver so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<Dictionary<uint, List<uint>>> LoadLinkedPermissionsAsync(
         MySqlConnection connection,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.CommandText = """
             SELECT `id`, `linkedId`
             FROM `rbac_linked_permissions`;
@@ -151,9 +180,13 @@ public static class RbacPermissionResolver
         return linkedPermissions;
     }
 
-    /**
-      * Walks the RBAC permission graph and returns the original permissions plus every linked child permission.
-      */
+    // Method: ExpandLinkedPermissions
+    // Purpose: Executes the expand linked permissions operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - rootPermissions: Root permissions value supplied by the caller for this operation.
+    // - linkedPermissions: Linked permissions value supplied by the caller for this operation.
+    // Returns: Returns the hash set value produced by this operation.
+    // Notes: This keeps the operation scoped to RbacPermissionResolver so callers do not duplicate validation, protocol, or persistence rules.
     private static HashSet<uint> ExpandLinkedPermissions(
         IEnumerable<uint> rootPermissions,
         IReadOnlyDictionary<uint, List<uint>> linkedPermissions)

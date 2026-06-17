@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/ProxyServer/Core/ProxyDependencyMonitor.cs
+// Purpose: Contains proxy dependency monitor code for the proxy server gateway, internal routing, and public connection coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -26,81 +29,81 @@ using EmulationServer.ProxyServer.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/ProxyServer/Core/ProxyDependencyMonitor.cs
-  * Documents the ProxyDependencyMonitor source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.ProxyServer.Core;
 
-/**
-  * Owns the proxy dependency monitor behavior for the proxy startup, service discovery, and client-routing support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ProxyDependencyMonitor
+// Purpose: Provides proxy dependency monitor behavior for the proxy server gateway, internal routing, and public connection coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ProxyDependencyMonitor : IAsyncDisposable
 {
-    /**
-      * Stores the default monitor tick interval value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span monitor tick interval = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan MonitorTickInterval = TimeSpan.FromSeconds(1);
-    /**
-      * Defines the constant value for world server name.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the world server name constant used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: fixed world server name value used anywhere this rule or protocol value is needed.
     private const string WorldServerName = "WorldServer";
 
+    // Type: HealthLevel
+    // Purpose: Defines the allowed health level values used by the proxy server gateway, internal routing, and public connection coordination.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private enum HealthLevel
     {
+        // Enum Value: Defines the unknown enum value.
+        // Value: explicit expression 0.
         Unknown = 0,
+        // Enum Value: Defines the healthy enum value.
+        // Value: explicit expression 1.
         Healthy = 1,
+        // Enum Value: Defines the degraded enum value.
+        // Value: explicit expression 2.
         Degraded = 2,
+        // Enum Value: Defines the unhealthy enum value.
+        // Value: explicit expression 3.
         Unhealthy = 3,
     }
 
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the settings state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current settings backing value maintained by the owning type.
     private readonly ProxyDependencySettings _settings;
+    // Field: Stores the string state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current string backing value maintained by the owning type.
     private readonly ConcurrentDictionary<string, ServerState> _servers;
     private readonly ConcurrentDictionary<string, InternalMapServiceStatusPacket> _mapServiceStatuses = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTimeOffset> _mapServiceStatusReceivedUtc = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, HealthReportState> _mapServiceHealthReports = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, HealthReportState> _serverHealthReports = new(StringComparer.OrdinalIgnoreCase);
 
-    /**
-      * Holds the private stop cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stop cancellation state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Holds the private monitor task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the monitor task state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current monitor task backing value maintained by the owning type.
     private Task? _monitorTask;
-    /**
-      * Holds the private world capacity limit state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the world capacity limit state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current world capacity limit backing value maintained by the owning type.
     private int _worldCapacityLimit;
-    /**
-      * Holds the private started state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the started state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current started backing value maintained by the owning type.
     private int _started;
-    /**
-      * Holds the private stopping state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stopping state used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: current stopping backing value maintained by the owning type.
     private int _stopping;
 
-    /**
-      * Initializes a new ProxyDependencyMonitor instance with the dependencies required by the proxy startup, service discovery, and client-routing support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: ProxyDependencyMonitor
+    // Purpose: Initializes a new ProxyDependencyMonitor instance with dependencies and values required by the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     public ProxyDependencyMonitor(ProxyDependencySettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -120,10 +123,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Creates the callbacks result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: CreateCallbacks
+    // Purpose: Applies create callbacks changes for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the internal network callbacks value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     public InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -137,12 +141,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         };
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -163,12 +168,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -197,22 +203,26 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(LogType.NETWORK, "Proxy dependency monitor stopped.", "ProxyDependencyMonitor");
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
-    /**
-      * Handles the on server authenticated event for the proxy startup, service discovery, and client-routing support workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerAuthenticatedAsync
+    // Purpose: Executes the on server authenticated operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -246,12 +256,16 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await AnnounceCachedMapServicesToServerAsync(state, cancellationToken);
     }
 
-    /**
-      * Handles the on packet received event for the proxy startup, service discovery, and client-routing support workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPacketReceivedAsync
+    // Purpose: Executes the on packet received operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -287,12 +301,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Handles the on server disconnected event for the proxy startup, service discovery, and client-routing support workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerDisconnectedAsync
+    // Purpose: Executes the on server disconnected operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -336,10 +353,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Handles outbound peer reconnect timeout notifications raised by the shared internal peer connector.
-      * This keeps the dependency monitor aligned with the connector so it stops reporting reconnect attempts after the configured window expires.
-      */
+    // Method: OnPeerReconnectTimedOutAsync
+    // Purpose: Executes the on peer reconnect timed out operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - reconnectTimeout: Reconnect timeout value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnPeerReconnectTimedOutAsync(
         string remoteServerName,
         TimeSpan reconnectTimeout,
@@ -351,10 +373,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Records a successful ping/pong round trip for a connected internal server.
-      * ProxyServer owns the health state; the shared latency monitor only reports the measurement.
-      */
+    // Method: OnLatencyMeasured
+    // Purpose: Executes the on latency measured operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - latency: Latency value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void OnLatencyMeasured(string remoteServerName, TimeSpan latency)
     {
         ServerState state = GetOrCreateServerState(remoteServerName);
@@ -372,10 +397,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Records a missed ping/pong response for a connected internal server.
-      * Ping health is measured by consecutive missed pongs instead of the successful latency threshold.
-      */
+    // Method: OnPingTimedOut
+    // Purpose: Executes the on ping timed out operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - elapsed: Elapsed value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void OnPingTimedOut(string remoteServerName, TimeSpan elapsed)
     {
         ServerState state = GetOrCreateServerState(remoteServerName);
@@ -388,12 +416,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RunAsync
+    // Purpose: Controls the run lifecycle step for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -406,7 +435,7 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown.
+
         }
         catch (Exception exception)
         {
@@ -414,10 +443,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
-      */
+    // Method: HandleMapServiceStatusPacketAsync
+    // Purpose: Handles handle map service status packet work for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleMapServiceStatusPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
@@ -440,9 +474,6 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         bool loadWarning = isOnline && status.LoadPercent >= 85d;
         bool loadWarningStarted = loadWarning && (previous is null || previous.LoadPercent < 85d);
 
-        // Map services can briefly report Offline while the MapServer has connected but its services
-        // are still moving through startup. Cache that snapshot, but do not warn or forward it as a
-        // failure unless this is a real transition from a routable Online service.
         if (becameUnavailable)
         {
             Logger.Write(LogType.WARNING, $"Proxy cached offline map service state for {status.OwnerServerName}: kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, players={status.ActivePlayers}.", "ProxyDependencyMonitor");
@@ -462,9 +493,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Marks cached map services as offline when a map or instance server socket disappears.
-      */
+    // Method: MarkCachedMapServicesUnavailableAsync
+    // Purpose: Executes the mark cached map services unavailable operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task MarkCachedMapServicesUnavailableAsync(string ownerServerName, string reason, CancellationToken cancellationToken)
     {
         InternalMapServiceStatusPacket[] affectedStatuses = _mapServiceStatuses.Values
@@ -493,9 +530,14 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Forwards map service state snapshots to critical servers so WorldServer can keep routing decisions current.
-      */
+    // Method: BroadcastMapServiceStatusToCriticalServersAsync
+    // Purpose: Executes the broadcast map service status to critical servers operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - status: Status value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task BroadcastMapServiceStatusToCriticalServersAsync(InternalMapServiceStatusPacket status, CancellationToken cancellationToken)
     {
         List<ServerSnapshot> connectedCriticalServers = _servers.Values
@@ -524,11 +566,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: HandleWorldCapacityPacketAsync
+    // Purpose: Handles handle world capacity packet work for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleWorldCapacityPacketAsync(
         string remoteServerName,
         string packet,
@@ -553,9 +599,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await BroadcastWorldCapacityAsync(remoteServerName, capacityLimit, cancellationToken);
     }
 
-    /**
-      * Handles a WorldServer health snapshot and stores it only in ProxyServer memory.
-      */
+    // Method: HandleWorldHealthStatusPacket
+    // Purpose: Handles handle world health status packet work for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void HandleWorldHealthStatusPacket(string remoteServerName, string packet)
     {
         if (!string.Equals(remoteServerName, WorldServerName, StringComparison.OrdinalIgnoreCase))
@@ -593,12 +643,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"Proxy cached WorldServer health status: players={status.ActivePlayers}/{status.MaxConnections}.", "ProxyDependencyMonitor");
     }
 
-    /**
-      * Performs the broadcast world capacity operation for the proxy startup, service discovery, and client-routing support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: sourceServerName, capacityLimit, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: BroadcastWorldCapacityAsync
+    // Purpose: Executes the broadcast world capacity operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - sourceServerName: Source server name value supplied by the caller for this operation.
+    // - capacityLimit: Capacity limit value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task BroadcastWorldCapacityAsync(
         string sourceServerName,
         int capacityLimit,
@@ -631,9 +684,14 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends cached map service state to a newly connected critical server so routing starts with the current proxy view.
-      */
+    // Method: AnnounceCachedMapServicesToServerAsync
+    // Purpose: Executes the announce cached map services to server operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AnnounceCachedMapServicesToServerAsync(ServerState state, CancellationToken cancellationToken)
     {
         ServerSnapshot snapshot = state.GetSnapshot();
@@ -667,12 +725,14 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs the announce world capacity to server operation for the proxy startup, service discovery, and client-routing support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: state, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: AnnounceWorldCapacityToServerAsync
+    // Purpose: Executes the announce world capacity to server operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AnnounceWorldCapacityToServerAsync(ServerState state, CancellationToken cancellationToken)
     {
         ServerSnapshot snapshot = state.GetSnapshot();
@@ -696,12 +756,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs the check server health operation for the proxy startup, service discovery, and client-routing support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CheckServerHealthAsync
+    // Purpose: Validates or evaluates check server health rules for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task CheckServerHealthAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -745,10 +806,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         EvaluateAndReportHealth(now);
     }
 
-    /**
-      * Evaluates and reports health for the connected internal servers and cached map services.
-      * Health state is owned by ProxyServer and only recomputed from the latest runtime inputs it has received.
-      */
+    // Method: EvaluateAndReportHealth
+    // Purpose: Executes the evaluate and report health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void EvaluateAndReportHealth(DateTimeOffset now)
     {
         if (!_settings.HealthLoggingEnabled)
@@ -806,9 +869,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Evaluates WorldServer health from ping health, latency health, and player-load pressure.
-      */
+    // Method: EvaluateWorldServerHealth
+    // Purpose: Executes the evaluate world server health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: Returns the health evaluation value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthEvaluation EvaluateWorldServerHealth(ServerSnapshot snapshot, DateTimeOffset now)
     {
         HealthComponent ping = EvaluatePingHealth(snapshot, now);
@@ -822,9 +889,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             string.Join("; ", new[] { ping.Reason, latency.Reason, load.Reason }.Where(reason => !string.IsNullOrWhiteSpace(reason))));
     }
 
-    /**
-      * Evaluates MapServer or InstanceServer overall health from server ping/latency and every owned map service snapshot.
-      */
+    // Method: EvaluateMapOwnerHealth
+    // Purpose: Executes the evaluate map owner health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: Returns the health evaluation value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthEvaluation EvaluateMapOwnerHealth(ServerSnapshot snapshot, DateTimeOffset now)
     {
         HealthComponent ping = EvaluatePingHealth(snapshot, now);
@@ -880,9 +951,14 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             string.Join("; ", new[] { ping.Reason, latency.Reason, ownedServices.Length == 0 ? "no map service status snapshots have been received" : string.Empty }.Where(reason => !string.IsNullOrWhiteSpace(reason))));
     }
 
-    /**
-      * Evaluates basic server health from ping and latency only.
-      */
+    // Method: EvaluateBaseServerHealth
+    // Purpose: Executes the evaluate base server health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // - prefix: Prefix value supplied by the caller for this operation.
+    // Returns: Returns the health evaluation value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthEvaluation EvaluateBaseServerHealth(ServerSnapshot snapshot, DateTimeOffset now, string prefix)
     {
         HealthComponent ping = EvaluatePingHealth(snapshot, now);
@@ -895,9 +971,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             string.Join("; ", new[] { ping.Reason, latency.Reason }.Where(reason => !string.IsNullOrWhiteSpace(reason))));
     }
 
-    /**
-      * Evaluates ping health using missed pong counts rather than successful latency values.
-      */
+    // Method: EvaluatePingHealth
+    // Purpose: Executes the evaluate ping health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: Returns the health component value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthComponent EvaluatePingHealth(ServerSnapshot snapshot, DateTimeOffset now)
     {
         if (!snapshot.IsConnected)
@@ -942,9 +1022,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return new HealthComponent(HealthLevel.Healthy, $"Healthy lastPong={FormatDuration(lastPongAge)} ago", string.Empty);
     }
 
-    /**
-      * Evaluates latency health using the smoothed latency value from successful ping/pong round trips.
-      */
+    // Method: EvaluateLatencyHealth
+    // Purpose: Executes the evaluate latency health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: Returns the health component value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthComponent EvaluateLatencyHealth(ServerSnapshot snapshot, DateTimeOffset now)
     {
         if (!snapshot.IsConnected)
@@ -986,9 +1070,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return new HealthComponent(HealthLevel.Healthy, $"Healthy avg={averageLatency:0.##} ms", string.Empty);
     }
 
-    /**
-      * Evaluates WorldServer load pressure from active in-world players and max connection capacity.
-      */
+    // Method: EvaluateWorldLoadHealth
+    // Purpose: Executes the evaluate world load health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: Returns the health component value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthComponent EvaluateWorldLoadHealth(ServerSnapshot snapshot, DateTimeOffset now)
     {
         if (!snapshot.IsConnected)
@@ -1033,9 +1121,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             string.Empty);
     }
 
-    /**
-      * Evaluates one map or instance service health from service state, stale status, tick pressure, and reported load pressure.
-      */
+    // Method: EvaluateMapServiceHealth
+    // Purpose: Executes the evaluate map service health operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - status: Status value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: Returns the health evaluation value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private HealthEvaluation EvaluateMapServiceHealth(InternalMapServiceStatusPacket status, DateTimeOffset now)
     {
         List<string> reasons = [];
@@ -1094,9 +1186,16 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             reasonText);
     }
 
-    /**
-      * Reports a health evaluation when the state changes or the periodic health report interval expires.
-      */
+    // Method: ReportHealthIfNeeded
+    // Purpose: Executes the report health if needed operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - reports: Reports value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - evaluation: Evaluation value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // - critical: Critical value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void ReportHealthIfNeeded(
         ConcurrentDictionary<string, HealthReportState> reports,
         string key,
@@ -1142,9 +1241,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         Logger.Write(logType, evaluation.Summary, "ProxyHealth");
     }
 
-    /**
-      * Returns the most severe health level from the supplied values.
-      */
+    // Method: Worst
+    // Purpose: Executes the worst operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - HealthLevellevels: Health levellevels value supplied by the caller for this operation.
+    // Returns: Returns the health level value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static HealthLevel Worst(params HealthLevel[] levels)
     {
         HealthLevel worst = HealthLevel.Unknown;
@@ -1160,9 +1262,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return worst;
     }
 
-    /**
-      * Formats a short, stable duration for health output.
-      */
+    // Method: FormatDuration
+    // Purpose: Executes the format duration operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatDuration(TimeSpan duration)
     {
         if (duration.TotalSeconds < 1d)
@@ -1183,9 +1288,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return $"{duration.TotalHours:0.#}h";
     }
 
-    /**
-      * Calculates a safe percentage while avoiding divide-by-zero pressure during startup.
-      */
+    // Method: CalculatePercent
+    // Purpose: Calculates calculate percent values for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - maximum: Maximum value supplied by the caller for this operation.
+    // Returns: Returns the double value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static double CalculatePercent(int value, int maximum)
     {
         if (maximum <= 0)
@@ -1196,11 +1305,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return Math.Clamp(value / (double)maximum * 100d, 0d, 100d);
     }
 
-    /**
-      * Returns the newest packet timestamp known for a server.
-      * ServerState is updated by normal routed packets, while InternalServerSession is updated by every line, including ping/pong health packets.
-      * Using both prevents ProxyServer from treating a quiet but healthy WorldServer as stale during normal startup or idle runtime.
-      */
+    // Method: GetLatestPacketReceivedUtc
+    // Purpose: Retrieves get latest packet received utc data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // Returns: Returns the date time offset value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static DateTimeOffset GetLatestPacketReceivedUtc(ServerSnapshot snapshot)
     {
         DateTimeOffset latest = snapshot.LastPacketReceivedUtc;
@@ -1213,10 +1323,11 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         return latest;
     }
 
-    /**
-      * Keeps the critical-server watchdog from racing the internal ping interval.
-      * The configured timeout still controls the policy, but a small minimum avoids false shutdowns when health packets arrive near the monitor tick boundary.
-      */
+    // Method: GetEffectiveCriticalPacketTimeout
+    // Purpose: Retrieves get effective critical packet timeout data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters: none.
+    // Returns: Returns the time span value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private TimeSpan GetEffectiveCriticalPacketTimeout()
     {
         TimeSpan minimumSafeTimeout = TimeSpan.FromSeconds(45);
@@ -1225,11 +1336,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             : minimumSafeTimeout;
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: HandleCriticalServerDownAsync
+    // Purpose: Handles handle critical server down work for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - criticalState: Critical state value supplied by the caller for this operation.
+    // - timeSinceLastPacket: Time since last packet value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleCriticalServerDownAsync(
         ServerState criticalState,
         TimeSpan timeSinceLastPacket,
@@ -1255,12 +1370,15 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         await BroadcastShutdownRequestAsync(criticalState.Name, reason, cancellationToken);
     }
 
-    /**
-      * Performs the broadcast shutdown request operation for the proxy startup, service discovery, and client-routing support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: failedServerName, reason, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: BroadcastShutdownRequestAsync
+    // Purpose: Executes the broadcast shutdown request operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - failedServerName: Failed server name value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task BroadcastShutdownRequestAsync(
         string failedServerName,
         string reason,
@@ -1294,10 +1412,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Marks a non-critical dependency as timed out so the monitor stops repeated reconnect warnings.
-      * The dependency remains known, but it returns to passive wait mode until the service registers again.
-      */
+    // Method: MarkNonCriticalReconnectTimedOut
+    // Purpose: Executes the mark non critical reconnect timed out operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // - reconnectTimeout: Reconnect timeout value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void MarkNonCriticalReconnectTimedOut(ServerState state, TimeSpan reconnectTimeout)
     {
         if (state.IsCritical)
@@ -1325,11 +1446,13 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs the report non critical server down if needed operation for the proxy startup, service discovery, and client-routing support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: state, now.
-      */
+    // Method: ReportNonCriticalServerDownIfNeeded
+    // Purpose: Executes the report non critical server down if needed operation for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // - now: Now value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void ReportNonCriticalServerDownIfNeeded(ServerState state, DateTimeOffset now)
     {
         bool shouldReport;
@@ -1351,26 +1474,35 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Returns whether the named dependency owns map or instance execution.
-      */
+    // Method: IsMapControlServer
+    // Purpose: Validates or evaluates is map control server rules for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // Returns: Returns true when is map control server succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsMapControlServer(string remoteServerName)
     {
         return string.Equals(remoteServerName, "MapServer", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(remoteServerName, "InstanceServer", StringComparison.OrdinalIgnoreCase);
     }
 
-    /**
-      * Returns whether a map service status should be treated as routable.
-      */
+    // Method: IsMapServiceOnline
+    // Purpose: Validates or evaluates is map service online rules for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // Returns: Returns true when is map service online succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsMapServiceOnline(string state)
     {
         return string.Equals(state, "Online", StringComparison.OrdinalIgnoreCase);
     }
 
-    /**
-      * Builds the cache key for a map service status snapshot.
-      */
+    // Method: GetStatusKey
+    // Purpose: Retrieves get status key data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - status: Status value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetStatusKey(InternalMapServiceStatusPacket status)
     {
         return string.Create(
@@ -1378,10 +1510,12 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             $"{status.OwnerServerName}|{status.Kind}|{status.MapId}|{status.InstanceId}");
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of ProxyDependencyMonitor and keeps this workflow isolated from the caller.
-      */
+    // Method: GetOrCreateServerState
+    // Purpose: Retrieves get or create server state data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: Returns the server state value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyDependencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private ServerState GetOrCreateServerState(string serverName)
     {
         bool isCritical = _settings.CriticalServers.Contains(serverName);
@@ -1391,17 +1525,19 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             name => new ServerState(name, isCritical));
     }
 
-    /**
-      * Owns the server state behavior for the proxy startup, service discovery, and client-routing support layer.
-      * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-      */
+    // Type: ServerState
+    // Purpose: Provides server state behavior for the proxy server gateway, internal routing, and public connection coordination.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed class ServerState
     {
-        /**
-          * Performs the server state operation for the proxy startup, service discovery, and client-routing support workflow.
-          * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-          * Inputs used by this operation: name, isCritical.
-          */
+
+        // Constructor: ServerState
+        // Purpose: Initializes a new ServerState instance with dependencies and values required by the proxy server gateway, internal routing, and public connection coordination.
+        // Parameters:
+        // - name: Name value supplied by the caller for this operation.
+        // - isCritical: Is critical value supplied by the caller for this operation.
+        // Returns: none.
+        // Notes: This keeps the operation scoped to ServerState so callers do not duplicate validation, protocol, or persistence rules.
         public ServerState(string name, bool isCritical)
         {
             Name = name;
@@ -1409,126 +1545,93 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
             LastPacketReceivedUtc = DateTimeOffset.UtcNow;
         }
 
-        /**
-          * Gets or stores the sync root value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
         public object SyncRoot { get; } = new();
 
-        /**
-          * Gets or stores the name value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the name value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: name value exposed by the owning type.
         public string Name { get; }
 
-        /**
-          * Gets or stores the is critical value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the is critical value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: is critical value exposed by the owning type.
         public bool IsCritical { get; }
 
-        /**
-          * Gets or stores the session value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the session value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: session value exposed by the owning type.
         public InternalServerSession? Session { get; set; }
 
-        /**
-          * Gets or stores the last packet received utc value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the last packet received utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last packet received utc value exposed by the owning type.
         public DateTimeOffset LastPacketReceivedUtc { get; set; }
 
-        /**
-          * Gets or stores the last down report utc value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the last down report utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last down report utc value exposed by the owning type.
         public DateTimeOffset? LastDownReportUtc { get; set; }
 
-        /**
-          * Gets or stores the disconnected timestamp for a server that has gone offline.
-          * The monitor uses this value to decide when to stop active reconnect reporting and return to passive wait mode.
-          */
+        // Property: Gets or sets the disconnected utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: disconnected utc value exposed by the owning type.
         public DateTimeOffset? DisconnectedUtc { get; set; }
 
-        /**
-          * Gets or stores whether reconnect monitoring has timed out for this dependency.
-          * Once set, the dependency is silent until it registers again through the normal internal listener.
-          */
+        // Property: Gets or sets the reconnect timed out value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: reconnect timed out value exposed by the owning type.
         public bool ReconnectTimedOut { get; set; }
 
-        /**
-          * Gets or stores the is connected value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the is connected value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: is connected value exposed by the owning type.
         public bool IsConnected { get; set; }
 
-        /**
-          * Gets or stores the shutdown triggered value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the shutdown triggered value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: shutdown triggered value exposed by the owning type.
         public bool ShutdownTriggered { get; set; }
 
-        /**
-          * Gets or stores the has ever connected value used by ServerState.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the has ever connected value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: has ever connected value exposed by the owning type.
         public bool HasEverConnected { get; set; }
 
-        /**
-          * Gets or stores the last successful latency measurement timestamp.
-          */
+        // Property: Gets or sets the last latency measured utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last latency measured utc value exposed by the owning type.
         public DateTimeOffset? LastLatencyMeasuredUtc { get; set; }
 
-        /**
-          * Gets or stores the last successful pong timestamp.
-          */
+        // Property: Gets or sets the last pong received utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last pong received utc value exposed by the owning type.
         public DateTimeOffset? LastPongReceivedUtc { get; set; }
 
-        /**
-          * Gets or stores the latest latency measurement in milliseconds.
-          */
+        // Property: Gets or sets the last latency milliseconds value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last latency milliseconds value exposed by the owning type.
         public double? LastLatencyMilliseconds { get; set; }
 
-        /**
-          * Gets or stores the smoothed latency measurement in milliseconds.
-          */
+        // Property: Gets or sets the average latency milliseconds value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: average latency milliseconds value exposed by the owning type.
         public double? AverageLatencyMilliseconds { get; set; }
 
-        /**
-          * Gets or stores the last ping timeout timestamp.
-          */
+        // Property: Gets or sets the last ping timeout utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last ping timeout utc value exposed by the owning type.
         public DateTimeOffset? LastPingTimeoutUtc { get; set; }
 
-        /**
-          * Gets or stores consecutive ping timeouts since the last successful pong.
-          */
+        // Property: Gets or sets the consecutive ping timeouts value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: consecutive ping timeouts value exposed by the owning type.
         public int ConsecutivePingTimeouts { get; set; }
 
-        /**
-          * Gets or stores total ping timeouts observed for this server session.
-          */
+        // Property: Gets or sets the total ping timeouts value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: total ping timeouts value exposed by the owning type.
         public int TotalPingTimeouts { get; set; }
 
-        /**
-          * Gets or stores the latest active player count reported by WorldServer.
-          */
+        // Property: Gets or sets the world active players value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: world active players value exposed by the owning type.
         public int WorldActivePlayers { get; set; }
 
-        /**
-          * Gets or stores the latest maximum connection count reported by WorldServer.
-          */
+        // Property: Gets or sets the world max connections value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: world max connections value exposed by the owning type.
         public int WorldMaxConnections { get; set; }
 
-        /**
-          * Gets or stores when ProxyServer last received a WorldServer health status snapshot.
-          */
+        // Property: Gets or sets the last world health status utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last world health status utc value exposed by the owning type.
         public DateTimeOffset? LastWorldHealthStatusUtc { get; set; }
 
-        /**
-          * Returns the current value or snapshot without exposing mutable internal state.
-          * The method is part of ServerState and keeps this workflow isolated from the caller.
-          */
+        // Method: GetSnapshot
+        // Purpose: Retrieves get snapshot data for the proxy server gateway, internal routing, and public connection coordination.
+        // Parameters: none.
+        // Returns: Returns the server snapshot value produced by this operation.
+        // Notes: This keeps the operation scoped to ServerState so callers do not duplicate validation, protocol, or persistence rules.
         public ServerSnapshot GetSnapshot()
         {
             lock (SyncRoot)
@@ -1557,11 +1660,29 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Represents immutable server snapshot data passed between parts of the server.
-      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-      * Positional fields carried by this record: Name, IsCritical, Session, LastPacketReceivedUtc, DisconnectedUtc, IsConnected, ShutdownTriggered, HasEverConnected, ReconnectTimedOut.
-      */
+    // Type: ServerSnapshot
+    // Purpose: Represents server snapshot data passed through the proxy server gateway, internal routing, and public connection coordination.
+    // Constructor values:
+    // - Name: Name value supplied by the caller for this operation.
+    // - IsCritical: Is critical value supplied by the caller for this operation.
+    // - Session: Session value supplied by the caller for this operation.
+    // - LastPacketReceivedUtc: Last packet received utc value supplied by the caller for this operation.
+    // - DisconnectedUtc: Disconnected utc value supplied by the caller for this operation.
+    // - IsConnected: Is connected value supplied by the caller for this operation.
+    // - ShutdownTriggered: Shutdown triggered value supplied by the caller for this operation.
+    // - HasEverConnected: Has ever connected value supplied by the caller for this operation.
+    // - ReconnectTimedOut: Reconnect timed out value supplied by the caller for this operation.
+    // - LastLatencyMeasuredUtc: Last latency measured utc value supplied by the caller for this operation.
+    // - LastPongReceivedUtc: Last pong received utc value supplied by the caller for this operation.
+    // - LastLatencyMilliseconds: Last latency milliseconds value supplied by the caller for this operation.
+    // - AverageLatencyMilliseconds: Average latency milliseconds value supplied by the caller for this operation.
+    // - LastPingTimeoutUtc: Last ping timeout utc value supplied by the caller for this operation.
+    // - ConsecutivePingTimeouts: Consecutive ping timeouts value supplied by the caller for this operation.
+    // - TotalPingTimeouts: Total ping timeouts value supplied by the caller for this operation.
+    // - WorldActivePlayers: World active players value supplied by the caller for this operation.
+    // - WorldMaxConnections: World max connections value supplied by the caller for this operation.
+    // - LastWorldHealthStatusUtc: Last world health status utc value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record ServerSnapshot(
         string Name,
         bool IsCritical,
@@ -1583,27 +1704,41 @@ public sealed class ProxyDependencyMonitor : IAsyncDisposable
         int WorldMaxConnections,
         DateTimeOffset? LastWorldHealthStatusUtc);
 
-    /**
-      * Represents one component of a larger health evaluation.
-      */
+    // Type: HealthComponent
+    // Purpose: Represents health component data passed through the proxy server gateway, internal routing, and public connection coordination.
+    // Constructor values:
+    // - Level: Level value supplied by the caller for this operation.
+    // - Summary: Summary value supplied by the caller for this operation.
+    // - Reason: Reason value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record HealthComponent(HealthLevel Level, string Summary, string Reason);
 
-    /**
-      * Represents an evaluated health target and the output text to log.
-      */
+    // Type: HealthEvaluation
+    // Purpose: Represents health evaluation data passed through the proxy server gateway, internal routing, and public connection coordination.
+    // Constructor values:
+    // - Level: Level value supplied by the caller for this operation.
+    // - Summary: Summary value supplied by the caller for this operation.
+    // - Reason: Reason value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record HealthEvaluation(HealthLevel Level, string Summary, string Reason);
 
-    /**
-      * Stores the last logged health state for a server or map service so unchanged state does not spam normal runtime.
-      */
+    // Type: HealthReportState
+    // Purpose: Provides health report state behavior for the proxy server gateway, internal routing, and public connection coordination.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed class HealthReportState
     {
         public object SyncRoot { get; } = new();
 
+        // Property: Gets or sets the last level value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last level value exposed by the owning type.
         public HealthLevel LastLevel { get; set; } = HealthLevel.Unknown;
 
+        // Property: Gets or sets the last summary value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last summary value exposed by the owning type.
         public string LastSummary { get; set; } = string.Empty;
 
+        // Property: Gets or sets the last report utc value used by the proxy server gateway, internal routing, and public connection coordination.
+        // Value: last report utc value exposed by the owning type.
         public DateTimeOffset? LastReportUtc { get; set; }
     }
 }

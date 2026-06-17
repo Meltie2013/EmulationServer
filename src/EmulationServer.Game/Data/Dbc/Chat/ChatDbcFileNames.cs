@@ -15,36 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Chat/ChatDbcFileNames.cs
-  * Documents the ChatDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Chat/ChatDbcFileNames.cs
+// Purpose: Contains chat DBC file names code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Chat;
 
-/**
-  * Owns the chat dbc file names behavior for the DBC loading and strongly typed client data records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ChatDbcFileNames
+// Purpose: Provides chat DBC file names behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class ChatDbcFileNames
 {
-    /**
-      * Defines the constant value for chat channels.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the chat channels constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed chat channels value used anywhere this rule or protocol value is needed.
     public const string ChatChannels = "ChatChannels.dbc";
-    /**
-      * Defines the constant value for languages.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the languages constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed languages value used anywhere this rule or protocol value is needed.
     public const string Languages = "Languages.dbc";
 
-    /**
-      * Exposes the core chat dbc files value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+    // Property: Gets or sets the core chat DBC files value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: core chat DBC files value exposed by the owning type.
     public static IReadOnlyList<string> CoreChatDbcFiles { get; } =
     [
         ChatChannels,

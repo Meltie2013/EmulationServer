@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Reputation/ReputationSystem.cs
+// Purpose: Contains reputation system code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc.Factions;
 using EmulationServer.Game.Players;
@@ -22,18 +25,29 @@ using EmulationServer.Game.Formulas;
 
 namespace EmulationServer.Game.Reputation;
 
-/**
-  * Builds and normalizes per-character reputation state from Faction.dbc and character_reputation rows.
-  */
+// Type: ReputationSystem
+// Purpose: Provides reputation system behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class ReputationSystem
 {
+    // Constant: Defines the max reputation slots constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed max reputation slots value used anywhere this rule or protocol value is needed.
     public const int MaxReputationSlots = 64;
+    // Constant: Defines the reputation cap constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed reputation cap value used anywhere this rule or protocol value is needed.
     public const int ReputationCap = ReputationFormula.ReputationCap;
+    // Constant: Defines the reputation bottom constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed reputation bottom value used anywhere this rule or protocol value is needed.
     public const int ReputationBottom = ReputationFormula.ReputationBottom;
 
-    /**
-      * Builds the default reputation rows that a new or unsaved character should have.
-      */
+    // Method: BuildInitialReputations
+    // Purpose: Builds or writes build initial reputations output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - factionData: Faction data value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<PlayerReputation> BuildInitialReputations(
         FactionDbcDataStore factionData,
         byte race,
@@ -67,9 +81,15 @@ public static class ReputationSystem
             .ToArray();
     }
 
-    /**
-      * Builds the runtime reputation state by overlaying saved DB rows onto Faction.dbc defaults.
-      */
+    // Method: BuildCharacterReputations
+    // Purpose: Builds or writes build character reputations output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - factionData: Faction data value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // - savedReputations: Saved reputations value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<PlayerReputation> BuildCharacterReputations(
         FactionDbcDataStore factionData,
         byte race,
@@ -108,18 +128,27 @@ public static class ReputationSystem
             .ToArray();
     }
 
-    /**
-      * Resolves the absolute standing shown by rank calculations by adding DBC base reputation to saved standing.
-      */
+    // Method: GetEffectiveStanding
+    // Purpose: Retrieves get effective standing data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // - standing: Standing value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static int GetEffectiveStanding(FactionDbcRecord faction, byte race, byte playerClass, int standing)
     {
         ArgumentNullException.ThrowIfNull(faction);
         return ClampStanding(GetBaseReputation(faction, race, playerClass) + standing);
     }
 
-    /**
-      * Converts an absolute reputation value into a reputation rank.
-      */
+    // Method: ReputationToRank
+    // Purpose: Executes the reputation to rank operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - standing: Standing value supplied by the caller for this operation.
+    // Returns: Returns the reputation rank value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static ReputationRank ReputationToRank(int standing)
     {
         int limit = ReputationCap + 1;
@@ -136,20 +165,37 @@ public static class ReputationSystem
         return ReputationRank.Hated;
     }
 
-    /**
-      * Clamps reputation standing to the Vanilla reputation floor and cap.
-      */
+    // Method: ClampStanding
+    // Purpose: Executes the clamp standing operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - standing: Standing value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static int ClampStanding(int standing)
     {
         return ReputationFormula.ClampStanding(standing);
     }
 
+    // Method: IsClientReputationFaction
+    // Purpose: Validates or evaluates is client reputation faction rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns true when is client reputation faction succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsClientReputationFaction(FactionDbcRecord faction)
     {
         return faction.ReputationIndex is >= 0 and < MaxReputationSlots &&
             (faction.ReputationIndex != 0 || HasReputationDefaults(faction));
     }
 
+    // Method: ShouldReplaceDuplicateIndex
+    // Purpose: Validates or evaluates should replace duplicate index rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - existing: Existing value supplied by the caller for this operation.
+    // - candidate: Candidate value supplied by the caller for this operation.
+    // - factionData: Faction data value supplied by the caller for this operation.
+    // Returns: Returns true when should replace duplicate index succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static bool ShouldReplaceDuplicateIndex(
         PlayerReputation existing,
         PlayerReputation candidate,
@@ -163,6 +209,12 @@ public static class ReputationSystem
         return !existingHasDefaults && candidateHasDefaults;
     }
 
+    // Method: HasReputationDefaults
+    // Purpose: Validates or evaluates has reputation defaults rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns true when has reputation defaults succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static bool HasReputationDefaults(FactionDbcRecord faction)
     {
         return faction.ReputationRaceMasks.Any(mask => mask != 0) ||
@@ -171,18 +223,42 @@ public static class ReputationSystem
             faction.ReputationFlags.Any(value => value != 0);
     }
 
+    // Method: GetBaseReputation
+    // Purpose: Retrieves get base reputation data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static int GetBaseReputation(FactionDbcRecord faction, byte race, byte playerClass)
     {
         int index = GetIndexFitTo(faction, race, playerClass);
         return index >= 0 && index < faction.ReputationBases.Count ? faction.ReputationBases[index] : 0;
     }
 
+    // Method: GetDefaultStateFlags
+    // Purpose: Retrieves get default state flags data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static uint GetDefaultStateFlags(FactionDbcRecord faction, byte race, byte playerClass)
     {
         int index = GetIndexFitTo(faction, race, playerClass);
         return index >= 0 && index < faction.ReputationFlags.Count ? unchecked((uint)faction.ReputationFlags[index]) : 0u;
     }
 
+    // Method: GetIndexFitTo
+    // Purpose: Retrieves get index fit to data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static int GetIndexFitTo(FactionDbcRecord faction, byte race, byte playerClass)
     {
         int raceMask = ToRaceMask(race);
@@ -211,6 +287,14 @@ public static class ReputationSystem
         return -1;
     }
 
+    // Method: ApplySavedFlags
+    // Purpose: Applies apply saved flags changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - defaultFlags: Default flags value supplied by the caller for this operation.
+    // - savedFlags: Saved flags value supplied by the caller for this operation.
+    // - effectiveStanding: Effective standing value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ApplySavedFlags(uint defaultFlags, uint savedFlags, int effectiveStanding)
     {
         ReputationFlags flags = (ReputationFlags)defaultFlags;
@@ -243,6 +327,12 @@ public static class ReputationSystem
         return (uint)flags;
     }
 
+    // Method: SetVisible
+    // Purpose: Applies set visible changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - flags: Flags value supplied by the caller for this operation.
+    // Returns: Returns the reputation flags value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static ReputationFlags SetVisible(ReputationFlags flags)
     {
         if ((flags & (ReputationFlags.InvisibleForced | ReputationFlags.Hidden)) != 0)
@@ -253,6 +343,13 @@ public static class ReputationSystem
         return flags | ReputationFlags.Visible;
     }
 
+    // Method: SetInactive
+    // Purpose: Applies set inactive changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - flags: Flags value supplied by the caller for this operation.
+    // - inactive: Inactive value supplied by the caller for this operation.
+    // Returns: Returns the reputation flags value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static ReputationFlags SetInactive(ReputationFlags flags, bool inactive)
     {
         if (inactive && ((flags & (ReputationFlags.InvisibleForced | ReputationFlags.Hidden)) != 0 || (flags & ReputationFlags.Visible) == 0))
@@ -263,6 +360,14 @@ public static class ReputationSystem
         return inactive ? flags | ReputationFlags.Inactive : flags & ~ReputationFlags.Inactive;
     }
 
+    // Method: SetAtWar
+    // Purpose: Applies set at war changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - flags: Flags value supplied by the caller for this operation.
+    // - atWar: At war value supplied by the caller for this operation.
+    // - effectiveStanding: Effective standing value supplied by the caller for this operation.
+    // Returns: Returns the reputation flags value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static ReputationFlags SetAtWar(ReputationFlags flags, bool atWar, int effectiveStanding)
     {
         if ((flags & (ReputationFlags.InvisibleForced | ReputationFlags.Hidden)) != 0)
@@ -278,11 +383,23 @@ public static class ReputationSystem
         return atWar ? flags | ReputationFlags.AtWar : flags & ~ReputationFlags.AtWar;
     }
 
+    // Method: ToRaceMask
+    // Purpose: Executes the to race mask operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static int ToRaceMask(byte race)
     {
         return race is > 0 and <= 31 ? 1 << (race - 1) : 0;
     }
 
+    // Method: ToClassMask
+    // Purpose: Executes the to class mask operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ReputationSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static int ToClassMask(byte playerClass)
     {
         return playerClass is > 0 and <= 31 ? 1 << (playerClass - 1) : 0;

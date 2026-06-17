@@ -15,36 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Logging/Services/ConsoleLogger.cs
+// Purpose: Contains console logger code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Logging.Formatting;
 using EmulationServer.Shared.Logging.Interfaces;
 
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Services/ConsoleLogger.cs
-  * Documents the ConsoleLogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Shared.Logging.Services;
 
-/**
-  * Owns the console logger behavior for the shared configuration, logging, and utility support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ConsoleLogger
+// Purpose: Provides console logger behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ConsoleLogger : ILogger
 {
-    /**
-      * Stores the default sync root value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
     private static readonly object SyncRoot = new();
 
-    /**
-      * Writes write data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: type, message, category.
-      */
+    // Method: Write
+    // Purpose: Builds or writes write output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - category: Category value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConsoleLogger so callers do not duplicate validation, protocol, or persistence rules.
     public void Write(LogType type, string message, string? category = null)
     {
         IReadOnlyList<string> lines = LogMessageFormatter.FormatLines(
@@ -66,11 +62,13 @@ public sealed class ConsoleLogger : ILogger
         }
     }
 
-
-    /**
-      * Writes already-formatted lines directly to the console without adding timestamp prefixes.
-      * Startup banners use this path so visual output stays compact.
-      */
+    // Method: WriteRaw
+    // Purpose: Builds or writes write raw output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - lines: Lines value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConsoleLogger so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteRaw(LogType type, IReadOnlyList<string> lines)
     {
         ArgumentNullException.ThrowIfNull(lines);
@@ -88,9 +86,11 @@ public sealed class ConsoleLogger : ILogger
         }
     }
 
-    /**
-      * Returns the active console width so long messages can be wrapped before the terminal wraps them in the middle of a word.
-      */
+    // Method: GetConsoleLineLength
+    // Purpose: Retrieves get console line length data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to ConsoleLogger so callers do not duplicate validation, protocol, or persistence rules.
     private static int GetConsoleLineLength()
     {
         try
@@ -105,10 +105,12 @@ public sealed class ConsoleLogger : ILogger
         }
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of ConsoleLogger and keeps this workflow isolated from the caller.
-      */
+    // Method: GetColor
+    // Purpose: Retrieves get color data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // Returns: Returns the console color value produced by this operation.
+    // Notes: This keeps the operation scoped to ConsoleLogger so callers do not duplicate validation, protocol, or persistence rules.
     private static ConsoleColor GetColor(LogType type)
     {
         return type switch

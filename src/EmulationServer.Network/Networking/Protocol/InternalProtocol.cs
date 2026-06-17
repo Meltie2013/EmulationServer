@@ -15,183 +15,155 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Protocol/InternalProtocol.cs
+// Purpose: Contains internal protocol code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalProtocol.cs
-  * Documents the InternalProtocol source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Protocol;
 
-/**
-  * Owns the internal protocol behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InternalProtocol
+// Purpose: Provides internal protocol behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class InternalProtocol
 {
-    /**
-      * Defines the constant value for maximum authentication line length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum authentication line length constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed maximum authentication line length value used anywhere this rule or protocol value is needed.
     public const int MaximumAuthenticationLineLength = 512;
-    /**
-      * Defines the constant value for maximum packet line length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum packet line length constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed maximum packet line length value used anywhere this rule or protocol value is needed.
     public const int MaximumPacketLineLength = 2048;
 
-    /**
-      * Defines the constant value for authentication nonce byte length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the authentication nonce byte length constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed authentication nonce byte length value used anywhere this rule or protocol value is needed.
     private const int AuthenticationNonceByteLength = 32;
-    /**
-      * Defines the constant value for maximum server name length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum server name length constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed maximum server name length value used anywhere this rule or protocol value is needed.
     private const int MaximumServerNameLength = 64;
 
-    /**
-      * Defines the constant value for authentication challenge.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the authentication challenge constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed authentication challenge value used anywhere this rule or protocol value is needed.
     public const string AuthenticationChallenge = "AUTH_CHALLENGE";
-    /**
-      * Defines the constant value for authentication response.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the authentication response constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed authentication response value used anywhere this rule or protocol value is needed.
     public const string AuthenticationResponse = "AUTH_RESPONSE";
-    /**
-      * Defines the constant value for authentication accepted.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the authentication accepted constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed authentication accepted value used anywhere this rule or protocol value is needed.
     public const string AuthenticationAccepted = "AUTH_ACCEPTED";
-    /**
-      * Defines the constant value for authentication rejected.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the authentication rejected constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed authentication rejected value used anywhere this rule or protocol value is needed.
     public const string AuthenticationRejected = "AUTH_REJECTED";
-    /**
-      * Defines the constant value for ping.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the ping constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed ping value used anywhere this rule or protocol value is needed.
     public const string Ping = "PING";
-    /**
-      * Defines the constant value for pong.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the pong constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed pong value used anywhere this rule or protocol value is needed.
     public const string Pong = "PONG";
-    /**
-      * Defines the constant value for shutdown request.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the shutdown request constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed shutdown request value used anywhere this rule or protocol value is needed.
     public const string ShutdownRequest = "SHUTDOWN_REQUEST";
-    /**
-      * Defines the constant value for world capacity.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the world capacity constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed world capacity value used anywhere this rule or protocol value is needed.
     public const string WorldCapacity = "WORLD_CAPACITY";
-    /**
-      * Defines the constant value for world health status.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the world health status constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed world health status value used anywhere this rule or protocol value is needed.
     public const string WorldHealthStatus = "WORLD_HEALTH_STATUS";
-    /**
-      * Defines the constant value for map service status.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the map service status constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed map service status value used anywhere this rule or protocol value is needed.
     public const string MapServiceStatus = "MAP_SERVICE_STATUS";
-    /**
-      * Defines the constant value for realm character count snapshot begin.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm character count snapshot begin constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed realm character count snapshot begin value used anywhere this rule or protocol value is needed.
     public const string RealmCharacterCountSnapshotBegin = "REALM_CHARACTER_COUNT_SNAPSHOT_BEGIN";
-    /**
-      * Defines the constant value for realm character count snapshot data.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm character count snapshot data constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed realm character count snapshot data value used anywhere this rule or protocol value is needed.
     public const string RealmCharacterCountSnapshotData = "REALM_CHARACTER_COUNT_SNAPSHOT_DATA";
-    /**
-      * Defines the constant value for realm character count snapshot end.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm character count snapshot end constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed realm character count snapshot end value used anywhere this rule or protocol value is needed.
     public const string RealmCharacterCountSnapshotEnd = "REALM_CHARACTER_COUNT_SNAPSHOT_END";
-    /**
-      * Defines the constant value for map service command.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the map service command constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed map service command value used anywhere this rule or protocol value is needed.
     public const string MapServiceCommand = "MAP_SERVICE_COMMAND";
-    /**
-      * Defines the constant value for map service command result.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the map service command result constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed map service command result value used anywhere this rule or protocol value is needed.
     public const string MapServiceCommandResult = "MAP_SERVICE_COMMAND_RESULT";
-    /**
-      * Defines the constant value for player enter world.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the player enter world constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed player enter world value used anywhere this rule or protocol value is needed.
     public const string PlayerEnterWorld = "PLAYER_ENTER_WORLD";
-    /**
-      * Defines the constant value for player leave world.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the player leave world constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed player leave world value used anywhere this rule or protocol value is needed.
     public const string PlayerLeaveWorld = "PLAYER_LEAVE_WORLD";
-    /**
-      * Defines the constant value for player movement.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the player movement constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed player movement value used anywhere this rule or protocol value is needed.
     public const string PlayerMovement = "PLAYER_MOVEMENT";
-    /**
-      * Defines the constant value for player client packet.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the player client packet constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed player client packet value used anywhere this rule or protocol value is needed.
     public const string PlayerClientPacket = "PLAYER_CLIENT_PACKET";
-    /**
-      * Defines the constant value for game object snapshot begin.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the game object snapshot begin constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed game object snapshot begin value used anywhere this rule or protocol value is needed.
     public const string GameObjectSnapshotBegin = "GAMEOBJECT_SNAPSHOT_BEGIN";
-    /**
-      * Defines the constant value for game object template snapshot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the game object template snapshot constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed game object template snapshot value used anywhere this rule or protocol value is needed.
     public const string GameObjectTemplateSnapshot = "GAMEOBJECT_TEMPLATE_SNAPSHOT";
-    /**
-      * Defines the constant value for game object spawn snapshot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the game object spawn snapshot constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed game object spawn snapshot value used anywhere this rule or protocol value is needed.
     public const string GameObjectSpawnSnapshot = "GAMEOBJECT_SPAWN_SNAPSHOT";
-    /**
-      * Defines the constant value for game object snapshot end.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the game object snapshot end constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed game object snapshot end value used anywhere this rule or protocol value is needed.
     public const string GameObjectSnapshotEnd = "GAMEOBJECT_SNAPSHOT_END";
-    /**
-      * Defines the constant value for creature snapshot begin.
-      */
+
+    // Constant: Defines the creature snapshot begin constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed creature snapshot begin value used anywhere this rule or protocol value is needed.
     public const string CreatureSnapshotBegin = "CREATURE_SNAPSHOT_BEGIN";
-    /**
-      * Defines the constant value for creature template snapshot.
-      */
+
+    // Constant: Defines the creature template snapshot constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed creature template snapshot value used anywhere this rule or protocol value is needed.
     public const string CreatureTemplateSnapshot = "CREATURE_TEMPLATE_SNAPSHOT";
-    /**
-      * Defines the constant value for creature spawn snapshot.
-      */
+
+    // Constant: Defines the creature spawn snapshot constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed creature spawn snapshot value used anywhere this rule or protocol value is needed.
     public const string CreatureSpawnSnapshot = "CREATURE_SPAWN_SNAPSHOT";
-    /**
-      * Defines the constant value for creature snapshot end.
-      */
+
+    // Constant: Defines the creature snapshot end constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed creature snapshot end value used anywhere this rule or protocol value is needed.
     public const string CreatureSnapshotEnd = "CREATURE_SNAPSHOT_END";
 
-    /**
-      * Reads a single protocol line without consuming bytes after the line terminator.
-      * Prefer InternalProtocolReader for long-lived sessions so incoming packets are buffered efficiently.
-      */
+    // Method: ReadLineAsync
+    // Purpose: Retrieves read line data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - maximumLength: Maximum length value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async Task<string?> ReadLineAsync(NetworkStream stream, int maximumLength, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -229,12 +201,16 @@ public static class InternalProtocol
         return Encoding.UTF8.GetString(lineBuffer.ToArray()).Trim();
     }
 
-    /**
-      * Writes write line data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: stream, sendLock, line, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: WriteLineAsync
+    // Purpose: Builds or writes write line output for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - sendLock: Send lock value supplied by the caller for this operation.
+    // - line: Line value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async Task WriteLineAsync(NetworkStream stream, SemaphoreSlim sendLock, string line, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -254,18 +230,25 @@ public static class InternalProtocol
         }
     }
 
-    /**
-      * Creates a cryptographically random challenge value used during internal server authentication.
-      */
+    // Method: CreateAuthenticationNonce
+    // Purpose: Applies create authentication nonce changes for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static string CreateAuthenticationNonce()
     {
         return Convert.ToHexString(RandomNumberGenerator.GetBytes(AuthenticationNonceByteLength));
     }
 
-    /**
-      * Creates the HMAC proof sent during internal server authentication.
-      * The shared registration key is never sent over the socket.
-      */
+    // Method: CreateAuthenticationProof
+    // Purpose: Applies create authentication proof changes for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - registrationKey: Registration key value supplied by the caller for this operation.
+    // - sourceServerName: Source server name value supplied by the caller for this operation.
+    // - targetServerName: Target server name value supplied by the caller for this operation.
+    // - challengeNonce: Challenge nonce value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static string CreateAuthenticationProof(
         string registrationKey,
         string sourceServerName,
@@ -299,9 +282,16 @@ public static class InternalProtocol
         return Convert.ToHexString(proof);
     }
 
-    /**
-      * Performs a fixed-time authentication proof comparison so timing differences do not leak useful information.
-      */
+    // Method: AuthenticationProofsMatch
+    // Purpose: Executes the authentication proofs match operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - registrationKey: Registration key value supplied by the caller for this operation.
+    // - sourceServerName: Source server name value supplied by the caller for this operation.
+    // - targetServerName: Target server name value supplied by the caller for this operation.
+    // - challengeNonce: Challenge nonce value supplied by the caller for this operation.
+    // - suppliedProof: Supplied proof value supplied by the caller for this operation.
+    // Returns: Returns true when authentication proofs match succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool AuthenticationProofsMatch(
         string registrationKey,
         string sourceServerName,
@@ -327,9 +317,12 @@ public static class InternalProtocol
             CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
 
-    /**
-      * Validates internal server names before they are accepted into runtime dependency state.
-      */
+    // Method: IsValidServerName
+    // Purpose: Validates or evaluates is valid server name rules for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: Returns true when is valid server name succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsValidServerName(string serverName)
     {
         if (string.IsNullOrWhiteSpace(serverName) || serverName.Length > MaximumServerNameLength)
@@ -350,11 +343,13 @@ public static class InternalProtocol
         return true;
     }
 
-    /**
-      * Performs the registration keys match operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: expected, actual.
-      */
+    // Method: RegistrationKeysMatch
+    // Purpose: Executes the registration keys match operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - expected: Expected value supplied by the caller for this operation.
+    // - actual: Actual value supplied by the caller for this operation.
+    // Returns: Returns true when registration keys match succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool RegistrationKeysMatch(string expected, string actual)
     {
         byte[] expectedBytes = Encoding.UTF8.GetBytes(expected);

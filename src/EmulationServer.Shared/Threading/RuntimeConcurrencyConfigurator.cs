@@ -15,25 +15,30 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Threading/RuntimeConcurrencyConfigurator.cs
+// Purpose: Contains runtime concurrency configurator code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
 namespace EmulationServer.Shared.Threading;
 
-/**
-  * Configures process-wide runtime concurrency for server executables.
-  * .NET already schedules async socket, database, and timer continuations on the ThreadPool, but the default worker ramp-up can be conservative for a game server where many small tasks become active at once.
-  * Raising the minimum worker and IO completion thread counts does not force busy spinning; it only allows the runtime to make more workers available immediately when load appears.
-  */
+// Type: RuntimeConcurrencyConfigurator
+// Purpose: Provides runtime concurrency configurator behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class RuntimeConcurrencyConfigurator
 {
+    // Field: Stores the configured state used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: current configured backing value maintained by the owning type.
     private static int _configured;
 
-    /**
-      * Applies a safe process-wide ThreadPool baseline based on the host CPU count.
-      * The optional EMULATIONSERVER_MIN_WORKER_THREADS and EMULATIONSERVER_MIN_IO_THREADS environment variables can override the automatic values for local tuning.
-      */
+    // Method: ConfigureForServer
+    // Purpose: Executes the configure for server operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RuntimeConcurrencyConfigurator so callers do not duplicate validation, protocol, or persistence rules.
     public static void ConfigureForServer(string serverName)
     {
         if (Interlocked.Exchange(ref _configured, 1) == 1)
@@ -59,9 +64,12 @@ public static class RuntimeConcurrencyConfigurator
         Logger.Write(LogType.THREAD, $"{serverName} concurrency baseline: processors={processorCount}, min worker threads={workerThreads}, min IO threads={completionPortThreads}.", "RuntimeConcurrency");
     }
 
-    /**
-      * Reads a positive integer environment override without making startup fail because of a mistyped local tuning value.
-      */
+    // Method: ReadPositiveEnvironmentOverride
+    // Purpose: Retrieves read positive environment override data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - name: Name value supplied by the caller for this operation.
+    // Returns: Returns the int? value produced by this operation.
+    // Notes: This keeps the operation scoped to RuntimeConcurrencyConfigurator so callers do not duplicate validation, protocol, or persistence rules.
     private static int? ReadPositiveEnvironmentOverride(string name)
     {
         string? value = Environment.GetEnvironmentVariable(name);

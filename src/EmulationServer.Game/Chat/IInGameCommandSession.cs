@@ -15,66 +15,36 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/IInGameCommandSession.cs
+// Purpose: Contains I in game command session code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Accounts;
 using EmulationServer.Game.Players;
 
-/**
-  * File overview: src/EmulationServer.Game/Commands/IInGameCommandSession.cs
-  * Documents the IInGameCommandSession source file in the in-game command parsing and command session access area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Defines the data and permission checks chat commands can use without depending on a concrete WorldClientSession.
-  * Command handlers should use this interface for account, player, and RBAC information so each command stays isolated in its own file.
-  */
+// Type: IInGameCommandSession
+// Purpose: Defines the I in game command session contract used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public interface IInGameCommandSession
 {
-    /**
-      * Account id used by permission checks and later command audit logging.
-      */
+
     uint AccountId { get; }
 
-    /**
-      * Account name used in diagnostics and command responses.
-      */
     string AccountName { get; }
 
-    /**
-      * RBAC-derived account security level.
-      */
     AccountSecurityLevel AccountSecurityLevel { get; }
 
-    /**
-      * Active world player count exposed for command handlers.
-      */
     int ActivePlayerCount { get; }
 
-    /**
-      * Configured message of the day exposed for command handlers.
-      */
     string MessageOfTheDay { get; }
 
-    /**
-      * Checks the final RBAC permission set for a command or role permission id.
-      */
     bool HasPermission(uint permissionId);
 
-    /**
-      * Reloads the current account RBAC data from the account database.
-      */
     Task ReloadPermissionsAsync(CancellationToken cancellationToken);
 
-    /**
-      * Requires the current in-world player and throws when the command was executed before entering the world.
-      */
     PlayerLoginRecord RequireCurrentPlayer();
 
-    /**
-      * Opens the current character bank UI through the active world session.
-      */
     Task OpenBankAsync(CancellationToken cancellationToken);
 }

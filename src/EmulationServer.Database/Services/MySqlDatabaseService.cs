@@ -15,37 +15,33 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Database/Services/MySqlDatabaseService.cs
+// Purpose: Contains my SQL database service code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Configuration;
 using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
-/**
-  * File overview: src/EmulationServer.Database/Services/MySqlDatabaseService.cs
-  * Documents the MySqlDatabaseService source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Database.Services;
 
-/**
-  * Owns the my sql database service behavior for the database access, account persistence, and MySQL connectivity layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MySqlDatabaseService
+// Purpose: Provides my SQL database service behavior for the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MySqlDatabaseService : IDatabaseService
 {
-    /**
-      * Holds the private connection string state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the connection string state used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: current connection string backing value maintained by the owning type.
     private readonly string _connectionString;
 
-    /**
-      * Initializes a new MySqlDatabaseService instance with the dependencies required by the database access, account persistence, and MySQL connectivity workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: MySqlDatabaseService
+    // Purpose: Initializes a new MySqlDatabaseService instance with dependencies and values required by the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MySqlDatabaseService so callers do not duplicate validation, protocol, or persistence rules.
     public MySqlDatabaseService(DatabaseSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -77,12 +73,13 @@ public sealed class MySqlDatabaseService : IDatabaseService
         _connectionString = builder.ConnectionString;
     }
 
-    /**
-      * Creates the connection result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CreateConnectionAsync
+    // Purpose: Applies create connection changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to MySqlDatabaseService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask<MySqlConnection> CreateConnectionAsync(CancellationToken cancellationToken = default)
     {
         MySqlConnection connection = new(_connectionString);
@@ -99,12 +96,13 @@ public sealed class MySqlDatabaseService : IDatabaseService
         }
     }
 
-    /**
-      * Performs the test connection operation for the database access, account persistence, and MySQL connectivity workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: TestConnectionAsync
+    // Purpose: Executes the test connection operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when test connection async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to MySqlDatabaseService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<bool> TestConnectionAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -122,28 +120,30 @@ public sealed class MySqlDatabaseService : IDatabaseService
         }
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of MySqlDatabaseService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ValidateConnectionAsync
+    // Purpose: Validates or evaluates validate connection rules for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MySqlDatabaseService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ValidateConnectionAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await CreateConnectionAsync(cancellationToken);
 
-        bool pingSucceeded = await connection.PingAsync();
+        bool pingSucceeded = await connection.PingAsync(cancellationToken);
         if (!pingSucceeded)
         {
             throw new Exception("Failed to ping the MySQL database.");
         }
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MySqlDatabaseService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;

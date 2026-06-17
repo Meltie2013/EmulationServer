@@ -15,25 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountBanStatus.cs
-  * Documents the AccountBanStatus source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Database/Accounts/AccountBanStatus.cs
+// Purpose: Contains account ban status code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Represents immutable account ban status data passed between parts of the server.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: IsBanned, IsPermanent.
-  */
+// Type: AccountBanStatus
+// Purpose: Represents account ban status data passed through the database persistence, repository, and MySQL connectivity layer.
+// Constructor values:
+// - IsBanned: Is banned value supplied by the caller for this operation.
+// - IsPermanent: Is permanent value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record AccountBanStatus(bool IsBanned, bool IsPermanent)
 {
-    /**
-      * Gets or stores the not banned value used by AccountBanStatus.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
     public static AccountBanStatus NotBanned { get; } = new(false, false);
 }

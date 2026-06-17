@@ -15,114 +15,83 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Database/Configuration/DatabaseSettings.cs
-  * Documents the DatabaseSettings source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Database/Configuration/DatabaseSettings.cs
+// Purpose: Contains database settings code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Configuration;
 
-/**
-  * Owns the database settings behavior for the database access, account persistence, and MySQL connectivity layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: DatabaseSettings
+// Purpose: Provides database settings behavior for the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class DatabaseSettings
 {
-    /**
-      * Gets or stores the host value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the host value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: host value exposed by the owning type.
     public string Host { get; init; } = "127.0.0.1";
 
-    /**
-      * Gets or stores the port value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the port value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: port value exposed by the owning type.
     public int Port { get; init; } = 3306;
 
-    /**
-      * Gets or stores the database value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the database value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: database value exposed by the owning type.
     public string Database { get; init; } = "realmd";
 
-    /**
-      * Gets or stores the username value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the username value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: username value exposed by the owning type.
     public string Username { get; init; } = "root";
 
-    /**
-      * Gets or stores the password value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the password value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: password value exposed by the owning type.
     public string Password { get; init; } = "";
 
-    /**
-      * Gets or stores the minimum pool size value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the minimum pool size value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: minimum pool size value exposed by the owning type.
     public uint MinimumPoolSize { get; init; } = 5;
 
-    /**
-      * Gets or stores the maximum pool size value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the maximum pool size value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: maximum pool size value exposed by the owning type.
     public uint MaximumPoolSize { get; init; } = 100;
 
-    /**
-      * Gets or stores the use ssl value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the use ssl value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: use ssl value exposed by the owning type.
     public bool UseSsl { get; init; } = false;
 
-    /**
-      * Gets or stores the connection timeout seconds value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the connection timeout seconds value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: connection timeout seconds value exposed by the owning type.
     public uint ConnectionTimeoutSeconds { get; init; } = 15;
 
-    /**
-      * Gets or stores the default command timeout seconds value used by DatabaseSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the default command timeout seconds value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: default command timeout seconds value exposed by the owning type.
     public uint DefaultCommandTimeoutSeconds { get; init; } = 30;
 
-    /**
-      * Gets or stores how long idle pooled database connections may remain open.
-      */
+    // Property: Gets or sets the connection idle timeout seconds value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: connection idle timeout seconds value exposed by the owning type.
     public uint ConnectionIdleTimeoutSeconds { get; init; } = 180;
 
-    /**
-      * Gets or stores the maximum lifetime for pooled database connections.
-      * A value of 0 leaves the provider default lifetime behavior in place.
-      */
+    // Property: Gets or sets the connection life time seconds value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: connection life time seconds value exposed by the owning type.
     public uint ConnectionLifeTimeSeconds { get; init; } = 0;
 
-    /**
-      * Gets or stores the TCP keep-alive interval used by database connections.
-      * A value of 0 disables provider-level database keep-alive.
-      */
+    // Property: Gets or sets the keep alive seconds value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: keep alive seconds value exposed by the owning type.
     public uint KeepAliveSeconds { get; init; } = 30;
 
-    /**
-      * Gets or stores whether pooled database connections are reset before reuse.
-      * Keep this true unless all session state is tightly controlled.
-      */
+    // Property: Gets or sets the connection reset value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: connection reset value exposed by the owning type.
     public bool ConnectionReset { get; init; } = true;
 
-    /**
-      * Gets or stores whether MySQL protocol compression should be enabled.
-      * Compression is disabled by default because local/LAN database traffic is usually faster without it.
-      */
+    // Property: Gets or sets the use compression value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: use compression value exposed by the owning type.
     public bool UseCompression { get; init; } = false;
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of DatabaseSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DatabaseSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Host))

@@ -15,31 +15,34 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Protocol/InternalWorldHealthStatusPacket.cs
+// Purpose: Contains internal world health status packet code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalWorldHealthStatusPacket.cs
-  * Documents the InternalWorldHealthStatusPacket source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Protocol;
 
-/**
-  * Carries the WorldServer runtime load snapshot used by ProxyServer health aggregation.
-  * ProxyServer owns the health state; WorldServer only reports the current values it already owns.
-  * Positional fields carried by this record: OwnerServerName, ActivePlayers, MaxConnections, ReportedUtc.
-  */
+// Type: InternalWorldHealthStatusPacket
+// Purpose: Represents internal world health status packet data passed through the packet serialization, socket transport, and protocol framing layer.
+// Constructor values:
+// - OwnerServerName: Owner server name value supplied by the caller for this operation.
+// - ActivePlayers: Active players value supplied by the caller for this operation.
+// - MaxConnections: Max connections value supplied by the caller for this operation.
+// - ReportedUtc: Reported utc value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record InternalWorldHealthStatusPacket(
     string OwnerServerName,
     int ActivePlayers,
     int MaxConnections,
     DateTimeOffset ReportedUtc)
 {
-    /**
-      * Converts this snapshot into the internal protocol line used between servers.
-      */
+
+    // Method: ToPacketLine
+    // Purpose: Executes the to packet line operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalWorldHealthStatusPacket so callers do not duplicate validation, protocol, or persistence rules.
     public string ToPacketLine()
     {
         long reportedUnixTimeSeconds = ReportedUtc.ToUnixTimeSeconds();
@@ -49,9 +52,13 @@ public sealed record InternalWorldHealthStatusPacket(
             $"{InternalProtocol.WorldHealthStatus} {OwnerServerName} {ActivePlayers} {MaxConnections} {reportedUnixTimeSeconds}");
     }
 
-    /**
-      * Attempts to parse a protocol line into a world health snapshot.
-      */
+    // Method: TryParse
+    // Purpose: Attempts to retrieve or parse try parse data without treating normal misses as failures.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - status: Status value supplied by the caller for this operation.
+    // Returns: Returns true when try parse succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalWorldHealthStatusPacket so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParse(string packet, out InternalWorldHealthStatusPacket status)
     {
         status = default!;

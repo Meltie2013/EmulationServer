@@ -15,75 +15,71 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Chat/ChatLanguage.cs
-  * Documents the ChatLanguage source file in the chat channel normalization, language handling, and message routing area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Chat/ChatLanguage.cs
+// Purpose: Contains chat language code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Chat;
 
-/**
-  * Lists the supported chat language values used by the chat channel normalization, language handling, and message routing layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: ChatLanguage
+// Purpose: Defines the allowed chat language values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum ChatLanguage : uint
 {
-    /**
-      * Represents the universal value for chat language handling.
-      */
+
+    // Enum Value: Defines the universal enum value.
+    // Value: explicit expression 0.
     Universal = 0,
-    /**
-      * Represents the orcish value for chat language handling.
-      */
+
+    // Enum Value: Defines the orcish enum value.
+    // Value: explicit expression 1.
     Orcish = 1,
-    /**
-      * Represents the darnassian value for chat language handling.
-      */
+
+    // Enum Value: Defines the darnassian enum value.
+    // Value: explicit expression 2.
     Darnassian = 2,
-    /**
-      * Represents the taurahe value for chat language handling.
-      */
+
+    // Enum Value: Defines the taurahe enum value.
+    // Value: explicit expression 3.
     Taurahe = 3,
-    /**
-      * Represents the dwarvish value for chat language handling.
-      */
+
+    // Enum Value: Defines the dwarvish enum value.
+    // Value: explicit expression 6.
     Dwarvish = 6,
-    /**
-      * Represents the common value for chat language handling.
-      */
+
+    // Enum Value: Defines the common enum value.
+    // Value: explicit expression 7.
     Common = 7,
-    /**
-      * Represents the demonic value for chat language handling.
-      */
+
+    // Enum Value: Defines the demonic enum value.
+    // Value: explicit expression 8.
     Demonic = 8,
-    /**
-      * Represents the titan value for chat language handling.
-      */
+
+    // Enum Value: Defines the titan enum value.
+    // Value: explicit expression 9.
     Titan = 9,
-    /**
-      * Represents the thalassian value for chat language handling.
-      */
+
+    // Enum Value: Defines the thalassian enum value.
+    // Value: explicit expression 10.
     Thalassian = 10,
-    /**
-      * Represents the draconic value for chat language handling.
-      */
+
+    // Enum Value: Defines the draconic enum value.
+    // Value: explicit expression 11.
     Draconic = 11,
-    /**
-      * Represents the kalimag value for chat language handling.
-      */
+
+    // Enum Value: Defines the kalimag enum value.
+    // Value: explicit expression 12.
     Kalimag = 12,
-    /**
-      * Represents the gnomish value for chat language handling.
-      */
+
+    // Enum Value: Defines the gnomish enum value.
+    // Value: explicit expression 13.
     Gnomish = 13,
-    /**
-      * Represents the troll value for chat language handling.
-      */
+
+    // Enum Value: Defines the troll enum value.
+    // Value: explicit expression 14.
     Troll = 14,
-    /**
-      * Represents the gutterspeak value for chat language handling.
-      */
+
+    // Enum Value: Defines the gutterspeak enum value.
+    // Value: explicit expression 33.
     Gutterspeak = 33,
 }

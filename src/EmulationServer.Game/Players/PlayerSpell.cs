@@ -15,18 +15,17 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/PlayerSpell.cs
-  * Documents the PlayerSpell source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/PlayerSpell.cs
+// Purpose: Contains player spell code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Carries immutable player spell data for the logged-in player state, persistence models, and gameplay records layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: SpellId, Active, Disabled.
-  */
+// Type: PlayerSpell
+// Purpose: Represents player spell data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - SpellId: Spell ID identifier used to select the exact record, object, or runtime owner.
+// - Active: Active value supplied by the caller for this operation.
+// - Disabled: Disabled value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record PlayerSpell(uint SpellId, bool Active, bool Disabled);

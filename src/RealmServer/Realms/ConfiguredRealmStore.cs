@@ -15,33 +15,35 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Realms/ConfiguredRealmStore.cs
+// Purpose: Contains configured realm store code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.RealmServer.Configuration;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/RealmServer/Realms/ConfiguredRealmStore.cs
-  * Documents the ConfiguredRealmStore source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Realms;
 
-/**
-  * Owns the configured realm store behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps configured realm definitions loaded at startup while applying runtime WorldServer visibility rules when realm-list packets are built.
-  */
+// Type: ConfiguredRealmStore
+// Purpose: Provides configured realm store behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ConfiguredRealmStore
 {
+    // Field: Stores the uint state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, ConfiguredRealm> _realms;
+    // Field: Stores the realm list settings state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current realm list settings backing value maintained by the owning type.
     private readonly RealmListSettings _realmListSettings;
 
-    /**
-      * Initializes a new ConfiguredRealmStore instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: realmSettings, realmListSettings.
-      */
+    // Constructor: ConfiguredRealmStore
+    // Purpose: Initializes a new ConfiguredRealmStore instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmSettings: Realm settings value supplied by the caller for this operation.
+    // - realmListSettings: Realm list settings value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public ConfiguredRealmStore(IEnumerable<ConfiguredRealmSettings> realmSettings, RealmListSettings? realmListSettings = null)
     {
         ArgumentNullException.ThrowIfNull(realmSettings);
@@ -59,18 +61,24 @@ public sealed class ConfiguredRealmStore
         }
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of ConfiguredRealmStore and keeps this workflow isolated from the caller.
-      */
+    // Method: GetRealmsForBuild
+    // Purpose: Retrieves get realms for build data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns the I read only collection value produced by this operation.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyCollection<ConfiguredRealm> GetRealmsForBuild(ushort build)
     {
         return GetRealmsForBuild(build, DateTimeOffset.UtcNow);
     }
 
-    /**
-      * Returns visible realms for the client build after applying WorldServer registration and stale-status rules.
-      */
+    // Method: GetRealmsForBuild
+    // Purpose: Retrieves get realms for build data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // - nowUtc: Now utc value supplied by the caller for this operation.
+    // Returns: Returns the I read only collection value produced by this operation.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyCollection<ConfiguredRealm> GetRealmsForBuild(ushort build, DateTimeOffset nowUtc)
     {
         HideStaleRealms(nowUtc);
@@ -82,9 +90,12 @@ public sealed class ConfiguredRealmStore
             .ToArray();
     }
 
-    /**
-      * Hides stale realms and returns the realm ids hidden during this call.
-      */
+    // Method: HideStaleRealms
+    // Purpose: Executes the hide stale realms operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - nowUtc: Now utc value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<uint> HideStaleRealms(DateTimeOffset nowUtc)
     {
         if (!_realmListSettings.HideStaleRealms)
@@ -110,9 +121,13 @@ public sealed class ConfiguredRealmStore
         return hiddenRealmIds;
     }
 
-    /**
-      * Updates the per-account character-count snapshot for a realm.
-      */
+    // Method: TryReplaceRealmCharacterCounts
+    // Purpose: Executes the try replace realm character counts operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - characterCountsByAccount: Character counts by account value supplied by the caller for this operation.
+    // Returns: Returns true when try replace realm character counts succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryReplaceRealmCharacterCounts(uint realmId, IReadOnlyDictionary<uint, byte> characterCountsByAccount)
     {
         if (!_realms.TryGetValue(realmId, out ConfiguredRealm? realm))
@@ -124,19 +139,30 @@ public sealed class ConfiguredRealmStore
         return true;
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of ConfiguredRealmStore and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TrySetRealmStatus
+    // Purpose: Executes the try set realm status operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - online: Online value supplied by the caller for this operation.
+    // - activeConnections: Active connections value supplied by the caller for this operation.
+    // - capacityLimit: Capacity limit value supplied by the caller for this operation.
+    // Returns: Returns true when try set realm status succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TrySetRealmStatus(uint realmId, bool online, int activeConnections, int capacityLimit)
     {
         return TrySetRealmStatus(realmId, online, activeConnections, capacityLimit, DateTimeOffset.UtcNow);
     }
 
-    /**
-      * Attempts to set status while using an explicit timestamp for tests and controlled status handling.
-      */
+    // Method: TrySetRealmStatus
+    // Purpose: Executes the try set realm status operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - online: Online value supplied by the caller for this operation.
+    // - activeConnections: Active connections value supplied by the caller for this operation.
+    // - capacityLimit: Capacity limit value supplied by the caller for this operation.
+    // - updatedUtc: Updated utc value supplied by the caller for this operation.
+    // Returns: Returns true when try set realm status succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TrySetRealmStatus(uint realmId, bool online, int activeConnections, int capacityLimit, DateTimeOffset updatedUtc)
     {
         if (!_realms.TryGetValue(realmId, out ConfiguredRealm? realm))
@@ -148,9 +174,12 @@ public sealed class ConfiguredRealmStore
         return true;
     }
 
-    /**
-      * Returns whether this realm should be advertised to clients in a realm-list packet.
-      */
+    // Method: ShouldShowRealm
+    // Purpose: Validates or evaluates should show realm rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realm: Realm value supplied by the caller for this operation.
+    // Returns: Returns true when should show realm succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ConfiguredRealmStore so callers do not duplicate validation, protocol, or persistence rules.
     private bool ShouldShowRealm(ConfiguredRealm realm)
     {
         if (realm.BaseRealmFlags.HasFlag(RealmFlags.Invalid))

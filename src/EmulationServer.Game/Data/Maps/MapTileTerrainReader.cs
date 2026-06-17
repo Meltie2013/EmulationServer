@@ -15,16 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapTileTerrainReader.cs
+// Purpose: Contains map tile terrain reader code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Reads the typed terrain model from a validated mapstore terrain payload.
-  */
+// Type: MapTileTerrainReader
+// Purpose: Provides map tile terrain reader behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapTileTerrainReader
 {
+    // Method: Read
+    // Purpose: Retrieves read data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - file: File value supplied by the caller for this operation.
+    // Returns: Returns the map tile terrain data value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileTerrainReader so callers do not duplicate validation, protocol, or persistence rules.
     public static MapTileTerrainData Read(MapStoreFile file)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -59,6 +68,14 @@ public static class MapTileTerrainReader
         return new MapTileTerrainData(key, file.Header.Build, areaFlags, gridAreaFlag, areaGrid, heightFlags, gridHeight, gridMaxHeight, v9, v8, holes);
     }
 
+    // Method: static
+    // Purpose: Executes the static operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Flags: Flags value supplied by the caller for this operation.
+    // - GridArea: Grid area value supplied by the caller for this operation.
+    // - ushortAreaGrid: Ushort area grid value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapTileTerrainReader so callers do not duplicate validation, protocol, or persistence rules.
     private static (ushort Flags, ushort GridArea, ushort[] AreaGrid) ReadAreaSection(byte[] section, string path)
     {
         if (section.Length < 8)
@@ -104,6 +121,16 @@ public static class MapTileTerrainReader
         return (flags, gridArea, areaGrid);
     }
 
+    // Method: static
+    // Purpose: Executes the static operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Flags: Flags value supplied by the caller for this operation.
+    // - GridHeight: Grid height value supplied by the caller for this operation.
+    // - GridMaxHeight: Grid max height value supplied by the caller for this operation.
+    // - V9: V9 value supplied by the caller for this operation.
+    // - V8: V8 value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapTileTerrainReader so callers do not duplicate validation, protocol, or persistence rules.
     private static (uint Flags, float GridHeight, float GridMaxHeight, float[]? V9, float[]? V8) ReadHeightSection(byte[] section, string path)
     {
         if (section.Length < 16)
@@ -160,6 +187,13 @@ public static class MapTileTerrainReader
         return (flags, gridHeight, gridMaxHeight, v9, v8);
     }
 
+    // Method: ReadHolesSection
+    // Purpose: Retrieves read holes section data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - bytesection: Bytesection value supplied by the caller for this operation.
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the ushort[] value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileTerrainReader so callers do not duplicate validation, protocol, or persistence rules.
     private static ushort[] ReadHolesSection(byte[] section, string path)
     {
         ushort[] holes = new ushort[MapStorePayloadConstants.AreaCellCount];

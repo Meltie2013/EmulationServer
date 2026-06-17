@@ -15,13 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/GameObjectSpawnRecord.cs
+// Purpose: Contains game object spawn record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries immutable gameobject spawn data from the world database.
-  * zoneId and areaId are EmulationServer extensions used to index and diagnose where each object is spawned at startup and during map reloads.
-  */
+// Type: GameObjectSpawnRecord
+// Purpose: Represents game object spawn record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+// - Entry: Entry value supplied by the caller for this operation.
+// - Map: Map value supplied by the caller for this operation.
+// - ZoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+// - AreaId: Area ID identifier used to select the exact record, object, or runtime owner.
+// - PositionX: Position X value supplied by the caller for this operation.
+// - PositionY: Position Y value supplied by the caller for this operation.
+// - PositionZ: Position Z value supplied by the caller for this operation.
+// - Orientation: Orientation value supplied by the caller for this operation.
+// - Rotation0: Rotation0 value supplied by the caller for this operation.
+// - Rotation1: Rotation1 value supplied by the caller for this operation.
+// - Rotation2: Rotation2 value supplied by the caller for this operation.
+// - Rotation3: Rotation3 value supplied by the caller for this operation.
+// - SpawnTimeSeconds: Spawn time seconds value supplied by the caller for this operation.
+// - AnimProgress: Anim progress value supplied by the caller for this operation.
+// - State: State value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record GameObjectSpawnRecord(
     uint Guid,
     uint Entry,

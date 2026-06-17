@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Players/PlayerSessionRegistry.cs
+// Purpose: Contains player session registry code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 
@@ -23,34 +26,27 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Networking.Sessions;
 
-/**
-  * File overview: src/WorldServer/Players/PlayerSessionRegistry.cs
-  * Documents the PlayerSessionRegistry source file in the active player session registration and lookup area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Players;
 
-/**
-  * Owns the player session registry behavior for the active player session registration and lookup layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: PlayerSessionRegistry
+// Purpose: Provides player session registry behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class PlayerSessionRegistry
 {
     private readonly ConcurrentDictionary<uint, WorldClientSession> _playersByGuid = new();
     private readonly ConcurrentDictionary<uint, WorldClientSession> _sessionsByAccount = new();
 
-    /**
-      * Stores the default active player count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the active player count value used by the world server gameplay, session, and character runtime layer.
+    // Value: active player count value exposed by the owning type.
     public int ActivePlayerCount => _playersByGuid.Count;
 
-    /**
-      * Tries to resolve the register value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player, session.
-      */
+    // Method: TryRegister
+    // Purpose: Executes the try register operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - session: Session value supplied by the caller for this operation.
+    // Returns: Returns true when try register succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to PlayerSessionRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryRegister(PlayerLoginRecord player, WorldClientSession session)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -71,11 +67,13 @@ public sealed class PlayerSessionRegistry
         return true;
     }
 
-    /**
-      * Applies the unregister state transition to the current runtime session.
-      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-      * Inputs used by this operation: player, session.
-      */
+    // Method: Unregister
+    // Purpose: Executes the unregister operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - session: Session value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to PlayerSessionRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public void Unregister(PlayerLoginRecord? player, WorldClientSession session)
     {
         if (player is null)
@@ -96,10 +94,11 @@ public sealed class PlayerSessionRegistry
         Logger.Write(LogType.SYSTEM, $"Unregistered in-world player '{player.Name}' ({player.Guid}). Active players={ActivePlayerCount}.", "PlayerSessionRegistry");
     }
 
-    /**
-      * Performs the snapshot sessions operation for the active player session registration and lookup workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: SnapshotSessions
+    // Purpose: Executes the snapshot sessions operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to PlayerSessionRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<WorldClientSession> SnapshotSessions()
     {
         return _playersByGuid.Values
@@ -107,20 +106,22 @@ public sealed class PlayerSessionRegistry
             .ToArray();
     }
 
-    /**
-      * Enumerates the current in-world sessions without allocating a new array.
-      * Hot paths such as movement broadcasting use this to avoid per-packet snapshots.
-      */
+    // Method: EnumerateSessions
+    // Purpose: Executes the enumerate sessions operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to PlayerSessionRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public IEnumerable<WorldClientSession> EnumerateSessions()
     {
         return _playersByGuid.Values;
     }
 
-    /**
-      * Resolves the sessions for faction value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: faction.
-      */
+    // Method: GetSessionsForFaction
+    // Purpose: Retrieves get sessions for faction data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to PlayerSessionRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<WorldClientSession> GetSessionsForFaction(PlayerFaction faction)
     {
         return _playersByGuid.Values
@@ -129,11 +130,13 @@ public sealed class PlayerSessionRegistry
             .ToArray();
     }
 
-    /**
-      * Resolves the sessions in channel value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: channelName, faction.
-      */
+    // Method: GetSessionsInChannel
+    // Purpose: Retrieves get sessions in channel data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to PlayerSessionRegistry so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<WorldClientSession> GetSessionsInChannel(string channelName, PlayerFaction faction)
     {
         return _playersByGuid.Values

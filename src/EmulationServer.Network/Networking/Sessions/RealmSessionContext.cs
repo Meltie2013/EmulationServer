@@ -15,40 +15,37 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Sessions/RealmSessionContext.cs
+// Purpose: Contains realm session context code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Net;
 using System.Net.Sockets;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSessionContext.cs
-  * Documents the RealmSessionContext source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Sessions;
 
-/**
-  * Owns the realm session context behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmSessionContext
+// Purpose: Provides realm session context behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmSessionContext
 {
-    /**
-      * Holds the private client state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the client state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current client backing value maintained by the owning type.
     private readonly TcpClient _client;
-    /**
-      * Holds the private stream state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stream state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stream backing value maintained by the owning type.
     private readonly NetworkStream _stream;
 
-    /**
-      * Initializes a new RealmSessionContext instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: sessionId, client, stream.
-      */
+    // Constructor: RealmSessionContext
+    // Purpose: Initializes a new RealmSessionContext instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - sessionId: Session ID identifier used to select the exact record, object, or runtime owner.
+    // - client: Client value supplied by the caller for this operation.
+    // - stream: Stream value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmSessionContext so callers do not duplicate validation, protocol, or persistence rules.
     public RealmSessionContext(Guid sessionId, TcpClient client, NetworkStream stream)
     {
         Id = sessionId;
@@ -59,30 +56,25 @@ public sealed class RealmSessionContext
         RemoteAddress = (_client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "0.0.0.0";
     }
 
-    /**
-      * Gets or stores the id value used by RealmSessionContext.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the ID value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: ID value exposed by the owning type.
     public Guid Id { get; }
 
-    /**
-      * Gets or stores the remote end point value used by RealmSessionContext.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the remote end point value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: remote end point value exposed by the owning type.
     public string RemoteEndPoint { get; }
 
-    /**
-      * Gets or stores the remote address value used by RealmSessionContext.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the remote address value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: remote address value exposed by the owning type.
     public string RemoteAddress { get; }
 
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ReadByteAsync
+    // Purpose: Retrieves read byte data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to RealmSessionContext so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask<byte> ReadByteAsync(CancellationToken cancellationToken)
     {
         byte[] buffer = new byte[1];
@@ -90,12 +82,14 @@ public sealed class RealmSessionContext
         return buffer[0];
     }
 
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ReadBytesAsync
+    // Purpose: Retrieves read bytes data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - length: Length value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to RealmSessionContext so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask<byte[]> ReadBytesAsync(int length, CancellationToken cancellationToken)
     {
         if (length < 0)
@@ -108,12 +102,14 @@ public sealed class RealmSessionContext
         return buffer;
     }
 
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of RealmSessionContext and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ReadExactlyAsync
+    // Purpose: Retrieves read exactly data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - bytebuffer: Bytebuffer value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmSessionContext so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask ReadExactlyAsync(byte[] buffer, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(buffer);
@@ -131,22 +127,28 @@ public sealed class RealmSessionContext
         }
     }
 
-    /**
-      * Writes write data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: data, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: WriteAsync
+    // Purpose: Builds or writes write output for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - data: Data bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmSessionContext so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
     {
         await _stream.WriteAsync(data, cancellationToken);
         await _stream.FlushAsync(cancellationToken);
     }
 
-    /**
-      * Gives terminal authentication packets a brief delivery window before the owning session closes the socket.
-      * Vanilla auth failures are small enough to write immediately, but closing the socket in the same scheduler turn can make the client show a generic disconnect instead of the result text.
-      */
+    // Method: AllowTerminalResponseDeliveryAsync
+    // Purpose: Executes the allow terminal response delivery operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - deliveryDelay: Delivery delay value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmSessionContext so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async Task AllowTerminalResponseDeliveryAsync(TimeSpan deliveryDelay, CancellationToken cancellationToken)
     {
         if (deliveryDelay <= TimeSpan.Zero)
@@ -160,7 +162,7 @@ public sealed class RealmSessionContext
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Shutdown cancellation should not turn an already-sent auth failure into a noisy session error.
+
         }
     }
 }

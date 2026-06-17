@@ -15,48 +15,34 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/InstanceServer/Configuration/InstanceServerSettings.cs
+// Purpose: Contains instance server settings code for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Maps.Runtime;
 using EmulationServer.Network.Configuration;
 
 using EmulationServer.Shared.Logging.Configuration;
 
-/**
-  * File overview: src/InstanceServer/Configuration/InstanceServerSettings.cs
-  * Documents the InstanceServerSettings source file in the instance service startup and internal server coordination area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.InstanceServer.Configuration;
 
-/**
-  * Owns the instance server settings behavior for the instance service startup and internal server coordination layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InstanceServerSettings
+// Purpose: Provides instance server settings behavior for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InstanceServerSettings
 {
-    /**
-      * Gets or stores the logging value used by InstanceServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
     public LoggingSettings Logging { get; init; } = new();
 
-    /**
-      * Gets or stores the internal network value used by InstanceServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public InternalNetworkSettings InternalNetwork { get; init; } = new();
 
-    /**
-      * Gets or stores the instance services value used by InstanceServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public MapRuntimeSettings InstanceServices { get; init; } = new();
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of InstanceServerSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InstanceServerSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         Logging.Validate();

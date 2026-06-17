@@ -15,78 +15,84 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Socket/WorldClientSocketListener.cs
+// Purpose: Contains world client socket listener code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
+using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Configuration;
 using EmulationServer.WorldServer.Networking.Sessions;
 
-/**
-  * File overview: src/WorldServer/Networking/Socket/WorldClientSocketListener.cs
-  * Documents the WorldClientSocketListener source file in the world client socket listening and connection acceptance area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Socket;
 
-/**
-  * Owns the world client socket listener behavior for the world client socket listening and connection acceptance layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldClientSocketListener
+// Purpose: Provides world client socket listener behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldClientSocketListener : IAsyncDisposable
 {
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the world server gameplay, session, and character runtime layer.
+    // Value: current settings backing value maintained by the owning type.
     private readonly WorldClientSettings _settings;
+    // Field: Stores the TCP client state used by the world server gameplay, session, and character runtime layer.
+    // Value: current TCP client backing value maintained by the owning type.
     private readonly Func<TcpClient, WorldClientSession> _sessionFactory;
+    // Field: Stores the connection gate state used by the world server gameplay, session, and character runtime layer.
+    // Value: current connection gate backing value maintained by the owning type.
+    private readonly Func<bool>? _connectionGate;
     private readonly ConcurrentDictionary<Guid, WorldClientSession> _sessions = new();
     private readonly ConcurrentDictionary<Guid, Task> _sessionTasks = new();
-    /**
-      * Holds the private shutdown state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly CancellationTokenSource _shutdown = new();
 
-    /**
-      * Holds the private listener state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the listener state used by the world server gameplay, session, and character runtime layer.
+    // Value: current listener backing value maintained by the owning type.
     private TcpListener? _listener;
-    /**
-      * Holds the private accept task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the accept task state used by the world server gameplay, session, and character runtime layer.
+    // Value: current accept task backing value maintained by the owning type.
     private Task? _acceptTask;
-    /**
-      * Holds the private disposed state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the next dependency warning utc state used by the world server gameplay, session, and character runtime layer.
+    // Value: current next dependency warning utc backing value maintained by the owning type.
+    private DateTimeOffset _nextDependencyWarningUtc;
+
+    // Field: Stores the disposed state used by the world server gameplay, session, and character runtime layer.
+    // Value: current disposed backing value maintained by the owning type.
     private bool _disposed;
 
-    /**
-      * Initializes a new WorldClientSocketListener instance with the dependencies required by the world client socket listening and connection acceptance workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings, sessionFactory.
-      */
-    public WorldClientSocketListener(WorldClientSettings settings, Func<TcpClient, WorldClientSession> sessionFactory)
+    // Constructor: WorldClientSocketListener
+    // Purpose: Initializes a new WorldClientSocketListener instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // - sessionFactory: Session factory value supplied by the caller for this operation.
+    // - connectionGate: Connection gate value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    public WorldClientSocketListener(
+        WorldClientSettings settings,
+        Func<TcpClient, WorldClientSession> sessionFactory,
+        Func<bool>? connectionGate = null)
     {
         _settings = settings ?? throw new ArgumentNullException();
         _settings.Validate();
         _sessionFactory = sessionFactory ?? throw new ArgumentNullException();
+        _connectionGate = connectionGate;
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (_listener is not null)
@@ -103,12 +109,13 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         return _acceptTask;
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (!_shutdown.IsCancellationRequested)
@@ -122,7 +129,7 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         }
         catch
         {
-            // Ignore shutdown races.
+
         }
 
         foreach (WorldClientSession session in _sessions.Values)
@@ -164,12 +171,13 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs the accept loop operation for the world client socket listening and connection acceptance workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: serverCancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: AcceptLoopAsync
+    // Purpose: Handles accept loop work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - serverCancellationToken: Server cancellation token value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AcceptLoopAsync(CancellationToken serverCancellationToken)
     {
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -183,6 +191,13 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
             {
                 TcpClient client = await _listener!.AcceptTcpClientAsync(cancellationToken);
                 ConfigureClient(client, _settings);
+
+                if (_connectionGate is not null && !_connectionGate())
+                {
+                    LogDependencyGateRejection(client);
+                    client.Dispose();
+                    continue;
+                }
 
                 WorldClientSession session = _sessionFactory(client);
                 _sessions[session.Id] = session;
@@ -205,12 +220,14 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs the run session operation for the world client socket listening and connection acceptance workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: session, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: RunSessionAsync
+    // Purpose: Controls the run session lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunSessionAsync(WorldClientSession session, CancellationToken cancellationToken)
     {
         try
@@ -225,58 +242,51 @@ public sealed class WorldClientSocketListener : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs the configure client operation for the world client socket listening and connection acceptance workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: client, settings.
-      */
+    // Method: ConfigureClient
+    // Purpose: Executes the configure client operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - client: Client value supplied by the caller for this operation.
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
     private static void ConfigureClient(TcpClient client, WorldClientSettings settings)
     {
-        client.NoDelay = true;
-        client.ReceiveBufferSize = settings.ReceiveBufferSize;
-        client.SendBufferSize = settings.SendBufferSize;
-
-        if (!settings.KeepAlive)
-        {
-            return;
-        }
-
-        client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveTime, settings.KeepAliveTimeSeconds);
-        TrySetTcpKeepAliveOption(client, SocketOptionName.TcpKeepAliveInterval, settings.KeepAliveIntervalSeconds);
+        TcpSocketOptions.ConfigureClient(
+            client,
+            settings.ReceiveBufferSize,
+            settings.SendBufferSize,
+            settings.KeepAlive,
+            settings.KeepAliveTimeSeconds,
+            settings.KeepAliveIntervalSeconds);
     }
 
-    /**
-      * Tries to resolve the set tcp keep alive option value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: client, optionName, valueSeconds.
-      */
-    private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
+    // Method: LogDependencyGateRejection
+    // Purpose: Executes the log dependency gate rejection operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - client: Client value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    private void LogDependencyGateRejection(TcpClient client)
     {
-        if (valueSeconds <= 0)
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (now < _nextDependencyWarningUtc)
         {
             return;
         }
 
-        try
-        {
-            client.Client.SetSocketOption(SocketOptionLevel.Tcp, optionName, valueSeconds);
-        }
-        catch (SocketException)
-        {
-            // Some platforms do not expose per-socket TCP keep-alive tuning. KeepAlive itself is still enabled.
-        }
-        catch (ObjectDisposedException)
-        {
-            // The socket is already closed.
-        }
+        _nextDependencyWarningUtc = now.AddSeconds(10);
+        Logger.Write(
+            LogType.WARNING,
+            $"Rejected WoW client from {client.Client.RemoteEndPoint} because WorldServer public dependencies are not online.",
+            "WorldClientSocketListener");
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldClientSocketListener so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

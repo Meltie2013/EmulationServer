@@ -15,65 +15,56 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Configuration/WorldServerConfigurationLoader.cs
+// Purpose: Contains world server configuration loader code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Core.Configuration;
 using EmulationServer.Database.Configuration;
 using EmulationServer.Shared.Configuration;
 
-/**
-  * File overview: src/WorldServer/Configuration/WorldServerConfigurationLoader.cs
-  * Documents the WorldServerConfigurationLoader source file in the world server configuration and startup settings area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Configuration;
 
-/**
-  * Owns the world server configuration loader behavior for the world server configuration and startup settings layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldServerConfigurationLoader
+// Purpose: Provides world server configuration loader behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldServerConfigurationLoader
 {
-    /**
-      * Defines the constant value for world server section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the world server section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed world server section value used anywhere this rule or protocol value is needed.
     private const string WorldServerSection = "WorldServer";
-    /**
-      * Defines the constant value for realm status section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm status section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed realm status section value used anywhere this rule or protocol value is needed.
     private const string RealmStatusSection = "RealmStatus";
-    /**
-      * Defines the constant value for game data section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the game data section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed game data section value used anywhere this rule or protocol value is needed.
     private const string GameDataSection = "GameData";
-    /**
-      * Defines the constant value for world client section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the world client section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed world client section value used anywhere this rule or protocol value is needed.
     private const string WorldClientSection = "WorldClient";
-    /**
-      * Defines the constant value for auth database section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the auth database section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed auth database section value used anywhere this rule or protocol value is needed.
     private const string AuthDatabaseSection = "AuthDatabase";
-    /**
-      * Defines the constant value for character database section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the character database section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed character database section value used anywhere this rule or protocol value is needed.
     private const string CharacterDatabaseSection = "CharacterDatabase";
-    /**
-      * Defines the constant value for world database section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the world database section constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed world database section value used anywhere this rule or protocol value is needed.
     private const string WorldDatabaseSection = "WorldDatabase";
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the world server settings value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static WorldServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -103,10 +94,12 @@ public static class WorldServerConfigurationLoader
         return settings;
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadRealmStatusSettings
+    // Purpose: Retrieves load realm status settings data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the realm status settings value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmStatusSettings LoadRealmStatusSettings(IniConfiguration configuration)
     {
         return new RealmStatusSettings
@@ -120,9 +113,12 @@ public static class WorldServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads public WoW client socket settings.
-      */
+    // Method: LoadWorldClientSettings
+    // Purpose: Retrieves load world client settings data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the world client settings value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static WorldClientSettings LoadWorldClientSettings(IniConfiguration configuration)
     {
         return new WorldClientSettings
@@ -140,11 +136,12 @@ public static class WorldServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads load world database settings information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: configuration.
-      */
+    // Method: LoadWorldDatabaseSettings
+    // Purpose: Retrieves load world database settings data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the world database settings value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static WorldDatabaseSettings LoadWorldDatabaseSettings(IniConfiguration configuration)
     {
         DatabaseSettings fallback = ServerConfigurationLoader.LoadDatabaseSettings(configuration);
@@ -157,9 +154,15 @@ public static class WorldServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads a database section while inheriting connection host/user settings from [Database].
-      */
+    // Method: LoadDatabaseSettings
+    // Purpose: Retrieves load database settings data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // - sectionName: Section name value supplied by the caller for this operation.
+    // - fallback: Fallback value supplied by the caller for this operation.
+    // - defaultDatabaseName: Default database name value supplied by the caller for this operation.
+    // Returns: Returns the database settings value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static DatabaseSettings LoadDatabaseSettings(
         IniConfiguration configuration,
         string sectionName,
@@ -186,10 +189,12 @@ public static class WorldServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadGameDataSettings
+    // Purpose: Retrieves load game data settings data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the game data settings value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static GameDataSettings LoadGameDataSettings(IniConfiguration configuration)
     {
         string requiredDbcFiles = configuration.GetString(
@@ -207,10 +212,12 @@ public static class WorldServerConfigurationLoader
         };
     }
 
-    /**
-      * Splits the supplied text into command parts while preserving quoted values.
-      * The method is part of WorldServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: SplitList
+    // Purpose: Executes the split list operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

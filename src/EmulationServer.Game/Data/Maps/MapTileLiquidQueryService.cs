@@ -15,25 +15,46 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapTileLiquidQueryService.cs
+// Purpose: Contains map tile liquid query service code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Provides typed liquid queries for one loaded mapstore tile.
-  */
+// Type: MapTileLiquidQueryService
+// Purpose: Provides map tile liquid query service behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapTileLiquidQueryService
 {
+    // Field: Stores the liquid state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current liquid backing value maintained by the owning type.
     private readonly MapTileLiquidData _liquid;
 
+    // Constructor: MapTileLiquidQueryService
+    // Purpose: Initializes a new MapTileLiquidQueryService instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - liquid: Liquid value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapTileLiquidQueryService so callers do not duplicate validation, protocol, or persistence rules.
     public MapTileLiquidQueryService(MapTileLiquidData liquid)
     {
         _liquid = liquid ?? throw new ArgumentNullException();
     }
 
+    // Property: Gets or sets the has liquid value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: has liquid value exposed by the owning type.
     public bool HasLiquid => _liquid.HasLiquid;
 
+    // Method: TryGetLiquidInfo
+    // Purpose: Attempts to retrieve or parse try get liquid info data without treating normal misses as failures.
+    // Parameters:
+    // - gridX: Grid X value supplied by the caller for this operation.
+    // - gridY: Grid Y value supplied by the caller for this operation.
+    // - liquidInfo: Liquid info value supplied by the caller for this operation.
+    // Returns: Returns true when try get liquid info succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapTileLiquidQueryService so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetLiquidInfo(float gridX, float gridY, out MapTileLiquidInfo liquidInfo)
     {
         liquidInfo = default;
@@ -65,6 +86,13 @@ public sealed class MapTileLiquidQueryService
         return true;
     }
 
+    // Method: SampleLiquidHeight
+    // Purpose: Executes the sample liquid height operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - gridX: Grid X value supplied by the caller for this operation.
+    // - gridY: Grid Y value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileLiquidQueryService so callers do not duplicate validation, protocol, or persistence rules.
     private float SampleLiquidHeight(float gridX, float gridY)
     {
         if (_liquid.LiquidHeights is null || _liquid.Width == 0 || _liquid.Height == 0)
@@ -90,6 +118,13 @@ public sealed class MapTileLiquidQueryService
         return hx0 + (hx1 - hx0) * ty;
     }
 
+    // Method: GetHeight
+    // Purpose: Retrieves get height data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - x: X value supplied by the caller for this operation.
+    // - y: Y value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to MapTileLiquidQueryService so callers do not duplicate validation, protocol, or persistence rules.
     private float GetHeight(int x, int y)
     {
         return _liquid.LiquidHeights![y * _liquid.Width + x];

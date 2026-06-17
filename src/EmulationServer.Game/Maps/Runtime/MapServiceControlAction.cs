@@ -15,35 +15,31 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlAction.cs
-  * Documents the MapServiceControlAction source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceControlAction.cs
+// Purpose: Contains map service control action code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Lists the supported map service control action values used by the runtime map-player state tracking layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: MapServiceControlAction
+// Purpose: Defines the allowed map service control action values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MapServiceControlAction
 {
-    /**
-      * Represents the start value for map service control action handling.
-      */
+
+    // Enum Value: Defines the start enum value.
+    // Value: next sequential value assigned by C#.
     Start,
-    /**
-      * Represents the shutdown value for map service control action handling.
-      */
+
+    // Enum Value: Defines the shutdown enum value.
+    // Value: next sequential value assigned by C#.
     Shutdown,
-    /**
-      * Represents the restart value for map service control action handling.
-      */
+
+    // Enum Value: Defines the restart enum value.
+    // Value: next sequential value assigned by C#.
     Restart,
-    /**
-      * Represents the info value for map service control action handling.
-      */
+
+    // Enum Value: Defines the info enum value.
+    // Value: next sequential value assigned by C#.
     Info,
 }

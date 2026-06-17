@@ -15,35 +15,36 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Shared/Configuration/ConfigurationException.cs
-  * Documents the ConfigurationException source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Shared/Configuration/ConfigurationException.cs
+// Purpose: Contains configuration exception code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Configuration;
 
-/**
-  * Owns the configuration exception behavior for the shared configuration, logging, and utility support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ConfigurationException
+// Purpose: Provides configuration exception behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ConfigurationException : Exception
 {
-    /**
-      * Initializes a new ConfigurationException instance with the dependencies required by the shared configuration, logging, and utility support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      */
+
+    // Constructor: ConfigurationException
+    // Purpose: Initializes a new ConfigurationException instance with dependencies and values required by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfigurationException so callers do not duplicate validation, protocol, or persistence rules.
     public ConfigurationException(string message) : base(message)
     {
 
     }
 
-    /**
-      * Initializes a new ConfigurationException instance with the dependencies required by the shared configuration, logging, and utility support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: message, innerException.
-      */
+    // Constructor: ConfigurationException
+    // Purpose: Initializes a new ConfigurationException instance with dependencies and values required by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // - innerException: Inner exception value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ConfigurationException so callers do not duplicate validation, protocol, or persistence rules.
     public ConfigurationException(string message, Exception innerException) : base(message, innerException)
     {
 

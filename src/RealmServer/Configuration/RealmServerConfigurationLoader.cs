@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
+// Purpose: Contains realm server configuration loader code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
@@ -24,50 +27,40 @@ using EmulationServer.Network.Configuration;
 using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Configuration;
 
-/**
-  * File overview: src/RealmServer/Configuration/RealmServerConfigurationLoader.cs
-  * Documents the RealmServerConfigurationLoader source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Configuration;
 
-/**
-  * Owns the realm server configuration loader behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmServerConfigurationLoader
+// Purpose: Provides realm server configuration loader behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class RealmServerConfigurationLoader
 {
-    /**
-      * Defines the constant value for realm server section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm server section constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed realm server section value used anywhere this rule or protocol value is needed.
     private const string RealmServerSection = "RealmServer";
-    /**
-      * Defines the constant value for database section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the database section constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed database section value used anywhere this rule or protocol value is needed.
     private const string DatabaseSection = "Database";
-    /**
-      * Defines the constant value for realms section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realms section constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed realms section value used anywhere this rule or protocol value is needed.
     private const string RealmsSection = "Realms";
-    /**
-      * Defines the constant value for realm list section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the realm list section constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed realm list section value used anywhere this rule or protocol value is needed.
     private const string RealmListSection = "RealmList";
-    /**
-      * Defines the constant value for internal network section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the internal network section constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed internal network section value used anywhere this rule or protocol value is needed.
     private const string InternalNetworkSection = "InternalNetwork";
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the realm server settings value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static RealmServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -94,10 +87,12 @@ public static class RealmServerConfigurationLoader
         return settings;
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadSocketSettings
+    // Purpose: Retrieves load socket settings data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the realm socket listener settings value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmSocketListenerSettings LoadSocketSettings(IniConfiguration configuration)
     {
         return new RealmSocketListenerSettings
@@ -156,10 +151,12 @@ public static class RealmServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadDatabaseSettings
+    // Purpose: Retrieves load database settings data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the database settings value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static DatabaseSettings LoadDatabaseSettings(IniConfiguration configuration)
     {
         return new DatabaseSettings
@@ -247,10 +244,12 @@ public static class RealmServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadRealmListSettings
+    // Purpose: Retrieves load realm list settings data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the realm list settings value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmListSettings LoadRealmListSettings(IniConfiguration configuration)
     {
         return new RealmListSettings
@@ -272,10 +271,12 @@ public static class RealmServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadRealmSettings
+    // Purpose: Retrieves load realm settings data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<ConfiguredRealmSettings> LoadRealmSettings(IniConfiguration configuration)
     {
         string ids = configuration.GetString(RealmsSection, "RealmIds", "1");
@@ -310,10 +311,13 @@ public static class RealmServerConfigurationLoader
         return realms;
     }
 
-    /**
-      * Parses configured realm flags from decimal, hexadecimal, or named values.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ParseRealmFlags
+    // Purpose: Converts incoming data into parse realm flags form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - section: Section value supplied by the caller for this operation.
+    // Returns: Returns the realm flags value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmFlags ParseRealmFlags(string value, string section)
     {
         try
@@ -326,10 +330,13 @@ public static class RealmServerConfigurationLoader
         }
     }
 
-    /**
-      * Parses text input into a strongly typed value used by the server runtime.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: ParseBuilds
+    // Purpose: Converts incoming data into parse builds form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - section: Section value supplied by the caller for this operation.
+    // Returns: Returns the I read only set value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlySet<ushort> ParseBuilds(string value, string section)
     {
         HashSet<ushort> builds = [];
@@ -347,10 +354,12 @@ public static class RealmServerConfigurationLoader
         return builds;
     }
 
-    /**
-      * Splits the supplied text into command parts while preserving quoted values.
-      * The method is part of RealmServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: SplitList
+    // Purpose: Executes the split list operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<string> SplitList(string value)
     {
         return value.Split([';', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

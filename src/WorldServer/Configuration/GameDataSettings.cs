@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Configuration/GameDataSettings.cs
+// Purpose: Contains game data settings code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc.Chat;
 using EmulationServer.Game.Data.Dbc.Characters;
@@ -24,78 +27,53 @@ using EmulationServer.Game.Data.Dbc.Items;
 using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * File overview: src/WorldServer/Configuration/GameDataSettings.cs
-  * Documents the GameDataSettings source file in the world server configuration and startup settings area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Configuration;
 
-/**
-  * Owns the game data settings behavior for the world server configuration and startup settings layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: GameDataSettings
+// Purpose: Provides game data settings behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class GameDataSettings
 {
-    /**
-      * Gets or stores the enabled value used by GameDataSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the enabled value used by the world server gameplay, session, and character runtime layer.
+    // Value: enabled value exposed by the owning type.
     public bool Enabled { get; init; }
 
-    /**
-      * Gets or stores the data directory value used by GameDataSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the data directory value used by the world server gameplay, session, and character runtime layer.
+    // Value: data directory value exposed by the owning type.
     public string DataDirectory { get; init; } = "Data";
 
-    /**
-      * Gets or stores the dbc directory value used by GameDataSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the DBC directory value used by the world server gameplay, session, and character runtime layer.
+    // Value: DBC directory value exposed by the owning type.
     public string DbcDirectory { get; init; } = "dbc";
 
-    /**
-      * Gets or stores the extracted mapstore directory value used for terrain area lookups.
-      * Relative paths are resolved under DataDirectory.
-      */
+    // Property: Gets or sets the map store directory value used by the world server gameplay, session, and character runtime layer.
+    // Value: map store directory value exposed by the owning type.
     public string MapStoreDirectory { get; init; } = "mapstore";
 
-    /**
-      * Gets or stores the required dbc files value used by GameDataSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the required DBC files value used by the world server gameplay, session, and character runtime layer.
+    // Value: required DBC files value exposed by the owning type.
     public IReadOnlyList<string> RequiredDbcFiles { get; init; } = DefaultRequiredDbcFiles;
 
-    /**
-      * Gets or stores the default required dbc files value used by GameDataSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the default required DBC files value used by the world server gameplay, session, and character runtime layer.
+    // Value: default required DBC files value exposed by the owning type.
     public static IReadOnlyList<string> DefaultRequiredDbcFiles { get; } =
     [
-        // Map and area metadata used for routing, map-service summaries, and future world-entry validation.
+
         ..MapDbcFileNames.CoreMapDbcFiles,
 
-        // Character screen and character creation validation.
         ..CharacterDbcFileNames.CoreCharacterDbcFiles,
 
-        // Starter gear, item display, and future inventory validation.
         ..ItemDbcFileNames.CoreItemDbcFiles,
 
-        // Creature/NPC display, model, family, type, sound, and spell metadata.
         ..CreatureDbcFileNames.CoreCreatureDbcFiles,
 
-        // Skills, spells, ranges, durations, and icons used by starter character data.
         ..SpellDbcFileNames.CoreSpellDbcFiles,
 
-        // Race/faction defaults and hostile/friendly faction templates.
         ..FactionDbcFileNames.CoreFactionDbcFiles,
 
-        // Chat channel templates and player language names used by world chat routing.
         ..ChatDbcFileNames.CoreChatDbcFiles,
 
-        // Additional vanilla global DBCs that will be needed by character/account systems soon.
         "AuctionHouse.dbc",
         "BankBagSlotPrices.dbc",
         "CinematicSequences.dbc",
@@ -121,10 +99,11 @@ public sealed class GameDataSettings
         "WorldSafeLocs.dbc",
     ];
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of GameDataSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameDataSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (!Enabled)

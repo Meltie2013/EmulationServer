@@ -15,63 +15,53 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Protocol/InternalProtocolReader.cs
+// Purpose: Contains internal protocol reader code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers;
 using System.Net.Sockets;
 using System.Text;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Protocol/InternalProtocolReader.cs
-  * Documents the InternalProtocolReader source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Protocol;
 
-/**
-  * Buffers incoming internal protocol bytes for a single connection.
-  * This avoids one-byte socket reads while still preserving data after each newline.
-  */
+// Type: InternalProtocolReader
+// Purpose: Provides internal protocol reader behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalProtocolReader : IDisposable
 {
-    /**
-      * Defines the constant value for default buffer size.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the default buffer size constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed default buffer size value used anywhere this rule or protocol value is needed.
     private const int DefaultBufferSize = 4096;
 
-    /**
-      * Holds the private stream state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stream state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stream backing value maintained by the owning type.
     private readonly NetworkStream _stream;
-    /**
-      * Holds the private buffer state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the buffer state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current buffer backing value maintained by the owning type.
     private readonly byte[] _buffer;
 
-    /**
-      * Holds the private offset state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the offset state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current offset backing value maintained by the owning type.
     private int _offset;
-    /**
-      * Holds the private available state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the available state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current available backing value maintained by the owning type.
     private int _available;
-    /**
-      * Holds the private disposed state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the disposed state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current disposed backing value maintained by the owning type.
     private bool _disposed;
 
-    /**
-      * Initializes a new InternalProtocolReader instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: stream, bufferSize.
-      */
+    // Constructor: InternalProtocolReader
+    // Purpose: Initializes a new InternalProtocolReader instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - bufferSize: Buffer size value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalProtocolReader so callers do not duplicate validation, protocol, or persistence rules.
     public InternalProtocolReader(NetworkStream stream, int bufferSize = DefaultBufferSize)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -85,9 +75,14 @@ public sealed class InternalProtocolReader : IDisposable
         _buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
     }
 
-    /**
-      * Reads one newline-terminated UTF-8 protocol line while preserving buffered bytes for the next read.
-      */
+    // Method: ReadLineAsync
+    // Purpose: Retrieves read line data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - maximumLength: Maximum length value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to InternalProtocolReader so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<string?> ReadLineAsync(int maximumLength, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -139,10 +134,11 @@ public sealed class InternalProtocolReader : IDisposable
         }
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      */
+    // Method: Dispose
+    // Purpose: Controls the dispose lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalProtocolReader so callers do not duplicate validation, protocol, or persistence rules.
     public void Dispose()
     {
         if (_disposed)
@@ -154,11 +150,12 @@ public sealed class InternalProtocolReader : IDisposable
         ArrayPool<byte>.Shared.Return(_buffer);
     }
 
-    /**
-      * Performs the decode line operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: lineBuffer.
-      */
+    // Method: DecodeLine
+    // Purpose: Converts incoming data into decode line form for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - lineBuffer: Line buffer value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalProtocolReader so callers do not duplicate validation, protocol, or persistence rules.
     private static string DecodeLine(MemoryStream lineBuffer)
     {
         return Encoding.UTF8.GetString(lineBuffer.GetBuffer(), 0, (int)lineBuffer.Length).Trim();

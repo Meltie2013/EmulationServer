@@ -15,31 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Configuration/LogOutputMode.cs
-  * Documents the LogOutputMode source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Shared/Logging/Configuration/LogOutputMode.cs
+// Purpose: Contains log output mode code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Logging.Configuration;
 
-/**
-  * Lists the supported log output mode values used by the shared configuration, logging, and utility support layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: LogOutputMode
+// Purpose: Defines the allowed log output mode values used by the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum LogOutputMode
 {
-    /**
-      * Represents the console value for log output mode handling.
-      */
+
+    // Enum Value: Defines the console enum value.
+    // Value: next sequential value assigned by C#.
     Console,
-    /**
-      * Represents the file value for log output mode handling.
-      */
+
+    // Enum Value: Defines the file enum value.
+    // Value: next sequential value assigned by C#.
     File,
-    /**
-      * Represents the both value for log output mode handling.
-      */
+
+    // Enum Value: Defines the both enum value.
+    // Value: next sequential value assigned by C#.
     Both
 }

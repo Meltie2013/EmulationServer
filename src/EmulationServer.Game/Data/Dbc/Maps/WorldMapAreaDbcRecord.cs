@@ -15,19 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapAreaDbcRecord.cs
-  * Documents the WorldMapAreaDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/WorldMapAreaDbcRecord.cs
+// Purpose: Contains world map area DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Represents one WorldMapArea.dbc row and links a world-map rectangle to AreaTable data.
-  * Positional fields carried by this record: Id, WorldMapContinentId, AreaTableId, AreaName, LocationLeft, LocationRight, LocationTop, LocationBottom.
-  */
+// Type: WorldMapAreaDbcRecord
+// Purpose: Represents world map area DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - WorldMapContinentId: World map continent ID identifier used to select the exact record, object, or runtime owner.
+// - AreaTableId: Area table ID identifier used to select the exact record, object, or runtime owner.
+// - AreaName: Area name value supplied by the caller for this operation.
+// - LocationLeft: Location left value supplied by the caller for this operation.
+// - LocationRight: Location right value supplied by the caller for this operation.
+// - LocationTop: Location top value supplied by the caller for this operation.
+// - LocationBottom: Location bottom value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record WorldMapAreaDbcRecord(
     int Id,
     int WorldMapContinentId,

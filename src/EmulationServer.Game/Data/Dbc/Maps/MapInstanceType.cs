@@ -15,48 +15,39 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Maps/MapInstanceType.cs
-  * Documents the MapInstanceType source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Maps/MapInstanceType.cs
+// Purpose: Contains map instance type code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Maps;
 
-/**
-  * Lists the supported map instance type values used by the DBC loading and strongly typed client data records layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: MapInstanceType
+// Purpose: Defines the allowed map instance type values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MapInstanceType
 {
-    /**
-      * A map type value that is not known by the current server code.
-      */
+
+    // Enum Value: Defines the unknown enum value.
+    // Value: explicit expression -1.
     Unknown = -1,
 
-    /**
-      * A persistent outdoor continent or open world map.
-      */
+    // Enum Value: Defines the world enum value.
+    // Value: explicit expression 0.
     World = 0,
 
-    /**
-      * A dungeon-style private instance map.
-      */
+    // Enum Value: Defines the dungeon enum value.
+    // Value: explicit expression 1.
     Dungeon = 1,
 
-    /**
-      * A raid-style private instance map.
-      */
+    // Enum Value: Defines the raid enum value.
+    // Value: explicit expression 2.
     Raid = 2,
 
-    /**
-      * A battleground map.
-      */
+    // Enum Value: Defines the battleground enum value.
+    // Value: explicit expression 3.
     Battleground = 3,
 
-    /**
-      * An arena map.
-      */
+    // Enum Value: Defines the arena enum value.
+    // Value: explicit expression 4.
     Arena = 4,
 }

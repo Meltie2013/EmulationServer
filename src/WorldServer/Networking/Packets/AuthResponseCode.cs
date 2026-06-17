@@ -15,43 +15,39 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Networking/Packets/AuthResponseCode.cs
-  * Documents the AuthResponseCode source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Networking/Packets/AuthResponseCode.cs
+// Purpose: Contains auth response code code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Lists the supported auth response code values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: AuthResponseCode
+// Purpose: Defines the allowed auth response code values used by the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum AuthResponseCode : byte
 {
-    /**
-      * Represents the ok value for auth response code handling.
-      */
+
+    // Enum Value: Defines the ok enum value.
+    // Value: explicit expression 0x0C.
     Ok = 0x0C,
-    /**
-      * Represents the failed value for auth response code handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: explicit expression 0x0D.
     Failed = 0x0D,
-    /**
-      * Represents the rejected value for auth response code handling.
-      */
+
+    // Enum Value: Defines the rejected enum value.
+    // Value: explicit expression 0x0F.
     Rejected = 0x0F,
-    /**
-      * Represents the version mismatch value for auth response code handling.
-      */
+
+    // Enum Value: Defines the version mismatch enum value.
+    // Value: explicit expression 0x14.
     VersionMismatch = 0x14,
-    /**
-      * Represents the banned value for auth response code handling.
-      */
+
+    // Enum Value: Defines the banned enum value.
+    // Value: explicit expression 0x1C.
     Banned = 0x1C,
-    /**
-      * Represents the suspended value for auth response code handling.
-      */
+
+    // Enum Value: Defines the suspended enum value.
+    // Value: explicit expression 0x20.
     Suspended = 0x20,
 }

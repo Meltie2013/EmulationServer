@@ -15,20 +15,33 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/GameObjectDataValidation.cs
+// Purpose: Contains game object data validation code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Centralizes the hard gameobject data gates used by the world cache, internal snapshots, map runtime, and client visibility.
-  * A zero display id means the client cannot render the template. A zero zoneId or areaId means the spawn has not been resolved to
-  * a real world area yet, so the row is treated as unavailable instead of being pushed into map/player visibility.
-  */
+// Type: GameObjectDataValidation
+// Purpose: Provides game object data validation behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class GameObjectDataValidation
 {
+    // Constant: Defines the maximum classic game object type constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed maximum classic game object type value used anywhere this rule or protocol value is needed.
     public const byte MaximumClassicGameObjectType = 31;
+    // Constant: Defines the minimum game object scale constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed minimum game object scale value used anywhere this rule or protocol value is needed.
     private const float MinimumGameObjectScale = 0.0001f;
+    // Constant: Defines the maximum game object scale constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed maximum game object scale value used anywhere this rule or protocol value is needed.
     private const float MaximumGameObjectScale = 100.0f;
 
+    // Method: IsLoadableTemplate
+    // Purpose: Validates or evaluates is loadable template rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when is loadable template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to GameObjectDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsLoadableTemplate(GameObjectTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -41,6 +54,12 @@ public static class GameObjectDataValidation
             template.Size <= MaximumGameObjectScale;
     }
 
+    // Method: IsLoadableSpawn
+    // Purpose: Validates or evaluates is loadable spawn rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // Returns: Returns true when is loadable spawn succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to GameObjectDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsLoadableSpawn(GameObjectSpawnRecord spawn)
     {
         ArgumentNullException.ThrowIfNull(spawn);
@@ -57,6 +76,13 @@ public static class GameObjectDataValidation
             float.IsFinite(spawn.Rotation3);
     }
 
+    // Method: IsClientVisibleStaticGameObject
+    // Purpose: Validates or evaluates is client visible static game object rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when is client visible static game object succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to GameObjectDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsClientVisibleStaticGameObject(GameObjectSpawnRecord spawn, GameObjectTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(spawn);
@@ -69,13 +95,21 @@ public static class GameObjectDataValidation
 
         if (template.Type is 11 or 15)
         {
-            // Transport-style gameobjects need path/progress handling before they are safe to expose to the client.
+
             return false;
         }
 
         return true;
     }
 
+    // Method: IsFiniteWorldPosition
+    // Purpose: Validates or evaluates is finite world position rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - x: X value supplied by the caller for this operation.
+    // - y: Y value supplied by the caller for this operation.
+    // - z: Z value supplied by the caller for this operation.
+    // Returns: Returns true when is finite world position succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to GameObjectDataValidation so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsFiniteWorldPosition(float x, float y, float z)
     {
         return float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z);

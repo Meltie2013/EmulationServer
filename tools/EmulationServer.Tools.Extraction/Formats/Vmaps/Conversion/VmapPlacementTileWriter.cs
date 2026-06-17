@@ -64,7 +64,6 @@ public static class VmapPlacementTileWriter
             payload);
     }
 
-
     /**
       * Builds the vmap collision placement payload stored inside a collision mapstore file.
       */

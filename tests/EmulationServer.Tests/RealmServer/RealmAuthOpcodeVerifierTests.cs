@@ -15,38 +15,37 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/RealmServer/RealmAuthOpcodeVerifierTests.cs
+// Purpose: Contains realm auth opcode verifier tests code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.RealmServer.Auth;
 
-/**
-  * File overview: tests/EmulationServer.Tests/RealmServer/RealmAuthOpcodeVerifierTests.cs
-  * Documents the RealmAuthOpcodeVerifierTests source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Tests.RealmServer;
 
-/**
-  * Owns the realm auth opcode verifier tests behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmAuthOpcodeVerifierTests
+// Purpose: Provides realm auth opcode verifier tests behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmAuthOpcodeVerifierTests
 {
-    /**
-      * Verifies that loaded data satisfies the expected format and consistency rules.
-      * The method is part of RealmAuthOpcodeVerifierTests and keeps this workflow isolated from the caller.
-      */
+
     [Fact]
+    // Method: VerifyCriticalOpCodes_ShouldPass_WhenRealmAuthOpCodesMatchExpectedClientProtocolValues
+    // Purpose: Executes the verify critical op codes should pass when realm auth op codes match expected client protocol values operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmAuthOpcodeVerifierTests so callers do not duplicate validation, protocol, or persistence rules.
     public void VerifyCriticalOpCodes_ShouldPass_WhenRealmAuthOpCodesMatchExpectedClientProtocolValues()
     {
         RealmAuthOpcodeVerifier.VerifyCriticalOpCodes();
     }
 
-    /**
-      * Performs the critical realm auth op codes should use expected client protocol values operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
     [Fact]
+    // Method: CriticalRealmAuthOpCodes_ShouldUseExpectedClientProtocolValues
+    // Purpose: Executes the critical realm auth op codes should use expected client protocol values operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmAuthOpcodeVerifierTests so callers do not duplicate validation, protocol, or persistence rules.
     public void CriticalRealmAuthOpCodes_ShouldUseExpectedClientProtocolValues()
     {
         Assert.Equal((byte)0x00, (byte)RealmAuthOpCode.AuthLogonChallenge);
@@ -56,11 +55,12 @@ public sealed class RealmAuthOpcodeVerifierTests
         Assert.Equal((byte)0x10, (byte)RealmAuthOpCode.RealmList);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of RealmAuthOpcodeVerifierTests and keeps this workflow isolated from the caller.
-      */
     [Fact]
+    // Method: GetVerificationSummary_ShouldIncludeCriticalRealmAuthOpCodes
+    // Purpose: Retrieves get verification summary should include critical realm auth op codes data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmAuthOpcodeVerifierTests so callers do not duplicate validation, protocol, or persistence rules.
     public void GetVerificationSummary_ShouldIncludeCriticalRealmAuthOpCodes()
     {
         string summary = RealmAuthOpcodeVerifier.GetVerificationSummary();

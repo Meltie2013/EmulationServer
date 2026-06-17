@@ -15,31 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Characters/CharacterDeleteServiceResult.cs
-  * Documents the CharacterDeleteServiceResult source file in the character creation, listing, and identity transfer models area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Characters/CharacterDeleteServiceResult.cs
+// Purpose: Contains character delete service result code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Characters;
 
-/**
-  * Lists the supported character delete service result values used by the character creation, listing, and identity transfer models layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: CharacterDeleteServiceResult
+// Purpose: Defines the allowed character delete service result values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum CharacterDeleteServiceResult
 {
-    /**
-      * Represents the success value for character delete service result handling.
-      */
+
+    // Enum Value: Defines the success enum value.
+    // Value: next sequential value assigned by C#.
     Success,
-    /**
-      * Represents the failed value for character delete service result handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: next sequential value assigned by C#.
     Failed,
-    /**
-      * Represents the security mismatch value for character delete service result handling.
-      */
+
+    // Enum Value: Defines the security mismatch enum value.
+    // Value: next sequential value assigned by C#.
     SecurityMismatch,
 }

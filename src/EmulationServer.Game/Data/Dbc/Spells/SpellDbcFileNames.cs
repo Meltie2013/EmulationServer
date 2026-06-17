@@ -15,65 +15,52 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcFileNames.cs
-  * Documents the SpellDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcFileNames.cs
+// Purpose: Contains spell DBC file names code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * Defines spell-related DBC filenames needed by character startup skills and future spell validation.
-  */
+// Type: SpellDbcFileNames
+// Purpose: Provides spell DBC file names behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class SpellDbcFileNames
 {
-    /**
-      * Defines the constant value for skill line.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the skill line constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed skill line value used anywhere this rule or protocol value is needed.
     public const string SkillLine = "SkillLine.dbc";
-    /**
-      * Defines the constant value for skill line ability.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the skill line ability constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed skill line ability value used anywhere this rule or protocol value is needed.
     public const string SkillLineAbility = "SkillLineAbility.dbc";
-    /**
-      * Defines the constant value for skill race class info.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the skill race class info constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed skill race class info value used anywhere this rule or protocol value is needed.
     public const string SkillRaceClassInfo = "SkillRaceClassInfo.dbc";
-    /**
-      * Defines the constant value for spell.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the spell constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed spell value used anywhere this rule or protocol value is needed.
     public const string Spell = "Spell.dbc";
-    /**
-      * Defines the constant value for spell cast times.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the spell cast times constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed spell cast times value used anywhere this rule or protocol value is needed.
     public const string SpellCastTimes = "SpellCastTimes.dbc";
-    /**
-      * Defines the constant value for spell duration.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the spell duration constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed spell duration value used anywhere this rule or protocol value is needed.
     public const string SpellDuration = "SpellDuration.dbc";
-    /**
-      * Defines the constant value for spell icon.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the spell icon constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed spell icon value used anywhere this rule or protocol value is needed.
     public const string SpellIcon = "SpellIcon.dbc";
-    /**
-      * Defines the constant value for spell range.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the spell range constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed spell range value used anywhere this rule or protocol value is needed.
     public const string SpellRange = "SpellRange.dbc";
 
-    /**
-      * Exposes the core spell dbc files value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+    // Property: Gets or sets the core spell DBC files value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: core spell DBC files value exposed by the owning type.
     public static IReadOnlyList<string> CoreSpellDbcFiles { get; } =
     [
         SkillLine,

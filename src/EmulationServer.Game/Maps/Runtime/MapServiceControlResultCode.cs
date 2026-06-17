@@ -15,35 +15,31 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceControlResultCode.cs
-  * Documents the MapServiceControlResultCode source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceControlResultCode.cs
+// Purpose: Contains map service control result code code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Lists the supported map service control result code values used by the runtime map-player state tracking layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: MapServiceControlResultCode
+// Purpose: Defines the allowed map service control result code values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MapServiceControlResultCode
 {
-    /**
-      * Represents the success value for map service control result code handling.
-      */
+
+    // Enum Value: Defines the success enum value.
+    // Value: next sequential value assigned by C#.
     Success,
-    /**
-      * Represents the ignored value for map service control result code handling.
-      */
+
+    // Enum Value: Defines the ignored enum value.
+    // Value: next sequential value assigned by C#.
     Ignored,
-    /**
-      * Represents the not found value for map service control result code handling.
-      */
+
+    // Enum Value: Defines the not found enum value.
+    // Value: next sequential value assigned by C#.
     NotFound,
-    /**
-      * Represents the failed value for map service control result code handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: next sequential value assigned by C#.
     Failed,
 }

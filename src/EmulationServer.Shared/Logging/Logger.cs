@@ -15,50 +15,49 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Logging/Logger.cs
+// Purpose: Contains logger code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging.Configuration;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Logging.Interfaces;
 using EmulationServer.Shared.Logging.Services;
 
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Logger.cs
-  * Documents the Logger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Shared.Logging;
 
-/**
-  * Owns the logger behavior for the shared configuration, logging, and utility support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: Logger
+// Purpose: Provides logger behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class Logger
 {
-    /**
-      * Stores the default sync root value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
     private static readonly object SyncRoot = new();
-    /**
-      * Holds the private logger state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ConsoleLogger
+    // Purpose: Executes the console logger operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters: none.
+    // Returns: Returns the I logger logger = new value produced by this operation.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     private static ILogger _logger = new ConsoleLogger();
 
-    /**
-      * Applies configuration to shared runtime services before they are used by the server.
-      * The method is part of Logger and keeps this workflow isolated from the caller.
-      */
+    // Method: Configure
+    // Purpose: Executes the configure operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     public static void Configure(LoggingSettings settings)
     {
         SetLogger(new ConfiguredLogger(settings));
     }
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of Logger and keeps this workflow isolated from the caller.
-      */
+    // Method: SetLogger
+    // Purpose: Applies set logger changes for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - logger: Logger value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     public static void SetLogger(ILogger logger)
     {
         ArgumentNullException.ThrowIfNull(logger);
@@ -74,11 +73,14 @@ public static class Logger
         }
     }
 
-    /**
-      * Writes write data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: type, message, category.
-      */
+    // Method: Write
+    // Purpose: Builds or writes write output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - category: Category value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     public static void Write(LogType type, string message, string? category = null)
     {
         lock (SyncRoot)
@@ -87,20 +89,25 @@ public static class Logger
         }
     }
 
-    /**
-      * Writes a short server banner without repeating timestamps on every banner line.
-      * Banners are intentionally kept out of the normal formatter so startup output stays readable.
-      */
+    // Method: WriteBanner
+    // Purpose: Builds or writes write banner output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     public static void WriteBanner(string serverName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serverName);
         WriteRaw(LogType.NOTICE, BuildBannerLines(serverName));
     }
 
-    /**
-      * Writes already-formatted output directly through the active logger.
-      * This is reserved for banners and visual separators; regular status messages should use Write.
-      */
+    // Method: WriteRaw
+    // Purpose: Builds or writes write raw output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - type: Type value supplied by the caller for this operation.
+    // - lines: Lines value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     public static void WriteRaw(LogType type, IEnumerable<string> lines)
     {
         ArgumentNullException.ThrowIfNull(lines);
@@ -115,9 +122,12 @@ public static class Logger
         }
     }
 
-    /**
-      * Builds the common startup banner used by every executable server.
-      */
+    // Method: BuildBannerLines
+    // Purpose: Builds or writes build banner lines output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<string> BuildBannerLines(string serverName)
     {
         const int width = 81;
@@ -135,9 +145,13 @@ public static class Logger
         ];
     }
 
-    /**
-      * Centers one piece of text inside a fixed-width banner row.
-      */
+    // Method: Center
+    // Purpose: Executes the center operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - width: Width value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to Logger so callers do not duplicate validation, protocol, or persistence rules.
     private static string Center(string value, int width)
     {
         if (value.Length >= width)

@@ -15,47 +15,29 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Timing/ISteadyClock.cs
+// Purpose: Contains I steady clock code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Timing;
 
-/**
-  * Provides monotonic time for runtime delays, countdowns, and server tick loops.
-  * Use UtcNow only for protocol timestamps and logs; use Timestamp and elapsed-time helpers for timers.
-  */
+// Type: ISteadyClock
+// Purpose: Defines the I steady clock contract used by the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public interface ISteadyClock
 {
-    /**
-      * Gets the current monotonic timestamp.
-      */
+
     long Timestamp { get; }
 
-    /**
-      * Gets the current wall-clock UTC time for logs and protocol snapshots.
-      */
     DateTimeOffset UtcNow { get; }
 
-    /**
-      * Adds a duration to a monotonic timestamp and returns the resulting deadline timestamp.
-      */
     long Add(long timestamp, TimeSpan duration);
 
-    /**
-      * Returns elapsed monotonic time from the supplied start timestamp to now.
-      */
     TimeSpan GetElapsedTime(long startingTimestamp);
 
-    /**
-      * Returns elapsed monotonic time between two timestamps.
-      */
     TimeSpan GetElapsedTime(long startingTimestamp, long endingTimestamp);
 
-    /**
-      * Waits for the supplied duration using the steady-clock deadline path.
-      */
     ValueTask DelayAsync(TimeSpan delay, CancellationToken cancellationToken);
 
-    /**
-      * Waits until the supplied monotonic deadline is reached.
-      */
     ValueTask DelayUntilAsync(long deadlineTimestamp, CancellationToken cancellationToken);
 }

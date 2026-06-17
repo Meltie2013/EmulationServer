@@ -15,30 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Tools/ExtractedMapFileReaderTests.cs
+// Purpose: Contains extracted map file reader tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Maps;
 using EmulationServer.Tools.Extraction.Validation;
 
-/**
-  * File overview: tests/EmulationServer.Tests/Tools/ExtractedMapFileReaderTests.cs
-  * Documents the ExtractedMapFileReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Tests.Tools;
 
-/**
-  * Owns the extracted map file reader tests behavior for the automated test coverage for server behavior and data helpers layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ExtractedMapFileReaderTests
+// Purpose: Provides extracted map file reader tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ExtractedMapFileReaderTests
 {
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
+
     [Fact]
+    // Method: Read_WithLiquidSection_ReturnsLiquidMetadata
+    // Purpose: Retrieves read with liquid section returns liquid metadata data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void Read_WithLiquidSection_ReturnsLiquidMetadata()
     {
         string path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.map");
@@ -64,11 +62,12 @@ public sealed class ExtractedMapFileReaderTests
         }
     }
 
-    /**
-      * Verifies that loaded data satisfies the expected format and consistency rules.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
     [Fact]
+    // Method: Verify_WithLiquidSection_DoesNotReportLiquidErrors
+    // Purpose: Executes the verify with liquid section does not report liquid errors operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void Verify_WithLiquidSection_DoesNotReportLiquidErrors()
     {
         string path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.map");
@@ -89,11 +88,12 @@ public sealed class ExtractedMapFileReaderTests
         }
     }
 
-    /**
-      * Writes write minimal map with liquid data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: path.
-      */
+    // Method: WriteMinimalMapWithLiquid
+    // Purpose: Builds or writes write minimal map with liquid output for the automated test and verification layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteMinimalMapWithLiquid(string path)
     {
         byte[] areaSection = BuildAreaSection();
@@ -127,10 +127,11 @@ public sealed class ExtractedMapFileReaderTests
         writer.Write(liquidSection);
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildAreaSection
+    // Purpose: Builds or writes build area section output for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] BuildAreaSection()
     {
         using MemoryStream stream = new();
@@ -144,10 +145,11 @@ public sealed class ExtractedMapFileReaderTests
         return stream.ToArray();
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildHeightSection
+    // Purpose: Builds or writes build height section output for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] BuildHeightSection()
     {
         using MemoryStream stream = new();
@@ -162,10 +164,11 @@ public sealed class ExtractedMapFileReaderTests
         return stream.ToArray();
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of ExtractedMapFileReaderTests and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildLiquidSection
+    // Purpose: Builds or writes build liquid section output for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] BuildLiquidSection()
     {
         using MemoryStream stream = new();
@@ -184,11 +187,13 @@ public sealed class ExtractedMapFileReaderTests
         return stream.ToArray();
     }
 
-    /**
-      * Writes write four cc data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, fourCC.
-      */
+    // Method: WriteFourCC
+    // Purpose: Builds or writes write four CC output for the automated test and verification layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - fourCC: Four CC value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ExtractedMapFileReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteFourCC(BinaryWriter writer, string fourCC)
     {
         writer.Write(Encoding.ASCII.GetBytes(fourCC));

@@ -15,20 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountLogonRecord.cs
-  * Documents the AccountLogonRecord source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Database/Accounts/AccountLogonRecord.cs
+// Purpose: Contains account logon record code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Represents immutable account logon record data passed between parts of the server.
-  * Security information is now resolved from RBAC permissions instead of a legacy account field.
-  * Positional fields carried by this record: Id, Username, ShaPassHash, SecurityLevel, Permissions, Locked, LastIp, Verifier, Salt, SessionKey.
-  */
+// Type: AccountLogonRecord
+// Purpose: Represents account logon record data passed through the database persistence, repository, and MySQL connectivity layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - Username: Username value supplied by the caller for this operation.
+// - ShaPassHash: Sha pass hash value supplied by the caller for this operation.
+// - SecurityLevel: Security level value supplied by the caller for this operation.
+// - Permissions: Permissions value supplied by the caller for this operation.
+// - Locked: Locked value supplied by the caller for this operation.
+// - LastIp: Last IP value supplied by the caller for this operation.
+// - Verifier: Verifier value supplied by the caller for this operation.
+// - Salt: Salt value supplied by the caller for this operation.
+// - SessionKey: Session key value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record AccountLogonRecord(
     uint Id,
     string Username,

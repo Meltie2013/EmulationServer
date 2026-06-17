@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Maps/Runtime/MapGridManager.cs
+// Purpose: Contains map grid manager code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using EmulationServer.Game.Data.Maps;
@@ -22,54 +25,55 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Data.MapStore;
 
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapGridManager.cs
-  * Documents the MapGridManager source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Owns loaded map grid tiles for a service and controls whether tiles stay resident or unload when idle.
-  * It coordinates a collection of related runtime objects and keeps ownership rules in one place.
-  */
+// Type: MapGridManager
+// Purpose: Provides map grid manager behavior for the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - definition: Definition value supplied by the caller for this operation.
+// - mapsDirectory: Maps directory value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapGridManager(
     MapServiceDefinition definition,
     string mapsDirectory)
 {
-    /**
-      * Holds the private definition state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the map service definition definition = definition ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     private readonly MapServiceDefinition _definition = definition ?? throw new ArgumentNullException();
-    /**
-      * Holds the private maps directory state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: IsNullOrWhiteSpace
+    // Purpose: Validates or evaluates is null or white space rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapsDirectory: Maps directory value supplied by the caller for this operation.
+    // Returns: Returns the string maps directory = string. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     private readonly string _mapsDirectory = string.IsNullOrWhiteSpace(mapsDirectory)
         ? throw new ArgumentException("Maps directory is required.")
         : Path.GetFullPath(mapsDirectory);
     private readonly ConcurrentDictionary<MapTileKey, LoadedMapGrid> _loadedGrids = new();
 
-    /**
-      * Gets or stores the loaded grid count value used by MapGridManager.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the loaded grid count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: loaded grid count value exposed by the owning type.
     public int LoadedGridCount => _loadedGrids.Count;
 
-    /**
-      * Gets or stores the loaded grid keys value used by MapGridManager.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
-    public IReadOnlyCollection<MapTileKey> LoadedGridKeys => _loadedGrids.Keys.ToArray();
+    // Method: ToArray
+    // Purpose: Executes the to array operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only collection loaded grid keys => loaded grids.keys. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
+    public IReadOnlyCollection<MapTileKey> LoadedGridKeys => [.. _loadedGrids.Keys];
 
-    /**
-      * Initializes dependent resources before the service begins normal operation.
-      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: InitializeAsync
+    // Purpose: Controls the initialize lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         if (!Directory.Exists(_mapsDirectory))
@@ -80,11 +84,14 @@ public sealed class MapGridManager(
         await PreloadAllTilesForMapAsync(cancellationToken);
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of MapGridManager and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryGetGrid
+    // Purpose: Attempts to retrieve or parse try get grid data without treating normal misses as failures.
+    // Parameters:
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - grid: Grid value supplied by the caller for this operation.
+    // Returns: Returns true when try get grid succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetGrid(byte tileX, byte tileY, out LoadedMapGrid grid)
     {
         MapTileKey key = new((uint)_definition.MapId, tileX, tileY);
@@ -98,9 +105,16 @@ public sealed class MapGridManager(
         return false;
     }
 
-    /**
-      * Attempts to sample terrain height from a loaded or loadable tile.
-      */
+    // Method: TryGetTerrainHeight
+    // Purpose: Attempts to retrieve or parse try get terrain height data without treating normal misses as failures.
+    // Parameters:
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - gridX: Grid X value supplied by the caller for this operation.
+    // - gridY: Grid Y value supplied by the caller for this operation.
+    // - height: Height value supplied by the caller for this operation.
+    // Returns: Returns true when try get terrain height succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetTerrainHeight(byte tileX, byte tileY, float gridX, float gridY, out float height)
     {
         height = 0.0f;
@@ -113,9 +127,16 @@ public sealed class MapGridManager(
         return true;
     }
 
-    /**
-      * Attempts to read the terrain area flag for a local ADT cell.
-      */
+    // Method: TryGetAreaFlag
+    // Purpose: Attempts to retrieve or parse try get area flag data without treating normal misses as failures.
+    // Parameters:
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - cellX: Cell X value supplied by the caller for this operation.
+    // - cellY: Cell Y value supplied by the caller for this operation.
+    // - areaFlag: Area flag value supplied by the caller for this operation.
+    // Returns: Returns true when try get area flag succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetAreaFlag(byte tileX, byte tileY, int cellX, int cellY, out ushort areaFlag)
     {
         areaFlag = 0;
@@ -128,9 +149,16 @@ public sealed class MapGridManager(
         return true;
     }
 
-    /**
-      * Attempts to read liquid information for a local tile grid coordinate.
-      */
+    // Method: TryGetLiquidInfo
+    // Purpose: Attempts to retrieve or parse try get liquid info data without treating normal misses as failures.
+    // Parameters:
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - gridX: Grid X value supplied by the caller for this operation.
+    // - gridY: Grid Y value supplied by the caller for this operation.
+    // - liquidInfo: Liquid info value supplied by the caller for this operation.
+    // Returns: Returns true when try get liquid info succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetLiquidInfo(byte tileX, byte tileY, float gridX, float gridY, out MapTileLiquidInfo liquidInfo)
     {
         liquidInfo = default;
@@ -142,9 +170,15 @@ public sealed class MapGridManager(
         return grid.Tile.LiquidQueries.TryGetLiquidInfo(gridX, gridY, out liquidInfo);
     }
 
-    /**
-      * Attempts to return collision placements whose extracted bounds contain the supplied world point.
-      */
+    // Method: TryGetCollisionPlacements
+    // Purpose: Attempts to retrieve or parse try get collision placements data without treating normal misses as failures.
+    // Parameters:
+    // - tileX: Tile X value supplied by the caller for this operation.
+    // - tileY: Tile Y value supplied by the caller for this operation.
+    // - point: Point value supplied by the caller for this operation.
+    // - placements: Placements value supplied by the caller for this operation.
+    // Returns: Returns true when try get collision placements succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetCollisionPlacements(byte tileX, byte tileY, MapTileVector3 point, out IReadOnlyList<MapTileCollisionPlacement> placements)
     {
         placements = [];
@@ -157,11 +191,12 @@ public sealed class MapGridManager(
         return true;
     }
 
-    /**
-      * Performs the unload all grids operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: reason.
-      */
+    // Method: UnloadAllGrids
+    // Purpose: Executes the unload all grids operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public int UnloadAllGrids(string reason)
     {
         int unloaded = 0;
@@ -177,22 +212,23 @@ public sealed class MapGridManager(
         return unloaded;
     }
 
-    /**
-      * Performs the unload idle grids operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: UnloadIdleGrids
+    // Purpose: Executes the unload idle grids operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     public void UnloadIdleGrids()
     {
-        // Grids are intentionally kept resident for deterministic runtime behavior.
-        // Disabling terrain/liquid/collision/navmesh data requires a compile-time mapstore feature symbol.
+
     }
 
-    /**
-      * Performs the preload all tiles for map operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: PreloadAllTilesForMapAsync
+    // Purpose: Executes the preload all tiles for map operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task PreloadAllTilesForMapAsync(CancellationToken cancellationToken)
     {
         int loaded = 0;
@@ -217,10 +253,11 @@ public sealed class MapGridManager(
         Logger.Write(LogType.SUCCESS, $"Preloaded {loaded} map grid(s) for '{_definition.Name}' from '{_mapsDirectory}'. Mapstore policy: {MapStoreRuntimeFeatures.FormatPolicy()}.", "MapGridManager");
     }
 
-    /**
-      * Enumerates map tile keys from the required map.index.bin file.
-      * The index is mandatory so startup validates the exact extracted tile set instead of guessing from file names.
-      */
+    // Method: EnumerateMapTileKeysForMap
+    // Purpose: Executes the enumerate map tile keys for map operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     private IEnumerable<MapTileKey> EnumerateMapTileKeysForMap()
     {
         string indexPath = MapStoreFileNames.GetIndexPath(_mapsDirectory, (uint)_definition.MapId);
@@ -237,9 +274,13 @@ public sealed class MapGridManager(
         }
     }
 
-    /**
-      * Validates that the map index says every compile-required tile component exists.
-      */
+    // Method: ValidateIndexRecord
+    // Purpose: Validates or evaluates validate index record rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - indexPath: Index path value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapGridManager so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateIndexRecord(MapStoreMapIndexRecord record, string indexPath)
     {
         MapStoreTileDataFlags missingFlags = MapStoreRuntimeFeatures.RequiredFlags & ~record.DataFlags;

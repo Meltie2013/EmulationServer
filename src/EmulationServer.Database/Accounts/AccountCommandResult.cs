@@ -15,18 +15,16 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountCommandResult.cs
-  * Documents the AccountCommandResult source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Database/Accounts/AccountCommandResult.cs
+// Purpose: Contains account command result code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Represents immutable account command result data passed between parts of the server.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: Succeeded, Message.
-  */
+// Type: AccountCommandResult
+// Purpose: Represents account command result data passed through the database persistence, repository, and MySQL connectivity layer.
+// Constructor values:
+// - Succeeded: Succeeded value supplied by the caller for this operation.
+// - Message: Message value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record AccountCommandResult(bool Succeeded, string Message);

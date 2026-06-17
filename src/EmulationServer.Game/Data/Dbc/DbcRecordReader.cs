@@ -15,25 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/DbcRecordReader.cs
+// Purpose: Contains DBC record reader code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcRecordReader.cs
-  * Documents the DbcRecordReader source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Provides safe typed reads from generic DBC rows, including mixed-layout rows such as CharStartOutfit.dbc.
-  */
+// Type: DbcRecordReader
+// Purpose: Provides DBC record reader behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 internal static class DbcRecordReader
 {
-    /**
-      * Validates that a DBC store has enough fields for a typed reader.
-      */
+
+    // Method: ValidateFieldCount
+    // Purpose: Validates or evaluates validate field count rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - store: Store value supplied by the caller for this operation.
+    // - fileName: File name value supplied by the caller for this operation.
+    // - requiredFieldCount: Required field count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static void ValidateFieldCount(DbcDataStore store, string fileName, int requiredFieldCount)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -44,9 +47,14 @@ internal static class DbcRecordReader
         }
     }
 
-    /**
-      * Validates that a DBC store has enough record bytes for a mixed-layout typed reader.
-      */
+    // Method: ValidateRecordSize
+    // Purpose: Validates or evaluates validate record size rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - store: Store value supplied by the caller for this operation.
+    // - fileName: File name value supplied by the caller for this operation.
+    // - requiredRecordSize: Required record size value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static void ValidateRecordSize(DbcDataStore store, string fileName, int requiredRecordSize)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -57,41 +65,61 @@ internal static class DbcRecordReader
         }
     }
 
-    /**
-      * Reads a signed 32-bit integer field from a uniform DBC row.
-      */
+    // Method: ReadInt32
+    // Purpose: Retrieves read int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static int ReadInt32(DbcRecord record, int fieldIndex)
     {
         return record.GetInt32(fieldIndex);
     }
 
-    /**
-      * Reads an unsigned 32-bit integer field from a uniform DBC row.
-      */
+    // Method: ReadUInt32
+    // Purpose: Retrieves read U int32 data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static uint ReadUInt32(DbcRecord record, int fieldIndex)
     {
         return record.GetUInt32(fieldIndex);
     }
 
-    /**
-      * Reads a floating-point field from a uniform DBC row.
-      */
+    // Method: ReadSingle
+    // Purpose: Retrieves read single data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static float ReadSingle(DbcRecord record, int fieldIndex)
     {
         return record.GetSingle(fieldIndex);
     }
 
-    /**
-      * Reads a localized string field from a uniform DBC row and trims null or whitespace-only values.
-      */
+    // Method: ReadString
+    // Purpose: Retrieves read string data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static string ReadString(DbcRecord record, int fieldIndex)
     {
         return CleanString(record.GetString(fieldIndex));
     }
 
-    /**
-      * Reads a byte from a raw DBC row offset. This is required for mixed byte/int layouts.
-      */
+    // Method: ReadByteAtOffset
+    // Purpose: Retrieves read byte at offset data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - byteOffset: Byte offset value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static byte ReadByteAtOffset(DbcRecord record, int byteOffset)
     {
         ReadOnlySpan<byte> data = record.GetRawData();
@@ -99,17 +127,25 @@ internal static class DbcRecordReader
         return data[byteOffset];
     }
 
-    /**
-      * Reads a signed 32-bit value from a raw DBC row offset. This is required for mixed byte/int layouts.
-      */
+    // Method: ReadInt32AtOffset
+    // Purpose: Retrieves read int32 at offset data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - byteOffset: Byte offset value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static int ReadInt32AtOffset(DbcRecord record, int byteOffset)
     {
         return unchecked((int)ReadUInt32AtOffset(record, byteOffset));
     }
 
-    /**
-      * Reads an unsigned 32-bit value from a raw DBC row offset. This is required for mixed byte/int layouts.
-      */
+    // Method: ReadUInt32AtOffset
+    // Purpose: Retrieves read U int32 at offset data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // - byteOffset: Byte offset value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static uint ReadUInt32AtOffset(DbcRecord record, int byteOffset)
     {
         ReadOnlySpan<byte> data = record.GetRawData();
@@ -117,19 +153,25 @@ internal static class DbcRecordReader
         return BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(byteOffset, sizeof(uint)));
     }
 
-    /**
-      * Trims DBC strings without losing meaningful internal whitespace.
-      */
+    // Method: CleanString
+    // Purpose: Executes the clean string operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     public static string CleanString(string value)
     {
         return value.Trim('\0', ' ', '\t', '\r', '\n');
     }
 
-    /**
-      * Validates ensure offset state before it is used by another server component.
-      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-      * Inputs used by this operation: data, byteOffset, width.
-      */
+    // Method: EnsureOffset
+    // Purpose: Validates or evaluates ensure offset rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - data: Data bytes or structured payload consumed by this operation.
+    // - byteOffset: Byte offset value supplied by the caller for this operation.
+    // - width: Width value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcRecordReader so callers do not duplicate validation, protocol, or persistence rules.
     private static void EnsureOffset(ReadOnlySpan<byte> data, int byteOffset, int width)
     {
         if (byteOffset < 0 || width <= 0 || byteOffset + width > data.Length)

@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Sessions/RealmSession.cs
+// Purpose: Contains realm session code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers;
 using System.Net.Sockets;
@@ -22,69 +25,54 @@ using System.Net.Sockets;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/RealmSession.cs
-  * Documents the RealmSession source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Sessions;
 
-/**
-  * Owns the realm session behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmSession
+// Purpose: Provides realm session behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmSession
 {
-    /**
-      * Defines the constant value for receive buffer size.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the receive buffer size constant used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: fixed receive buffer size value used anywhere this rule or protocol value is needed.
     private const int ReceiveBufferSize = 4096;
 
-    /**
-      * Holds the private client state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the client state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current client backing value maintained by the owning type.
     private readonly TcpClient _client;
-    /**
-      * Holds the private stream state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stream state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stream backing value maintained by the owning type.
     private readonly NetworkStream _stream;
-    /**
-      * Holds the private session processor state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the session processor state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current session processor backing value maintained by the owning type.
     private readonly IRealmSessionProcessor? _sessionProcessor;
-    /**
-      * Holds the private disconnect cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly CancellationTokenSource _disconnectCancellation = new();
-    /**
-      * Holds the private remote end point state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the remote end point state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current remote end point backing value maintained by the owning type.
     private readonly string _remoteEndPoint;
 
-    /**
-      * Holds the private disconnect requested state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the disconnect requested state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current disconnect requested backing value maintained by the owning type.
     private int _disconnectRequested;
 
-    /**
-      * Gets or stores the id value used by RealmSession.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: NewGuid
+    // Purpose: Executes the new GUID operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the GUID ID { get; } = guid. value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmSession so callers do not duplicate validation, protocol, or persistence rules.
     public Guid Id { get; } = Guid.NewGuid();
 
-    /**
-      * Initializes a new RealmSession instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: client, sessionProcessor.
-      */
+    // Constructor: RealmSession
+    // Purpose: Initializes a new RealmSession instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - client: Client value supplied by the caller for this operation.
+    // - sessionProcessor: Session processor value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmSession so callers do not duplicate validation, protocol, or persistence rules.
     public RealmSession(TcpClient client, IRealmSessionProcessor? sessionProcessor = null)
     {
         _client = client ?? throw new ArgumentNullException();
@@ -93,12 +81,13 @@ public sealed class RealmSession
         _remoteEndPoint = _client.Client.RemoteEndPoint?.ToString() ?? "unknown endpoint";
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of RealmSession and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ProcessAsync
+    // Purpose: Executes the process operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmSession so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.NETWORK, $"Started processing session for {_remoteEndPoint}", "RealmSession");
@@ -120,7 +109,7 @@ public sealed class RealmSession
         }
         catch (OperationCanceledException) when (linkedCancellation.Token.IsCancellationRequested)
         {
-            // Expected during server shutdown or explicit session disconnect.
+
         }
         catch (EndOfStreamException exception)
         {
@@ -136,7 +125,7 @@ public sealed class RealmSession
         }
         catch (ObjectDisposedException) when (IsDisconnectRequested)
         {
-            // Expected when the socket is disposed during shutdown.
+
         }
         catch (Exception exception)
         {
@@ -148,11 +137,12 @@ public sealed class RealmSession
         }
     }
 
-    /**
-      * Performs the disconnect operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisconnectAsync
+    // Purpose: Executes the disconnect operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmSession so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task DisconnectAsync()
     {
         if (Interlocked.Exchange(ref _disconnectRequested, 1) == 1)
@@ -168,7 +158,7 @@ public sealed class RealmSession
         }
         catch (ObjectDisposedException)
         {
-            // Ignore; shutdown is already in progress or complete.
+
         }
 
         try
@@ -177,7 +167,7 @@ public sealed class RealmSession
         }
         catch
         {
-            // Ignore shutdown races.
+
         }
 
         try
@@ -186,11 +176,11 @@ public sealed class RealmSession
         }
         catch (SocketException)
         {
-            // The remote side may have already closed/reset the connection.
+
         }
         catch (ObjectDisposedException)
         {
-            // The socket may have already been disposed.
+
         }
 
         _stream.Dispose();
@@ -198,12 +188,13 @@ public sealed class RealmSession
         _disconnectCancellation.Dispose();
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of RealmSession and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ProcessRawDebugSessionAsync
+    // Purpose: Executes the process raw debug session operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmSession so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ProcessRawDebugSessionAsync(CancellationToken cancellationToken)
     {
         byte[] buffer = ArrayPool<byte>.Shared.Rent(ReceiveBufferSize);
@@ -228,9 +219,11 @@ public sealed class RealmSession
         }
     }
 
-    /**
-      * Gets or stores the is disconnect requested value used by RealmSession.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: Read
+    // Purpose: Retrieves read data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - _disconnectRequested: Disconnect requested value supplied by the caller for this operation.
+    // Returns: Returns the bool is disconnect requested => volatile. value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmSession so callers do not duplicate validation, protocol, or persistence rules.
     private bool IsDisconnectRequested => Volatile.Read(ref _disconnectRequested) == 1;
 }

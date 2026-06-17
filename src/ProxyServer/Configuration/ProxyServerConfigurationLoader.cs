@@ -15,34 +15,31 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/ProxyServer/Configuration/ProxyServerConfigurationLoader.cs
+// Purpose: Contains proxy server configuration loader code for the proxy server gateway, internal routing, and public connection coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Core.Configuration;
 using EmulationServer.Shared.Configuration;
 
-/**
-  * File overview: src/ProxyServer/Configuration/ProxyServerConfigurationLoader.cs
-  * Documents the ProxyServerConfigurationLoader source file in the proxy startup, service discovery, and client-routing support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.ProxyServer.Configuration;
 
-/**
-  * Owns the proxy server configuration loader behavior for the proxy startup, service discovery, and client-routing support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ProxyServerConfigurationLoader
+// Purpose: Provides proxy server configuration loader behavior for the proxy server gateway, internal routing, and public connection coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class ProxyServerConfigurationLoader
 {
-    /**
-      * Defines the constant value for proxy server section.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the proxy server section constant used by the proxy server gateway, internal routing, and public connection coordination.
+    // Value: fixed proxy server section value used anywhere this rule or protocol value is needed.
     private const string ProxyServerSection = "ProxyServer";
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of ProxyServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the proxy server settings value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     public static ProxyServerSettings Load(string path)
     {
         string fullPath = Path.GetFullPath(path);
@@ -67,10 +64,12 @@ public static class ProxyServerConfigurationLoader
         return settings;
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of ProxyServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadDependencyPolicy
+    // Purpose: Retrieves load dependency policy data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // Returns: Returns the proxy dependency settings value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static ProxyDependencySettings LoadDependencyPolicy(IniConfiguration configuration)
     {
         return new ProxyDependencySettings
@@ -162,10 +161,14 @@ public static class ProxyServerConfigurationLoader
         };
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of ProxyServerConfigurationLoader and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadServerNameSet
+    // Purpose: Retrieves load server name set data for the proxy server gateway, internal routing, and public connection coordination.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultServerNames: Default server names value supplied by the caller for this operation.
+    // Returns: Returns the I read only set value produced by this operation.
+    // Notes: This keeps the operation scoped to ProxyServerConfigurationLoader so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlySet<string> LoadServerNameSet(
         IniConfiguration configuration,
         string key,

@@ -15,18 +15,16 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Networking/Packets/WorldPacket.cs
-  * Documents the WorldPacket source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Networking/Packets/WorldPacket.cs
+// Purpose: Contains world packet code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Carries immutable world packet data for the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Opcode, Payload.
-  */
+// Type: WorldPacket
+// Purpose: Represents world packet data passed through the world server gameplay, session, and character runtime layer.
+// Constructor values:
+// - Opcode: Opcode value supplied by the caller for this operation.
+// - bytePayload: Byte payload value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record WorldPacket(WorldOpcode Opcode, byte[] Payload);

@@ -15,19 +15,19 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountBanHistoryResult.cs
-  * Documents the account ban lookup result used when an administrator asks for ban history.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Database/Accounts/AccountBanHistoryResult.cs
+// Purpose: Contains account ban history result code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Describes whether an account exists and includes every known ban history row for display.
-  * This avoids treating an existing account with no bans the same as a missing account.
-  */
+// Type: AccountBanHistoryResult
+// Purpose: Represents account ban history result data passed through the database persistence, repository, and MySQL connectivity layer.
+// Constructor values:
+// - AccountExists: Account exists value supplied by the caller for this operation.
+// - Username: Username value supplied by the caller for this operation.
+// - Bans: Bans value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record AccountBanHistoryResult(
     bool AccountExists,
     string Username,

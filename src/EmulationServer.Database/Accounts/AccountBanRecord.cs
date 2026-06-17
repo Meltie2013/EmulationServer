@@ -15,19 +15,23 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountBanRecord.cs
-  * Documents account ban history data used by RealmServer admin commands and login checks.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Database/Accounts/AccountBanRecord.cs
+// Purpose: Contains account ban record code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Represents a single account_banned row joined with the owning account name.
-  * The record keeps raw Unix timestamps because the database schema stores ban dates as unsigned epoch seconds.
-  */
+// Type: AccountBanRecord
+// Purpose: Represents account ban record data passed through the database persistence, repository, and MySQL connectivity layer.
+// Constructor values:
+// - AccountId: Account ID identifier used to select the exact record, object, or runtime owner.
+// - Username: Username value supplied by the caller for this operation.
+// - BanDate: Ban date value supplied by the caller for this operation.
+// - UnbanDate: Unban date value supplied by the caller for this operation.
+// - BannedBy: Banned by value supplied by the caller for this operation.
+// - BanReason: Ban reason value supplied by the caller for this operation.
+// - Active: Active value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record AccountBanRecord(
     uint AccountId,
     string Username,
@@ -37,9 +41,7 @@ public sealed record AccountBanRecord(
     string BanReason,
     bool Active)
 {
-    /**
-      * Indicates whether this ban is permanent according to account_banned rules.
-      * A permanent ban stores the same timestamp in bandate and unbandate.
-      */
+    // Property: Gets or sets the is permanent value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: is permanent value exposed by the owning type.
     public bool IsPermanent => BanDate == UnbanDate;
 }

@@ -15,17 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemRandomPropertyDbcRecord.cs
-  * Documents the ItemRandomPropertyDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Items/ItemRandomPropertyDbcRecord.cs
+// Purpose: Contains item random property DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Represents one ItemRandomProperties.dbc row used by item random-property ids.
-  */
+// Type: ItemRandomPropertyDbcRecord
+// Purpose: Represents item random property DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - SpellItemEnchantmentIds: Spell item enchantment ids value supplied by the caller for this operation.
+// - Suffix: Suffix value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record ItemRandomPropertyDbcRecord(
     int Id,
     string Name,

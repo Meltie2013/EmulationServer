@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
+// Purpose: Contains realm auth session processor code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Numerics;
@@ -26,124 +29,106 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/RealmServer/Auth/RealmAuthSessionProcessor.cs
-  * Documents the RealmAuthSessionProcessor source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Owns the realm auth session processor behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmAuthSessionProcessor
+// Purpose: Provides realm auth session processor behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
 {
-    /**
-      * Defines the short grace window used after terminal auth failures so the vanilla client can render the exact failure text before the socket closes.
-      */
+
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the time span terminal auth failure delivery delay = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan TerminalAuthFailureDeliveryDelay = TimeSpan.FromMilliseconds(250);
 
-    /**
-      * Holds the private account repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the account repository state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current account repository backing value maintained by the owning type.
     private readonly AccountRepository _accountRepository;
-    /**
-      * Holds the private realm list packet builder state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the realm list packet builder state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current realm list packet builder backing value maintained by the owning type.
     private readonly RealmListPacketBuilder _realmListPacketBuilder;
 
-    /**
-      * Holds the private status state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the status state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current status backing value maintained by the owning type.
     private RealmAuthStatus _status = RealmAuthStatus.Challenge;
-    /**
-      * Holds the private account state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the account state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current account backing value maintained by the owning type.
     private AccountLogonRecord? _account;
-    /**
-      * Holds the private login state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the login state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current login backing value maintained by the owning type.
     private string _login = string.Empty;
-    /**
-      * Holds the private os state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the os state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current os backing value maintained by the owning type.
     private string _os = string.Empty;
-    /**
-      * Holds the private locale name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the locale name state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current locale name backing value maintained by the owning type.
     private string _localeName = "enUS";
-    /**
-      * Holds the private locale state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the locale state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current locale backing value maintained by the owning type.
     private byte _locale;
-    /**
-      * Holds the private build state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the build state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current build backing value maintained by the owning type.
     private ushort _build;
-    /**
-      * Holds the private salt state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the salt state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current salt backing value maintained by the owning type.
     private BigInteger _salt;
-    /**
-      * Holds the private verifier state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the verifier state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current verifier backing value maintained by the owning type.
     private BigInteger _verifier;
-    /**
-      * Holds the private host private ephemeral state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the host private ephemeral state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current host private ephemeral backing value maintained by the owning type.
     private BigInteger _hostPrivateEphemeral;
-    /**
-      * Holds the private host public ephemeral state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the host public ephemeral state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current host public ephemeral backing value maintained by the owning type.
     private BigInteger _hostPublicEphemeral;
-    /**
-      * Holds the private session key state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the session key state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current session key backing value maintained by the owning type.
     private byte[] _sessionKey = [];
-    /**
-      * Holds the reconnect challenge bytes sent during CMD_AUTH_RECONNECT_CHALLENGE.
-      * The follow-up proof must hash these same bytes so the client can renew the realm session after a world rejection.
-      */
+
+    // Field: Stores the reconnect challenge state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current reconnect challenge backing value maintained by the owning type.
     private byte[] _reconnectChallenge = [];
-    /**
-      * Holds the reconnect checksum salt bytes sent with the reconnect challenge.
-      * Vanilla uses a 16-byte salt field even when the server does not enforce a patch checksum.
-      */
+
+    // Field: Stores the reconnect checksum salt state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current reconnect checksum salt backing value maintained by the owning type.
     private byte[] _reconnectChecksumSalt = [];
 
-    /**
-      * Initializes a new RealmAuthSessionProcessor instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: accountRepository, realmListPacketBuilder.
-      */
+    // Constructor: RealmAuthSessionProcessor
+    // Purpose: Initializes a new RealmAuthSessionProcessor instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - accountRepository: Account repository value supplied by the caller for this operation.
+    // - realmListPacketBuilder: Realm list packet builder value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     public RealmAuthSessionProcessor(AccountRepository accountRepository, RealmListPacketBuilder realmListPacketBuilder)
     {
         _accountRepository = accountRepository ?? throw new ArgumentNullException();
         _realmListPacketBuilder = realmListPacketBuilder ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ProcessAsync
+    // Purpose: Executes the process operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ProcessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         Logger.Write(LogType.NETWORK, $"Realm auth session started for {context.RemoteEndPoint}.", "RealmAuthSessionProcessor");
@@ -182,12 +167,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         }
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: HandleLogonChallengeAsync
+    // Purpose: Handles handle logon challenge work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleLogonChallengeAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         byte protocolVersion = await context.ReadByteAsync(cancellationToken);
@@ -260,10 +247,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.LogonProof;
     }
 
-    /**
-      * Handles CMD_AUTH_RECONNECT_CHALLENGE so clients returning from a rejected or closed world session can renew their realm-list session.
-      * The reconnect challenge shares the same client packet body as the normal logon challenge, but it uses the stored session key instead of a password proof.
-      */
+    // Method: HandleReconnectChallengeAsync
+    // Purpose: Handles handle reconnect challenge work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleReconnectChallengeAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         byte protocolVersion = await context.ReadByteAsync(cancellationToken);
@@ -344,12 +335,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.ReconnectProof;
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: HandleLogonProofAsync
+    // Purpose: Handles handle logon proof work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleLogonProofAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         if (_account is null)
@@ -395,9 +388,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Authenticated;
     }
 
-    /**
-      * Handles CMD_AUTH_RECONNECT_PROOF and promotes the session back to the authenticated realm-list state when the stored session key matches.
-      */
+    // Method: HandleReconnectProofAsync
+    // Purpose: Handles handle reconnect proof work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleReconnectProofAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         if (_account is null || _sessionKey.Length == 0 || _reconnectChallenge.Length == 0)
@@ -426,12 +424,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Authenticated;
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: HandleRealmListAsync
+    // Purpose: Handles handle realm list work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleRealmListAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         _ = await context.ReadBytesAsync(4, cancellationToken);
@@ -448,12 +448,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         Logger.Write(LogType.TRACE, $"Sent realm list to account '{_login}'.", "RealmAuthSessionProcessor");
     }
 
-    /**
-      * Performs the prepare srp challenge operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: account, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: PrepareSrpChallengeAsync
+    // Purpose: Executes the prepare srp challenge operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - account: Account value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task PrepareSrpChallengeAsync(AccountLogonRecord account, CancellationToken cancellationToken)
     {
         if (Srp6Utilities.IsValidStoredSrpValue(account.Verifier) && Srp6Utilities.IsValidStoredSrpValue(account.Salt))
@@ -476,12 +478,15 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _hostPublicEphemeral = Srp6Utilities.CalculateHostPublicEphemeral(_verifier, _hostPrivateEphemeral);
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendChallengeFailureAsync
+    // Purpose: Handles send challenge failure work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendChallengeFailureAsync(RealmSessionContext context, RealmAuthResult result, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -492,9 +497,15 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a reconnect challenge failure using the reconnect opcode layout expected by the auth client.
-      */
+    // Method: SendReconnectChallengeFailureAsync
+    // Purpose: Handles send reconnect challenge failure work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendReconnectChallengeFailureAsync(RealmSessionContext context, RealmAuthResult result, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -504,9 +515,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a reconnect challenge success containing the 16-byte proof challenge and 16-byte checksum salt.
-      */
+    // Method: SendReconnectChallengeSuccessAsync
+    // Purpose: Handles send reconnect challenge success work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendReconnectChallengeSuccessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -518,9 +534,15 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a terminal challenge failure and keeps the socket alive long enough for the client to consume it.
-      */
+    // Method: SendChallengeFailureAndCloseAsync
+    // Purpose: Handles send challenge failure and close work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendChallengeFailureAndCloseAsync(RealmSessionContext context, RealmAuthResult result, CancellationToken cancellationToken)
     {
         await SendChallengeFailureAsync(context, result, cancellationToken);
@@ -528,9 +550,15 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Closed;
     }
 
-    /**
-      * Sends a terminal reconnect challenge failure and keeps the socket alive long enough for the client to consume it.
-      */
+    // Method: SendReconnectChallengeFailureAndCloseAsync
+    // Purpose: Handles send reconnect challenge failure and close work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendReconnectChallengeFailureAndCloseAsync(RealmSessionContext context, RealmAuthResult result, CancellationToken cancellationToken)
     {
         await SendReconnectChallengeFailureAsync(context, result, cancellationToken);
@@ -538,9 +566,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Closed;
     }
 
-    /**
-      * Sends a terminal proof failure and keeps the socket alive long enough for the client to consume it.
-      */
+    // Method: SendProofFailureAndCloseAsync
+    // Purpose: Handles send proof failure and close work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendProofFailureAndCloseAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         await SendProofFailureAsync(context, cancellationToken);
@@ -548,12 +581,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Closed;
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendChallengeSuccessAsync
+    // Purpose: Handles send challenge success work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendChallengeSuccessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -572,12 +607,15 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendProofSuccessAsync
+    // Purpose: Handles send proof success work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - bytehostProof: Bytehost proof value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendProofSuccessAsync(RealmSessionContext context, byte[] hostProof, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -599,12 +637,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendProofFailureAsync
+    // Purpose: Handles send proof failure work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendProofFailureAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -620,9 +660,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a successful reconnect proof response and includes the vanilla-era padding bytes only for builds that expect them.
-      */
+    // Method: SendReconnectProofSuccessAsync
+    // Purpose: Handles send reconnect proof success work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendReconnectProofSuccessAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -637,9 +682,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a reconnect proof failure response before closing so the client sees a protocol reason instead of a dropped socket.
-      */
+    // Method: SendReconnectProofFailureAsync
+    // Purpose: Handles send reconnect proof failure work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendReconnectProofFailureAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         ByteWriter packet = new();
@@ -654,9 +704,14 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         await context.WriteAsync(packet.ToArray(), cancellationToken);
     }
 
-    /**
-      * Sends a terminal reconnect proof failure and keeps the socket alive long enough for the client to consume it.
-      */
+    // Method: SendReconnectProofFailureAndCloseAsync
+    // Purpose: Handles send reconnect proof failure and close work for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendReconnectProofFailureAndCloseAsync(RealmSessionContext context, CancellationToken cancellationToken)
     {
         await SendReconnectProofFailureAsync(context, cancellationToken);
@@ -664,9 +719,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         _status = RealmAuthStatus.Closed;
     }
 
-    /**
-      * Calculates the reconnect proof hash from the account name, client proof data, server reconnect challenge, and stored session key.
-      */
+    // Method: CalculateReconnectProof
+    // Purpose: Calculates calculate reconnect proof values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - byteproofData: Byteproof data value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     private byte[] CalculateReconnectProof(byte[] proofData)
     {
         byte[] loginBytes = Encoding.UTF8.GetBytes(_login);
@@ -684,9 +742,13 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         return SHA1.HashData(proofInput);
     }
 
-    /**
-      * Validates and parses the stored 40-byte SRP session key used by reconnect authentication.
-      */
+    // Method: TryParseSessionKey
+    // Purpose: Attempts to retrieve or parse try parse session key data without treating normal misses as failures.
+    // Parameters:
+    // - sessionKeyHex: Session key hex value supplied by the caller for this operation.
+    // - bytesessionKey: Bytesession key value supplied by the caller for this operation.
+    // Returns: Returns true when try parse session key succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseSessionKey(string? sessionKeyHex, out byte[] sessionKey)
     {
         sessionKey = [];
@@ -705,11 +767,13 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         return sessionKey.Length == Srp6Utilities.SessionKeyLength;
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryParseLogonChallenge
+    // Purpose: Attempts to retrieve or parse try parse logon challenge data without treating normal misses as failures.
+    // Parameters:
+    // - bytepayload: Bytepayload value supplied by the caller for this operation.
+    // - challenge: Challenge value supplied by the caller for this operation.
+    // Returns: Returns true when try parse logon challenge succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseLogonChallenge(byte[] payload, out LogonChallenge challenge)
     {
         challenge = default;
@@ -739,11 +803,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         return true;
     }
 
-    /**
-      * Performs the reverse four character string operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: value.
-      */
+    // Method: ReverseFourCharacterString
+    // Purpose: Executes the reverse four character string operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     private static string ReverseFourCharacterString(ReadOnlySpan<byte> value)
     {
         Span<byte> copy = stackalloc byte[4];
@@ -752,10 +817,12 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         return Encoding.ASCII.GetString(copy).TrimEnd('\0');
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of RealmAuthSessionProcessor and keeps this workflow isolated from the caller.
-      */
+    // Method: GetLocaleIndex
+    // Purpose: Retrieves get locale index data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - localeName: Locale name value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmAuthSessionProcessor so callers do not duplicate validation, protocol, or persistence rules.
     private static byte GetLocaleIndex(string localeName)
     {
         return localeName switch
@@ -773,10 +840,13 @@ public sealed class RealmAuthSessionProcessor : IRealmSessionProcessor
         };
     }
 
-    /**
-      * Represents immutable struct data passed between parts of the server.
-      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-      * Positional fields carried by this record: Build, OperatingSystem, LocaleName, Username.
-      */
+    // Type: LogonChallenge
+    // Purpose: Represents logon challenge data passed through the realm server authentication, realm-list, and account connection layer.
+    // Constructor values:
+    // - Build: Build value supplied by the caller for this operation.
+    // - OperatingSystem: Operating system value supplied by the caller for this operation.
+    // - LocaleName: Locale name value supplied by the caller for this operation.
+    // - Username: Username value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private readonly record struct LogonChallenge(ushort Build, string OperatingSystem, string LocaleName, string Username);
 }

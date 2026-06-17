@@ -15,44 +15,33 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Logging/Models/LogMessage.cs
+// Purpose: Contains log message code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Models/LogMessage.cs
-  * Documents the LogMessage source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Shared.Logging.Models;
 
-/**
-  * Owns the log message behavior for the shared configuration, logging, and utility support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: LogMessage
+// Purpose: Provides log message behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class LogMessage
 {
-    /**
-      * Gets or stores the timestamp value used by LogMessage.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the timestamp value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: timestamp value exposed by the owning type.
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
-    /**
-      * Gets or stores the type value used by LogMessage.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the type value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: type value exposed by the owning type.
     public LogType Type { get; init; }
 
-    /**
-      * Gets or stores the message value used by LogMessage.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the message value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: message value exposed by the owning type.
     public string Message { get; init; } = string.Empty;
 
-    /**
-      * Gets or stores the category value used by LogMessage.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the category value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: category value exposed by the owning type.
     public string? Category { get; init; }
 }

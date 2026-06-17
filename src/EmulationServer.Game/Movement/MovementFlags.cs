@@ -15,148 +15,144 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Movement/MovementFlags.cs
-  * Documents the MovementFlags source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Movement/MovementFlags.cs
+// Purpose: Contains movement flags code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Movement;
 
-/**
-  * Lists the supported movement flags values used by the movement packet state and client coordinate tracking layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
 [Flags]
+// Type: MovementFlags
+// Purpose: Defines the allowed movement flags values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MovementFlags : uint
 {
-    /**
-      * Represents the none value for movement flags handling.
-      */
+
+    // Enum Value: Defines the none enum value.
+    // Value: explicit expression 0x00000000.
     None = 0x00000000,
-    /**
-      * Represents the forward value for movement flags handling.
-      */
+
+    // Enum Value: Defines the forward enum value.
+    // Value: explicit expression 0x00000001.
     Forward = 0x00000001,
-    /**
-      * Represents the backward value for movement flags handling.
-      */
+
+    // Enum Value: Defines the backward enum value.
+    // Value: explicit expression 0x00000002.
     Backward = 0x00000002,
-    /**
-      * Represents the strafe left value for movement flags handling.
-      */
+
+    // Enum Value: Defines the strafe left enum value.
+    // Value: explicit expression 0x00000004.
     StrafeLeft = 0x00000004,
-    /**
-      * Represents the strafe right value for movement flags handling.
-      */
+
+    // Enum Value: Defines the strafe right enum value.
+    // Value: explicit expression 0x00000008.
     StrafeRight = 0x00000008,
-    /**
-      * Represents the turn left value for movement flags handling.
-      */
+
+    // Enum Value: Defines the turn left enum value.
+    // Value: explicit expression 0x00000010.
     TurnLeft = 0x00000010,
-    /**
-      * Represents the turn right value for movement flags handling.
-      */
+
+    // Enum Value: Defines the turn right enum value.
+    // Value: explicit expression 0x00000020.
     TurnRight = 0x00000020,
-    /**
-      * Represents the pitch up value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pitch up enum value.
+    // Value: explicit expression 0x00000040.
     PitchUp = 0x00000040,
-    /**
-      * Represents the pitch down value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pitch down enum value.
+    // Value: explicit expression 0x00000080.
     PitchDown = 0x00000080,
-    /**
-      * Represents the walk mode value for movement flags handling.
-      */
+
+    // Enum Value: Defines the walk mode enum value.
+    // Value: explicit expression 0x00000100.
     WalkMode = 0x00000100,
-    /**
-      * Represents the on transport value for movement flags handling.
-      */
+
+    // Enum Value: Defines the on transport enum value.
+    // Value: explicit expression 0x00000200.
     OnTransport = 0x00000200,
-    /**
-      * Represents the levitate value for movement flags handling.
-      */
+
+    // Enum Value: Defines the levitate enum value.
+    // Value: explicit expression 0x00000400.
     Levitate = 0x00000400,
-    /**
-      * Represents the root value for movement flags handling.
-      */
+
+    // Enum Value: Defines the root enum value.
+    // Value: explicit expression 0x00000800.
     Root = 0x00000800,
-    /**
-      * Represents the falling value for movement flags handling.
-      */
+
+    // Enum Value: Defines the falling enum value.
+    // Value: explicit expression 0x00001000.
     Falling = 0x00001000,
-    /**
-      * Represents the falling far value for movement flags handling.
-      */
+
+    // Enum Value: Defines the falling far enum value.
+    // Value: explicit expression 0x00002000.
     FallingFar = 0x00002000,
-    /**
-      * Represents the pending stop value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending stop enum value.
+    // Value: explicit expression 0x00004000.
     PendingStop = 0x00004000,
-    /**
-      * Represents the pending strafe stop value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending strafe stop enum value.
+    // Value: explicit expression 0x00008000.
     PendingStrafeStop = 0x00008000,
-    /**
-      * Represents the pending forward value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending forward enum value.
+    // Value: explicit expression 0x00010000.
     PendingForward = 0x00010000,
-    /**
-      * Represents the pending backward value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending backward enum value.
+    // Value: explicit expression 0x00020000.
     PendingBackward = 0x00020000,
-    /**
-      * Represents the pending strafe left value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending strafe left enum value.
+    // Value: explicit expression 0x00040000.
     PendingStrafeLeft = 0x00040000,
-    /**
-      * Represents the pending strafe right value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending strafe right enum value.
+    // Value: explicit expression 0x00080000.
     PendingStrafeRight = 0x00080000,
-    /**
-      * Represents the pending root value for movement flags handling.
-      */
+
+    // Enum Value: Defines the pending root enum value.
+    // Value: explicit expression 0x00100000.
     PendingRoot = 0x00100000,
-    /**
-      * Represents the swimming value for movement flags handling.
-      */
+
+    // Enum Value: Defines the swimming enum value.
+    // Value: explicit expression 0x00200000.
     Swimming = 0x00200000,
-    /**
-      * Represents the ascending value for movement flags handling.
-      */
+
+    // Enum Value: Defines the ascending enum value.
+    // Value: explicit expression 0x00400000.
     Ascending = 0x00400000,
-    /**
-      * Represents the descending value for movement flags handling.
-      */
+
+    // Enum Value: Defines the descending enum value.
+    // Value: explicit expression 0x00800000.
     Descending = 0x00800000,
-    /**
-      * Represents the can fly value for movement flags handling.
-      */
+
+    // Enum Value: Defines the can fly enum value.
+    // Value: explicit expression 0x01000000.
     CanFly = 0x01000000,
-    /**
-      * Represents the flying value for movement flags handling.
-      */
+
+    // Enum Value: Defines the flying enum value.
+    // Value: explicit expression 0x02000000.
     Flying = 0x02000000,
-    /**
-      * Represents the spline elevation value for movement flags handling.
-      */
+
+    // Enum Value: Defines the spline elevation enum value.
+    // Value: explicit expression 0x04000000.
     SplineElevation = 0x04000000,
-    /**
-      * Represents the spline enabled value for movement flags handling.
-      */
+
+    // Enum Value: Defines the spline enabled enum value.
+    // Value: explicit expression 0x08000000.
     SplineEnabled = 0x08000000,
-    /**
-      * Represents the water walking value for movement flags handling.
-      */
+
+    // Enum Value: Defines the water walking enum value.
+    // Value: explicit expression 0x10000000.
     WaterWalking = 0x10000000,
-    /**
-      * Represents the safe fall value for movement flags handling.
-      */
+
+    // Enum Value: Defines the safe fall enum value.
+    // Value: explicit expression 0x20000000.
     SafeFall = 0x20000000,
-    /**
-      * Represents the hover value for movement flags handling.
-      */
+
+    // Enum Value: Defines the hover enum value.
+    // Value: explicit expression 0x40000000.
     Hover = 0x40000000,
 }

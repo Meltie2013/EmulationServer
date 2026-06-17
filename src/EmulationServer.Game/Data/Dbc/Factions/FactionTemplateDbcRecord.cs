@@ -15,19 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionTemplateDbcRecord.cs
-  * Documents the FactionTemplateDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Factions/FactionTemplateDbcRecord.cs
+// Purpose: Contains faction template DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Factions;
 
-/**
-  * Represents one FactionTemplate.dbc row used for friendly/enemy faction group rules.
-  * Positional fields carried by this record: Id, FactionId, Flags, FactionGroup, FriendGroup, EnemyGroup, EnemyFactionIds, FriendFactionIds.
-  */
+// Type: FactionTemplateDbcRecord
+// Purpose: Represents faction template DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - FactionId: Faction ID identifier used to select the exact record, object, or runtime owner.
+// - Flags: Flags value supplied by the caller for this operation.
+// - FactionGroup: Faction group value supplied by the caller for this operation.
+// - FriendGroup: Friend group value supplied by the caller for this operation.
+// - EnemyGroup: Enemy group value supplied by the caller for this operation.
+// - EnemyFactionIds: Enemy faction ids value supplied by the caller for this operation.
+// - FriendFactionIds: Friend faction ids value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record FactionTemplateDbcRecord(
     int Id,
     int FactionId,

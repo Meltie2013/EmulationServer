@@ -15,75 +15,71 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Chat/ChatMessageType.cs
-  * Documents the ChatMessageType source file in the chat channel normalization, language handling, and message routing area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Chat/ChatMessageType.cs
+// Purpose: Contains chat message type code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Chat;
 
-/**
-  * Lists the supported chat message type values used by the chat channel normalization, language handling, and message routing layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: ChatMessageType
+// Purpose: Defines the allowed chat message type values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum ChatMessageType : uint
 {
-    /**
-      * Represents the say value for chat message type handling.
-      */
+
+    // Enum Value: Defines the say enum value.
+    // Value: explicit expression 0.
     Say = 0,
-    /**
-      * Represents the party value for chat message type handling.
-      */
+
+    // Enum Value: Defines the party enum value.
+    // Value: explicit expression 1.
     Party = 1,
-    /**
-      * Represents the raid value for chat message type handling.
-      */
+
+    // Enum Value: Defines the raid enum value.
+    // Value: explicit expression 2.
     Raid = 2,
-    /**
-      * Represents the guild value for chat message type handling.
-      */
+
+    // Enum Value: Defines the guild enum value.
+    // Value: explicit expression 3.
     Guild = 3,
-    /**
-      * Represents the officer value for chat message type handling.
-      */
+
+    // Enum Value: Defines the officer enum value.
+    // Value: explicit expression 4.
     Officer = 4,
-    /**
-      * Represents the yell value for chat message type handling.
-      */
+
+    // Enum Value: Defines the yell enum value.
+    // Value: explicit expression 5.
     Yell = 5,
-    /**
-      * Represents the whisper value for chat message type handling.
-      */
+
+    // Enum Value: Defines the whisper enum value.
+    // Value: explicit expression 6.
     Whisper = 6,
-    /**
-      * Represents the whisper inform value for chat message type handling.
-      */
+
+    // Enum Value: Defines the whisper inform enum value.
+    // Value: explicit expression 7.
     WhisperInform = 7,
-    /**
-      * Represents the emote value for chat message type handling.
-      */
+
+    // Enum Value: Defines the emote enum value.
+    // Value: explicit expression 8.
     Emote = 8,
-    /**
-      * Represents the text emote value for chat message type handling.
-      */
+
+    // Enum Value: Defines the text emote enum value.
+    // Value: explicit expression 9.
     TextEmote = 9,
-    /**
-      * Represents the system value for chat message type handling.
-      */
+
+    // Enum Value: Defines the system enum value.
+    // Value: explicit expression 10.
     System = 10,
-    /**
-      * Represents the raid leader value for chat message type handling.
-      */
+
+    // Enum Value: Defines the raid leader enum value.
+    // Value: explicit expression 11.
     RaidLeader = 11,
-    /**
-      * Represents the raid warning value for chat message type handling.
-      */
+
+    // Enum Value: Defines the raid warning enum value.
+    // Value: explicit expression 12.
     RaidWarning = 12,
-    /**
-      * Represents the channel value for chat message type handling.
-      */
+
+    // Enum Value: Defines the channel enum value.
+    // Value: explicit expression 17.
     Channel = 17,
 }

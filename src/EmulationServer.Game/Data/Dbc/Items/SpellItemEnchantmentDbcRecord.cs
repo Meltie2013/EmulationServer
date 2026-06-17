@@ -15,17 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/SpellItemEnchantmentDbcRecord.cs
-  * Documents item enchantment DBC rows for random property and enchantment validation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Items/SpellItemEnchantmentDbcRecord.cs
+// Purpose: Contains spell item enchantment DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Represents one SpellItemEnchantment.dbc row.
-  */
+// Type: SpellItemEnchantmentDbcRecord
+// Purpose: Represents spell item enchantment DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - EnchantmentTypes: Enchantment types value supplied by the caller for this operation.
+// - EffectPointsMinimum: Effect points minimum value supplied by the caller for this operation.
+// - EffectPointsMaximum: Effect points maximum value supplied by the caller for this operation.
+// - EffectArguments: Effect arguments value supplied by the caller for this operation.
+// - Name: Name value supplied by the caller for this operation.
+// - AuraId: Aura ID identifier used to select the exact record, object, or runtime owner.
+// - Slot: Slot value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record SpellItemEnchantmentDbcRecord(
     int Id,
     IReadOnlyList<int> EnchantmentTypes,

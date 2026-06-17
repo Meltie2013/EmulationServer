@@ -15,45 +15,46 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
+// Purpose: Contains DBC data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Text;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/DbcDataStore.cs
-  * Documents the DbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc;
 
-/**
-  * Loads generic DBC records and exposes raw cell access before typed DBC schemas are implemented.
-  * It owns loaded data in memory and provides lookup access to other systems.
-  */
+// Type: DbcDataStore
+// Purpose: Provides DBC data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class DbcDataStore
 {
-    /**
-      * Holds the private record data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the record data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current record data backing value maintained by the owning type.
     private readonly byte[] _recordData;
-    /**
-      * Holds the private string block state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the string block state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current string block backing value maintained by the owning type.
     private readonly byte[] _stringBlock;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, int> _recordIndexById;
-    /**
-      * Holds the private field size state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the field size state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current field size backing value maintained by the owning type.
     private readonly int _fieldSize;
 
-    /**
-      * Initializes a new DbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: path, header, recordData, stringBlock, recordIndexById, fieldSize.
-      */
+    // Constructor: DbcDataStore
+    // Purpose: Initializes a new DbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // - header: Header value supplied by the caller for this operation.
+    // - byterecordData: Byterecord data value supplied by the caller for this operation.
+    // - bytestringBlock: Bytestring block value supplied by the caller for this operation.
+    // - recordIndexById: Record index by ID identifier used to select the exact record, object, or runtime owner.
+    // - fieldSize: Field size value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private DbcDataStore(
         string path,
         DbcHeader header,
@@ -71,40 +72,32 @@ public sealed class DbcDataStore
         _fieldSize = fieldSize;
     }
 
-    /**
-      * Gets or stores the path value used by DbcDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the path value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: path value exposed by the owning type.
     public string Path { get; }
 
-    /**
-      * Gets or stores the name value used by DbcDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the name value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: name value exposed by the owning type.
     public string Name { get; }
 
-    /**
-      * Gets or stores the header value used by DbcDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the header value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: header value exposed by the owning type.
     public DbcHeader Header { get; }
 
-    /**
-      * Gets or stores the record count value used by DbcDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the record count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: record count value exposed by the owning type.
     public int RecordCount => Header.RecordCount;
 
-    /**
-      * Gets or stores the field count value used by DbcDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the field count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: field count value exposed by the owning type.
     public int FieldCount => Header.FieldCount;
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
-      */
+    // Method: GetRecord
+    // Purpose: Retrieves get record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public DbcRecord GetRecord(int index)
     {
         if (index < 0 || index >= Header.RecordCount)
@@ -116,11 +109,13 @@ public sealed class DbcDataStore
         return new DbcRecord(_recordData.AsMemory(offset, Header.RecordSize), _stringBlock, Header.FieldCount, _fieldSize);
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryGetRecordById
+    // Purpose: Attempts to retrieve or parse try get record by ID data without treating normal misses as failures.
+    // Parameters:
+    // - id: Id value supplied by the caller for this operation.
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns true when try get record by ID succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetRecordById(uint id, out DbcRecord record)
     {
         if (_recordIndexById.TryGetValue(id, out int index))
@@ -133,10 +128,11 @@ public sealed class DbcDataStore
         return false;
     }
 
-    /**
-      * Performs the enumerate records operation for the DBC loading and strongly typed client data records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: EnumerateRecords
+    // Purpose: Executes the enumerate records operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IEnumerable<DbcRecord> EnumerateRecords()
     {
         for (int index = 0; index < Header.RecordCount; index++)
@@ -145,10 +141,12 @@ public sealed class DbcDataStore
         }
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static DbcDataStore Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -157,10 +155,13 @@ public sealed class DbcDataStore
         return Load(stream, path);
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - sourceName: Source name value supplied by the caller for this operation.
+    // Returns: Returns the DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static DbcDataStore Load(Stream stream, string sourceName)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -200,14 +201,19 @@ public sealed class DbcDataStore
         return new DbcDataStore(sourceName, header, records, stringBlock, recordIndexById, fieldSize);
     }
 
+    // Method: BuildRecordIndex
+    // Purpose: Builds or writes build record index output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - byterecords: Byterecords value supplied by the caller for this operation.
+    // - header: Header value supplied by the caller for this operation.
+    // - bytestringBlock: Bytestring block value supplied by the caller for this operation.
+    // - fieldSize: Field size value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<uint, int> BuildRecordIndex(byte[] records, DbcHeader header, byte[] stringBlock, int fieldSize)
     {
         Dictionary<uint, int> index = new();
 
-        // Some DBC files, such as CharBaseInfo.dbc, are compact helper tables
-        // with one-byte fields and no stable four-byte id column. Do not build a
-        // misleading id index for those generic raw stores. Typed stores can add
-        // the correct lookup keys later.
         if (fieldSize != sizeof(uint) || header.RecordSize < sizeof(uint))
         {
             return index;
@@ -223,19 +229,24 @@ public sealed class DbcDataStore
         return index;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
-      */
+    // Method: GetGenericFieldSize
+    // Purpose: Retrieves get generic field size data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - header: Header value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static int GetGenericFieldSize(DbcHeader header)
     {
         return header.TryGetUniformFieldSize(out int fieldSize) ? fieldSize : 0;
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of DbcDataStore and keeps this workflow isolated from the caller.
-      */
+    // Method: ValidateHeader
+    // Purpose: Validates or evaluates validate header rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - header: Header value supplied by the caller for this operation.
+    // - sourceName: Source name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to DbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static void ValidateHeader(DbcHeader header, string sourceName)
     {
         if (!string.Equals(header.Magic, DbcHeader.ExpectedMagic, StringComparison.Ordinal))

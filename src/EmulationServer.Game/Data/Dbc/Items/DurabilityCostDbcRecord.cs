@@ -15,17 +15,19 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/DurabilityCostDbcRecord.cs
-  * Documents durability-cost DBC rows for future item repair calculations.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Items/DurabilityCostDbcRecord.cs
+// Purpose: Contains durability cost DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Represents one DurabilityCosts.dbc row.
-  */
+// Type: DurabilityCostDbcRecord
+// Purpose: Represents durability cost DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - ItemLevel: Item level value supplied by the caller for this operation.
+// - WeaponSubClassCosts: Weapon sub class costs value supplied by the caller for this operation.
+// - ArmorSubClassCosts: Armor sub class costs value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record DurabilityCostDbcRecord(
     int ItemLevel,
     IReadOnlyList<int> WeaponSubClassCosts,

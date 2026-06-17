@@ -15,29 +15,22 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/WorldTemplateDataStore.cs
+// Purpose: Contains world template data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Players;
-
-/**
-  * File overview: src/EmulationServer.Game/WorldData/WorldTemplateDataStore.cs
-  * Documents the WorldTemplateDataStore source file in the world database template loading and cache construction area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
 
 using EmulationServer.Game.Formulas;
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Owns the world template data store behavior for the world database template loading and cache construction layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldTemplateDataStore
+// Purpose: Provides world template data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldTemplateDataStore
 {
-    /**
-      * Exposes the empty value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+
     public static WorldTemplateDataStore Empty { get; } = new(
         Array.Empty<PlayerCreateInfoRecord>(),
         Array.Empty<ItemTemplateRecord>(),
@@ -52,30 +45,129 @@ public sealed class WorldTemplateDataStore
         Array.Empty<CreatureTemplateRecord>(),
         Array.Empty<CreatureSpawnRecord>());
 
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(byte Race, byte Class), PlayerCreateInfoRecord> _playerCreateInfo;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, ItemTemplateRecord> _itemTemplates;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // - Level: Level value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(byte Race, byte Class, byte Level), PlayerLevelStatsRecord> _playerLevelStats;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Class: Class value supplied by the caller for this operation.
+    // - Level: Level value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(byte Class, byte Level), PlayerClassLevelStatsRecord> _playerClassLevelStats;
+    // Field: Stores the byte state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current byte backing value maintained by the owning type.
     private readonly Dictionary<byte, PlayerLevelExperienceRecord> _playerLevelExperience;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateActionRecord>> _playerCreateActions;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> _playerCreateItems;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> _playerCreateSpells;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, GameObjectTemplateRecord> _gameObjectTemplates;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, GameObjectSpawnRecord> _gameObjectSpawns;
+    // Field: Stores the ushort state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current ushort backing value maintained by the owning type.
     private readonly Dictionary<ushort, IReadOnlyList<GameObjectSpawnRecord>> _gameObjectSpawnsByMap;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Map: Map value supplied by the caller for this operation.
+    // - ZoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(ushort Map, uint ZoneId), IReadOnlyList<GameObjectSpawnRecord>> _gameObjectSpawnsByZone;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Map: Map value supplied by the caller for this operation.
+    // - AreaId: Area ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(ushort Map, uint AreaId), IReadOnlyList<GameObjectSpawnRecord>> _gameObjectSpawnsByArea;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, CreatureTemplateRecord> _creatureTemplates;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, CreatureSpawnRecord> _creatureSpawns;
+    // Field: Stores the ushort state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current ushort backing value maintained by the owning type.
     private readonly Dictionary<ushort, IReadOnlyList<CreatureSpawnRecord>> _creatureSpawnsByMap;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Map: Map value supplied by the caller for this operation.
+    // - ZoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(ushort Map, uint ZoneId), IReadOnlyList<CreatureSpawnRecord>> _creatureSpawnsByZone;
+    // Constructor: Dictionary
+    // Purpose: Executes the dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Map: Map value supplied by the caller for this operation.
+    // - AreaId: Area ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Dictionary<(ushort Map, uint AreaId), IReadOnlyList<CreatureSpawnRecord>> _creatureSpawnsByArea;
 
-    /**
-      * Initializes a new WorldTemplateDataStore instance with the dependencies required by the world database template loading and cache construction workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: playerCreateInfo, itemTemplates, playerLevelStats, playerClassLevelStats, playerLevelExperience, playerCreateActions....
-      */
+    // Constructor: WorldTemplateDataStore
+    // Purpose: Initializes a new WorldTemplateDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - playerCreateInfo: Player create info value supplied by the caller for this operation.
+    // - itemTemplates: Item templates value supplied by the caller for this operation.
+    // - playerLevelStats: Player level stats value supplied by the caller for this operation.
+    // - playerClassLevelStats: Player class level stats value supplied by the caller for this operation.
+    // - playerLevelExperience: Player level experience value supplied by the caller for this operation.
+    // - playerCreateActions: Player create actions value supplied by the caller for this operation.
+    // - playerCreateItems: Player create items value supplied by the caller for this operation.
+    // - playerCreateSpells: Player create spells value supplied by the caller for this operation.
+    // - gameObjectTemplates: Game object templates value supplied by the caller for this operation.
+    // - gameObjectSpawns: Game object spawns value supplied by the caller for this operation.
+    // - creatureTemplates: Creature templates value supplied by the caller for this operation.
+    // - creatureSpawns: Creature spawns value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public WorldTemplateDataStore(
         IEnumerable<PlayerCreateInfoRecord> playerCreateInfo,
         IEnumerable<ItemTemplateRecord> itemTemplates,
@@ -190,115 +282,212 @@ public sealed class WorldTemplateDataStore
             .ToDictionary(group => group.Key, group => (IReadOnlyList<CreatureSpawnRecord>)group.OrderBy(record => record.Guid).ToArray());
     }
 
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(byte Race, byte Class), PlayerCreateInfoRecord> PlayerCreateInfo => _playerCreateInfo;
 
+    // Property: Gets or sets the uint value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: uint value exposed by the owning type.
     public IReadOnlyDictionary<uint, ItemTemplateRecord> ItemTemplates => _itemTemplates;
 
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // - Level: Level value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(byte Race, byte Class, byte Level), PlayerLevelStatsRecord> PlayerLevelStats => _playerLevelStats;
 
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Class: Class value supplied by the caller for this operation.
+    // - Level: Level value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(byte Class, byte Level), PlayerClassLevelStatsRecord> PlayerClassLevelStats => _playerClassLevelStats;
 
+    // Property: Gets or sets the byte value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: byte value exposed by the owning type.
     public IReadOnlyDictionary<byte, PlayerLevelExperienceRecord> PlayerLevelExperience => _playerLevelExperience;
 
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateActionRecord>> PlayerCreateActions => _playerCreateActions;
 
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateItemRecord>> PlayerCreateItems => _playerCreateItems;
 
+    // Constructor: IReadOnlyDictionary
+    // Purpose: Executes the I read only dictionary operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<(byte Race, byte Class), IReadOnlyList<PlayerCreateSpellRecord>> PlayerCreateSpells => _playerCreateSpells;
 
+    // Property: Gets or sets the uint value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: uint value exposed by the owning type.
     public IReadOnlyDictionary<uint, GameObjectTemplateRecord> GameObjectTemplates => _gameObjectTemplates;
 
+    // Property: Gets or sets the uint value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: uint value exposed by the owning type.
     public IReadOnlyDictionary<uint, GameObjectSpawnRecord> GameObjectSpawns => _gameObjectSpawns;
 
+    // Property: Gets or sets the ushort value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: ushort value exposed by the owning type.
     public IReadOnlyDictionary<ushort, IReadOnlyList<GameObjectSpawnRecord>> GameObjectSpawnsByMap => _gameObjectSpawnsByMap;
 
+    // Property: Gets or sets the uint value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: uint value exposed by the owning type.
     public IReadOnlyDictionary<uint, CreatureTemplateRecord> CreatureTemplates => _creatureTemplates;
 
+    // Property: Gets or sets the uint value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: uint value exposed by the owning type.
     public IReadOnlyDictionary<uint, CreatureSpawnRecord> CreatureSpawns => _creatureSpawns;
 
+    // Property: Gets or sets the ushort value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: ushort value exposed by the owning type.
     public IReadOnlyDictionary<ushort, IReadOnlyList<CreatureSpawnRecord>> CreatureSpawnsByMap => _creatureSpawnsByMap;
 
-    /**
-      * Stores the default player level stats count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the player level stats count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: player level stats count value exposed by the owning type.
     public int PlayerLevelStatsCount => _playerLevelStats.Count;
 
-    /**
-      * Stores the default player class level stats count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the player class level stats count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: player class level stats count value exposed by the owning type.
     public int PlayerClassLevelStatsCount => _playerClassLevelStats.Count;
 
-    /**
-      * Stores the default player level experience count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the player level experience count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: player level experience count value exposed by the owning type.
     public int PlayerLevelExperienceCount => _playerLevelExperience.Count;
 
-    /**
-      * Stores the default player create action count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Method: Sum
+    // Purpose: Executes the sum operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the int player create action count => player create actions.values. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public int PlayerCreateActionCount => _playerCreateActions.Values.Sum(records => records.Count);
 
-    /**
-      * Stores the default player create item count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Method: Sum
+    // Purpose: Executes the sum operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the int player create item count => player create items.values. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public int PlayerCreateItemCount => _playerCreateItems.Values.Sum(records => records.Count);
 
-    /**
-      * Stores the default player create spell count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Method: Sum
+    // Purpose: Executes the sum operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - records: Records value supplied by the caller for this operation.
+    // Returns: Returns the int player create spell count => player create spells.values. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public int PlayerCreateSpellCount => _playerCreateSpells.Values.Sum(records => records.Count);
 
+    // Property: Gets or sets the game object template count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: game object template count value exposed by the owning type.
     public int GameObjectTemplateCount => _gameObjectTemplates.Count;
 
+    // Property: Gets or sets the game object spawn count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: game object spawn count value exposed by the owning type.
     public int GameObjectSpawnCount => _gameObjectSpawns.Count;
 
+    // Property: Gets or sets the game object spawn map count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: game object spawn map count value exposed by the owning type.
     public int GameObjectSpawnMapCount => _gameObjectSpawnsByMap.Count;
 
+    // Property: Gets or sets the game object spawn zone count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: game object spawn zone count value exposed by the owning type.
     public int GameObjectSpawnZoneCount => _gameObjectSpawnsByZone.Count;
 
+    // Property: Gets or sets the game object spawn area count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: game object spawn area count value exposed by the owning type.
     public int GameObjectSpawnAreaCount => _gameObjectSpawnsByArea.Count;
 
+    // Property: Gets or sets the creature template count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature template count value exposed by the owning type.
     public int CreatureTemplateCount => _creatureTemplates.Count;
 
+    // Property: Gets or sets the creature spawn count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature spawn count value exposed by the owning type.
     public int CreatureSpawnCount => _creatureSpawns.Count;
 
+    // Property: Gets or sets the creature spawn map count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature spawn map count value exposed by the owning type.
     public int CreatureSpawnMapCount => _creatureSpawnsByMap.Count;
 
+    // Property: Gets or sets the creature spawn zone count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature spawn zone count value exposed by the owning type.
     public int CreatureSpawnZoneCount => _creatureSpawnsByZone.Count;
 
+    // Property: Gets or sets the creature spawn area count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature spawn area count value exposed by the owning type.
     public int CreatureSpawnAreaCount => _creatureSpawnsByArea.Count;
 
-    /**
-      * Tries to resolve the get player create info value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass, createInfo.
-      */
+    // Method: TryGetPlayerCreateInfo
+    // Purpose: Attempts to retrieve or parse try get player create info data without treating normal misses as failures.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - createInfo: Create info value supplied by the caller for this operation.
+    // Returns: Returns true when try get player create info succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetPlayerCreateInfo(byte race, byte characterClass, out PlayerCreateInfoRecord createInfo)
     {
         return _playerCreateInfo.TryGetValue((race, characterClass), out createInfo!);
     }
 
-    /**
-      * Tries to resolve the get item template value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: entry, itemTemplate.
-      */
+    // Method: TryGetItemTemplate
+    // Purpose: Attempts to retrieve or parse try get item template data without treating normal misses as failures.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns true when try get item template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetItemTemplate(uint entry, out ItemTemplateRecord itemTemplate)
     {
         return _itemTemplates.TryGetValue(entry, out itemTemplate!);
     }
 
+    // Method: TryGetGameObjectTemplate
+    // Purpose: Attempts to retrieve or parse try get game object template data without treating normal misses as failures.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - gameObjectTemplate: Game object template value supplied by the caller for this operation.
+    // Returns: Returns true when try get game object template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetGameObjectTemplate(uint entry, out GameObjectTemplateRecord gameObjectTemplate)
     {
         return _gameObjectTemplates.TryGetValue(entry, out gameObjectTemplate!);
     }
 
+    // Method: GetGameObjectTemplateOrDefault
+    // Purpose: Retrieves get game object template or default data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the game object template record? value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public GameObjectTemplateRecord? GetGameObjectTemplateOrDefault(uint entry)
     {
         return _gameObjectTemplates.TryGetValue(entry, out GameObjectTemplateRecord? template)
@@ -306,16 +495,36 @@ public sealed class WorldTemplateDataStore
             : null;
     }
 
+    // Method: TryGetGameObjectSpawn
+    // Purpose: Attempts to retrieve or parse try get game object spawn data without treating normal misses as failures.
+    // Parameters:
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - gameObjectSpawn: Game object spawn value supplied by the caller for this operation.
+    // Returns: Returns true when try get game object spawn succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetGameObjectSpawn(uint guid, out GameObjectSpawnRecord gameObjectSpawn)
     {
         return _gameObjectSpawns.TryGetValue(guid, out gameObjectSpawn!);
     }
 
+    // Method: TryGetCreatureTemplate
+    // Purpose: Attempts to retrieve or parse try get creature template data without treating normal misses as failures.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - creatureTemplate: Creature template value supplied by the caller for this operation.
+    // Returns: Returns true when try get creature template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetCreatureTemplate(uint entry, out CreatureTemplateRecord creatureTemplate)
     {
         return _creatureTemplates.TryGetValue(entry, out creatureTemplate!);
     }
 
+    // Method: GetCreatureTemplateOrDefault
+    // Purpose: Retrieves get creature template or default data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the creature template record? value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public CreatureTemplateRecord? GetCreatureTemplateOrDefault(uint entry)
     {
         return _creatureTemplates.TryGetValue(entry, out CreatureTemplateRecord? template)
@@ -323,11 +532,24 @@ public sealed class WorldTemplateDataStore
             : null;
     }
 
+    // Method: TryGetCreatureSpawn
+    // Purpose: Attempts to retrieve or parse try get creature spawn data without treating normal misses as failures.
+    // Parameters:
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - creatureSpawn: Creature spawn value supplied by the caller for this operation.
+    // Returns: Returns true when try get creature spawn succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetCreatureSpawn(uint guid, out CreatureSpawnRecord creatureSpawn)
     {
         return _creatureSpawns.TryGetValue(guid, out creatureSpawn!);
     }
 
+    // Method: GetGameObjectSpawnsForMap
+    // Purpose: Retrieves get game object spawns for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<GameObjectSpawnRecord> GetGameObjectSpawnsForMap(ushort mapId)
     {
         return _gameObjectSpawnsByMap.TryGetValue(mapId, out IReadOnlyList<GameObjectSpawnRecord>? records)
@@ -335,6 +557,13 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<GameObjectSpawnRecord>();
     }
 
+    // Method: GetGameObjectSpawnsForZone
+    // Purpose: Retrieves get game object spawns for zone data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - zoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<GameObjectSpawnRecord> GetGameObjectSpawnsForZone(ushort mapId, uint zoneId)
     {
         return _gameObjectSpawnsByZone.TryGetValue((mapId, zoneId), out IReadOnlyList<GameObjectSpawnRecord>? records)
@@ -342,6 +571,13 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<GameObjectSpawnRecord>();
     }
 
+    // Method: GetGameObjectSpawnsForArea
+    // Purpose: Retrieves get game object spawns for area data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - areaId: Area ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<GameObjectSpawnRecord> GetGameObjectSpawnsForArea(ushort mapId, uint areaId)
     {
         return _gameObjectSpawnsByArea.TryGetValue((mapId, areaId), out IReadOnlyList<GameObjectSpawnRecord>? records)
@@ -349,6 +585,12 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<GameObjectSpawnRecord>();
     }
 
+    // Method: GetCreatureSpawnsForMap
+    // Purpose: Retrieves get creature spawns for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<CreatureSpawnRecord> GetCreatureSpawnsForMap(ushort mapId)
     {
         return _creatureSpawnsByMap.TryGetValue(mapId, out IReadOnlyList<CreatureSpawnRecord>? records)
@@ -356,6 +598,13 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<CreatureSpawnRecord>();
     }
 
+    // Method: GetCreatureSpawnsForZone
+    // Purpose: Retrieves get creature spawns for zone data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - zoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<CreatureSpawnRecord> GetCreatureSpawnsForZone(ushort mapId, uint zoneId)
     {
         return _creatureSpawnsByZone.TryGetValue((mapId, zoneId), out IReadOnlyList<CreatureSpawnRecord>? records)
@@ -363,6 +612,13 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<CreatureSpawnRecord>();
     }
 
+    // Method: GetCreatureSpawnsForArea
+    // Purpose: Retrieves get creature spawns for area data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - areaId: Area ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<CreatureSpawnRecord> GetCreatureSpawnsForArea(ushort mapId, uint areaId)
     {
         return _creatureSpawnsByArea.TryGetValue((mapId, areaId), out IReadOnlyList<CreatureSpawnRecord>? records)
@@ -370,31 +626,40 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<CreatureSpawnRecord>();
     }
 
-    /**
-      * Tries to resolve the get player level stats value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass, level, levelStats.
-      */
+    // Method: TryGetPlayerLevelStats
+    // Purpose: Attempts to retrieve or parse try get player level stats data without treating normal misses as failures.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - level: Level value supplied by the caller for this operation.
+    // - levelStats: Level stats value supplied by the caller for this operation.
+    // Returns: Returns true when try get player level stats succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetPlayerLevelStats(byte race, byte characterClass, byte level, out PlayerLevelStatsRecord levelStats)
     {
         return _playerLevelStats.TryGetValue((race, characterClass, level), out levelStats!);
     }
 
-    /**
-      * Tries to resolve the get player class level stats value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: characterClass, level, classLevelStats.
-      */
+    // Method: TryGetPlayerClassLevelStats
+    // Purpose: Attempts to retrieve or parse try get player class level stats data without treating normal misses as failures.
+    // Parameters:
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - level: Level value supplied by the caller for this operation.
+    // - classLevelStats: Class level stats value supplied by the caller for this operation.
+    // Returns: Returns true when try get player class level stats succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetPlayerClassLevelStats(byte characterClass, byte level, out PlayerClassLevelStatsRecord classLevelStats)
     {
         return _playerClassLevelStats.TryGetValue((characterClass, level), out classLevelStats!);
     }
 
-    /**
-      * Resolves the player create actions value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass.
-      */
+    // Method: GetPlayerCreateActions
+    // Purpose: Retrieves get player create actions data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<PlayerCreateActionRecord> GetPlayerCreateActions(byte race, byte characterClass)
     {
         return _playerCreateActions.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateActionRecord>? records)
@@ -402,11 +667,13 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<PlayerCreateActionRecord>();
     }
 
-    /**
-      * Resolves the player create items value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass.
-      */
+    // Method: GetPlayerCreateItems
+    // Purpose: Retrieves get player create items data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<PlayerCreateItemRecord> GetPlayerCreateItems(byte race, byte characterClass)
     {
         return _playerCreateItems.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateItemRecord>? records)
@@ -414,11 +681,13 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<PlayerCreateItemRecord>();
     }
 
-    /**
-      * Resolves the player create spells value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass.
-      */
+    // Method: GetPlayerCreateSpells
+    // Purpose: Retrieves get player create spells data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<PlayerCreateSpellRecord> GetPlayerCreateSpells(byte race, byte characterClass)
     {
         return _playerCreateSpells.TryGetValue((race, characterClass), out IReadOnlyList<PlayerCreateSpellRecord>? records)
@@ -426,11 +695,12 @@ public sealed class WorldTemplateDataStore
             : Array.Empty<PlayerCreateSpellRecord>();
     }
 
-    /**
-      * Resolves the next level experience value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: level.
-      */
+    // Method: GetNextLevelExperience
+    // Purpose: Retrieves get next level experience data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - level: Level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetNextLevelExperience(byte level)
     {
         byte safeLevel = level == 0 ? (byte)1 : level;
@@ -442,11 +712,14 @@ public sealed class WorldTemplateDataStore
         return ExperienceFormula.GetFallbackNextLevelExperience(safeLevel);
     }
 
-    /**
-      * Builds the build base player stats result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: race, characterClass, level.
-      */
+    // Method: BuildBasePlayerStats
+    // Purpose: Builds or writes build base player stats output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - level: Level value supplied by the caller for this operation.
+    // Returns: Returns the player stats value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public PlayerStats BuildBasePlayerStats(byte race, byte characterClass, byte level)
     {
         byte safeLevel = level == 0 ? (byte)1 : level;
@@ -475,6 +748,12 @@ public sealed class WorldTemplateDataStore
         return new PlayerStats(health, mana, rage, 0, energy, 0, strength, agility, stamina, intellect, spirit, armor);
     }
 
+    // Method: GetItemTemplates
+    // Purpose: Retrieves get item templates data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - itemEntries: Item entries value supplied by the caller for this operation.
+    // Returns: Returns the I read only dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<uint, ItemTemplateRecord> GetItemTemplates(IEnumerable<uint> itemEntries)
     {
         ArgumentNullException.ThrowIfNull(itemEntries);
@@ -496,10 +775,12 @@ public sealed class WorldTemplateDataStore
         return result;
     }
 
-    /**
-      * Rebuilds the immutable world cache with the same templates and a fully replaced game object spawn set.
-      * This is used after startup coordinate enrichment so map/zone/area indexes reflect persisted per-guid locations.
-      */
+    // Method: WithGameObjectSpawns
+    // Purpose: Executes the with game object spawns operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - gameObjectSpawns: Game object spawns value supplied by the caller for this operation.
+    // Returns: Returns the world template data store value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public WorldTemplateDataStore WithGameObjectSpawns(IEnumerable<GameObjectSpawnRecord> gameObjectSpawns)
     {
         ArgumentNullException.ThrowIfNull(gameObjectSpawns);
@@ -519,10 +800,14 @@ public sealed class WorldTemplateDataStore
             _creatureSpawns.Values);
     }
 
-    /**
-      * Rebuilds the immutable world cache with refreshed game object templates and one refreshed map's spawn rows.
-      * This is used by map restart/start control paths so DB edits to gameobject rows can be observed without rebooting WorldServer.
-      */
+    // Method: WithGameObjectDataForMap
+    // Purpose: Executes the with game object data for map operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - gameObjectTemplates: Game object templates value supplied by the caller for this operation.
+    // - mapGameObjectSpawns: Map game object spawns value supplied by the caller for this operation.
+    // Returns: Returns the world template data store value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public WorldTemplateDataStore WithGameObjectDataForMap(
         ushort mapId,
         IEnumerable<GameObjectTemplateRecord> gameObjectTemplates,
@@ -550,9 +835,12 @@ public sealed class WorldTemplateDataStore
             _creatureSpawns.Values);
     }
 
-    /**
-      * Rebuilds the immutable world cache with the same templates and a fully replaced creature spawn set.
-      */
+    // Method: WithCreatureSpawns
+    // Purpose: Executes the with creature spawns operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - creatureSpawns: Creature spawns value supplied by the caller for this operation.
+    // Returns: Returns the world template data store value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public WorldTemplateDataStore WithCreatureSpawns(IEnumerable<CreatureSpawnRecord> creatureSpawns)
     {
         ArgumentNullException.ThrowIfNull(creatureSpawns);
@@ -572,9 +860,14 @@ public sealed class WorldTemplateDataStore
             creatureSpawns);
     }
 
-    /**
-      * Rebuilds the immutable world cache with refreshed creature templates and one refreshed map's spawn rows.
-      */
+    // Method: WithCreatureDataForMap
+    // Purpose: Executes the with creature data for map operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - creatureTemplates: Creature templates value supplied by the caller for this operation.
+    // - mapCreatureSpawns: Map creature spawns value supplied by the caller for this operation.
+    // Returns: Returns the world template data store value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public WorldTemplateDataStore WithCreatureDataForMap(
         ushort mapId,
         IEnumerable<CreatureTemplateRecord> creatureTemplates,
@@ -602,21 +895,27 @@ public sealed class WorldTemplateDataStore
             mergedSpawns);
     }
 
-    /**
-      * Builds the build fallback next level experience result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: level.
-      */
+    // Method: BuildFallbackNextLevelExperience
+    // Purpose: Builds or writes build fallback next level experience output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - level: Level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static uint BuildFallbackNextLevelExperience(byte level)
     {
         return ExperienceFormula.GetFallbackNextLevelExperience(level);
     }
 
-    /**
-      * Performs the static operation for the world database template loading and cache construction workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: Strength, Agility, Stamina, Intellect, level.
-      */
+    // Method: static
+    // Purpose: Executes the static operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - Strength: Strength value supplied by the caller for this operation.
+    // - Agility: Agility value supplied by the caller for this operation.
+    // - Stamina: Stamina value supplied by the caller for this operation.
+    // - Intellect: Intellect value supplied by the caller for this operation.
+    // - Spirit: Spirit value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldTemplateDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static (uint Strength, uint Agility, uint Stamina, uint Intellect, uint Spirit) ResolveFallbackAttributes(byte playerClass, byte level)
     {
         (uint strength, uint agility, uint stamina, uint intellect, uint spirit) = playerClass switch

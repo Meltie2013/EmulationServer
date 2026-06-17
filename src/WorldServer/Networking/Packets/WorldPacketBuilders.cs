@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Packets/WorldPacketBuilders.cs
+// Purpose: Contains world packet builders code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.IO.Compression;
@@ -28,73 +31,106 @@ using EmulationServer.Game.Reputation;
 using EmulationServer.Game.Formulas;
 using EmulationServer.Game.WorldData;
 
-/**
-  * File overview: src/WorldServer/Networking/Packets/WorldPacketBuilders.cs
-  * Documents the WorldPacketBuilders source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Owns the world packet builders behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldPacketBuilders
+// Purpose: Provides world packet builders behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldPacketBuilders
 {
-    /**
-      * Defines the constant value for character equipment slot count.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the character equipment slot count constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed character equipment slot count value used anywhere this rule or protocol value is needed.
     private const int CharacterEquipmentSlotCount = 19;
+    // Constant: Defines the inventory slot bag end constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed inventory slot bag end value used anywhere this rule or protocol value is needed.
     private const int InventorySlotBagEnd = 23;
+    // Constant: Defines the inventory slot item start constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed inventory slot item start value used anywhere this rule or protocol value is needed.
     private const int InventorySlotItemStart = 23;
+    // Constant: Defines the inventory slot item end constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed inventory slot item end value used anywhere this rule or protocol value is needed.
     private const int InventorySlotItemEnd = 39;
+    // Constant: Defines the bank slot item start constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed bank slot item start value used anywhere this rule or protocol value is needed.
     private const int BankSlotItemStart = 39;
+    // Constant: Defines the bank slot item end constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed bank slot item end value used anywhere this rule or protocol value is needed.
     private const int BankSlotItemEnd = 63;
+    // Constant: Defines the bank slot bag start constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed bank slot bag start value used anywhere this rule or protocol value is needed.
     private const int BankSlotBagStart = 63;
+    // Constant: Defines the bank slot bag end constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed bank slot bag end value used anywhere this rule or protocol value is needed.
     private const int BankSlotBagEnd = 69;
+    // Constant: Defines the keyring slot start constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed keyring slot start value used anywhere this rule or protocol value is needed.
     private const int KeyringSlotStart = 81;
+    // Constant: Defines the keyring slot end constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed keyring slot end value used anywhere this rule or protocol value is needed.
     private const int KeyringSlotEnd = 113;
-    /**
-      * Defines the constant value for at login first.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the at login first constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed at login first value used anywhere this rule or protocol value is needed.
     private const uint AtLoginFirst = 0x20;
 
-    /**
-      * Vanilla object create movement update flags.
-      * These mirror the 1.12 layout used by Object::BuildMovementUpdate:
-      * - write update flags first
-      * - write MovementInfo when UPDATEFLAG_LIVING is present
-      * - write movement speeds immediately after living MovementInfo
-      * - write optional trailing fields in flag order.
-      */
     [Flags]
+    // Type: VanillaUpdateFlags
+    // Purpose: Defines the allowed vanilla update flags values used by the world server gameplay, session, and character runtime layer.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private enum VanillaUpdateFlags : byte
     {
+        // Enum Value: Defines the none enum value.
+        // Value: explicit expression 0x00.
         None = 0x00,
+        // Enum Value: Defines the self enum value.
+        // Value: explicit expression 0x01.
         Self = 0x01,
+        // Enum Value: Defines the transport enum value.
+        // Value: explicit expression 0x02.
         Transport = 0x02,
+        // Enum Value: Defines the has attacking target enum value.
+        // Value: explicit expression 0x04.
         HasAttackingTarget = 0x04,
+        // Enum Value: Defines the high GUID enum value.
+        // Value: explicit expression 0x08.
         HighGuid = 0x08,
+        // Enum Value: Defines the all enum value.
+        // Value: explicit expression 0x10.
         All = 0x10,
+        // Enum Value: Defines the living enum value.
+        // Value: explicit expression 0x20.
         Living = 0x20,
+        // Enum Value: Defines the has position enum value.
+        // Value: explicit expression 0x40.
         HasPosition = 0x40,
     }
 
+    // Constant: Defines the player walk speed constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player walk speed value used anywhere this rule or protocol value is needed.
     private const float PlayerWalkSpeed = 2.5f;
+    // Constant: Defines the player run speed constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player run speed value used anywhere this rule or protocol value is needed.
     private const float PlayerRunSpeed = 7.0f;
+    // Constant: Defines the player run back speed constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player run back speed value used anywhere this rule or protocol value is needed.
     private const float PlayerRunBackSpeed = 4.5f;
+    // Constant: Defines the player swim speed constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player swim speed value used anywhere this rule or protocol value is needed.
     private const float PlayerSwimSpeed = 4.722222f;
+    // Constant: Defines the player swim back speed constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player swim back speed value used anywhere this rule or protocol value is needed.
     private const float PlayerSwimBackSpeed = 2.5f;
+    // Constant: Defines the player turn rate constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player turn rate value used anywhere this rule or protocol value is needed.
     private const float PlayerTurnRate = 3.1415927f;
 
-    /**
-      * Builds the build auth challenge result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: serverSeed.
-      */
+    // Method: BuildAuthChallenge
+    // Purpose: Builds or writes build auth challenge output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - serverSeed: Server seed value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildAuthChallenge(uint serverSeed)
     {
         WorldPacketWriter writer = new();
@@ -102,11 +138,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build auth response result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: code.
-      */
+    // Method: BuildAuthResponse
+    // Purpose: Builds or writes build auth response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - code: Code value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildAuthResponse(AuthResponseCode code)
     {
         WorldPacketWriter writer = new();
@@ -122,11 +159,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build addon info result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: clientAddonInfo.
-      */
+    // Method: BuildAddonInfo
+    // Purpose: Builds or writes build addon info output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - clientAddonInfo: Client addon info value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildAddonInfo(ReadOnlySpan<byte> clientAddonInfo)
     {
         if (clientAddonInfo.Length < sizeof(uint))
@@ -173,8 +211,8 @@ public static class WorldPacketBuilders
 
             uint crc = BinaryPrimitives.ReadUInt32LittleEndian(decompressed.AsSpan(offset, 4));
             offset += 4;
-            offset += 4; // unknown uint32
-            offset += 1; // unknown uint8
+            offset += 4;
+            offset += 1;
 
             writer.WriteUInt8(2);
             writer.WriteUInt8(1);
@@ -193,10 +231,6 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Stores the default addon public key value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
     private static readonly byte[] AddonPublicKey =
     [
         0xC3, 0x5B, 0x50, 0x84, 0xB9, 0x3E, 0x32, 0x42, 0x8C, 0xD0, 0xC7, 0x48, 0xFA, 0x0E, 0x5D, 0x54,
@@ -217,11 +251,12 @@ public static class WorldPacketBuilders
         0x0D, 0x36, 0xEA, 0x01, 0xE0, 0xAA, 0x91, 0x20, 0x54, 0xF0, 0x72, 0xD8, 0x1E, 0xC7, 0x89, 0xD2,
     ];
 
-    /**
-      * Builds the build character create result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: result.
-      */
+    // Method: BuildCharacterCreate
+    // Purpose: Builds or writes build character create output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCharacterCreate(CharacterCreateResult result)
     {
         WorldPacketWriter writer = new();
@@ -229,11 +264,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build character delete result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: result.
-      */
+    // Method: BuildCharacterDelete
+    // Purpose: Builds or writes build character delete output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCharacterDelete(CharacterDeleteResult result)
     {
         WorldPacketWriter writer = new();
@@ -241,18 +277,15 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build account data times result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: BuildAccountDataTimes
+    // Purpose: Builds or writes build account data times output for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildAccountDataTimes()
     {
         WorldPacketWriter writer = new();
 
-        // Vanilla sends thirty-two uint32 values here. Reference emulator implementations
-        // send all zeros at login. Sending only eight values leaves
-        // the client UI/addon cache bootstrap incomplete and can destabilize
-        // the packets that immediately follow world entry.
         for (int index = 0; index < 32; index++)
         {
             writer.WriteUInt32(0);
@@ -261,25 +294,27 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build update account data result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: accountDataType.
-      */
+    // Method: BuildUpdateAccountData
+    // Purpose: Builds or writes build update account data output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountDataType: Account data type value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildUpdateAccountData(uint accountDataType)
     {
         WorldPacketWriter writer = new();
         writer.WriteUInt32(accountDataType);
-        writer.WriteUInt32(0); // timestamp
-        writer.WriteUInt32(0); // decompressed size; no payload follows
+        writer.WriteUInt32(0);
+        writer.WriteUInt32(0);
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build character enum result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: characters.
-      */
+    // Method: BuildCharacterEnum
+    // Purpose: Builds or writes build character enum output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - characters: Characters value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCharacterEnum(IReadOnlyList<CharacterListEntry> characters)
     {
         WorldPacketWriter writer = new();
@@ -306,9 +341,9 @@ public static class WorldPacketBuilders
             writer.WriteUInt32(character.GuildId);
             writer.WriteUInt32(BuildCharacterEnumFlags(character));
             writer.WriteUInt8((character.AtLogin & AtLoginFirst) != 0 ? (byte)1 : (byte)0);
-            writer.WriteUInt32(0); // pet display id
-            writer.WriteUInt32(0); // pet level
-            writer.WriteUInt32(0); // pet family
+            writer.WriteUInt32(0);
+            writer.WriteUInt32(0);
+            writer.WriteUInt32(0);
 
             for (int slot = 0; slot < CharacterEquipmentSlotCount; slot++)
             {
@@ -320,32 +355,32 @@ public static class WorldPacketBuilders
                 writer.WriteUInt8(equipment.InventoryType);
             }
 
-            writer.WriteUInt32(0); // first bag display id
-            writer.WriteUInt8(0); // first bag inventory type
+            writer.WriteUInt32(0);
+            writer.WriteUInt8(0);
         }
 
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build character enum flags result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: character.
-      */
+    // Method: BuildCharacterEnumFlags
+    // Purpose: Builds or writes build character enum flags output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - character: Character value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint BuildCharacterEnumFlags(CharacterListEntry character)
     {
-        // Do not pass the server-side characters.playerFlags value directly here.
-        // The Vanilla character list packet expects client enum flags, while
-        // characters.playerFlags is a persisted in-world player state field.
+
         _ = character;
         return 0;
     }
 
-    /**
-      * Builds the build character login failed result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: failureCode.
-      */
+    // Method: BuildCharacterLoginFailed
+    // Purpose: Builds or writes build character login failed output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - failureCode: Failure code value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCharacterLoginFailed(CharacterLoginFailureCode failureCode)
     {
         WorldPacketWriter writer = new();
@@ -353,11 +388,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build notification result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: message.
-      */
+    // Method: BuildNotification
+    // Purpose: Builds or writes build notification output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildNotification(string message)
     {
         WorldPacketWriter writer = new();
@@ -365,11 +401,13 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build transfer aborted result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: mapId, reason.
-      */
+    // Method: BuildTransferAborted
+    // Purpose: Builds or writes build transfer aborted output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - reason: Reason value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildTransferAborted(uint mapId, TransferAbortReason reason)
     {
         WorldPacketWriter writer = new();
@@ -378,11 +416,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build login verify world result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildLoginVerifyWorld
+    // Purpose: Builds or writes build login verify world output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildLoginVerifyWorld(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -396,11 +435,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build tutorial flags result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildTutorialFlags
+    // Purpose: Builds or writes build tutorial flags output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildTutorialFlags(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -418,20 +458,16 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build player create update result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildPlayerCreateUpdate
+    // Purpose: Builds or writes build player create update output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildPlayerCreateUpdate(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        // MaNGOS Zero sends item/container create blocks to the owning player before
-        // the player create block, then links those objects through the player
-        // inventory GUID fields. The previous experimental path used player-style
-        // low GUIDs and missing item update flags, which can collide with player
-        // GUIDs and crash the Vanilla client during world entry.
         PlayerInventoryItem[] inventoryItems = player.Inventory
             .Where(item => item.ItemGuid != 0 && item.TemplateEntry != 0)
             .OrderBy(item => item.BagGuid == 0 ? 0 : 1)
@@ -442,26 +478,28 @@ public static class WorldPacketBuilders
 
         WorldPacketWriter writer = new();
         writer.WriteUInt32((uint)(inventoryItems.Length + 1));
-        writer.WriteUInt8(0); // has_transport
+        writer.WriteUInt8(0);
 
         foreach (PlayerInventoryItem item in inventoryItems)
         {
             WriteItemCreateUpdateBlock(writer, player, item, inventoryItems);
         }
 
-        writer.WriteUInt8(3); // CREATE_OBJECT2
+        writer.WriteUInt8(3);
         WritePackedGuid(writer, player.ClientGuid);
-        writer.WriteUInt8(4); // PLAYER
+        writer.WriteUInt8(4);
         WritePlayerMovementBlock(writer, player);
         WritePlayerCreateUpdateMask(writer, player, inventoryItems);
 
         return writer.ToArray();
     }
 
-    /**
-      * Builds create update blocks for static gameobjects that are newly visible to a player.
-      * The caller limits range/count and filters unsafe templates before passing records here.
-      */
+    // Method: BuildGameObjectCreateUpdate
+    // Purpose: Builds or writes build game object create update output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - gameObjects: Game objects value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildGameObjectCreateUpdate(IReadOnlyList<GameObjectClientCreateRecord> gameObjects)
     {
         ArgumentNullException.ThrowIfNull(gameObjects);
@@ -473,7 +511,7 @@ public static class WorldPacketBuilders
 
         WorldPacketWriter writer = new();
         writer.WriteUInt32((uint)gameObjects.Count);
-        writer.WriteUInt8(0); // has_transport
+        writer.WriteUInt8(0);
 
         foreach (GameObjectClientCreateRecord gameObject in gameObjects)
         {
@@ -483,10 +521,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds create update blocks for creatures that are newly visible to a player.
-      * This is intentionally conservative and only serializes static idle UNIT create state.
-      */
+    // Method: BuildCreatureCreateUpdate
+    // Purpose: Builds or writes build creature create update output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - creatures: Creatures value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCreatureCreateUpdate(IReadOnlyList<CreatureClientCreateRecord> creatures)
     {
         ArgumentNullException.ThrowIfNull(creatures);
@@ -498,7 +538,7 @@ public static class WorldPacketBuilders
 
         WorldPacketWriter writer = new();
         writer.WriteUInt32((uint)creatures.Count);
-        writer.WriteUInt8(0); // has_transport
+        writer.WriteUInt8(0);
 
         foreach (CreatureClientCreateRecord creature in creatures)
         {
@@ -508,9 +548,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the Vanilla destroy-object packet for an object leaving a player's visible set.
-      */
+    // Method: BuildDestroyObject
+    // Purpose: Builds or writes build destroy object output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildDestroyObject(ulong clientGuid)
     {
         WorldPacketWriter writer = new();
@@ -518,9 +561,14 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Writes one idle creature CREATE_OBJECT2 block.
-      */
+    // Method: WriteCreatureCreateUpdateBlock
+    // Purpose: Builds or writes write creature create update block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteCreatureCreateUpdateBlock(
         WorldPacketWriter writer,
         CreatureSpawnRecord spawn,
@@ -528,16 +576,21 @@ public static class WorldPacketBuilders
     {
         ulong clientGuid = CharacterGuid.ToCreatureGuid(spawn.Guid, spawn.Entry);
 
-        writer.WriteUInt8(3); // CREATE_OBJECT2
+        writer.WriteUInt8(3);
         WritePackedGuid(writer, clientGuid);
-        writer.WriteUInt8(3); // TYPEID_UNIT
+        writer.WriteUInt8(3);
         WriteCreatureMovementBlock(writer, spawn, template);
         WriteCreatureCreateUpdateMask(writer, spawn, template, clientGuid);
     }
 
-    /**
-      * Writes the living movement block used by idle creature UNIT create updates.
-      */
+    // Method: WriteCreatureMovementBlock
+    // Purpose: Builds or writes write creature movement block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteCreatureMovementBlock(
         WorldPacketWriter writer,
         CreatureSpawnRecord spawn,
@@ -546,20 +599,24 @@ public static class WorldPacketBuilders
         const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.All | VanillaUpdateFlags.Living;
 
         writer.WriteUInt8((byte)updateFlags);
-        writer.WriteUInt32(0); // MovementFlags: idle creature at spawn point.
+        writer.WriteUInt32(0);
         writer.WriteUInt32(unchecked((uint)Environment.TickCount));
         writer.WriteFloat(spawn.PositionX);
         writer.WriteFloat(spawn.PositionY);
         writer.WriteFloat(spawn.PositionZ);
         writer.WriteFloat(spawn.Orientation);
-        writer.WriteUInt32(0); // fallTime
+        writer.WriteUInt32(0);
         WriteCreatureMovementSpeeds(writer, template);
-        writer.WriteUInt32(1); // UPDATEFLAG_ALL trailing field.
+        writer.WriteUInt32(1);
     }
 
-    /**
-      * Writes the six Vanilla movement speeds for a creature.
-      */
+    // Method: WriteCreatureMovementSpeeds
+    // Purpose: Builds or writes write creature movement speeds output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteCreatureMovementSpeeds(WorldPacketWriter writer, CreatureTemplateRecord template)
     {
         float walkSpeed = template.GetEffectiveWalkSpeed() * PlayerWalkSpeed;
@@ -573,9 +630,15 @@ public static class WorldPacketBuilders
         writer.WriteFloat(PlayerTurnRate);
     }
 
-    /**
-      * Writes a minimal Vanilla 1.12 UNIT field mask for creature first render.
-      */
+    // Method: WriteCreatureCreateUpdateMask
+    // Purpose: Builds or writes write creature create update mask output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteCreatureCreateUpdateMask(
         WorldPacketWriter writer,
         CreatureSpawnRecord spawn,
@@ -631,7 +694,7 @@ public static class WorldPacketBuilders
         float maxMeleeDamage = template.MaxMeleeDamage >= minMeleeDamage && float.IsFinite(template.MaxMeleeDamage) ? template.MaxMeleeDamage : minMeleeDamage + 1.0f;
 
         WriteGuidFields(fields, ObjectFieldGuid, clientGuid);
-        fields[ObjectFieldType] = 0x09; // OBJECT | UNIT
+        fields[ObjectFieldType] = 0x09;
         fields[ObjectFieldEntry] = spawn.Entry;
         fields[ObjectFieldScaleX] = FloatToUInt32(scale);
         fields[UnitFieldHealth] = health;
@@ -678,15 +741,26 @@ public static class WorldPacketBuilders
         WriteUpdateMask(writer, fields);
     }
 
+    // Method: BuildCreatureBytes0
+    // Purpose: Builds or writes build creature bytes0 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint BuildCreatureBytes0(CreatureTemplateRecord template)
     {
         byte unitClass = template.GetEffectiveUnitClass();
         return ((uint)unitClass) << 8;
     }
 
-    /**
-      * Writes one static gameobject CREATE_OBJECT2 block.
-      */
+    // Method: WriteGameObjectCreateUpdateBlock
+    // Purpose: Builds or writes write game object create update block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteGameObjectCreateUpdateBlock(
         WorldPacketWriter writer,
         GameObjectSpawnRecord spawn,
@@ -694,16 +768,20 @@ public static class WorldPacketBuilders
     {
         ulong clientGuid = CharacterGuid.ToGameObjectGuid(spawn.Guid, spawn.Entry);
 
-        writer.WriteUInt8(3); // CREATE_OBJECT2
+        writer.WriteUInt8(3);
         WritePackedGuid(writer, clientGuid);
-        writer.WriteUInt8(5); // TYPEID_GAMEOBJECT
+        writer.WriteUInt8(5);
         WriteGameObjectMovementBlock(writer, spawn);
         WriteGameObjectCreateUpdateMask(writer, spawn, template, clientGuid);
     }
 
-    /**
-      * Writes the non-living movement block used by static gameobjects.
-      */
+    // Method: WriteGameObjectMovementBlock
+    // Purpose: Builds or writes write game object movement block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteGameObjectMovementBlock(WorldPacketWriter writer, GameObjectSpawnRecord spawn)
     {
         const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.All | VanillaUpdateFlags.HasPosition;
@@ -716,9 +794,15 @@ public static class WorldPacketBuilders
         writer.WriteUInt32(1);
     }
 
-    /**
-      * Writes the Vanilla 1.12 gameobject value fields needed for first render.
-      */
+    // Method: WriteGameObjectCreateUpdateMask
+    // Purpose: Builds or writes write game object create update mask output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteGameObjectCreateUpdateMask(
         WorldPacketWriter writer,
         GameObjectSpawnRecord spawn,
@@ -751,7 +835,7 @@ public static class WorldPacketBuilders
             : 1.0f;
 
         WriteGuidFields(fields, ObjectFieldGuid, clientGuid);
-        fields[ObjectFieldType] = 0x21; // OBJECT | GAMEOBJECT
+        fields[ObjectFieldType] = 0x21;
         fields[ObjectFieldEntry] = spawn.Entry;
         fields[ObjectFieldScaleX] = FloatToUInt32(scale);
         WriteGuidFields(fields, GameObjectFieldCreatedBy, 0);
@@ -776,7 +860,12 @@ public static class WorldPacketBuilders
         WriteUpdateMask(writer, fields);
     }
 
-
+    // Method: ResolveGameObjectDynamicFlags
+    // Purpose: Retrieves resolve game object dynamic flags data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - gameObjectType: Game object type value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ResolveGameObjectDynamicFlags(byte gameObjectType)
     {
         const uint GoDynamicFlagActivate = 0x00000001;
@@ -790,11 +879,13 @@ public static class WorldPacketBuilders
         };
     }
 
-    /**
-      * Writes write player movement block data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, player.
-      */
+    // Method: WritePlayerMovementBlock
+    // Purpose: Builds or writes write player movement block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WritePlayerMovementBlock(WorldPacketWriter writer, PlayerLoginRecord player)
     {
         const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.Self | VanillaUpdateFlags.All | VanillaUpdateFlags.Living;
@@ -803,33 +894,33 @@ public static class WorldPacketBuilders
         WritePlayerLivingMovementInfo(writer, player);
         WritePlayerMovementSpeeds(writer);
 
-        // The vanilla movement update writes this field after the living movement/speed block when
-        // UPDATEFLAG_ALL is set. This is not part of MovementInfo itself; it is
-        // the optional UPDATEFLAG_ALL trailing field and should remain uint32 1.
         writer.WriteUInt32(1);
     }
 
-    /**
-      * Writes the Vanilla 1.12 MovementInfo layout used by UPDATEFLAG_LIVING.
-      * The no-transport/no-swim/no-fall login state is intentionally minimal:
-      * movement flags, client/server time, position, orientation, and fall time.
-      */
+    // Method: WritePlayerLivingMovementInfo
+    // Purpose: Builds or writes write player living movement info output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WritePlayerLivingMovementInfo(WorldPacketWriter writer, PlayerLoginRecord player)
     {
-        writer.WriteUInt32(0); // MovementFlags: player is spawned idle at login.
+        writer.WriteUInt32(0);
         writer.WriteUInt32(unchecked((uint)Environment.TickCount));
         writer.WriteFloat(player.PositionX);
         writer.WriteFloat(player.PositionY);
         writer.WriteFloat(player.PositionZ);
         writer.WriteFloat(player.Orientation);
-        writer.WriteUInt32(0); // fallTime is uint32 in MovementInfo.
+        writer.WriteUInt32(0);
     }
 
-    /**
-      * Writes the Vanilla player speed block that follows living MovementInfo.
-      * Vanilla writes exactly six speeds for 1.12: walk, run, run-back, swim,
-      * swim-back, and turn-rate.
-      */
+    // Method: WritePlayerMovementSpeeds
+    // Purpose: Builds or writes write player movement speeds output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WritePlayerMovementSpeeds(WorldPacketWriter writer)
     {
         writer.WriteFloat(PlayerWalkSpeed);
@@ -840,11 +931,14 @@ public static class WorldPacketBuilders
         writer.WriteFloat(PlayerTurnRate);
     }
 
-    /**
-      * Writes write player create update mask data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, player, visibleInventory.
-      */
+    // Method: WritePlayerCreateUpdateMask
+    // Purpose: Builds or writes write player create update mask output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // - inventory: Inventory value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> inventory)
     {
         const int ObjectFieldGuid = 0x0000;
@@ -917,7 +1011,7 @@ public static class WorldPacketBuilders
 
         fields[ObjectFieldGuid] = (uint)(clientGuid & uint.MaxValue);
         fields[ObjectFieldGuid + 1] = (uint)(clientGuid >> 32);
-        fields[ObjectFieldType] = 0x19; // OBJECT | UNIT | PLAYER
+        fields[ObjectFieldType] = 0x19;
         fields[ObjectFieldScaleX] = FloatToUInt32(1.0f);
 
         fields[UnitFieldHealth] = health;
@@ -1029,8 +1123,18 @@ public static class WorldPacketBuilders
         WriteUpdateMask(writer, fields);
     }
 
+    // Constant: Defines the player skill info field count constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player skill info field count value used anywhere this rule or protocol value is needed.
     private const int PlayerSkillInfoFieldCount = 128;
 
+    // Method: WritePlayerSkillFields
+    // Purpose: Builds or writes write player skill fields output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - firstSkillField: First skill field value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WritePlayerSkillFields(IDictionary<int, uint> fields, int firstSkillField, PlayerLoginRecord player)
     {
         IReadOnlyList<PlayerSkill> skills = LanguageKnowledgeSystem.EnsureInitialLanguageSkills(player.Race, player.Faction, player.Skills);
@@ -1052,6 +1156,13 @@ public static class WorldPacketBuilders
         }
     }
 
+    // Method: PackUInt16Pair
+    // Purpose: Builds or writes pack U int16 pair output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - lowValue: Low value value supplied by the caller for this operation.
+    // - highValue: High value value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint PackUInt16Pair(uint lowValue, uint highValue)
     {
         uint low = Math.Min(lowValue, ushort.MaxValue);
@@ -1059,6 +1170,18 @@ public static class WorldPacketBuilders
         return low | (high << 16);
     }
 
+    // Method: TryResolvePlayerInventoryGuidField
+    // Purpose: Attempts to retrieve or parse try resolve player inventory GUID field data without treating normal misses as failures.
+    // Parameters:
+    // - slot: Slot value supplied by the caller for this operation.
+    // - playerFieldInvSlotHead: Player field inv slot head value supplied by the caller for this operation.
+    // - playerFieldPackSlot1: Player field pack slot1 value supplied by the caller for this operation.
+    // - playerFieldBankSlot1: Player field bank slot1 value supplied by the caller for this operation.
+    // - playerFieldBankBagSlot1: Player field bank bag slot1 value supplied by the caller for this operation.
+    // - playerFieldKeyringSlot1: Player field keyring slot1 value supplied by the caller for this operation.
+    // - field: Field value supplied by the caller for this operation.
+    // Returns: Returns true when try resolve player inventory GUID field succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryResolvePlayerInventoryGuidField(
         byte slot,
         int playerFieldInvSlotHead,
@@ -1102,18 +1225,22 @@ public static class WorldPacketBuilders
         return false;
     }
 
-    /**
-      * Writes write item create update block data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, player, item.
-      */
+    // Method: WriteItemCreateUpdateBlock
+    // Purpose: Builds or writes write item create update block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // - item: Item value supplied by the caller for this operation.
+    // - inventory: Inventory value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteItemCreateUpdateBlock(
         WorldPacketWriter writer,
         PlayerLoginRecord player,
         PlayerInventoryItem item,
         IReadOnlyList<PlayerInventoryItem> inventory)
     {
-        writer.WriteUInt8(2); // CREATE_OBJECT; MaNGOS Zero keeps items/containers on create-object, not create-object2.
+        writer.WriteUInt8(2);
         WritePackedGuid(writer, CharacterGuid.ToItemGuid(item.ItemGuid));
         writer.WriteUInt8(item.IsContainer ? (byte)2 : (byte)1);
         writer.WriteUInt8((byte)VanillaUpdateFlags.All);
@@ -1121,11 +1248,15 @@ public static class WorldPacketBuilders
         WriteItemCreateUpdateMask(writer, player, item, inventory);
     }
 
-    /**
-      * Writes write item create update mask data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, player, item.
-      */
+    // Method: WriteItemCreateUpdateMask
+    // Purpose: Builds or writes write item create update mask output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // - item: Item value supplied by the caller for this operation.
+    // - inventory: Inventory value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteItemCreateUpdateMask(
         WorldPacketWriter writer,
         PlayerLoginRecord player,
@@ -1154,7 +1285,7 @@ public static class WorldPacketBuilders
         ulong containedGuid = item.BagGuid == 0 ? ownerClientGuid : CharacterGuid.ToItemGuid(item.BagGuid);
 
         WriteGuidFields(fields, ObjectFieldGuid, itemClientGuid);
-        fields[ObjectFieldType] = item.IsContainer ? 0x07u : 0x03u; // OBJECT | ITEM | optional CONTAINER
+        fields[ObjectFieldType] = item.IsContainer ? 0x07u : 0x03u;
         fields[ObjectFieldEntry] = item.TemplateEntry;
         fields[ObjectFieldScaleX] = FloatToUInt32(1.0f);
         WriteGuidFields(fields, ItemFieldOwner, ownerClientGuid);
@@ -1197,6 +1328,12 @@ public static class WorldPacketBuilders
         WriteUpdateMask(writer, fields);
     }
 
+    // Method: ReadItemInstanceFields
+    // Purpose: Retrieves read item instance fields data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<int, uint> ReadItemInstanceFields(string instanceData)
     {
         Dictionary<int, uint> fields = [];
@@ -1218,17 +1355,27 @@ public static class WorldPacketBuilders
         return fields;
     }
 
+    // Method: WriteGuidFields
+    // Purpose: Builds or writes write GUID fields output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteGuidFields(IDictionary<int, uint> fields, int fieldIndex, ulong guid)
     {
         fields[fieldIndex] = (uint)(guid & uint.MaxValue);
         fields[fieldIndex + 1] = (uint)(guid >> 32);
     }
 
-    /**
-      * Writes write update mask data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, fields.
-      */
+    // Method: WriteUpdateMask
+    // Purpose: Builds or writes write update mask output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - fields: Fields value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteUpdateMask(WorldPacketWriter writer, IReadOnlyDictionary<int, uint> fields)
     {
         if (fields.Count == 0)
@@ -1258,10 +1405,12 @@ public static class WorldPacketBuilders
         }
     }
 
-    /**
-      * Builds the show bank packet. Vanilla expects the banker's ObjectGuid; the command path uses
-      * the player guid as a safe self-bank guid until creature banker interaction is implemented.
-      */
+    // Method: BuildShowBank
+    // Purpose: Builds or writes build show bank output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - bankerGuid: Banker GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildShowBank(ulong bankerGuid)
     {
         WorldPacketWriter writer = new();
@@ -1269,9 +1418,13 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds a values-only inventory update after the server has moved, equipped, or banked items.
-      */
+    // Method: BuildInventoryStateUpdate
+    // Purpose: Builds or writes build inventory state update output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - createdItemGuids: Created item guids value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildInventoryStateUpdate(PlayerLoginRecord player, IReadOnlySet<uint>? createdItemGuids = null)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -1286,7 +1439,7 @@ public static class WorldPacketBuilders
 
         WorldPacketWriter writer = new();
         writer.WriteUInt32((uint)(inventoryItems.Length + 1));
-        writer.WriteUInt8(0); // has_transport
+        writer.WriteUInt8(0);
 
         if (createdItemGuids is not null)
         {
@@ -1314,9 +1467,14 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds an inventory operation failure response.
-      */
+    // Method: BuildInventoryChangeFailure
+    // Purpose: Builds or writes build inventory change failure output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - failureCode: Failure code value supplied by the caller for this operation.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemGuid2: Item guid2 value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildInventoryChangeFailure(byte failureCode, ulong itemGuid = 0, ulong itemGuid2 = 0)
     {
         WorldPacketWriter writer = new();
@@ -1327,6 +1485,13 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
+    // Method: BuildPlayerInventoryValueFields
+    // Purpose: Builds or writes build player inventory value fields output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - inventory: Inventory value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<int, uint> BuildPlayerInventoryValueFields(PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> inventory)
     {
         const int PlayerVisibleItem1Item0 = 0x0104;
@@ -1420,6 +1585,14 @@ public static class WorldPacketBuilders
         return fields;
     }
 
+    // Method: BuildItemInventoryValueFields
+    // Purpose: Builds or writes build item inventory value fields output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - item: Item value supplied by the caller for this operation.
+    // - inventory: Inventory value supplied by the caller for this operation.
+    // Returns: Returns the dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static Dictionary<int, uint> BuildItemInventoryValueFields(PlayerLoginRecord player, PlayerInventoryItem item, IReadOnlyList<PlayerInventoryItem> inventory)
     {
         const int ItemFieldOwner = 0x0006;
@@ -1461,18 +1634,28 @@ public static class WorldPacketBuilders
         return fields;
     }
 
+    // Method: WriteValuesUpdateBlock
+    // Purpose: Builds or writes write values update block output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - fields: Fields value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteValuesUpdateBlock(WorldPacketWriter writer, ulong guid, IReadOnlyDictionary<int, uint> fields)
     {
-        writer.WriteUInt8(0); // VALUES
+        writer.WriteUInt8(0);
         WritePackedGuid(writer, guid);
         WriteUpdateMask(writer, fields);
     }
 
-    /**
-      * Builds the build movement broadcast result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: clientGuid, clientMovementPayload.
-      */
+    // Method: BuildMovementBroadcast
+    // Purpose: Builds or writes build movement broadcast output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // - clientMovementPayload: Client movement payload value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildMovementBroadcast(ulong clientGuid, ReadOnlySpan<byte> clientMovementPayload)
     {
         WorldPacketWriter writer = new();
@@ -1481,11 +1664,13 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Writes write packed guid data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: writer, guid.
-      */
+    // Method: WritePackedGuid
+    // Purpose: Builds or writes write packed GUID output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static void WritePackedGuid(WorldPacketWriter writer, ulong guid)
     {
         Span<byte> guidBytes = stackalloc byte[8];
@@ -1510,36 +1695,41 @@ public static class WorldPacketBuilders
         }
     }
 
-    /**
-      * Builds the build unit bytes 0 result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: race, playerClass, gender.
-      */
+    // Method: BuildUnitBytes0
+    // Purpose: Builds or writes build unit bytes0 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // - gender: Gender value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint BuildUnitBytes0(byte race, byte playerClass, byte gender)
     {
         return race | ((uint)playerClass << 8) | ((uint)gender << 16) | ((uint)ResolvePowerType(playerClass) << 24);
     }
 
-    /**
-      * Resolves the power type value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: playerClass.
-      */
+    // Method: ResolvePowerType
+    // Purpose: Retrieves resolve power type data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static byte ResolvePowerType(byte playerClass)
     {
         return playerClass switch
         {
-            1 => 1, // Warrior: rage
-            4 => 3, // Rogue: energy
-            _ => 0, // Vanilla player classes otherwise use mana here.
+            1 => 1,
+            4 => 3,
+            _ => 0,
         };
     }
 
-    /**
-      * Resolves the faction template id value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race.
-      */
+    // Method: ResolveFactionTemplateId
+    // Purpose: Retrieves resolve faction template ID data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ResolveFactionTemplateId(byte race)
     {
         return race switch
@@ -1556,11 +1746,13 @@ public static class WorldPacketBuilders
         };
     }
 
-    /**
-      * Resolves the player display id value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, gender.
-      */
+    // Method: ResolvePlayerDisplayId
+    // Purpose: Retrieves resolve player display ID data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - gender: Gender value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ResolvePlayerDisplayId(byte race, byte gender)
     {
         bool female = gender == 1;
@@ -1578,31 +1770,56 @@ public static class WorldPacketBuilders
         };
     }
 
+    // Method: NormalizeFiniteFloat
+    // Purpose: Converts incoming data into normalize finite float form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static float NormalizeFiniteFloat(float value)
     {
         return float.IsFinite(value) ? value : 0.0f;
     }
 
+    // Method: SanitizeClientCacheString
+    // Purpose: Executes the sanitize client cache string operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static string SanitizeClientCacheString(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
-    /**
-      * Performs the float to u int 32 operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: value.
-      */
+    // Method: FloatToUInt32
+    // Purpose: Executes the float to U int32 operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint FloatToUInt32(float value)
     {
         return BitConverter.SingleToUInt32Bits(value);
     }
 
+    // Method: ToClientUInt32
+    // Purpose: Executes the to client U int32 operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ToClientUInt32(int value)
     {
         return unchecked((uint)value);
     }
 
+    // Method: ToClientSpellCharges
+    // Purpose: Executes the to client spell charges operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - charges: Charges value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ToClientSpellCharges(int charges)
     {
         if (charges == 0)
@@ -1619,21 +1836,24 @@ public static class WorldPacketBuilders
         return unchecked((uint)-absoluteCharges);
     }
 
-    /**
-      * Builds the build next level experience result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: level.
-      */
+    // Method: BuildNextLevelExperience
+    // Purpose: Builds or writes build next level experience output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - level: Level value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint BuildNextLevelExperience(byte level)
     {
         return ExperienceFormula.GetFallbackNextLevelExperience(level);
     }
 
-    /**
-      * Builds the build login set time speed result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: localTime, gameSpeed.
-      */
+    // Method: BuildLoginSetTimeSpeed
+    // Purpose: Builds or writes build login set time speed output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - localTime: Local time value supplied by the caller for this operation.
+    // - gameSpeed: Game speed value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildLoginSetTimeSpeed(DateTimeOffset localTime, float gameSpeed = 0.01666667f)
     {
         WorldPacketWriter writer = new();
@@ -1642,11 +1862,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build message of the day result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: message.
-      */
+    // Method: BuildMessageOfTheDay
+    // Purpose: Builds or writes build message of the day output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildMessageOfTheDay(string message)
     {
         WorldPacketWriter writer = new();
@@ -1663,18 +1884,19 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build initial spells result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildInitialSpells
+    // Purpose: Builds or writes build initial spells output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildInitialSpells(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
 
         ushort[] spellIds = GetLoginSpellIds(player).ToArray();
         WorldPacketWriter writer = new();
-        writer.WriteUInt8(0); // Vanilla-compatible implementations send zero here.
+        writer.WriteUInt8(0);
         writer.WriteUInt16((ushort)spellIds.Length);
         foreach (ushort spellId in spellIds)
         {
@@ -1682,15 +1904,16 @@ public static class WorldPacketBuilders
             writer.WriteUInt16(0);
         }
 
-        writer.WriteUInt16(0); // cooldown count
+        writer.WriteUInt16(0);
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build action buttons result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildActionButtons
+    // Purpose: Builds or writes build action buttons output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildActionButtons(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -1724,11 +1947,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Resolves the login spell ids value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player.
-      */
+    // Method: GetLoginSpellIds
+    // Purpose: Retrieves get login spell ids data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<ushort> GetLoginSpellIds(PlayerLoginRecord player)
     {
         SortedSet<ushort> spellIds = [];
@@ -1756,30 +1980,31 @@ public static class WorldPacketBuilders
                 spellIds.Add(languageSpell);
             }
 
-            spellIds.Add(81);   // Dodge
-            spellIds.Add(203);  // Unarmed
-            spellIds.Add(204);  // Defense
-            spellIds.Add(522);  // SPELLDEFENSE client bookkeeping spell
-            spellIds.Add(6603); // Auto Attack
+            spellIds.Add(81);
+            spellIds.Add(203);
+            spellIds.Add(204);
+            spellIds.Add(522);
+            spellIds.Add(6603);
         }
 
         return spellIds;
     }
 
-    /**
-      * Resolves the initial spell ids value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player.
-      */
+    // Method: GetInitialSpellIds
+    // Purpose: Retrieves get initial spell ids data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<ushort> GetInitialSpellIds(PlayerLoginRecord player)
     {
         SortedSet<ushort> spells =
         [
-            81, // Dodge
-            203, // Unarmed
-            204, // Defense
-            522, // SPELLDEFENSE client bookkeeping spell
-            6603, // Auto Attack
+            81,
+            203,
+            204,
+            522,
+            6603,
         ];
 
         foreach (ushort languageSpell in GetLanguageSpellIds(player.Race, player.Faction))
@@ -1795,11 +2020,13 @@ public static class WorldPacketBuilders
         return spells;
     }
 
-    /**
-      * Resolves the language spell ids value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, faction.
-      */
+    // Method: GetLanguageSpellIds
+    // Purpose: Retrieves get language spell ids data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<ushort> GetLanguageSpellIds(byte race, PlayerFaction faction)
     {
         foreach (uint spellId in LanguageKnowledgeSystem.BuildInitialLanguageSpellIds(race, faction))
@@ -1811,33 +2038,35 @@ public static class WorldPacketBuilders
         }
     }
 
-    /**
-      * Resolves the starter action button spell ids value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: playerClass.
-      */
+    // Method: GetStarterActionButtonSpellIds
+    // Purpose: Retrieves get starter action button spell ids data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<ushort> GetStarterActionButtonSpellIds(byte playerClass)
     {
         return playerClass switch
         {
-            1 => new ushort[] { 78, 2457 }, // Warrior: Heroic Strike, Battle Stance
-            2 => new ushort[] { 635, 21084 }, // Paladin: Holy Light, Seal of Righteousness
-            3 => new ushort[] { 75, 2973 }, // Hunter: Auto Shot, Raptor Strike
-            4 => new ushort[] { 1752 }, // Rogue: Sinister Strike
-            5 => new ushort[] { 585, 2050 }, // Priest: Smite, Lesser Heal
-            7 => new ushort[] { 403, 331 }, // Shaman: Lightning Bolt, Healing Wave
-            8 => new ushort[] { 133, 168 }, // Mage: Fireball, Frost Armor
-            9 => new ushort[] { 686, 687 }, // Warlock: Shadow Bolt, Demon Skin
-            11 => new ushort[] { 5176, 5185 }, // Druid: Wrath, Healing Touch
+            1 => new ushort[] { 78, 2457 },
+            2 => new ushort[] { 635, 21084 },
+            3 => new ushort[] { 75, 2973 },
+            4 => new ushort[] { 1752 },
+            5 => new ushort[] { 585, 2050 },
+            7 => new ushort[] { 403, 331 },
+            8 => new ushort[] { 133, 168 },
+            9 => new ushort[] { 686, 687 },
+            11 => new ushort[] { 5176, 5185 },
             _ => Array.Empty<ushort>(),
         };
     }
 
-    /**
-      * Builds the build initialize factions result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildInitializeFactions
+    // Purpose: Builds or writes build initialize factions output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildInitializeFactions(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -1865,11 +2094,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build bind point update result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildBindPointUpdate
+    // Purpose: Builds or writes build bind point update output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildBindPointUpdate(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -1883,11 +2113,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build set rest start result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: localTime.
-      */
+    // Method: BuildSetRestStart
+    // Purpose: Builds or writes build set rest start output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - localTime: Local time value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildSetRestStart(DateTimeOffset localTime)
     {
         WorldPacketWriter writer = new();
@@ -1895,11 +2126,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build item query single response result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: itemTemplate.
-      */
+    // Method: BuildItemQuerySingleResponse
+    // Purpose: Builds or writes build item query single response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildItemQuerySingleResponse(ItemTemplateRecord itemTemplate)
     {
         ArgumentNullException.ThrowIfNull(itemTemplate);
@@ -1915,8 +2147,7 @@ public static class WorldPacketBuilders
         writer.WriteUInt32(itemTemplate.DisplayId);
         writer.WriteUInt32(itemTemplate.Quality);
         writer.WriteUInt32(itemTemplate.Flags);
-        // Vanilla SMSG_ITEM_QUERY_SINGLE_RESPONSE does not include BuyCount here;
-        // sending it shifts every following tooltip field by four bytes.
+
         writer.WriteUInt32(itemTemplate.BuyPrice);
         writer.WriteUInt32(itemTemplate.SellPrice);
         writer.WriteUInt32(itemTemplate.InventoryType);
@@ -1992,11 +2223,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build item query single not found result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: itemEntry.
-      */
+    // Method: BuildItemQuerySingleNotFound
+    // Purpose: Builds or writes build item query single not found output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - itemEntry: Item entry value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildItemQuerySingleNotFound(uint itemEntry)
     {
         WorldPacketWriter writer = new();
@@ -2004,11 +2236,19 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build chat message result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: messageType, language, senderGuid, senderName, text, channelName....
-      */
+    // Method: BuildChatMessage
+    // Purpose: Builds or writes build chat message output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - messageType: Message type value supplied by the caller for this operation.
+    // - language: Language value supplied by the caller for this operation.
+    // - senderGuid: Sender GUID identifier used to select the exact record, object, or runtime owner.
+    // - senderName: Sender name value supplied by the caller for this operation.
+    // - text: Text value supplied by the caller for this operation.
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // - chatTag: Chat tag value supplied by the caller for this operation.
+    // - channelPlayerRank: Channel player rank value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildChatMessage(
         ChatMessageType messageType,
         ChatLanguage language,
@@ -2050,11 +2290,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build name query response result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: character.
-      */
+    // Method: BuildNameQueryResponse
+    // Purpose: Builds or writes build name query response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - character: Character value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildNameQueryResponse(CharacterNameQueryResult character)
     {
         ArgumentNullException.ThrowIfNull(character);
@@ -2062,17 +2303,20 @@ public static class WorldPacketBuilders
         WorldPacketWriter writer = new();
         writer.WriteUInt64(CharacterGuid.ToClientGuid(character.Guid));
         writer.WriteCString(character.Name);
-        writer.WriteCString(string.Empty); // realm name; empty means local realm
+        writer.WriteCString(string.Empty);
         writer.WriteUInt32(character.Race);
         writer.WriteUInt32(character.Gender);
         writer.WriteUInt32(character.Class);
         return writer.ToArray();
     }
 
-    /**
-      * Builds the static creature query response used by the Vanilla client cache.
-      * Without this response visible NPC names stay as "Unknown" even when UNIT create updates render the model correctly.
-      */
+    // Method: BuildCreatureQueryResponse
+    // Purpose: Builds or writes build creature query response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - template: Template value supplied by the caller for this operation.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCreatureQueryResponse(CreatureTemplateRecord template, CreatureSpawnRecord? spawn = null)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -2084,15 +2328,15 @@ public static class WorldPacketBuilders
 
         writer.WriteUInt32(template.Entry);
         writer.WriteCString(SanitizeClientCacheString(template.Name));
-        writer.WriteCString(string.Empty); // name2
-        writer.WriteCString(string.Empty); // name3
-        writer.WriteCString(string.Empty); // name4
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
         writer.WriteCString(SanitizeClientCacheString(template.SubName));
         writer.WriteUInt32(template.CreatureTypeFlags);
         writer.WriteUInt32(template.CreatureType);
         writer.WriteUInt32(template.Family < 0 ? 0u : (uint)template.Family);
         writer.WriteUInt32(template.Rank);
-        writer.WriteUInt32(0); // unknown field used by the Vanilla WDB cache.
+        writer.WriteUInt32(0);
         writer.WriteUInt32(template.PetSpellDataId);
         writer.WriteUInt32(displayId);
         writer.WriteUInt8(template.Civilian);
@@ -2100,9 +2344,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds a negative creature query response so the client stops retrying bad entries.
-      */
+    // Method: BuildCreatureQueryNotFound
+    // Purpose: Builds or writes build creature query not found output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildCreatureQueryNotFound(uint entry)
     {
         WorldPacketWriter writer = new();
@@ -2110,9 +2357,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the static gameobject query response used by the Vanilla client cache.
-      */
+    // Method: BuildGameObjectQueryResponse
+    // Purpose: Builds or writes build game object query response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildGameObjectQueryResponse(GameObjectTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -2122,10 +2372,10 @@ public static class WorldPacketBuilders
         writer.WriteUInt32(template.Type);
         writer.WriteUInt32(template.DisplayId);
         writer.WriteCString(SanitizeClientCacheString(template.Name));
-        writer.WriteCString(string.Empty); // name2
-        writer.WriteCString(string.Empty); // name3
-        writer.WriteCString(string.Empty); // name4
-        writer.WriteCString(string.Empty); // name5
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
+        writer.WriteCString(string.Empty);
 
         for (int index = 0; index < GameObjectTemplateRecord.DataFieldCount; index++)
         {
@@ -2135,9 +2385,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds a negative gameobject query response so the client stops retrying bad entries.
-      */
+    // Method: BuildGameObjectQueryNotFound
+    // Purpose: Builds or writes build game object query not found output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildGameObjectQueryNotFound(uint entry)
     {
         WorldPacketWriter writer = new();
@@ -2145,11 +2398,13 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build logout response result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: reason, instantLogout.
-      */
+    // Method: BuildLogoutResponse
+    // Purpose: Builds or writes build logout response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - instantLogout: Instant logout value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildLogoutResponse(uint reason = 0, bool instantLogout = true)
     {
         WorldPacketWriter writer = new();
@@ -2158,29 +2413,32 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build logout complete result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: BuildLogoutComplete
+    // Purpose: Builds or writes build logout complete output for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildLogoutComplete()
     {
         return [];
     }
 
-    /**
-      * Builds the build logout cancel ack result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: BuildLogoutCancelAck
+    // Purpose: Builds or writes build logout cancel ack output for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildLogoutCancelAck()
     {
         return [];
     }
 
-    /**
-      * Builds the build server time result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: localTime.
-      */
+    // Method: BuildServerTime
+    // Purpose: Builds or writes build server time output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - localTime: Local time value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildServerTime(DateTimeOffset localTime)
     {
         WorldPacketWriter writer = new();
@@ -2188,11 +2446,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build played time result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: player.
-      */
+    // Method: BuildPlayedTime
+    // Purpose: Builds or writes build played time output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildPlayedTime(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -2203,18 +2462,21 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build channel notify result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: notificationType, channelName, channelFlags.
-      */
+    // Method: BuildChannelNotify
+    // Purpose: Builds or writes build channel notify output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - notificationType: Notification type value supplied by the caller for this operation.
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // - channelFlags: Channel flags value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildChannelNotify(byte notificationType, string channelName, uint channelFlags = 0)
     {
         WorldPacketWriter writer = new();
         writer.WriteUInt8(notificationType);
         writer.WriteCString(channelName);
 
-        if (notificationType == 0x02) // YOU_JOINED
+        if (notificationType == 0x02)
         {
             writer.WriteUInt32(channelFlags);
             writer.WriteUInt32(0);
@@ -2224,11 +2486,14 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build channel list result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: channelName, members, channelFlags.
-      */
+    // Method: BuildChannelList
+    // Purpose: Builds or writes build channel list output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // - members: Members value supplied by the caller for this operation.
+    // - channelFlags: Channel flags value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildChannelList(string channelName, IReadOnlyList<PlayerLoginRecord> members, uint channelFlags = 0)
     {
         ArgumentNullException.ThrowIfNull(members);
@@ -2240,17 +2505,18 @@ public static class WorldPacketBuilders
         foreach (PlayerLoginRecord member in members)
         {
             writer.WriteUInt64(member.ClientGuid);
-            writer.WriteUInt8(0); // normal member flags
+            writer.WriteUInt8(0);
         }
 
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build who response result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: players.
-      */
+    // Method: BuildWhoResponse
+    // Purpose: Builds or writes build who response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - players: Players value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildWhoResponse(IReadOnlyList<PlayerLoginRecord> players)
     {
         ArgumentNullException.ThrowIfNull(players);
@@ -2263,7 +2529,7 @@ public static class WorldPacketBuilders
         foreach (PlayerLoginRecord player in players.Take((int)count))
         {
             writer.WriteCString(player.Name);
-            writer.WriteCString(string.Empty); // guild
+            writer.WriteCString(string.Empty);
             writer.WriteUInt32(player.Level);
             writer.WriteUInt32(player.Class);
             writer.WriteUInt32(player.Race);
@@ -2273,11 +2539,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build item name query response result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: itemTemplate.
-      */
+    // Method: BuildItemNameQueryResponse
+    // Purpose: Builds or writes build item name query response output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildItemNameQueryResponse(ItemTemplateRecord itemTemplate)
     {
         ArgumentNullException.ThrowIfNull(itemTemplate);
@@ -2289,11 +2556,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Builds the build item name query not found result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: itemEntry.
-      */
+    // Method: BuildItemNameQueryNotFound
+    // Purpose: Builds or writes build item name query not found output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - itemEntry: Item entry value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildItemNameQueryNotFound(uint itemEntry)
     {
         WorldPacketWriter writer = new();
@@ -2301,11 +2569,12 @@ public static class WorldPacketBuilders
         return writer.ToArray();
     }
 
-    /**
-      * Performs the encode packed game time operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: localTime.
-      */
+    // Method: EncodePackedGameTime
+    // Purpose: Builds or writes encode packed game time output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - localTime: Local time value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     private static uint EncodePackedGameTime(DateTimeOffset localTime)
     {
         DateTime dateTime = localTime.DateTime;
@@ -2319,11 +2588,12 @@ public static class WorldPacketBuilders
         return minute | (hour << 6) | (dayOfWeek << 11) | (day << 14) | (month << 20) | (year << 24);
     }
 
-    /**
-      * Builds the build pong result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: sequence.
-      */
+    // Method: BuildPong
+    // Purpose: Builds or writes build pong output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sequence: Sequence value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] BuildPong(uint sequence)
     {
         WorldPacketWriter writer = new();

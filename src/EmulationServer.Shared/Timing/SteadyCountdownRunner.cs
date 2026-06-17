@@ -15,17 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Timing/SteadyCountdownRunner.cs
+// Purpose: Contains steady countdown runner code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Timing;
 
-/**
-  * Runs a countdown against a monotonic deadline and emits warning notices at selected remaining times.
-  */
+// Type: SteadyCountdownRunner
+// Purpose: Provides steady countdown runner behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class SteadyCountdownRunner
 {
-    /**
-      * Default administrator-visible countdown warning points used by restart and shutdown workflows.
-      */
+
+    // Property: Gets or sets the default warning thresholds value used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: default warning thresholds value exposed by the owning type.
     public static IReadOnlyList<TimeSpan> DefaultWarningThresholds { get; } =
     [
         TimeSpan.FromDays(1),
@@ -47,9 +50,18 @@ public static class SteadyCountdownRunner
         TimeSpan.FromSeconds(1),
     ];
 
-    /**
-      * Runs a countdown and calls onElapsedAsync exactly once after the steady deadline has elapsed.
-      */
+    // Method: RunAsync
+    // Purpose: Controls the run lifecycle step for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - clock: Clock value supplied by the caller for this operation.
+    // - delay: Delay value supplied by the caller for this operation.
+    // - warningThresholds: Warning thresholds value supplied by the caller for this operation.
+    // - onWarningAsync: On warning async value supplied by the caller for this operation.
+    // - onElapsedAsync: On elapsed async value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to SteadyCountdownRunner so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async Task RunAsync(
         ISteadyClock clock,
         TimeSpan delay,
@@ -100,12 +112,25 @@ public static class SteadyCountdownRunner
         await onElapsedAsync(cancellationToken);
     }
 
+    // Method: GetRemaining
+    // Purpose: Retrieves get remaining data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - clock: Clock value supplied by the caller for this operation.
+    // - deadlineTimestamp: Deadline timestamp value supplied by the caller for this operation.
+    // Returns: Returns the time span value produced by this operation.
+    // Notes: This keeps the operation scoped to SteadyCountdownRunner so callers do not duplicate validation, protocol, or persistence rules.
     private static TimeSpan GetRemaining(ISteadyClock clock, long deadlineTimestamp)
     {
         TimeSpan remaining = clock.GetElapsedTime(clock.Timestamp, deadlineTimestamp);
         return remaining <= TimeSpan.Zero ? TimeSpan.Zero : remaining;
     }
 
+    // Method: RoundRemaining
+    // Purpose: Executes the round remaining operation for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - remaining: Remaining value supplied by the caller for this operation.
+    // Returns: Returns the time span value produced by this operation.
+    // Notes: This keeps the operation scoped to SteadyCountdownRunner so callers do not duplicate validation, protocol, or persistence rules.
     private static TimeSpan RoundRemaining(TimeSpan remaining)
     {
         if (remaining.TotalSeconds <= 1)

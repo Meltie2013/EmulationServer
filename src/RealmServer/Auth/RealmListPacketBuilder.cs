@@ -15,43 +15,45 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Auth/RealmListPacketBuilder.cs
+// Purpose: Contains realm list packet builder code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.RealmServer.Realms;
 
-/**
-  * File overview: src/RealmServer/Auth/RealmListPacketBuilder.cs
-  * Documents the RealmListPacketBuilder source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Owns the realm list packet builder behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmListPacketBuilder
+// Purpose: Provides realm list packet builder behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmListPacketBuilder
 {
-    /**
-      * Holds the private realm store state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the realm store state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current realm store backing value maintained by the owning type.
     private readonly ConfiguredRealmStore _realmStore;
 
-    /**
-      * Initializes a new RealmListPacketBuilder instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: realmStore.
-      */
+    // Constructor: RealmListPacketBuilder
+    // Purpose: Initializes a new RealmListPacketBuilder instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmStore: Realm store value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     public RealmListPacketBuilder(ConfiguredRealmStore realmStore)
     {
         _realmStore = realmStore ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildRealmListAsync
+    // Purpose: Builds or writes build realm list output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // - accountSecurityLevel: Account security level value supplied by the caller for this operation.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<byte[]> BuildRealmListAsync(
         ushort build,
         byte accountSecurityLevel,
@@ -61,10 +63,14 @@ public sealed class RealmListPacketBuilder
         return await Task.FromResult(BuildRealmList(build, accountSecurityLevel, accountId));
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildRealmList
+    // Purpose: Builds or writes build realm list output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // - accountSecurityLevel: Account security level value supplied by the caller for this operation.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     public byte[] BuildRealmList(ushort build, byte accountSecurityLevel, uint accountId)
     {
         ConfiguredRealm[] realms = _realmStore.GetRealmsForBuild(build)
@@ -76,10 +82,15 @@ public sealed class RealmListPacketBuilder
             : BuildVanillaRealmList(build, realms, accountSecurityLevel, accountId);
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildVanillaRealmList
+    // Purpose: Builds or writes build vanilla realm list output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // - ConfiguredRealmrealms: Configured realmrealms value supplied by the caller for this operation.
+    // - accountSecurityLevel: Account security level value supplied by the caller for this operation.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] BuildVanillaRealmList(ushort build, ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
     {
         ByteWriter body = new();
@@ -98,7 +109,7 @@ public sealed class RealmListPacketBuilder
             body.WriteFloat(realm.Population);
             body.WriteUInt8(realm.GetCharacterCount(accountId));
             body.WriteUInt8(realm.Timezone);
-            body.WriteUInt8(0); // Unknown realm list value used by 1.x clients.
+            body.WriteUInt8(0);
         }
 
         body.WriteUInt16(0x0002);
@@ -106,10 +117,15 @@ public sealed class RealmListPacketBuilder
         return BuildRealmListPacket(body);
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildModernRealmList
+    // Purpose: Builds or writes build modern realm list output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // - ConfiguredRealmrealms: Configured realmrealms value supplied by the caller for this operation.
+    // - accountSecurityLevel: Account security level value supplied by the caller for this operation.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] BuildModernRealmList(ushort build, ConfiguredRealm[] realms, byte accountSecurityLevel, uint accountId)
     {
         ByteWriter body = new();
@@ -130,7 +146,7 @@ public sealed class RealmListPacketBuilder
             body.WriteFloat(realm.Population);
             body.WriteUInt8(realm.GetCharacterCount(accountId));
             body.WriteUInt8(realm.Timezone);
-            body.WriteUInt8(0x2C); // Unknown realm list value used by newer clients.
+            body.WriteUInt8(0x2C);
 
             if (realmFlags.HasFlag(RealmFlags.SpecifyBuild))
             {
@@ -143,9 +159,13 @@ public sealed class RealmListPacketBuilder
         return BuildRealmListPacket(body);
     }
 
-    /**
-      * Clears SpecifyBuild when no matching build metadata exists, preventing malformed modern realm-list rows.
-      */
+    // Method: ClearSpecifyBuildWhenVersionIsUnknown
+    // Purpose: Applies clear specify build when version is unknown changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realmFlags: Realm flags value supplied by the caller for this operation.
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns the realm flags value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmFlags ClearSpecifyBuildWhenVersionIsUnknown(RealmFlags realmFlags, ushort build)
     {
         if (realmFlags.HasFlag(RealmFlags.SpecifyBuild) && !RealmBuilds.TryGetVersionInfo(build, out _))
@@ -156,9 +176,14 @@ public sealed class RealmListPacketBuilder
         return realmFlags;
     }
 
-    /**
-      * Returns the name shown to 1.x clients, including version text when SpecifyBuild is configured.
-      */
+    // Method: GetRealmDisplayName
+    // Purpose: Retrieves get realm display name data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realm: Realm value supplied by the caller for this operation.
+    // - realmFlags: Realm flags value supplied by the caller for this operation.
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetRealmDisplayName(ConfiguredRealm realm, RealmFlags realmFlags, ushort build)
     {
         if (!realmFlags.HasFlag(RealmFlags.SpecifyBuild) || !RealmBuilds.TryGetVersionInfo(build, out RealmBuildVersionInfo versionInfo))
@@ -169,9 +194,13 @@ public sealed class RealmListPacketBuilder
         return $"{realm.Name} ({versionInfo.MajorVersion},{versionInfo.MinorVersion},{versionInfo.PatchVersion})";
     }
 
-    /**
-      * Writes version fields required by newer realm-list clients when SpecifyBuild is enabled.
-      */
+    // Method: WriteRealmBuildVersion
+    // Purpose: Builds or writes write realm build version output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - body: Body value supplied by the caller for this operation.
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteRealmBuildVersion(ByteWriter body, ushort build)
     {
         if (!RealmBuilds.TryGetVersionInfo(build, out RealmBuildVersionInfo versionInfo))
@@ -185,10 +214,13 @@ public sealed class RealmListPacketBuilder
         body.WriteUInt16(versionInfo.Build);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
-      */
+    // Method: GetRealmFlags
+    // Purpose: Retrieves get realm flags data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - realm: Realm value supplied by the caller for this operation.
+    // - accountSecurityLevel: Account security level value supplied by the caller for this operation.
+    // Returns: Returns the realm flags value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static RealmFlags GetRealmFlags(ConfiguredRealm realm, byte accountSecurityLevel)
     {
         RealmFlags realmFlags = realm.BaseRealmFlags;
@@ -201,10 +233,12 @@ public sealed class RealmListPacketBuilder
         return realmFlags;
     }
 
-    /**
-      * Builds a protocol payload or domain model from validated input values.
-      * The method is part of RealmListPacketBuilder and keeps this workflow isolated from the caller.
-      */
+    // Method: BuildRealmListPacket
+    // Purpose: Builds or writes build realm list packet output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - body: Body value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilder so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] BuildRealmListPacket(ByteWriter body)
     {
         byte[] bodyBytes = body.ToArray();

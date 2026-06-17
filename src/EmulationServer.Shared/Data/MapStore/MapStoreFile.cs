@@ -15,10 +15,17 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreFile.cs
+// Purpose: Contains map store file code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Represents one loaded mapstore tile file and its raw payload.
-  */
+// Type: MapStoreFile
+// Purpose: Represents map store file data passed through the shared infrastructure, logging, timing, and cross-service utility layer.
+// Constructor values:
+// - Path: Path value supplied by the caller for this operation.
+// - Header: Header value supplied by the caller for this operation.
+// - bytePayload: Byte payload value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapStoreFile(string Path, MapStoreFileHeader Header, byte[] Payload);

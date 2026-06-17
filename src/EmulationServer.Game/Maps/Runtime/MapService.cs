@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Maps/Runtime/MapService.cs
+// Purpose: Contains map service code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Creatures;
 using EmulationServer.Game.Data.Maps;
@@ -23,106 +26,94 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Timing;
 
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapService.cs
-  * Documents the MapService source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Owns the lifecycle, tick loop, status snapshots, and restart flow for one world map or instance service.
-  * It encapsulates a focused runtime behavior so callers can use a small public API instead of duplicating workflow code.
-  */
+// Type: MapService
+// Purpose: Provides map service behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapService : IAsyncDisposable
 {
-    /**
-      * Holds the private owner server name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the owner server name state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current owner server name backing value maintained by the owning type.
     private readonly string _ownerServerName;
-    /**
-      * Holds the private definition state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the definition state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current definition backing value maintained by the owning type.
     private readonly MapServiceDefinition _definition;
-    /**
-      * Holds the private sync root state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly object _syncRoot = new();
-    /**
-      * Holds the private lifecycle lock state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly SemaphoreSlim _lifecycleLock = new(1, 1);
-    /**
-      * Holds the private grid manager state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the grid manager state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current grid manager backing value maintained by the owning type.
     private readonly MapGridManager? _gridManager;
+    // Field: Stores the game object runtime state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current game object runtime backing value maintained by the owning type.
     private readonly GameObjectMapRuntime? _gameObjectRuntime;
+    // Field: Stores the creature runtime state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current creature runtime backing value maintained by the owning type.
     private readonly CreatureMapRuntime? _creatureRuntime;
+    // Field: Stores the map service snapshot state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map service snapshot backing value maintained by the owning type.
     private readonly Func<MapServiceSnapshot, CancellationToken, Task>? _reportStatusAsync;
+    // Field: Stores the clock state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current clock backing value maintained by the owning type.
     private readonly ISteadyClock _clock;
 
-    /**
-      * Holds the private stop cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stop cancellation state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Holds the private tick task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the tick task state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current tick task backing value maintained by the owning type.
     private Task? _tickTask;
-    /**
-      * Holds the private state state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the state state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current state backing value maintained by the owning type.
     private MapServiceState _state = MapServiceState.Offline;
-    /**
-      * Holds the private tick state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the tick state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current tick backing value maintained by the owning type.
     private long _tick;
-    /**
-      * Holds the private active players state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the active players state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current active players backing value maintained by the owning type.
     private int _activePlayers;
-    /**
-      * Holds the private active grids state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the active grids state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current active grids backing value maintained by the owning type.
     private int _activeGrids;
-    /**
-      * Holds the private last tick milliseconds state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the last tick milliseconds state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current last tick milliseconds backing value maintained by the owning type.
     private double _lastTickMilliseconds;
-    /**
-      * Holds the private average tick milliseconds state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the average tick milliseconds state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current average tick milliseconds backing value maintained by the owning type.
     private double _averageTickMilliseconds;
-    /**
-      * Holds the private started utc state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the started utc state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current started utc backing value maintained by the owning type.
     private DateTimeOffset _startedUtc;
-    /**
-      * Holds the private last tick utc state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the last tick utc state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current last tick utc backing value maintained by the owning type.
     private DateTimeOffset _lastTickUtc;
 
-    /**
-      * Initializes a new MapService instance with the dependencies required by the runtime map-player state tracking workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: ownerServerName, definition, gridManager, reportStatusAsync.
-      */
+    // Constructor: MapService
+    // Purpose: Initializes a new MapService instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - definition: Definition value supplied by the caller for this operation.
+    // - gridManager: Grid manager value supplied by the caller for this operation.
+    // - gameObjectRuntime: Game object runtime value supplied by the caller for this operation.
+    // - creatureRuntime: Creature runtime value supplied by the caller for this operation.
+    // - reportStatusAsync: Report status async value supplied by the caller for this operation.
+    // - clock: Clock value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     public MapService(
         string ownerServerName,
         MapServiceDefinition definition,
@@ -148,16 +139,10 @@ public sealed class MapService : IAsyncDisposable
         _clock = clock ?? SystemSteadyClock.Instance;
     }
 
-    /**
-      * Gets or stores the definition value used by MapService.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the definition value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: definition value exposed by the owning type.
     public MapServiceDefinition Definition => _definition;
 
-    /**
-      * Gets or stores the state value used by MapService.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public MapServiceState State
     {
         get
@@ -169,19 +154,21 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Gets the number of active game object runtime spawns currently owned by this map service.
-      */
+    // Property: Gets or sets the active game object count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: active game object count value exposed by the owning type.
     public int ActiveGameObjectCount => _gameObjectRuntime?.ActiveSpawnCount ?? 0;
 
-    /**
-      * Gets the number of active creature runtime spawns currently owned by this map service.
-      */
+    // Property: Gets or sets the active creature count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: active creature count value exposed by the owning type.
     public int ActiveCreatureCount => _creatureRuntime?.ActiveSpawnCount ?? 0;
 
-    /**
-      * Reloads game object runtime state from the latest WorldServer snapshot without restarting the entire map service.
-      */
+    // Method: ReloadGameObjectsAsync
+    // Purpose: Executes the reload game objects operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ReloadGameObjectsAsync(CancellationToken cancellationToken = default)
     {
         if (_gameObjectRuntime is null)
@@ -206,9 +193,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Reloads creature runtime state from the latest WorldServer snapshot without restarting the entire map service.
-      */
+    // Method: ReloadCreaturesAsync
+    // Purpose: Executes the reload creatures operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ReloadCreaturesAsync(CancellationToken cancellationToken = default)
     {
         if (_creatureRuntime is null)
@@ -233,12 +224,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await _lifecycleLock.WaitAsync(cancellationToken);
@@ -252,12 +244,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Performs an intentional shutdown path that drains work before moving the component offline.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ShutdownAsync
+    // Purpose: Controls the shutdown lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
         await _lifecycleLock.WaitAsync(cancellationToken);
@@ -271,12 +264,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Restarts the component by shutting down active runtime state and bringing it back online.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RestartAsync
+    // Purpose: Controls the restart lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task RestartAsync(CancellationToken cancellationToken = default)
     {
         await _lifecycleLock.WaitAsync(cancellationToken);
@@ -327,12 +321,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _lifecycleLock.WaitAsync(cancellationToken);
@@ -346,21 +341,24 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
         _lifecycleLock.Dispose();
     }
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: SetActivePlayerCount
+    // Purpose: Applies set active player count changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - activePlayers: Active players value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     public void SetActivePlayerCount(int activePlayers)
     {
         if (activePlayers < 0)
@@ -374,10 +372,12 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: SetActiveGridCount
+    // Purpose: Applies set active grid count changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - activeGrids: Active grids value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     public void SetActiveGridCount(int activeGrids)
     {
         if (activeGrids < 0)
@@ -391,10 +391,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: SetRuntimeCounts
+    // Purpose: Applies set runtime counts changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - activePlayers: Active players value supplied by the caller for this operation.
+    // - activeGrids: Active grids value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     public void SetRuntimeCounts(int activePlayers, int activeGrids)
     {
         if (activePlayers < 0)
@@ -414,10 +417,11 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: GetSnapshot
+    // Purpose: Retrieves get snapshot data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the map service snapshot value produced by this operation.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     public MapServiceSnapshot GetSnapshot()
     {
         lock (_syncRoot)
@@ -440,10 +444,12 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-
-    /**
-      * Resets service timing counters whenever the map transitions into a fresh online runtime.
-      */
+    // Method: ResetRuntimeCounters
+    // Purpose: Executes the reset runtime counters operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - startedUtc: Started utc value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     private void ResetRuntimeCounters(DateTimeOffset startedUtc)
     {
         lock (_syncRoot)
@@ -456,12 +462,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Starts the start core workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartCoreAsync
+    // Purpose: Controls the start core lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task StartCoreAsync(CancellationToken cancellationToken)
     {
         MapServiceState currentState = State;
@@ -498,12 +505,14 @@ public sealed class MapService : IAsyncDisposable
         await SetStateAsync(MapServiceState.Online, "map service is online and accepting work", cancellationToken);
     }
 
-    /**
-      * Performs an intentional shutdown path that drains work before moving the component offline.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ShutdownCoreAsync
+    // Purpose: Controls the shutdown core lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ShutdownCoreAsync(string reason, CancellationToken cancellationToken)
     {
         MapServiceState currentState = State;
@@ -520,12 +529,14 @@ public sealed class MapService : IAsyncDisposable
         await StopCoreAsync(reason, cancellationToken);
     }
 
-    /**
-      * Stops the stop core workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: reason, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopCoreAsync
+    // Purpose: Controls the stop core lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task StopCoreAsync(string reason, CancellationToken cancellationToken)
     {
         MapServiceState currentState = State;
@@ -543,11 +554,12 @@ public sealed class MapService : IAsyncDisposable
         await SetStateAsync(MapServiceState.Offline, "map service is offline", cancellationToken);
     }
 
-    /**
-      * Starts the start tick loop workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      */
+    // Method: StartTickLoop
+    // Purpose: Controls the start tick loop lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     private void StartTickLoop(CancellationToken cancellationToken)
     {
         if (_tickTask is not null && !_tickTask.IsCompleted)
@@ -562,12 +574,13 @@ public sealed class MapService : IAsyncDisposable
         Logger.Write(LogType.THREAD, $"{FormatService()} tick loop started with interval {_definition.TickInterval.TotalMilliseconds:0.##} ms.", "MapService");
     }
 
-    /**
-      * Stops the stop tick loop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopTickLoopAsync
+    // Purpose: Controls the stop tick loop lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task StopTickLoopAsync(CancellationToken cancellationToken)
     {
         CancellationTokenSource? stopCancellation = _stopCancellation;
@@ -592,7 +605,7 @@ public sealed class MapService : IAsyncDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Expected during shutdown.
+
             }
         }
 
@@ -603,12 +616,13 @@ public sealed class MapService : IAsyncDisposable
         Logger.Write(LogType.THREAD, $"{FormatService()} tick loop stopped.", "MapService");
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RunTickLoopAsync
+    // Purpose: Controls the run tick loop lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunTickLoopAsync(CancellationToken cancellationToken)
     {
         try
@@ -629,7 +643,7 @@ public sealed class MapService : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown.
+
         }
         catch (Exception exception)
         {
@@ -647,16 +661,15 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: RunTick
+    // Purpose: Controls the run tick lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     private void RunTick()
     {
         long startTimestamp = _clock.Timestamp;
 
-        // This is the future hook for player movement, creature/gameobject updates,
-        // visibility processing, and soft-restart state machines.
         _gridManager?.UnloadIdleGrids();
         Thread.Yield();
 
@@ -678,12 +691,15 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SetStateAsync
+    // Purpose: Applies set state changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SetStateAsync(MapServiceState state, string reason, CancellationToken cancellationToken)
     {
         SetState(state);
@@ -691,10 +707,12 @@ public sealed class MapService : IAsyncDisposable
         await PublishStatusAsync(cancellationToken);
     }
 
-    /**
-      * Updates the stored value after validating that the new value is safe to use.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: SetState
+    // Purpose: Applies set state changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     private void SetState(MapServiceState state)
     {
         lock (_syncRoot)
@@ -703,12 +721,13 @@ public sealed class MapService : IAsyncDisposable
         }
     }
 
-    /**
-      * Publishes the latest status snapshot so other services can observe this component.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: PublishStatusAsync
+    // Purpose: Executes the publish status operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task PublishStatusAsync(CancellationToken cancellationToken)
     {
         if (_reportStatusAsync is null)
@@ -719,10 +738,12 @@ public sealed class MapService : IAsyncDisposable
         await _reportStatusAsync(GetSnapshot(), cancellationToken);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: GetLoadPercent
+    // Purpose: Retrieves get load percent data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - tickMilliseconds: Tick milliseconds value supplied by the caller for this operation.
+    // Returns: Returns the double value produced by this operation.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     private double GetLoadPercent(double tickMilliseconds)
     {
         double intervalMilliseconds = _definition.TickInterval.TotalMilliseconds;
@@ -734,10 +755,11 @@ public sealed class MapService : IAsyncDisposable
         return Math.Clamp((tickMilliseconds / intervalMilliseconds) * 100d, 0d, 100d);
     }
 
-    /**
-      * Formats runtime values into a stable human-readable message for logging or diagnostics.
-      * The method is part of MapService and keeps this workflow isolated from the caller.
-      */
+    // Method: FormatService
+    // Purpose: Executes the format service operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapService so callers do not duplicate validation, protocol, or persistence rules.
     private string FormatService()
     {
         return $"{_ownerServerName} {_definition.Kind.ToString().ToLowerInvariant()} map service '{_definition.Name}' (MapId={_definition.MapId}, InstanceId={_definition.InstanceId})";

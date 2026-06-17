@@ -15,20 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/WorldData/PlayerCreateInfoRecord.cs
-  * Documents the PlayerCreateInfoRecord source file in the world database template loading and cache construction area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/WorldData/PlayerCreateInfoRecord.cs
+// Purpose: Contains player create info record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries immutable player create info record data for the world database template loading and cache construction layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Race, Class, Map, Zone, PositionX, PositionY, PositionZ, Orientation.
-  */
+// Type: PlayerCreateInfoRecord
+// Purpose: Represents player create info record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Race: Race value supplied by the caller for this operation.
+// - Class: Class value supplied by the caller for this operation.
+// - Map: Map value supplied by the caller for this operation.
+// - Zone: Zone value supplied by the caller for this operation.
+// - PositionX: Position X value supplied by the caller for this operation.
+// - PositionY: Position Y value supplied by the caller for this operation.
+// - PositionZ: Position Z value supplied by the caller for this operation.
+// - Orientation: Orientation value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record PlayerCreateInfoRecord(
     byte Race,
     byte Class,

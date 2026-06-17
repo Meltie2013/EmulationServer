@@ -15,16 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/CommandArgumentParser.cs
+// Purpose: Contains command argument parser code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Shared helpers for command argument tokenization and common numeric parsing.
-  */
+// Type: CommandArgumentParser
+// Purpose: Provides command argument parser behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class CommandArgumentParser
 {
+    // Method: Split
+    // Purpose: Executes the split operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - arguments: Arguments value supplied by the caller for this operation.
+    // Returns: Returns the string[] value produced by this operation.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     public static string[] Split(string arguments)
     {
         if (string.IsNullOrWhiteSpace(arguments))
@@ -57,12 +66,26 @@ public static class CommandArgumentParser
         return [.. parts];
     }
 
+    // Method: TryParseUnsignedId
+    // Purpose: Attempts to retrieve or parse try parse unsigned ID data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - id: Id value supplied by the caller for this operation.
+    // Returns: Returns true when try parse unsigned ID succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseUnsignedId(string value, out uint id)
     {
         string normalized = RemoveArgumentPrefix(value);
         return uint.TryParse(normalized, NumberStyles.None, CultureInfo.InvariantCulture, out id);
     }
 
+    // Method: TryParseMapId
+    // Purpose: Attempts to retrieve or parse try parse map ID data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when try parse map ID succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseMapId(string value, out int mapId)
     {
         mapId = 0;
@@ -70,6 +93,13 @@ public static class CommandArgumentParser
         return int.TryParse(normalized, NumberStyles.None, CultureInfo.InvariantCulture, out mapId) && mapId >= 0;
     }
 
+    // Method: TryParseDuration
+    // Purpose: Attempts to retrieve or parse try parse duration data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns true when try parse duration succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseDuration(string value, out TimeSpan duration)
     {
         duration = TimeSpan.Zero;
@@ -144,6 +174,12 @@ public static class CommandArgumentParser
         return hasDigits && hasUnit && current == 0 && totalSeconds > 0 && TryCreateDuration(totalSeconds, out duration);
     }
 
+    // Method: FormatDuration
+    // Purpose: Executes the format duration operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatDuration(TimeSpan duration)
     {
         if (duration <= TimeSpan.Zero)
@@ -175,12 +211,25 @@ public static class CommandArgumentParser
         return string.Join(' ', parts);
     }
 
+    // Method: RemoveArgumentPrefix
+    // Purpose: Applies remove argument prefix changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     public static string RemoveArgumentPrefix(string value)
     {
         string normalized = (value ?? string.Empty).Trim();
         return normalized.StartsWith("#", StringComparison.Ordinal) ? normalized[1..].Trim() : normalized;
     }
 
+    // Method: TryCreateDuration
+    // Purpose: Executes the try create duration operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - totalSeconds: Total seconds value supplied by the caller for this operation.
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns true when try create duration succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryCreateDuration(ulong totalSeconds, out TimeSpan duration)
     {
         duration = TimeSpan.Zero;
@@ -193,6 +242,13 @@ public static class CommandArgumentParser
         return true;
     }
 
+    // Method: AddPart
+    // Purpose: Applies add part changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - parts: Parts value supplied by the caller for this operation.
+    // - current: Current value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CommandArgumentParser so callers do not duplicate validation, protocol, or persistence rules.
     private static void AddPart(List<string> parts, List<char> current)
     {
         if (current.Count == 0)

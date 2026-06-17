@@ -15,42 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/IChatCommand.cs
+// Purpose: Contains I chat command code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Defines one in-game chat command.
-  * Each command should live in its own file and expose only the metadata the command registry needs to route and authorize it.
-  */
+// Type: IChatCommand
+// Purpose: Defines the I chat command contract used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public interface IChatCommand
 {
-    /**
-      * Primary command token without the dot prefix.
-      */
+
     string Name { get; }
 
-    /**
-      * Alternate command tokens without the dot prefix.
-      */
     IReadOnlyList<string> Aliases { get; }
 
-    /**
-      * RBAC permission id required to execute the command.
-      */
     uint RequiredPermission { get; }
 
-    /**
-      * Short text shown by the help command.
-      */
     string Description { get; }
 
-    /**
-      * Syntax text shown by the help command.
-      */
     string Syntax { get; }
 
-    /**
-      * Executes the command after the registry has parsed the command name and RBAC has approved access.
-      */
     Task<string> ExecuteAsync(ChatCommandContext context, CancellationToken cancellationToken);
 }

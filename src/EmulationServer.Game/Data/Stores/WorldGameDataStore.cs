@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Stores/WorldGameDataStore.cs
+// Purpose: Contains world game data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Game.Data.Dbc.Characters;
@@ -27,63 +30,62 @@ using EmulationServer.Game.Data.Dbc.Spells;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Stores/WorldGameDataStore.cs
-  * Documents the WorldGameDataStore source file in the combined game data store construction and validation area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Stores;
 
-/**
-  * Owns WorldServer DBC data that is needed for global validation and character flow.
-  * It owns loaded data in memory and provides lookup access to other systems.
-  */
+// Type: WorldGameDataStore
+// Purpose: Provides world game data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldGameDataStore
 {
+    // Field: Stores the string state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current string backing value maintained by the owning type.
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
-    /**
-      * Holds the private map data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the map data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map data backing value maintained by the owning type.
     private readonly MapDbcDataStore _mapData;
-    /**
-      * Holds the private character data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the character data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current character data backing value maintained by the owning type.
     private readonly CharacterDbcDataStore _characterData;
-    /**
-      * Holds the private item data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the item data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current item data backing value maintained by the owning type.
     private readonly ItemDbcDataStore _itemData;
+    // Field: Stores the creature data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current creature data backing value maintained by the owning type.
     private readonly CreatureDbcDataStore _creatureData;
-    /**
-      * Holds the private spell data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the spell data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current spell data backing value maintained by the owning type.
     private readonly SpellDbcDataStore _spellData;
-    /**
-      * Holds the private faction data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the faction data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current faction data backing value maintained by the owning type.
     private readonly FactionDbcDataStore _factionData;
-    /**
-      * Holds the private chat data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the chat data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current chat data backing value maintained by the owning type.
     private readonly ChatChannelDbcDataStore _chatData;
-    /**
-      * Holds the private language data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the language data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current language data backing value maintained by the owning type.
     private readonly LanguageDbcDataStore _languageData;
 
-    /**
-      * Initializes a new WorldGameDataStore instance with the dependencies required by the combined game data store construction and validation workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: dbcStores, mapData, characterData, itemData, spellData, factionData....
-      */
+    // Constructor: WorldGameDataStore
+    // Purpose: Initializes a new WorldGameDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - mapData: Map data value supplied by the caller for this operation.
+    // - characterData: Character data value supplied by the caller for this operation.
+    // - itemData: Item data value supplied by the caller for this operation.
+    // - creatureData: Creature data value supplied by the caller for this operation.
+    // - spellData: Spell data value supplied by the caller for this operation.
+    // - factionData: Faction data value supplied by the caller for this operation.
+    // - chatData: Chat data value supplied by the caller for this operation.
+    // - languageData: Language data value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldGameDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private WorldGameDataStore(
         Dictionary<string, DbcDataStore> dbcStores,
         MapDbcDataStore mapData,
@@ -106,10 +108,6 @@ public sealed class WorldGameDataStore
         _languageData = languageData;
     }
 
-    /**
-      * Gets or stores the empty value used by WorldGameDataStore.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public static WorldGameDataStore Empty { get; } = new(
         [],
         MapDbcDataStore.Empty,
@@ -121,62 +119,62 @@ public sealed class WorldGameDataStore
         ChatChannelDbcDataStore.Empty,
         LanguageDbcDataStore.Empty);
 
+    // Property: Gets or sets the string value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: string value exposed by the owning type.
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
-    /**
-      * Gets typed map, area, trigger, continent, and overlay DBC data for character routing and map-service decisions.
-      */
+    // Property: Gets or sets the map data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: map data value exposed by the owning type.
     public MapDbcDataStore MapData => _mapData;
 
-    /**
-      * Gets typed race, class, customization, and starter outfit DBC data.
-      */
+    // Property: Gets or sets the character data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: character data value exposed by the owning type.
     public CharacterDbcDataStore CharacterData => _characterData;
 
-    /**
-      * Gets typed item class, subclass, display, set, and bag-family DBC data.
-      */
+    // Property: Gets or sets the item data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: item data value exposed by the owning type.
     public ItemDbcDataStore ItemData => _itemData;
 
-    /**
-      * Gets typed creature display, model, family, type, sound, and spell DBC data.
-      */
+    // Property: Gets or sets the creature data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature data value exposed by the owning type.
     public CreatureDbcDataStore CreatureData => _creatureData;
 
-    /**
-      * Gets typed spell, skill, range, duration, icon, and cast-time DBC data.
-      */
+    // Property: Gets or sets the spell data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: spell data value exposed by the owning type.
     public SpellDbcDataStore SpellData => _spellData;
 
-    /**
-      * Gets typed faction and faction-template DBC data.
-      */
+    // Property: Gets or sets the faction data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: faction data value exposed by the owning type.
     public FactionDbcDataStore FactionData => _factionData;
 
-    /**
-      * Gets typed chat-channel DBC data used for zone-scoped channel names and auto-join behavior.
-      */
+    // Property: Gets or sets the chat data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: chat data value exposed by the owning type.
     public ChatChannelDbcDataStore ChatData => _chatData;
 
-    /**
-      * Gets typed language DBC data used to validate client chat language selections.
-      */
+    // Property: Gets or sets the language data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: language data value exposed by the owning type.
     public LanguageDbcDataStore LanguageData => _languageData;
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of WorldGameDataStore and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryGetDbcStore
+    // Purpose: Attempts to retrieve or parse try get DBC store data without treating normal misses as failures.
+    // Parameters:
+    // - fileName: File name value supplied by the caller for this operation.
+    // - store: Store value supplied by the caller for this operation.
+    // Returns: Returns true when try get DBC store succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldGameDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetDbcStore(string fileName, out DbcDataStore store)
     {
         return _dbcStores.TryGetValue(fileName, out store!);
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of WorldGameDataStore and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dataDirectory: Data directory value supplied by the caller for this operation.
+    // - dbcDirectory: Dbc directory value supplied by the caller for this operation.
+    // - requiredDbcFiles: Required DBC files value supplied by the caller for this operation.
+    // Returns: Returns the world game data store value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldGameDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static WorldGameDataStore Load(
         string dataDirectory,
         string dbcDirectory,
@@ -201,7 +199,10 @@ public sealed class WorldGameDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"World game data loaded (dbcStores={dbcStores.Count}, mapTileOwners=MapServer/InstanceServer).",
+            string.Join(Environment.NewLine,
+                "World game data loaded:",
+                $"  DBC stores: {dbcStores.Count}",
+                "  Map tile owners: MapServer/InstanceServer"),
             "WorldGameDataStore");
 
         return new WorldGameDataStore(dbcStores, mapData, characterData, itemData, creatureData, spellData, factionData, chatData, languageData);

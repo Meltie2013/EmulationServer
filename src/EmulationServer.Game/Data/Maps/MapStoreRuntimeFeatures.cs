@@ -15,61 +15,79 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapStoreRuntimeFeatures.cs
+// Purpose: Contains map store runtime features code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Maps/MapStoreRuntimeFeatures.cs
-  * Documents the compile-time runtime feature gates for extracted mapstore data.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Defines which mapstore payload types are required by the runtime.
-  * All payload types are enabled by default so production behavior is consistent across servers.
-  * Disabling one requires recompiling with a dedicated compiler symbol such as EMULATIONSERVER_MAPSTORE_DISABLE_COLLISION.
-  */
+// Type: MapStoreRuntimeFeatures
+// Purpose: Provides map store runtime features behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapStoreRuntimeFeatures
 {
 #if EMULATIONSERVER_MAPSTORE_DISABLE_TERRAIN
+    // Constant: Defines the terrain enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed terrain enabled value used anywhere this rule or protocol value is needed.
     public const bool TerrainEnabled = false;
 #else
+    // Constant: Defines the terrain enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed terrain enabled value used anywhere this rule or protocol value is needed.
     public const bool TerrainEnabled = true;
 #endif
 
 #if EMULATIONSERVER_MAPSTORE_DISABLE_LIQUID
+    // Constant: Defines the liquid enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed liquid enabled value used anywhere this rule or protocol value is needed.
     public const bool LiquidEnabled = false;
 #else
+    // Constant: Defines the liquid enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed liquid enabled value used anywhere this rule or protocol value is needed.
     public const bool LiquidEnabled = true;
 #endif
 
 #if EMULATIONSERVER_MAPSTORE_DISABLE_COLLISION
+    // Constant: Defines the collision enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed collision enabled value used anywhere this rule or protocol value is needed.
     public const bool CollisionEnabled = false;
 #else
+    // Constant: Defines the collision enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed collision enabled value used anywhere this rule or protocol value is needed.
     public const bool CollisionEnabled = true;
 #endif
 
 #if EMULATIONSERVER_MAPSTORE_DISABLE_NAVMESH
+    // Constant: Defines the navmesh enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed navmesh enabled value used anywhere this rule or protocol value is needed.
     public const bool NavmeshEnabled = false;
 #else
+    // Constant: Defines the navmesh enabled constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed navmesh enabled value used anywhere this rule or protocol value is needed.
     public const bool NavmeshEnabled = true;
 #endif
 
-    /**
-      * Gets the runtime data flags that must exist for each loaded tile.
-      */
+    // Method: BuildRequiredFlags
+    // Purpose: Builds or writes build required flags output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the map store tile data flags required flags { get; } = value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreRuntimeFeatures so callers do not duplicate validation, protocol, or persistence rules.
     public static MapStoreTileDataFlags RequiredFlags { get; } = BuildRequiredFlags();
 
-    /**
-      * Gets the ordered runtime data kinds that must be loaded for each tile.
-      */
+    // Method: BuildRequiredKinds
+    // Purpose: Builds or writes build required kinds output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only list required kinds { get; } = value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreRuntimeFeatures so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<MapStoreDataKind> RequiredKinds { get; } = BuildRequiredKinds();
 
-    /**
-      * Determines if a mapstore kind is enabled in this build.
-      */
+    // Method: IsEnabled
+    // Purpose: Validates or evaluates is enabled rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - kind: Kind value supplied by the caller for this operation.
+    // Returns: Returns true when is enabled succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapStoreRuntimeFeatures so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsEnabled(MapStoreDataKind kind)
     {
         return kind switch
@@ -82,9 +100,11 @@ public static class MapStoreRuntimeFeatures
         };
     }
 
-    /**
-      * Formats the active feature policy for startup diagnostics.
-      */
+    // Method: FormatPolicy
+    // Purpose: Executes the format policy operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreRuntimeFeatures so callers do not duplicate validation, protocol, or persistence rules.
     public static string FormatPolicy()
     {
         return $"terrain={(TerrainEnabled ? "required" : "compile-disabled")}, " +
@@ -93,9 +113,11 @@ public static class MapStoreRuntimeFeatures
                $"navmesh/mmaps={(NavmeshEnabled ? "required" : "compile-disabled")}";
     }
 
-    /**
-      * Builds the required tile flags from compile-time symbols.
-      */
+    // Method: BuildRequiredFlags
+    // Purpose: Builds or writes build required flags output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the map store tile data flags value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreRuntimeFeatures so callers do not duplicate validation, protocol, or persistence rules.
     private static MapStoreTileDataFlags BuildRequiredFlags()
     {
         MapStoreTileDataFlags flags = MapStoreTileDataFlags.None;
@@ -123,9 +145,11 @@ public static class MapStoreRuntimeFeatures
         return flags;
     }
 
-    /**
-      * Builds the required tile kind list from compile-time symbols.
-      */
+    // Method: BuildRequiredKinds
+    // Purpose: Builds or writes build required kinds output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreRuntimeFeatures so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<MapStoreDataKind> BuildRequiredKinds()
     {
         List<MapStoreDataKind> kinds = [];

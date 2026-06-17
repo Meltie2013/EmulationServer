@@ -15,9 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Creatures/CreatureSnapshotApplyResult.cs
+// Purpose: Contains creature snapshot apply result code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Creatures;
 
+// Type: CreatureSnapshotApplyResult
+// Purpose: Represents creature snapshot apply result data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Completed: Completed value supplied by the caller for this operation.
+// - MapId: Map ID identifier used to select the exact record, object, or runtime owner.
+// - TemplateCount: Template count value supplied by the caller for this operation.
+// - SpawnCount: Spawn count value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct CreatureSnapshotApplyResult(
     bool Completed,
     int MapId,

@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Health/InternalLatencyMonitor.cs
+// Purpose: Contains internal latency monitor code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -24,105 +27,94 @@ using EmulationServer.Network.Networking.Protocol;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Health/InternalLatencyMonitor.cs
-  * Documents the InternalLatencyMonitor source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Health;
 
-/**
-  * Sends ping packets, tracks matching pong responses, and reports server-to-server latency.
-  * It watches ongoing runtime state and reports changes or health information to the logs.
-  */
+// Type: InternalLatencyMonitor
+// Purpose: Provides internal latency monitor behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalLatencyMonitor : IAsyncDisposable
 {
-    /**
-      * Holds the private local server name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the local server name state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current local server name backing value maintained by the owning type.
     private readonly string _localServerName;
-    /**
-      * Holds the private remote server name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the remote server name state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current remote server name backing value maintained by the owning type.
     private readonly string _remoteServerName;
-    /**
-      * Holds the private stream state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stream state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stream backing value maintained by the owning type.
     private readonly NetworkStream _stream;
-    /**
-      * Holds the private send lock state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the send lock state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current send lock backing value maintained by the owning type.
     private readonly SemaphoreSlim _sendLock;
-    /**
-      * Holds the private report interval state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the report interval state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current report interval backing value maintained by the owning type.
     private readonly TimeSpan _reportInterval;
-    /**
-      * Holds whether successful latency values should be logged during normal runtime.
-      */
+
+    // Field: Stores the latency logging enabled state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current latency logging enabled backing value maintained by the owning type.
     private readonly bool _latencyLoggingEnabled;
-    /**
-      * Holds the minimum delay between visible latency log lines for this peer.
-      */
+
+    // Field: Stores the latency log interval state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current latency log interval backing value maintained by the owning type.
     private readonly TimeSpan _latencyLogInterval;
-    /**
-      * Holds the last visible latency log timestamp in UTC ticks.
-      */
+
+    // Field: Stores the last latency log utc ticks state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current last latency log utc ticks backing value maintained by the owning type.
     private long _lastLatencyLogUtcTicks;
-    /**
-      * Holds the private ping timeout state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the ping timeout state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current ping timeout backing value maintained by the owning type.
     private readonly TimeSpan _pingTimeout;
-    /**
-      * Receives successful latency measurements for the remote peer.
-      * The shared latency monitor does not own health policy; callers can use this to aggregate health locally.
-      */
+
+    // Field: Stores the string state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current string backing value maintained by the owning type.
     private readonly Action<string, TimeSpan>? _latencyMeasured;
-    /**
-      * Receives ping timeout events for the remote peer.
-      * Ping health is counted separately from successful latency measurements.
-      */
+
+    // Field: Stores the string state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current string backing value maintained by the owning type.
     private readonly Action<string, TimeSpan>? _pingTimedOut;
     private readonly ConcurrentDictionary<long, PendingPing> _pendingPings = new();
 
-    /**
-      * Holds the private stop cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stop cancellation state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Holds the private monitor task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the monitor task state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current monitor task backing value maintained by the owning type.
     private Task? _monitorTask;
-    /**
-      * Holds the private next ping id state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the next ping ID state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current next ping ID backing value maintained by the owning type.
     private long _nextPingId;
-    /**
-      * Holds the private started state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the started state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current started backing value maintained by the owning type.
     private int _started;
-    /**
-      * Holds the private stopping state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stopping state used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: current stopping backing value maintained by the owning type.
     private int _stopping;
 
-    /**
-      * Initializes a new InternalLatencyMonitor instance with the dependencies required by the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: localServerName, remoteServerName, stream, sendLock, reportInterval, pingTimeout.
-      */
+    // Constructor: InternalLatencyMonitor
+    // Purpose: Initializes a new InternalLatencyMonitor instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - localServerName: Local server name value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - stream: Stream value supplied by the caller for this operation.
+    // - sendLock: Send lock value supplied by the caller for this operation.
+    // - reportInterval: Report interval value supplied by the caller for this operation.
+    // - latencyLoggingEnabled: Latency logging enabled value supplied by the caller for this operation.
+    // - latencyLogInterval: Latency log interval value supplied by the caller for this operation.
+    // - pingTimeout: Ping timeout value supplied by the caller for this operation.
+    // - latencyMeasured: Latency measured value supplied by the caller for this operation.
+    // - pingTimedOut: Ping timed out value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     public InternalLatencyMonitor(
         string localServerName,
         string remoteServerName,
@@ -172,11 +164,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _pingTimedOut = pingTimedOut;
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      */
+    // Method: Start
+    // Purpose: Controls the start lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     public void Start(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -188,12 +181,13 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _monitorTask = Task.Run(() => RunAsync(_stopCancellation.Token), CancellationToken.None);
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -219,7 +213,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                // Expected during shutdown.
+
             }
         }
 
@@ -227,22 +221,25 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         _stopCancellation = null;
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
-    /**
-      * Performs the respond to ping operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: pingId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: RespondToPingAsync
+    // Purpose: Executes the respond to ping operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - pingId: Ping ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task RespondToPingAsync(string pingId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(pingId))
@@ -259,11 +256,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"{_localServerName} sent PONG packet to {_remoteServerName}.", "InternalLatencyMonitor");
     }
 
-    /**
-      * Performs the record pong operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: pingId.
-      */
+    // Method: RecordPong
+    // Purpose: Executes the record pong operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - pingId: Ping ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     public void RecordPong(string pingId)
     {
         if (!long.TryParse(pingId, out long id))
@@ -288,12 +286,13 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RunAsync
+    // Purpose: Controls the run lifecycle step for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         try
@@ -308,7 +307,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown.
+
         }
         catch (IOException exception)
         {
@@ -320,7 +319,7 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
         catch (ObjectDisposedException)
         {
-            // Expected when the connection closes.
+
         }
         catch (Exception exception)
         {
@@ -328,12 +327,13 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendPingAsync
+    // Purpose: Handles send ping work for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendPingAsync(CancellationToken cancellationToken)
     {
         long id = Interlocked.Increment(ref _nextPingId);
@@ -350,10 +350,11 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"{_localServerName} sent PING packet to {_remoteServerName}.", "InternalLatencyMonitor");
     }
 
-    /**
-      * Removes an item from the managed collection and cleans up related state.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      */
+    // Method: RemoveTimedOutPings
+    // Purpose: Applies remove timed out pings changes for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void RemoveTimedOutPings()
     {
         foreach (KeyValuePair<long, PendingPing> pendingPing in _pendingPings)
@@ -372,9 +373,11 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Determines whether this pong should be promoted from TRACE into a visible runtime latency line.
-      */
+    // Method: ShouldLogLatency
+    // Purpose: Validates or evaluates should log latency rules for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns true when should log latency succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private bool ShouldLogLatency()
     {
         if (!_latencyLoggingEnabled)
@@ -393,9 +396,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         return Interlocked.CompareExchange(ref _lastLatencyLogUtcTicks, nowTicks, previousTicks) == previousTicks;
     }
 
-    /**
-      * Notifies the owner about a successful latency measurement without allowing health bookkeeping to break socket processing.
-      */
+    // Method: NotifyLatencyMeasured
+    // Purpose: Executes the notify latency measured operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - latency: Latency value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void NotifyLatencyMeasured(TimeSpan latency)
     {
         try
@@ -408,9 +414,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Notifies the owner about a ping timeout without allowing health bookkeeping to break socket processing.
-      */
+    // Method: NotifyPingTimedOut
+    // Purpose: Executes the notify ping timed out operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - elapsed: Elapsed value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private void NotifyPingTimedOut(TimeSpan elapsed)
     {
         try
@@ -423,10 +432,12 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         }
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of InternalLatencyMonitor and keeps this workflow isolated from the caller.
-      */
+    // Method: GetElapsedTime
+    // Purpose: Retrieves get elapsed time data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - startTimestamp: Start timestamp value supplied by the caller for this operation.
+    // Returns: Returns the time span value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalLatencyMonitor so callers do not duplicate validation, protocol, or persistence rules.
     private static TimeSpan GetElapsedTime(long startTimestamp)
     {
         long elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
@@ -435,10 +446,10 @@ public sealed class InternalLatencyMonitor : IAsyncDisposable
         return TimeSpan.FromSeconds(elapsedSeconds);
     }
 
-    /**
-      * Represents immutable pending ping data passed between parts of the server.
-      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-      * Positional fields carried by this record: StartTimestamp.
-      */
+    // Type: PendingPing
+    // Purpose: Represents pending ping data passed through the packet serialization, socket transport, and protocol framing layer.
+    // Constructor values:
+    // - StartTimestamp: Start timestamp value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record PendingPing(long StartTimestamp);
 }

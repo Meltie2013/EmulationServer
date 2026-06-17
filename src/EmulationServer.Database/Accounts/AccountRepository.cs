@@ -15,51 +15,38 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Database/Accounts/AccountRepository.cs
+// Purpose: Contains account repository code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Interfaces;
 
 using MySqlConnector;
 
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountRepository.cs
-  * Documents the AccountRepository source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Owns the account repository behavior for the database access, account persistence, and MySQL connectivity layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
-public sealed class AccountRepository
+// Type: AccountRepository
+// Purpose: Provides account repository behavior for the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
+public sealed class AccountRepository(IDatabaseService databaseService)
 {
-    /**
-      * Holds the private database service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
-    private readonly IDatabaseService _databaseService;
 
-    /**
-      * Initializes a new AccountRepository instance with the dependencies required by the database access, account persistence, and MySQL connectivity workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: databaseService.
-      */
-    public AccountRepository(IDatabaseService databaseService)
-    {
-        _databaseService = databaseService ?? throw new ArgumentNullException();
-    }
+    // Field: Stores the database service state used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: current database service backing value maintained by the owning type.
+    private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException();
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: GetForLogonAsync
+    // Purpose: Retrieves get for logon data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountLogonRecord?> GetForLogonAsync(string username, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `id`, `username`, `sha_pass_hash`, `locked`, `last_ip`, `v`, `s`, `sessionkey`
@@ -99,16 +86,18 @@ public sealed class AccountRepository
             sessionKey);
     }
 
-    /**
-      * Determines whether ip banned for the database access, account persistence, and MySQL connectivity workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: ipAddress, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: IsIpBannedAsync
+    // Purpose: Validates or evaluates is IP banned rules for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - ipAddress: Ip address value used when binding, connecting, or routing network traffic.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when is IP banned async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<bool> IsIpBannedAsync(string ipAddress, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT 1
@@ -123,18 +112,20 @@ public sealed class AccountRepository
         return result is not null;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: GetAccountBanStatusAsync
+    // Purpose: Retrieves get account ban status data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountBanStatus> GetAccountBanStatusAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await DeactivateExpiredAccountBansAsync(cancellationToken);
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `bandate`, `unbandate`
@@ -159,16 +150,20 @@ public sealed class AccountRepository
         return new AccountBanStatus(true, banDate == unbanDate);
     }
 
-    /**
-      * Updates update verifier state in memory or persistent storage.
-      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-      * Inputs used by this operation: username, verifier, salt, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: UpdateVerifierAsync
+    // Purpose: Applies update verifier changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - verifier: Verifier value supplied by the caller for this operation.
+    // - salt: Salt value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task UpdateVerifierAsync(string username, string verifier, string salt, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `account`
@@ -183,12 +178,18 @@ public sealed class AccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Updates update successful login state in memory or persistent storage.
-      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-      * Inputs used by this operation: username, sessionKey, lastIp, locale, os, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: UpdateSuccessfulLoginAsync
+    // Purpose: Applies update successful login changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - sessionKey: Session key value supplied by the caller for this operation.
+    // - lastIp: Last IP value supplied by the caller for this operation.
+    // - locale: Locale value supplied by the caller for this operation.
+    // - os: Os value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task UpdateSuccessfulLoginAsync(
         string username,
         string sessionKey,
@@ -198,7 +199,7 @@ public sealed class AccountRepository
         CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `account`
@@ -219,16 +220,18 @@ public sealed class AccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Updates increment failed logins state in memory or persistent storage.
-      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-      * Inputs used by this operation: username, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: IncrementFailedLoginsAsync
+    // Purpose: Executes the increment failed logins operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task IncrementFailedLoginsAsync(string username, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `account`
@@ -240,12 +243,16 @@ public sealed class AccountRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Creates the account result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: username, password, email, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CreateAccountAsync
+    // Purpose: Applies create account changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - password: Password value supplied by the caller for this operation.
+    // - email: Email value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountCommandResult> CreateAccountAsync(
         string username,
         string password,
@@ -269,7 +276,7 @@ public sealed class AccountRepository
         try
         {
             await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-            using MySqlCommand command = connection.CreateCommand();
+            await using MySqlCommand command = connection.CreateCommand();
 
             command.CommandText = """
                 INSERT INTO `account`
@@ -290,19 +297,21 @@ public sealed class AccountRepository
         }
     }
 
-    /**
-      * Removes an item from the managed collection and cleans up related state.
-      * The method is part of AccountRepository and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RemoveAccountAsync
+    // Purpose: Applies remove account changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountCommandResult> RemoveAccountAsync(string username, CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand deleteBans = connection.CreateCommand();
-        using MySqlCommand deleteAccount = connection.CreateCommand();
+        await using MySqlCommand deleteBans = connection.CreateCommand();
+        await using MySqlCommand deleteAccount = connection.CreateCommand();
 
         deleteBans.CommandText = """
             DELETE `account_banned`
@@ -325,10 +334,16 @@ public sealed class AccountRepository
         return new AccountCommandResult(true, $"Account '{username}' was removed.");
     }
 
-    /**
-      * Grants a direct RBAC permission to an account for all realms unless a specific realm id is supplied.
-      * The command updates the account-specific permission override table and leaves role template rows unchanged.
-      */
+    // Method: SetAccountPermissionAsync
+    // Purpose: Applies set account permission changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - permissionId: Permission ID identifier used to select the exact record, object, or runtime owner.
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountCommandResult> SetAccountPermissionAsync(
         string username,
         uint permissionId,
@@ -363,7 +378,7 @@ public sealed class AccountRepository
             return new AccountCommandResult(false, $"RBAC permission {permissionId} does not exist.");
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO `rbac_account_permissions`
@@ -384,10 +399,16 @@ public sealed class AccountRepository
         return new AccountCommandResult(true, $"Permission {permissionId} was granted to account '{username}' {scope}.");
     }
 
-    /**
-      * Removes a direct RBAC permission override from an account.
-      * Linked/default permissions are not modified; the account may still inherit the same permission through a role.
-      */
+    // Method: RemoveAccountPermissionAsync
+    // Purpose: Applies remove account permission changes for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - permissionId: Permission ID identifier used to select the exact record, object, or runtime owner.
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountCommandResult> RemoveAccountPermissionAsync(
         string username,
         uint permissionId,
@@ -416,7 +437,7 @@ public sealed class AccountRepository
             return new AccountCommandResult(false, $"Account '{username}' was not found.");
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             DELETE FROM `rbac_account_permissions`
@@ -440,12 +461,17 @@ public sealed class AccountRepository
         return new AccountCommandResult(true, $"Permission {permissionId} was removed from account '{username}' {scope}.");
     }
 
-    /**
-      * Creates an account_banned row for a permanent or temporary account ban.
-      * Existing active bans are deactivated first so one account has a single current ban while preserving the previous ban history.
-      * Inputs used by this operation: username, durationSeconds, bannedBy, reason, cancellationToken.
-      * A duration of zero seconds stores bandate and unbandate as the same value, which marks the ban as permanent.
-      */
+    // Method: BanAccountAsync
+    // Purpose: Executes the ban account operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - durationSeconds: Duration seconds value supplied by the caller for this operation.
+    // - bannedBy: Banned by value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountCommandResult> BanAccountAsync(
         string username,
         ulong durationSeconds,
@@ -472,7 +498,7 @@ public sealed class AccountRepository
             return new AccountCommandResult(false, $"Account '{username}' was not found.");
         }
 
-        using MySqlCommand deactivateExisting = connection.CreateCommand();
+        await using MySqlCommand deactivateExisting = connection.CreateCommand();
         deactivateExisting.Transaction = transaction;
         deactivateExisting.CommandText = """
             UPDATE `account_banned`
@@ -483,7 +509,7 @@ public sealed class AccountRepository
         deactivateExisting.Parameters.AddWithValue("@id", accountId.Value);
         await deactivateExisting.ExecuteNonQueryAsync(cancellationToken);
 
-        using MySqlCommand insertBan = connection.CreateCommand();
+        await using MySqlCommand insertBan = connection.CreateCommand();
         insertBan.Transaction = transaction;
         insertBan.CommandText = """
             INSERT INTO `account_banned`
@@ -507,7 +533,7 @@ public sealed class AccountRepository
         insertBan.Parameters.AddWithValue("@reason", reason);
         await insertBan.ExecuteNonQueryAsync(cancellationToken);
 
-        using MySqlCommand clearRealmState = connection.CreateCommand();
+        await using MySqlCommand clearRealmState = connection.CreateCommand();
         clearRealmState.Transaction = transaction;
         clearRealmState.CommandText = """
             UPDATE `account`
@@ -524,11 +550,14 @@ public sealed class AccountRepository
         return new AccountCommandResult(true, $"Account '{username}' was banned {durationMessage}. Reason: {reason}");
     }
 
-    /**
-      * Removes the active account ban by marking current rows inactive instead of deleting history.
-      * The method keeps ban audit data available for later inspection.
-      * Inputs used by this operation: username, cancellationToken.
-      */
+    // Method: UnbanAccountAsync
+    // Purpose: Executes the unban account operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountCommandResult> UnbanAccountAsync(string username, CancellationToken cancellationToken = default)
     {
         username = NormalizeUsername(username);
@@ -550,7 +579,7 @@ public sealed class AccountRepository
             return new AccountCommandResult(false, $"Account '{username}' was not found.");
         }
 
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
             UPDATE `account_banned`
@@ -572,11 +601,14 @@ public sealed class AccountRepository
         return new AccountCommandResult(true, $"Account '{username}' was unbanned.");
     }
 
-    /**
-      * Returns the active account bans used by console ban list output.
-      * Expired temporary bans are deactivated before the list is read so the displayed data matches login behavior.
-      * Inputs used by this operation: usernameFilter, cancellationToken.
-      */
+    // Method: GetActiveAccountBansAsync
+    // Purpose: Retrieves get active account bans data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - usernameFilter: Username filter value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<AccountBanRecord>> GetActiveAccountBansAsync(string usernameFilter = "", CancellationToken cancellationToken = default)
     {
         await DeactivateExpiredAccountBansAsync(cancellationToken);
@@ -585,7 +617,7 @@ public sealed class AccountRepository
         List<AccountBanRecord> records = [];
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             SELECT `account`.`id`, `account`.`username`, `account_banned`.`bandate`, `account_banned`.`unbandate`,
@@ -608,11 +640,14 @@ public sealed class AccountRepository
         return records;
     }
 
-    /**
-      * Returns the full account ban history for one account.
-      * The result distinguishes a missing account from an account that exists but has no prior bans.
-      * Inputs used by this operation: username, cancellationToken.
-      */
+    // Method: GetAccountBanHistoryAsync
+    // Purpose: Retrieves get account ban history data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<AccountBanHistoryResult> GetAccountBanHistoryAsync(string username, CancellationToken cancellationToken = default)
     {
         await DeactivateExpiredAccountBansAsync(cancellationToken);
@@ -621,7 +656,7 @@ public sealed class AccountRepository
         List<AccountBanRecord> records = [];
 
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand accountCommand = connection.CreateCommand();
+        await using MySqlCommand accountCommand = connection.CreateCommand();
         accountCommand.CommandText = """
             SELECT `id`, `username`
             FROM `account`
@@ -643,7 +678,7 @@ public sealed class AccountRepository
             accountName = accountReader.GetString(1);
         }
 
-        using MySqlCommand historyCommand = connection.CreateCommand();
+        await using MySqlCommand historyCommand = connection.CreateCommand();
         historyCommand.CommandText = """
             SELECT `account`.`id`, `account`.`username`, `account_banned`.`bandate`, `account_banned`.`unbandate`,
                    `account_banned`.`bannedby`, `account_banned`.`banreason`, `account_banned`.`active`
@@ -663,14 +698,17 @@ public sealed class AccountRepository
         return new AccountBanHistoryResult(true, accountName, records);
     }
 
-    /**
-      * Deactivates expired temporary account bans while leaving permanent bans and history rows intact.
-      * This mirrors the account_banned active flag while keeping the table auditable.
-      */
+    // Method: DeactivateExpiredAccountBansAsync
+    // Purpose: Executes the deactivate expired account bans operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<int> DeactivateExpiredAccountBansAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
 
         command.CommandText = """
             UPDATE `account_banned`
@@ -683,16 +721,23 @@ public sealed class AccountRepository
         return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Returns whether an RBAC permission id exists before account override rows reference it.
-      */
+    // Method: PermissionExistsAsync
+    // Purpose: Executes the permission exists operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - permissionId: Permission ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when permission exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> PermissionExistsAsync(
         MySqlConnection connection,
         MySqlTransaction? transaction,
         uint permissionId,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "SELECT 1 FROM `rbac_permissions` WHERE `id` = @permissionId LIMIT 1;";
         command.Parameters.AddWithValue("@permissionId", permissionId);
@@ -701,17 +746,23 @@ public sealed class AccountRepository
         return result is not null;
     }
 
-    /**
-      * Resolves an account id inside an existing connection and optional transaction.
-      * Keeping this helper local to the repository avoids repeating account lookup SQL across command operations.
-      */
+    // Method: GetAccountIdAsync
+    // Purpose: Retrieves get account ID data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - username: Username value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<uint?> GetAccountIdAsync(
         MySqlConnection connection,
         MySqlTransaction? transaction,
         string username,
         CancellationToken cancellationToken)
     {
-        using MySqlCommand command = connection.CreateCommand();
+        await using MySqlCommand command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = "SELECT `id` FROM `account` WHERE `username` = @username LIMIT 1;";
         command.Parameters.AddWithValue("@username", username);
@@ -720,10 +771,12 @@ public sealed class AccountRepository
         return result is null ? null : Convert.ToUInt32(result);
     }
 
-    /**
-      * Reads an account ban row from a data reader using the repository's shared select shape.
-      * Centralizing this mapping keeps list and history commands consistent.
-      */
+    // Method: ReadBanRecord
+    // Purpose: Retrieves read ban record data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // Returns: Returns the account ban record value produced by this operation.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static AccountBanRecord ReadBanRecord(MySqlDataReader reader)
     {
         return new AccountBanRecord(
@@ -736,20 +789,26 @@ public sealed class AccountRepository
             reader.GetByte(6) != 0);
     }
 
-    /**
-      * Normalizes ban metadata before inserting it into fixed-width schema fields.
-      * Empty values are replaced with defaults and long values are truncated to the database column limit.
-      */
+    // Method: NormalizeBanText
+    // Purpose: Converts incoming data into normalize ban text form for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - maximumLength: Maximum length value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeBanText(string value, int maximumLength, string defaultValue)
     {
         string normalized = string.IsNullOrWhiteSpace(value) ? defaultValue : value.Trim();
         return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
     }
 
-    /**
-      * Formats a duration for command feedback without depending on external localization resources.
-      * The output is intended for console logs and admin command responses.
-      */
+    // Method: FormatDuration
+    // Purpose: Executes the format duration operation for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - durationSeconds: Duration seconds value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatDuration(ulong durationSeconds)
     {
         TimeSpan duration = TimeSpan.FromSeconds(durationSeconds > int.MaxValue ? int.MaxValue : (int)durationSeconds);
@@ -782,11 +841,12 @@ public sealed class AccountRepository
         return string.Join(' ', parts);
     }
 
-    /**
-      * Normalizes the username for the database access, account persistence, and MySQL connectivity workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: username.
-      */
+    // Method: NormalizeUsername
+    // Purpose: Converts incoming data into normalize username form for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to AccountRepository so callers do not duplicate validation, protocol, or persistence rules.
     public static string NormalizeUsername(string username)
     {
         if (string.IsNullOrWhiteSpace(username))

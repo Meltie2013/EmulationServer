@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/MapServer/Core/MapServer.cs
+// Purpose: Contains map server code for the map server runtime, world-map ownership, and grid/tile coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
@@ -32,55 +35,45 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/MapServer/Core/MapServer.cs
-  * Documents the MapServer source file in the map service startup, map status reporting, and player location routing area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.MapServer.Core;
 
-/**
-  * Owns the map server behavior for the map service startup, map status reporting, and player location routing layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapServer
+// Purpose: Provides map server behavior for the map server runtime, world-map ownership, and grid/tile coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapServer : IAsyncDisposable
 {
-    /**
-      * Holds the private host state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the required runtime internal servers state used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: current required runtime internal servers backing value maintained by the owning type.
+    private static readonly string[] RequiredRuntimeInternalServers = ["ProxyServer", "WorldServer"];
+
+    // Field: Stores the host state used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: current host backing value maintained by the owning type.
     private readonly EmulationServerHost _host;
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: current settings backing value maintained by the owning type.
     private readonly MapServerSettings _settings;
-    /**
-      * Holds the private map services state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the map services state used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: current map services backing value maintained by the owning type.
     private MapServiceManager? _mapServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
-    /**
-      * Holds the private player tracker state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly MapPlayerTracker _playerTracker = new();
     private readonly GameObjectSnapshotStore _gameObjectSnapshots = new("MapServer");
     private readonly CreatureSnapshotStore _creatureSnapshots = new("MapServer");
-    /**
-      * Holds the private world capacity limit state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the world capacity limit state used by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Value: current world capacity limit backing value maintained by the owning type.
     private int _worldCapacityLimit;
 
-    /**
-      * Initializes a new MapServer instance with the dependencies required by the map service startup, map status reporting, and player location routing workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: MapServer
+    // Purpose: Initializes a new MapServer instance with dependencies and values required by the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     public MapServer(MapServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -90,12 +83,13 @@ public sealed class MapServer : IAsyncDisposable
         _host = new EmulationServerHost("MapServer", settings.InternalNetwork, CreateCallbacks());
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Task hostTask = _host.StartAsync(cancellationToken);
@@ -103,6 +97,11 @@ public sealed class MapServer : IAsyncDisposable
         try
         {
             await _host.StartupCompleted.WaitAsync(cancellationToken);
+
+            await _host.WaitForInternalServersAsync(
+                RequiredRuntimeInternalServers,
+                "MapServer will keep map services offline until ProxyServer and WorldServer are online.",
+                cancellationToken);
 
             MapServiceManager serviceManager = CreateMapServiceManager();
             _mapServices = serviceManager;
@@ -119,12 +118,13 @@ public sealed class MapServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_mapServices is not null)
@@ -135,11 +135,12 @@ public sealed class MapServer : IAsyncDisposable
         await _host.StopAsync(cancellationToken);
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -152,26 +153,28 @@ public sealed class MapServer : IAsyncDisposable
         await _host.DisposeAsync();
     }
 
-    /**
-      * Creates the map service manager after the host has finished startup validation.
-      * Delaying construction keeps DBC loading, map registration, and service startup after the server has validated and announced startup.
-      */
+    // Method: CreateMapServiceManager
+    // Purpose: Applies create map service manager changes for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters: none.
+    // Returns: Returns the map service manager value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private MapServiceManager CreateMapServiceManager()
     {
         return new MapServiceManager(
             "MapServer",
             _settings.MapServices,
             ReportMapServiceStatusAsync,
-            (mapId, cancellationToken) => Task.FromResult(_gameObjectSnapshots.GetSpawnsForMap(mapId)),
+            (mapId, _) => Task.FromResult(_gameObjectSnapshots.GetSpawnsForMap(mapId)),
             entry => _gameObjectSnapshots.GetTemplateOrDefault(entry),
-            (mapId, cancellationToken) => Task.FromResult(_creatureSnapshots.GetSpawnsForMap(mapId)),
+            (mapId, _) => Task.FromResult(_creatureSnapshots.GetSpawnsForMap(mapId)),
             entry => _creatureSnapshots.GetTemplateOrDefault(entry));
     }
 
-    /**
-      * Creates the callbacks result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: CreateCallbacks
+    // Purpose: Applies create callbacks changes for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters: none.
+    // Returns: Returns the internal network callbacks value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -185,12 +188,15 @@ public sealed class MapServer : IAsyncDisposable
         };
     }
 
-    /**
-      * Handles the on server authenticated event for the map service startup, map status reporting, and player location routing workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerAuthenticatedAsync
+    // Purpose: Executes the on server authenticated operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -202,12 +208,15 @@ public sealed class MapServer : IAsyncDisposable
         await SendMapServiceStatusesToSessionAsync(session, cancellationToken);
     }
 
-    /**
-      * Handles the on server disconnected event for the map service startup, map status reporting, and player location routing workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerDisconnectedAsync
+    // Purpose: Executes the on server disconnected operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -219,12 +228,15 @@ public sealed class MapServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Handles the on peer authenticated event for the map service startup, map status reporting, and player location routing workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerAuthenticatedAsync
+    // Purpose: Executes the on peer authenticated operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -236,12 +248,15 @@ public sealed class MapServer : IAsyncDisposable
         await SendMapServiceStatusesToPeerAsync(connection, cancellationToken);
     }
 
-    /**
-      * Handles the on peer disconnected event for the map service startup, map status reporting, and player location routing workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerDisconnectedAsync
+    // Purpose: Executes the on peer disconnected operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -253,12 +268,16 @@ public sealed class MapServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Handles the on peer packet received event for the map service startup, map status reporting, and player location routing workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerPacketReceivedAsync
+    // Purpose: Executes the on peer packet received operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -272,12 +291,16 @@ public sealed class MapServer : IAsyncDisposable
             cancellationToken);
     }
 
-    /**
-      * Handles the on session packet received event for the map service startup, map status reporting, and player location routing workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnSessionPacketReceivedAsync
+    // Purpose: Executes the on session packet received operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -291,11 +314,16 @@ public sealed class MapServer : IAsyncDisposable
             cancellationToken);
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of MapServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: HandleInternalPacketAsync
+    // Purpose: Handles handle internal packet work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - sendResponseAsync: Send response async value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleInternalPacketAsync(
         string remoteServerName,
         string packet,
@@ -346,9 +374,15 @@ public sealed class MapServer : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"MapServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", "MapServer");
     }
 
-    /**
-      * Applies game object snapshot packets from WorldServer and refreshes hosted map runtimes when a snapshot completes.
-      */
+    // Method: HandleGameObjectSnapshotPacketAsync
+    // Purpose: Handles handle game object snapshot packet work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when handle game object snapshot packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> HandleGameObjectSnapshotPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!_gameObjectSnapshots.TryHandleSnapshotPacket(remoteServerName, packet, out GameObjectSnapshotApplyResult result))
@@ -371,9 +405,15 @@ public sealed class MapServer : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Applies creature snapshot packets from WorldServer and refreshes hosted map runtimes when a snapshot completes.
-      */
+    // Method: HandleCreatureSnapshotPacketAsync
+    // Purpose: Handles handle creature snapshot packet work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when handle creature snapshot packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> HandleCreatureSnapshotPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!_creatureSnapshots.TryHandleSnapshotPacket(remoteServerName, packet, out CreatureSnapshotApplyResult result))
@@ -396,9 +436,15 @@ public sealed class MapServer : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Handles player routing notifications from WorldServer while the client socket stays owned by WorldServer.
-      */
+    // Method: HandlePlayerRoutingPacketAsync
+    // Purpose: Handles handle player routing packet work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when handle player routing packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> HandlePlayerRoutingPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(packet))
@@ -466,18 +512,21 @@ public sealed class MapServer : IAsyncDisposable
 
         if (string.Equals(parts[0], InternalProtocol.PlayerClientPacket, StringComparison.OrdinalIgnoreCase))
         {
-            // Intentionally accepted without per-packet logging. Client packet routes can become high-volume
-            // once gameplay handlers are added, and console/file logging here slows the internal stream down.
+
             return true;
         }
 
         return false;
     }
 
-
-    /**
-      * Refreshes active player counts on hosted map services and immediately publishes the affected map snapshots.
-      */
+    // Method: RefreshMapServicePlayerCountsAsync
+    // Purpose: Executes the refresh map service player counts operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // - uintaffectedMapIds: Uintaffected map ids value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RefreshMapServicePlayerCountsAsync(CancellationToken cancellationToken, params uint[] affectedMapIds)
     {
         MapServiceManager? mapServices = _mapServices;
@@ -497,11 +546,13 @@ public sealed class MapServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Tries to resolve the read player enter route value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: parts, state.
-      */
+    // Method: TryReadPlayerEnterRoute
+    // Purpose: Attempts to retrieve or parse try read player enter route data without treating normal misses as failures.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - state: State value supplied by the caller for this operation.
+    // Returns: Returns true when try read player enter route succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadPlayerEnterRoute(string[] parts, [NotNullWhen(true)] out MapPlayerRuntimeState? state)
     {
         state = null;
@@ -522,11 +573,23 @@ public sealed class MapServer : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Tries to resolve the read player movement route value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: parts, accountId, guid, opcode, map, zone....
-      */
+    // Method: TryReadPlayerMovementRoute
+    // Purpose: Attempts to retrieve or parse try read player movement route data without treating normal misses as failures.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - map: Map value supplied by the caller for this operation.
+    // - zone: Zone value supplied by the caller for this operation.
+    // - x: X value supplied by the caller for this operation.
+    // - y: Y value supplied by the caller for this operation.
+    // - z: Z value supplied by the caller for this operation.
+    // - orientation: Orientation value supplied by the caller for this operation.
+    // - flags: Flags value supplied by the caller for this operation.
+    // - clientTime: Client time value supplied by the caller for this operation.
+    // Returns: Returns true when try read player movement route succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadPlayerMovementRoute(
         string[] parts,
         out uint accountId,
@@ -567,11 +630,13 @@ public sealed class MapServer : IAsyncDisposable
             uint.TryParse(parts[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out clientTime);
     }
 
-    /**
-      * Tries to resolve the parse opcode value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: value, opcode.
-      */
+    // Method: TryParseOpcode
+    // Purpose: Attempts to retrieve or parse try parse opcode data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // Returns: Returns true when try parse opcode succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseOpcode(string value, out ushort opcode)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -582,11 +647,16 @@ public sealed class MapServer : IAsyncDisposable
         return ushort.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out opcode);
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of MapServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: HandleMapServiceCommandAsync
+    // Purpose: Handles handle map service command work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - command: Database command used to execute this operation without opening unnecessary additional state.
+    // - sendResponseAsync: Send response async value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleMapServiceCommandAsync(
         string remoteServerName,
         InternalMapServiceCommandPacket command,
@@ -598,11 +668,11 @@ public sealed class MapServer : IAsyncDisposable
             InternalMapServiceCommandResultPacket invalidResult = new(
                 command.CommandId,
                 "MapServer",
-                MapServiceKind.World.ToString(),
+                nameof(MapServiceKind.World),
                 command.MapId,
                 0,
-                MapServiceControlResultCode.Failed.ToString(),
-                MapServiceState.Offline.ToString(),
+                nameof(MapServiceControlResultCode.Failed),
+                nameof(MapServiceState.Offline),
                 $"Invalid map command action '{command.Action}'.");
 
             await sendResponseAsync(invalidResult.ToPacketLine());
@@ -617,11 +687,11 @@ public sealed class MapServer : IAsyncDisposable
             InternalMapServiceCommandResultPacket unavailableResult = new(
                 command.CommandId,
                 "MapServer",
-                MapServiceKind.World.ToString(),
+                nameof(MapServiceKind.World),
                 command.MapId,
                 0,
-                MapServiceControlResultCode.Failed.ToString(),
-                MapServiceState.Offline.ToString(),
+                nameof(MapServiceControlResultCode.Failed),
+                nameof(MapServiceState.Offline),
                 "MapServer map service manager is not started yet.");
 
             await sendResponseAsync(unavailableResult.ToPacketLine());
@@ -651,10 +721,14 @@ public sealed class MapServer : IAsyncDisposable
         await mapServices.ReportServicesAsync(command.MapId, cancellationToken);
     }
 
-    /**
-      * Broadcasts one map service status snapshot to all currently connected status peers.
-      * Startup and peer-authentication paths use targeted helpers so a newly connected peer does not cause every existing peer to receive a duplicate startup snapshot.
-      */
+    // Method: ReportMapServiceStatusAsync
+    // Purpose: Executes the report map service status operation for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ReportMapServiceStatusAsync(
         MapServiceSnapshot snapshot,
         CancellationToken cancellationToken)
@@ -686,10 +760,14 @@ public sealed class MapServer : IAsyncDisposable
         _ = sentCount;
     }
 
-    /**
-      * Sends all current map service snapshots to one newly authenticated outgoing peer.
-      * This avoids the duplicate reporting that happened when the authentication callback rebroadcast every service to every existing peer.
-      */
+    // Method: SendMapServiceStatusesToPeerAsync
+    // Purpose: Handles send map service statuses to peer work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendMapServiceStatusesToPeerAsync(
         InternalPeerConnection connection,
         CancellationToken cancellationToken)
@@ -715,10 +793,14 @@ public sealed class MapServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends all current map service snapshots to one newly authenticated incoming session.
-      * This keeps status synchronization targeted to the new connection instead of rebroadcasting to all peers.
-      */
+    // Method: SendMapServiceStatusesToSessionAsync
+    // Purpose: Handles send map service statuses to session work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendMapServiceStatusesToSessionAsync(
         InternalServerSession session,
         CancellationToken cancellationToken)
@@ -744,9 +826,15 @@ public sealed class MapServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a single map service status snapshot to one outgoing internal peer connection.
-      */
+    // Method: SendMapServiceStatusToPeerAsync
+    // Purpose: Handles send map service status to peer work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - peer: Peer value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when send map service status to peer async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> SendMapServiceStatusToPeerAsync(
         MapServiceSnapshot snapshot,
         InternalPeerConnection peer,
@@ -764,9 +852,15 @@ public sealed class MapServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a single map service status snapshot to one incoming internal server session.
-      */
+    // Method: SendMapServiceStatusToSessionAsync
+    // Purpose: Handles send map service status to session work for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - session: Session value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when send map service status to session async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> SendMapServiceStatusToSessionAsync(
         MapServiceSnapshot snapshot,
         InternalServerSession session,
@@ -784,9 +878,12 @@ public sealed class MapServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Converts a runtime map service snapshot into the shared internal protocol line used by WorldServer and ProxyServer.
-      */
+    // Method: CreateMapServiceStatusPacket
+    // Purpose: Applies create map service status packet changes for the map server runtime, world-map ownership, and grid/tile coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string CreateMapServiceStatusPacket(MapServiceSnapshot snapshot)
     {
         InternalMapServiceStatusPacket status = new(
@@ -806,11 +903,13 @@ public sealed class MapServer : IAsyncDisposable
         return status.ToPacketLine();
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of MapServer and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryParseMapServiceControlAction
+    // Purpose: Attempts to retrieve or parse try parse map service control action data without treating normal misses as failures.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - controlAction: Control action value supplied by the caller for this operation.
+    // Returns: Returns true when try parse map service control action succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseMapServiceControlAction(string action, out MapServiceControlAction controlAction)
     {
         switch (action.ToLowerInvariant())

@@ -15,52 +15,44 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Networking/Packets/WorldHeaderCrypt.cs
-  * Documents the WorldHeaderCrypt source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Networking/Packets/WorldHeaderCrypt.cs
+// Purpose: Contains world header crypt code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Owns the world header crypt behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldHeaderCrypt
+// Purpose: Provides world header crypt behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldHeaderCrypt
 {
-    /**
-      * Holds the private session key state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the session key state used by the world server gameplay, session, and character runtime layer.
+    // Value: current session key backing value maintained by the owning type.
     private readonly byte[] _sessionKey;
-    /**
-      * Holds the private encrypt index state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the encrypt index state used by the world server gameplay, session, and character runtime layer.
+    // Value: current encrypt index backing value maintained by the owning type.
     private int _encryptIndex;
-    /**
-      * Holds the private decrypt index state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the decrypt index state used by the world server gameplay, session, and character runtime layer.
+    // Value: current decrypt index backing value maintained by the owning type.
     private int _decryptIndex;
-    /**
-      * Holds the private previous encrypted state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the previous encrypted state used by the world server gameplay, session, and character runtime layer.
+    // Value: current previous encrypted backing value maintained by the owning type.
     private byte _previousEncrypted;
-    /**
-      * Holds the private previous decrypted state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the previous decrypted state used by the world server gameplay, session, and character runtime layer.
+    // Value: current previous decrypted backing value maintained by the owning type.
     private byte _previousDecrypted;
 
-    /**
-      * Initializes a new WorldHeaderCrypt instance with the dependencies required by the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: sessionKey.
-      */
+    // Constructor: WorldHeaderCrypt
+    // Purpose: Initializes a new WorldHeaderCrypt instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sessionKey: Session key value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldHeaderCrypt so callers do not duplicate validation, protocol, or persistence rules.
     public WorldHeaderCrypt(ReadOnlySpan<byte> sessionKey)
     {
         if (sessionKey.Length == 0)
@@ -71,11 +63,12 @@ public sealed class WorldHeaderCrypt
         _sessionKey = sessionKey.ToArray();
     }
 
-    /**
-      * Performs the encrypt operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: header.
-      */
+    // Method: Encrypt
+    // Purpose: Executes the encrypt operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - header: Header value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldHeaderCrypt so callers do not duplicate validation, protocol, or persistence rules.
     public void Encrypt(Span<byte> header)
     {
         for (int index = 0; index < header.Length; index++)
@@ -87,11 +80,12 @@ public sealed class WorldHeaderCrypt
         }
     }
 
-    /**
-      * Performs the decrypt operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: header.
-      */
+    // Method: Decrypt
+    // Purpose: Executes the decrypt operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - header: Header value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldHeaderCrypt so callers do not duplicate validation, protocol, or persistence rules.
     public void Decrypt(Span<byte> header)
     {
         for (int index = 0; index < header.Length; index++)

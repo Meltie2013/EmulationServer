@@ -15,15 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Database/Accounts/RbacPermissionSet.cs
+// Purpose: Contains RBAC permission set code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Carries the resolved RBAC permissions for an authenticated account.
-  * Granted and denied permissions are kept separately so diagnostics and later account tools can explain why a command is available or blocked.
-  */
+// Type: RbacPermissionSet
+// Purpose: Provides RBAC permission set behavior for the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RbacPermissionSet
 {
+    // Constructor: RbacPermissionSet
+    // Purpose: Initializes a new RbacPermissionSet instance with dependencies and values required by the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - grantedPermissions: Granted permissions value supplied by the caller for this operation.
+    // - deniedPermissions: Denied permissions value supplied by the caller for this operation.
+    // - effectivePermissions: Effective permissions value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RbacPermissionSet so callers do not duplicate validation, protocol, or persistence rules.
     public RbacPermissionSet(
         IReadOnlySet<uint> grantedPermissions,
         IReadOnlySet<uint> deniedPermissions,
@@ -35,45 +45,44 @@ public sealed class RbacPermissionSet
         SecurityLevel = ResolveSecurityLevel(EffectivePermissions);
     }
 
-    /**
-      * Empty permission set used before account authentication has completed.
-      */
     public static RbacPermissionSet Empty { get; } = new(
         new HashSet<uint>(),
         new HashSet<uint>(),
         new HashSet<uint>());
 
-    /**
-      * All permissions granted before deny rows are applied.
-      */
+    // Property: Gets or sets the granted permissions value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: granted permissions value exposed by the owning type.
     public IReadOnlySet<uint> GrantedPermissions { get; }
 
-    /**
-      * All permissions explicitly denied to the account.
-      */
+    // Property: Gets or sets the denied permissions value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: denied permissions value exposed by the owning type.
     public IReadOnlySet<uint> DeniedPermissions { get; }
 
-    /**
-      * Final usable permissions after granted permissions are reduced by denied permissions.
-      */
+    // Property: Gets or sets the effective permissions value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: effective permissions value exposed by the owning type.
     public IReadOnlySet<uint> EffectivePermissions { get; }
 
-    /**
-      * Security level inferred from the final RBAC permission set.
-      */
+    // Property: Gets or sets the security level value used by the database persistence, repository, and MySQL connectivity layer.
+    // Value: security level value exposed by the owning type.
     public AccountSecurityLevel SecurityLevel { get; }
 
-    /**
-      * Returns true when the final permission set contains the requested permission id.
-      */
+    // Method: HasPermission
+    // Purpose: Validates or evaluates has permission rules for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - permissionId: Permission ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when has permission succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RbacPermissionSet so callers do not duplicate validation, protocol, or persistence rules.
     public bool HasPermission(uint permissionId)
     {
         return EffectivePermissions.Contains(permissionId);
     }
 
-    /**
-      * Resolves the visible security level from role permissions.
-      */
+    // Method: ResolveSecurityLevel
+    // Purpose: Retrieves resolve security level data for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - effectivePermissions: Effective permissions value supplied by the caller for this operation.
+    // Returns: Returns the account security level value produced by this operation.
+    // Notes: This keeps the operation scoped to RbacPermissionSet so callers do not duplicate validation, protocol, or persistence rules.
     private static AccountSecurityLevel ResolveSecurityLevel(IReadOnlySet<uint> effectivePermissions)
     {
         if (effectivePermissions.Contains(RbacPermissionIds.AdministratorPermission))

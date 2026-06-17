@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/InstanceServer/Core/InstanceServer.cs
+// Purpose: Contains instance server code for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
@@ -32,55 +35,45 @@ using EmulationServer.Network.Networking.Sessions;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/InstanceServer/Core/InstanceServer.cs
-  * Documents the InstanceServer source file in the instance service startup and internal server coordination area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.InstanceServer.Core;
 
-/**
-  * Owns the instance server behavior for the instance service startup and internal server coordination layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InstanceServer
+// Purpose: Provides instance server behavior for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InstanceServer : IAsyncDisposable
 {
-    /**
-      * Holds the private host state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the required runtime internal servers state used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: current required runtime internal servers backing value maintained by the owning type.
+    private static readonly string[] RequiredRuntimeInternalServers = ["ProxyServer", "WorldServer"];
+
+    // Field: Stores the host state used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: current host backing value maintained by the owning type.
     private readonly EmulationServerHost _host;
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: current settings backing value maintained by the owning type.
     private readonly InstanceServerSettings _settings;
-    /**
-      * Holds the private instance services state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the instance services state used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: current instance services backing value maintained by the owning type.
     private MapServiceManager? _instanceServices;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
-    /**
-      * Holds the private player tracker state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly MapPlayerTracker _playerTracker = new();
     private readonly GameObjectSnapshotStore _gameObjectSnapshots = new("InstanceServer");
     private readonly CreatureSnapshotStore _creatureSnapshots = new("InstanceServer");
-    /**
-      * Holds the private world capacity limit state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the world capacity limit state used by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Value: current world capacity limit backing value maintained by the owning type.
     private int _worldCapacityLimit;
 
-    /**
-      * Initializes a new InstanceServer instance with the dependencies required by the instance service startup and internal server coordination workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: InstanceServer
+    // Purpose: Initializes a new InstanceServer instance with dependencies and values required by the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     public InstanceServer(InstanceServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -90,12 +83,13 @@ public sealed class InstanceServer : IAsyncDisposable
         _host = new EmulationServerHost("InstanceServer", settings.InternalNetwork, CreateCallbacks());
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Task hostTask = _host.StartAsync(cancellationToken);
@@ -103,6 +97,11 @@ public sealed class InstanceServer : IAsyncDisposable
         try
         {
             await _host.StartupCompleted.WaitAsync(cancellationToken);
+
+            await _host.WaitForInternalServersAsync(
+                RequiredRuntimeInternalServers,
+                "InstanceServer will keep instance services offline until ProxyServer and WorldServer are online.",
+                cancellationToken);
 
             MapServiceManager serviceManager = CreateInstanceServiceManager();
             _instanceServices = serviceManager;
@@ -119,12 +118,13 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_instanceServices is not null)
@@ -135,11 +135,12 @@ public sealed class InstanceServer : IAsyncDisposable
         await _host.StopAsync(cancellationToken);
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -152,26 +153,28 @@ public sealed class InstanceServer : IAsyncDisposable
         await _host.DisposeAsync();
     }
 
-    /**
-      * Creates the instance service manager after the host has finished startup validation.
-      * Delaying construction keeps DBC loading, instance registration, and service startup after the server has validated and announced startup.
-      */
+    // Method: CreateInstanceServiceManager
+    // Purpose: Applies create instance service manager changes for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters: none.
+    // Returns: Returns the map service manager value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private MapServiceManager CreateInstanceServiceManager()
     {
         return new MapServiceManager(
             "InstanceServer",
             _settings.InstanceServices,
             ReportInstanceServiceStatusAsync,
-            (mapId, cancellationToken) => Task.FromResult(_gameObjectSnapshots.GetSpawnsForMap(mapId)),
+            (mapId, _) => Task.FromResult(_gameObjectSnapshots.GetSpawnsForMap(mapId)),
             entry => _gameObjectSnapshots.GetTemplateOrDefault(entry),
-            (mapId, cancellationToken) => Task.FromResult(_creatureSnapshots.GetSpawnsForMap(mapId)),
+            (mapId, _) => Task.FromResult(_creatureSnapshots.GetSpawnsForMap(mapId)),
             entry => _creatureSnapshots.GetTemplateOrDefault(entry));
     }
 
-    /**
-      * Creates the callbacks result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: CreateCallbacks
+    // Purpose: Applies create callbacks changes for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters: none.
+    // Returns: Returns the internal network callbacks value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -185,12 +188,15 @@ public sealed class InstanceServer : IAsyncDisposable
         };
     }
 
-    /**
-      * Handles the on server authenticated event for the instance service startup and internal server coordination workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerAuthenticatedAsync
+    // Purpose: Executes the on server authenticated operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -202,12 +208,15 @@ public sealed class InstanceServer : IAsyncDisposable
         await SendInstanceServiceStatusesToSessionAsync(session, cancellationToken);
     }
 
-    /**
-      * Handles the on server disconnected event for the instance service startup and internal server coordination workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerDisconnectedAsync
+    // Purpose: Executes the on server disconnected operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -219,12 +228,15 @@ public sealed class InstanceServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Handles the on peer authenticated event for the instance service startup and internal server coordination workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerAuthenticatedAsync
+    // Purpose: Executes the on peer authenticated operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -236,12 +248,15 @@ public sealed class InstanceServer : IAsyncDisposable
         await SendInstanceServiceStatusesToPeerAsync(connection, cancellationToken);
     }
 
-    /**
-      * Handles the on peer disconnected event for the instance service startup and internal server coordination workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerDisconnectedAsync
+    // Purpose: Executes the on peer disconnected operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -253,12 +268,16 @@ public sealed class InstanceServer : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Handles the on peer packet received event for the instance service startup and internal server coordination workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerPacketReceivedAsync
+    // Purpose: Executes the on peer packet received operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -272,12 +291,16 @@ public sealed class InstanceServer : IAsyncDisposable
             cancellationToken);
     }
 
-    /**
-      * Handles the on session packet received event for the instance service startup and internal server coordination workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnSessionPacketReceivedAsync
+    // Purpose: Executes the on session packet received operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -291,11 +314,16 @@ public sealed class InstanceServer : IAsyncDisposable
             cancellationToken);
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: HandleInternalPacketAsync
+    // Purpose: Handles handle internal packet work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - sendResponseAsync: Send response async value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleInternalPacketAsync(
         string remoteServerName,
         string packet,
@@ -346,9 +374,15 @@ public sealed class InstanceServer : IAsyncDisposable
         Logger.Write(LogType.NETWORK, $"InstanceServer received WorldServer capacity limit from {remoteServerName}: {capacitySource}={capacityLimit}.", "InstanceServer");
     }
 
-    /**
-      * Applies game object snapshot packets from WorldServer and refreshes hosted instance runtimes when a snapshot completes.
-      */
+    // Method: HandleGameObjectSnapshotPacketAsync
+    // Purpose: Handles handle game object snapshot packet work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when handle game object snapshot packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> HandleGameObjectSnapshotPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!_gameObjectSnapshots.TryHandleSnapshotPacket(remoteServerName, packet, out GameObjectSnapshotApplyResult result))
@@ -371,9 +405,15 @@ public sealed class InstanceServer : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Applies creature snapshot packets from WorldServer and refreshes hosted map runtimes when a snapshot completes.
-      */
+    // Method: HandleCreatureSnapshotPacketAsync
+    // Purpose: Handles handle creature snapshot packet work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when handle creature snapshot packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> HandleCreatureSnapshotPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!_creatureSnapshots.TryHandleSnapshotPacket(remoteServerName, packet, out CreatureSnapshotApplyResult result))
@@ -396,9 +436,15 @@ public sealed class InstanceServer : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Handles player routing notifications from WorldServer while the client socket stays owned by WorldServer.
-      */
+    // Method: HandlePlayerRoutingPacketAsync
+    // Purpose: Handles handle player routing packet work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when handle player routing packet async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<bool> HandlePlayerRoutingPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(packet))
@@ -466,18 +512,21 @@ public sealed class InstanceServer : IAsyncDisposable
 
         if (string.Equals(parts[0], InternalProtocol.PlayerClientPacket, StringComparison.OrdinalIgnoreCase))
         {
-            // Intentionally accepted without per-packet logging. Client packet routes can become high-volume
-            // once gameplay handlers are added, and console/file logging here slows the internal stream down.
+
             return true;
         }
 
         return false;
     }
 
-
-    /**
-      * Refreshes active player counts on hosted instance services and immediately publishes the affected map snapshots.
-      */
+    // Method: RefreshInstanceServicePlayerCountsAsync
+    // Purpose: Executes the refresh instance service player counts operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // - uintaffectedMapIds: Uintaffected map ids value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RefreshInstanceServicePlayerCountsAsync(CancellationToken cancellationToken, params uint[] affectedMapIds)
     {
         MapServiceManager? instanceServices = _instanceServices;
@@ -497,11 +546,13 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Tries to resolve the read player enter route value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: parts, state.
-      */
+    // Method: TryReadPlayerEnterRoute
+    // Purpose: Attempts to retrieve or parse try read player enter route data without treating normal misses as failures.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - state: State value supplied by the caller for this operation.
+    // Returns: Returns true when try read player enter route succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadPlayerEnterRoute(string[] parts, [NotNullWhen(true)] out MapPlayerRuntimeState? state)
     {
         state = null;
@@ -522,11 +573,23 @@ public sealed class InstanceServer : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Tries to resolve the read player movement route value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: parts, accountId, guid, opcode, map, zone....
-      */
+    // Method: TryReadPlayerMovementRoute
+    // Purpose: Attempts to retrieve or parse try read player movement route data without treating normal misses as failures.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - map: Map value supplied by the caller for this operation.
+    // - zone: Zone value supplied by the caller for this operation.
+    // - x: X value supplied by the caller for this operation.
+    // - y: Y value supplied by the caller for this operation.
+    // - z: Z value supplied by the caller for this operation.
+    // - orientation: Orientation value supplied by the caller for this operation.
+    // - flags: Flags value supplied by the caller for this operation.
+    // - clientTime: Client time value supplied by the caller for this operation.
+    // Returns: Returns true when try read player movement route succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadPlayerMovementRoute(
         string[] parts,
         out uint accountId,
@@ -567,11 +630,13 @@ public sealed class InstanceServer : IAsyncDisposable
             uint.TryParse(parts[11], NumberStyles.Integer, CultureInfo.InvariantCulture, out clientTime);
     }
 
-    /**
-      * Tries to resolve the parse opcode value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: value, opcode.
-      */
+    // Method: TryParseOpcode
+    // Purpose: Attempts to retrieve or parse try parse opcode data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // Returns: Returns true when try parse opcode succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseOpcode(string value, out ushort opcode)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -582,11 +647,16 @@ public sealed class InstanceServer : IAsyncDisposable
         return ushort.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out opcode);
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      */
+    // Method: HandleMapServiceCommandAsync
+    // Purpose: Handles handle map service command work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - command: Database command used to execute this operation without opening unnecessary additional state.
+    // - sendResponseAsync: Send response async value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleMapServiceCommandAsync(
         string remoteServerName,
         InternalMapServiceCommandPacket command,
@@ -651,10 +721,14 @@ public sealed class InstanceServer : IAsyncDisposable
         await instanceServices.ReportServicesAsync(command.MapId, cancellationToken);
     }
 
-    /**
-      * Broadcasts one instance service status snapshot to all currently connected status peers.
-      * Startup and peer-authentication paths use targeted helpers so a newly connected peer does not cause every existing peer to receive a duplicate startup snapshot.
-      */
+    // Method: ReportInstanceServiceStatusAsync
+    // Purpose: Executes the report instance service status operation for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ReportInstanceServiceStatusAsync(
         MapServiceSnapshot snapshot,
         CancellationToken cancellationToken)
@@ -686,10 +760,14 @@ public sealed class InstanceServer : IAsyncDisposable
         _ = sentCount;
     }
 
-    /**
-      * Sends all current instance service snapshots to one newly authenticated outgoing peer.
-      * This avoids the duplicate reporting that happened when the authentication callback rebroadcast every service to every existing peer.
-      */
+    // Method: SendInstanceServiceStatusesToPeerAsync
+    // Purpose: Handles send instance service statuses to peer work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendInstanceServiceStatusesToPeerAsync(
         InternalPeerConnection connection,
         CancellationToken cancellationToken)
@@ -715,10 +793,14 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends all current instance service snapshots to one newly authenticated incoming session.
-      * This keeps status synchronization targeted to the new connection instead of rebroadcasting to all peers.
-      */
+    // Method: SendInstanceServiceStatusesToSessionAsync
+    // Purpose: Handles send instance service statuses to session work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendInstanceServiceStatusesToSessionAsync(
         InternalServerSession session,
         CancellationToken cancellationToken)
@@ -744,9 +826,15 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a single instance service status snapshot to one outgoing internal peer connection.
-      */
+    // Method: SendInstanceServiceStatusToPeerAsync
+    // Purpose: Handles send instance service status to peer work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - peer: Peer value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when send instance service status to peer async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> SendInstanceServiceStatusToPeerAsync(
         MapServiceSnapshot snapshot,
         InternalPeerConnection peer,
@@ -764,9 +852,15 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a single instance service status snapshot to one incoming internal server session.
-      */
+    // Method: SendInstanceServiceStatusToSessionAsync
+    // Purpose: Handles send instance service status to session work for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // - session: Session value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when send instance service status to session async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> SendInstanceServiceStatusToSessionAsync(
         MapServiceSnapshot snapshot,
         InternalServerSession session,
@@ -784,9 +878,12 @@ public sealed class InstanceServer : IAsyncDisposable
         }
     }
 
-    /**
-      * Converts a runtime instance service snapshot into the shared internal protocol line used by WorldServer and ProxyServer.
-      */
+    // Method: CreateInstanceServiceStatusPacket
+    // Purpose: Applies create instance service status packet changes for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string CreateInstanceServiceStatusPacket(MapServiceSnapshot snapshot)
     {
         InternalMapServiceStatusPacket status = new(
@@ -806,11 +903,13 @@ public sealed class InstanceServer : IAsyncDisposable
         return status.ToPacketLine();
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of InstanceServer and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryParseMapServiceControlAction
+    // Purpose: Attempts to retrieve or parse try parse map service control action data without treating normal misses as failures.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - controlAction: Control action value supplied by the caller for this operation.
+    // Returns: Returns true when try parse map service control action succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to InstanceServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseMapServiceControlAction(string action, out MapServiceControlAction controlAction)
     {
         switch (action.ToLowerInvariant())

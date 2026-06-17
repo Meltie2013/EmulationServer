@@ -15,26 +15,47 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Commands/HelpCommand.cs
+// Purpose: Contains help command code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Accounts;
 
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Shows the commands available to the current account after RBAC filtering.
-  */
+// Type: HelpCommand
+// Purpose: Provides help command behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class HelpCommand : IChatCommand
 {
+    // Property: Gets or sets the name value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: name value exposed by the owning type.
     public string Name => "help";
 
+    // Property: Gets or sets the aliases value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: aliases value exposed by the owning type.
     public IReadOnlyList<string> Aliases { get; } = ["commands"];
 
+    // Property: Gets or sets the required permission value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: required permission value exposed by the owning type.
     public uint RequiredPermission => RbacPermissionIds.CommandHelp;
 
+    // Property: Gets or sets the description value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: description value exposed by the owning type.
     public string Description => "Shows available chat commands or help for one command.";
 
+    // Property: Gets or sets the syntax value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: syntax value exposed by the owning type.
     public string Syntax => ".help #command";
 
+    // Method: ExecuteAsync
+    // Purpose: Controls the execute lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to HelpCommand so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task<string> ExecuteAsync(ChatCommandContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -60,6 +81,13 @@ public sealed class HelpCommand : IChatCommand
         return Task.FromResult("Available commands:\n" + string.Join('\n', commandLines) + "\nType .help #command for command syntax.");
     }
 
+    // Method: GetCommandHelp
+    // Purpose: Retrieves get command help data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - commandName: Command name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to HelpCommand so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetCommandHelp(ChatCommandContext context, string commandName)
     {
         if (string.IsNullOrWhiteSpace(commandName))

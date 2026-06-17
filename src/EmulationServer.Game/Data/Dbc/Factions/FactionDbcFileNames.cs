@@ -15,35 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcFileNames.cs
-  * Documents the FactionDbcFileNames source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcFileNames.cs
+// Purpose: Contains faction DBC file names code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Factions;
 
-/**
-  * Defines faction-related DBC filenames needed by race and reputation startup validation.
-  */
+// Type: FactionDbcFileNames
+// Purpose: Provides faction DBC file names behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class FactionDbcFileNames
 {
-    /**
-      * Defines the constant value for faction.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the faction constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed faction value used anywhere this rule or protocol value is needed.
     public const string Faction = "Faction.dbc";
-    /**
-      * Defines the constant value for faction template.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the faction template constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed faction template value used anywhere this rule or protocol value is needed.
     public const string FactionTemplate = "FactionTemplate.dbc";
 
-    /**
-      * Exposes the core faction dbc files value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+    // Property: Gets or sets the core faction DBC files value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: core faction DBC files value exposed by the owning type.
     public static IReadOnlyList<string> CoreFactionDbcFiles { get; } =
     [
         Faction,

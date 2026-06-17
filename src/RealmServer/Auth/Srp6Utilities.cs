@@ -15,69 +15,59 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Auth/Srp6Utilities.cs
+// Purpose: Contains srp6 utilities code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 
-/**
-  * File overview: src/RealmServer/Auth/Srp6Utilities.cs
-  * Documents the Srp6Utilities source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Owns the srp 6 utilities behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: Srp6Utilities
+// Purpose: Provides srp6 utilities behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class Srp6Utilities
 {
-    /**
-      * Defines the constant value for salt length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the salt length constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed salt length value used anywhere this rule or protocol value is needed.
     public const int SaltLength = 32;
-    /**
-      * Defines the constant value for public key length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the public key length constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed public key length value used anywhere this rule or protocol value is needed.
     public const int PublicKeyLength = 32;
-    /**
-      * Defines the constant value for session key length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the session key length constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed session key length value used anywhere this rule or protocol value is needed.
     public const int SessionKeyLength = 40;
-    /**
-      * Defines the constant value for proof length.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the proof length constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed proof length value used anywhere this rule or protocol value is needed.
     public const int ProofLength = 20;
 
-    /**
-      * Defines the constant value for modulus hex.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the modulus hex constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed modulus hex value used anywhere this rule or protocol value is needed.
     private const string ModulusHex = "894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7";
 
-    /**
-      * Stores the default n value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Method: FromBigEndianHex
+    // Purpose: Executes the from big endian hex operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - ModulusHex: Modulus hex value supplied by the caller for this operation.
+    // Returns: Returns the big integer N = value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static readonly BigInteger N = FromBigEndianHex(ModulusHex);
-    /**
-      * Stores the default g value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
     public static readonly BigInteger G = new(7);
 
-    /**
-      * Performs the generate random bytes operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: length.
-      */
+    // Method: GenerateRandomBytes
+    // Purpose: Executes the generate random bytes operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - length: Length value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] GenerateRandomBytes(int length)
     {
         byte[] bytes = new byte[length];
@@ -85,54 +75,64 @@ public static class Srp6Utilities
         return bytes;
     }
 
-    /**
-      * Performs the generate private ephemeral operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: GeneratePrivateEphemeral
+    // Purpose: Executes the generate private ephemeral operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger GeneratePrivateEphemeral()
     {
         return FromLittleEndian(GenerateRandomBytes(19));
     }
 
-    /**
-      * Performs the generate salt operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: GenerateSalt
+    // Purpose: Executes the generate salt operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger GenerateSalt()
     {
         return FromLittleEndian(GenerateRandomBytes(SaltLength));
     }
 
-    /**
-      * Calculates a derived value from current runtime state.
-      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
-      */
+    // Method: CalculateVerifier
+    // Purpose: Calculates calculate verifier values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - salt: Salt value supplied by the caller for this operation.
+    // - shaPassHash: Sha pass hash value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger CalculateVerifier(BigInteger salt, string shaPassHash)
     {
         byte[] passwordDigest = Convert.FromHexString(NormalizeHex(shaPassHash));
         byte[] saltBytes = ToLittleEndian(salt, SaltLength);
         byte[] xDigest = SHA1.HashData(Concat(saltBytes, passwordDigest));
 
-        // The legacy BigNumber.SetBinary helper treats this digest as little-endian.
         BigInteger x = FromLittleEndian(xDigest);
 
         return BigInteger.ModPow(G, x, N);
     }
 
-    /**
-      * Calculates a derived value from current runtime state.
-      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
-      */
+    // Method: CalculateHostPublicEphemeral
+    // Purpose: Calculates calculate host public ephemeral values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - verifier: Verifier value supplied by the caller for this operation.
+    // - hostPrivateEphemeral: Host private ephemeral value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger CalculateHostPublicEphemeral(BigInteger verifier, BigInteger hostPrivateEphemeral)
     {
         BigInteger gMod = BigInteger.ModPow(G, hostPrivateEphemeral, N);
         return PositiveMod((verifier * 3) + gMod, N);
     }
 
-    /**
-      * Calculates a derived value from current runtime state.
-      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
-      */
+    // Method: CalculateScrambler
+    // Purpose: Calculates calculate scrambler values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - clientPublicEphemeral: Client public ephemeral value supplied by the caller for this operation.
+    // - hostPublicEphemeral: Host public ephemeral value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger CalculateScrambler(BigInteger clientPublicEphemeral, BigInteger hostPublicEphemeral)
     {
         byte[] digest = SHA1.HashData(Concat(
@@ -142,10 +142,15 @@ public static class Srp6Utilities
         return FromLittleEndian(digest);
     }
 
-    /**
-      * Calculates a derived value from current runtime state.
-      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
-      */
+    // Method: CalculateSessionSecret
+    // Purpose: Calculates calculate session secret values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - clientPublicEphemeral: Client public ephemeral value supplied by the caller for this operation.
+    // - verifier: Verifier value supplied by the caller for this operation.
+    // - scrambler: Scrambler value supplied by the caller for this operation.
+    // - hostPrivateEphemeral: Host private ephemeral value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger CalculateSessionSecret(
         BigInteger clientPublicEphemeral,
         BigInteger verifier,
@@ -156,11 +161,12 @@ public static class Srp6Utilities
         return BigInteger.ModPow(value, hostPrivateEphemeral, N);
     }
 
-    /**
-      * Performs the hash session key operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: sessionSecret.
-      */
+    // Method: HashSessionKey
+    // Purpose: Validates or evaluates hash session key rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - sessionSecret: Session secret value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] HashSessionKey(BigInteger sessionSecret)
     {
         byte[] secret = ToLittleEndian(sessionSecret, PublicKeyLength);
@@ -186,10 +192,16 @@ public static class Srp6Utilities
         return sessionKey;
     }
 
-    /**
-      * Calculates a derived value from current runtime state.
-      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
-      */
+    // Method: CalculateClientProof
+    // Purpose: Calculates calculate client proof values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - salt: Salt value supplied by the caller for this operation.
+    // - clientPublicEphemeral: Client public ephemeral value supplied by the caller for this operation.
+    // - hostPublicEphemeral: Host public ephemeral value supplied by the caller for this operation.
+    // - bytesessionKey: Bytesession key value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] CalculateClientProof(
         string username,
         BigInteger salt,
@@ -217,10 +229,14 @@ public static class Srp6Utilities
             sessionKey));
     }
 
-    /**
-      * Calculates a derived value from current runtime state.
-      * The method is part of Srp6Utilities and keeps this workflow isolated from the caller.
-      */
+    // Method: CalculateHostProof
+    // Purpose: Calculates calculate host proof values for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - clientPublicEphemeral: Client public ephemeral value supplied by the caller for this operation.
+    // - byteclientProof: Byteclient proof value supplied by the caller for this operation.
+    // - bytesessionKey: Bytesession key value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] CalculateHostProof(BigInteger clientPublicEphemeral, byte[] clientProof, byte[] sessionKey)
     {
         return SHA1.HashData(Concat(
@@ -229,41 +245,46 @@ public static class Srp6Utilities
             sessionKey));
     }
 
-    /**
-      * Performs the from little endian operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: bytes.
-      */
+    // Method: FromLittleEndian
+    // Purpose: Executes the from little endian operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - bytes: Bytes value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger FromLittleEndian(ReadOnlySpan<byte> bytes)
     {
         return new BigInteger(bytes, isUnsigned: true, isBigEndian: false);
     }
 
-    /**
-      * Performs the from big endian operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: bytes.
-      */
+    // Method: FromBigEndian
+    // Purpose: Executes the from big endian operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - bytes: Bytes value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger FromBigEndian(ReadOnlySpan<byte> bytes)
     {
         return new BigInteger(bytes, isUnsigned: true, isBigEndian: true);
     }
 
-    /**
-      * Performs the from big endian hex operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: hex.
-      */
+    // Method: FromBigEndianHex
+    // Purpose: Executes the from big endian hex operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - hex: Hex value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static BigInteger FromBigEndianHex(string hex)
     {
         return FromBigEndian(Convert.FromHexString(NormalizeHex(hex)));
     }
 
-    /**
-      * Performs the to little endian operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: value, length.
-      */
+    // Method: ToLittleEndian
+    // Purpose: Executes the to little endian operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - length: Length value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] ToLittleEndian(BigInteger value, int length = 0)
     {
         byte[] bytes = value.ToByteArray(isUnsigned: true, isBigEndian: false);
@@ -283,11 +304,13 @@ public static class Srp6Utilities
         return result;
     }
 
-    /**
-      * Performs the to big endian hex operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: value, minimumBytes.
-      */
+    // Method: ToBigEndianHex
+    // Purpose: Executes the to big endian hex operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - minimumBytes: Minimum bytes value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static string ToBigEndianHex(BigInteger value, int minimumBytes = 0)
     {
         byte[] bytes = value.ToByteArray(isUnsigned: true, isBigEndian: true);
@@ -302,11 +325,12 @@ public static class Srp6Utilities
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    /**
-      * Determines whether valid stored srp value for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: hex.
-      */
+    // Method: IsValidStoredSrpValue
+    // Purpose: Validates or evaluates is valid stored srp value rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - hex: Hex value supplied by the caller for this operation.
+    // Returns: Returns true when is valid stored srp value succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsValidStoredSrpValue(string? hex)
     {
         if (string.IsNullOrWhiteSpace(hex) || hex.Length != SaltLength * 2)
@@ -317,32 +341,37 @@ public static class Srp6Utilities
         return hex.All(Uri.IsHexDigit);
     }
 
-    /**
-      * Performs the fixed time equals operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: left, right.
-      */
+    // Method: FixedTimeEquals
+    // Purpose: Executes the fixed time equals operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - left: Left value supplied by the caller for this operation.
+    // - right: Right value supplied by the caller for this operation.
+    // Returns: Returns true when fixed time equals succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
     {
         return CryptographicOperations.FixedTimeEquals(left, right);
     }
 
-    /**
-      * Performs the positive mod operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: value, modulus.
-      */
+    // Method: PositiveMod
+    // Purpose: Executes the positive mod operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - modulus: Modulus value supplied by the caller for this operation.
+    // Returns: Returns the big integer value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     private static BigInteger PositiveMod(BigInteger value, BigInteger modulus)
     {
         BigInteger result = value % modulus;
         return result.Sign < 0 ? result + modulus : result;
     }
 
-    /**
-      * Performs the concat operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: arrays.
-      */
+    // Method: Concat
+    // Purpose: Executes the concat operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - bytearrays: Bytearrays value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] Concat(params byte[][] arrays)
     {
         int length = arrays.Sum(array => array.Length);
@@ -358,11 +387,12 @@ public static class Srp6Utilities
         return result;
     }
 
-    /**
-      * Normalizes the hex for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: hex.
-      */
+    // Method: NormalizeHex
+    // Purpose: Converts incoming data into normalize hex form for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - hex: Hex value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to Srp6Utilities so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeHex(string hex)
     {
         string normalized = hex.Trim();

@@ -15,75 +15,72 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Packets/WorldPacketReader.cs
+// Purpose: Contains world packet reader code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Text;
 
-/**
-  * File overview: src/WorldServer/Networking/Packets/WorldPacketReader.cs
-  * Documents the WorldPacketReader source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Owns the world packet reader behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldPacketReader
+// Purpose: Provides world packet reader behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldPacketReader
 {
-    /**
-      * Holds the private buffer state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the buffer state used by the world server gameplay, session, and character runtime layer.
+    // Value: current buffer backing value maintained by the owning type.
     private readonly ReadOnlyMemory<byte> _buffer;
-    /**
-      * Holds the private offset state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the offset state used by the world server gameplay, session, and character runtime layer.
+    // Value: current offset backing value maintained by the owning type.
     private int _offset;
 
-    /**
-      * Initializes a new WorldPacketReader instance with the dependencies required by the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: buffer.
-      */
+    // Constructor: WorldPacketReader
+    // Purpose: Initializes a new WorldPacketReader instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - bytebuffer: Bytebuffer value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public WorldPacketReader(byte[] buffer)
     {
         ArgumentNullException.ThrowIfNull(buffer);
         _buffer = buffer;
     }
 
-    /**
-      * Initializes a reader over an existing packet payload slice without copying it.
-      * This is important for high-frequency movement packets where even small per-packet allocations cause jitter.
-      */
+    // Constructor: WorldPacketReader
+    // Purpose: Initializes a new WorldPacketReader instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - buffer: Buffer bytes or structured payload consumed by this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public WorldPacketReader(ReadOnlyMemory<byte> buffer)
     {
         _buffer = buffer;
     }
 
-    /**
-      * Stores the default remaining value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the remaining value used by the world server gameplay, session, and character runtime layer.
+    // Value: remaining value exposed by the owning type.
     public int Remaining => _buffer.Length - _offset;
 
-    /**
-      * Parses read u int 8 input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      */
+    // Method: ReadUInt8
+    // Purpose: Retrieves read U int8 data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public byte ReadUInt8()
     {
         EnsureAvailable(1);
         return _buffer.Span[_offset++];
     }
 
-    /**
-      * Parses read u int 16 input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      */
+    // Method: ReadUInt16
+    // Purpose: Retrieves read U int16 data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the ushort value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public ushort ReadUInt16()
     {
         EnsureAvailable(2);
@@ -92,10 +89,11 @@ public sealed class WorldPacketReader
         return value;
     }
 
-    /**
-      * Parses read u int 32 input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      */
+    // Method: ReadUInt32
+    // Purpose: Retrieves read U int32 data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public uint ReadUInt32()
     {
         EnsureAvailable(4);
@@ -104,10 +102,11 @@ public sealed class WorldPacketReader
         return value;
     }
 
-    /**
-      * Parses read u int 64 input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      */
+    // Method: ReadUInt64
+    // Purpose: Retrieves read U int64 data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the ulong value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public ulong ReadUInt64()
     {
         EnsureAvailable(8);
@@ -116,10 +115,11 @@ public sealed class WorldPacketReader
         return value;
     }
 
-    /**
-      * Parses read float input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      */
+    // Method: ReadFloat
+    // Purpose: Retrieves read float data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the float value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public float ReadFloat()
     {
         EnsureAvailable(4);
@@ -128,11 +128,12 @@ public sealed class WorldPacketReader
         return value;
     }
 
-    /**
-      * Parses read bytes input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: length.
-      */
+    // Method: ReadBytes
+    // Purpose: Retrieves read bytes data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - length: Length value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public byte[] ReadBytes(int length)
     {
         EnsureAvailable(length);
@@ -141,10 +142,11 @@ public sealed class WorldPacketReader
         return value;
     }
 
-    /**
-      * Parses read c string input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      */
+    // Method: ReadCString
+    // Purpose: Retrieves read C string data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     public string ReadCString()
     {
         ReadOnlySpan<byte> remaining = _buffer.Span[_offset..];
@@ -159,11 +161,12 @@ public sealed class WorldPacketReader
         return value;
     }
 
-    /**
-      * Validates ensure available state before it is used by another server component.
-      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-      * Inputs used by this operation: count.
-      */
+    // Method: EnsureAvailable
+    // Purpose: Validates or evaluates ensure available rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - count: Count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketReader so callers do not duplicate validation, protocol, or persistence rules.
     private void EnsureAvailable(int count)
     {
         if (count < 0 || Remaining < count)

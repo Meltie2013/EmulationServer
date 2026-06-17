@@ -15,6 +15,11 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Core/Servers/EmulationServerHost.cs
+// Purpose: Contains emulation server host code for the host orchestration, configuration loading, and service lifecycle layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
+
+using System.Collections.Concurrent;
 
 using EmulationServer.Database.Configuration;
 using EmulationServer.Database.Interfaces;
@@ -26,72 +31,56 @@ using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Core/Servers/EmulationServerHost.cs
-  * Documents the EmulationServerHost source file in the shared startup, configuration, and host orchestration area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Core.Servers;
 
-/**
-  * Owns the emulation server host behavior for the shared startup, configuration, and host orchestration layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: EmulationServerHost
+// Purpose: Provides emulation server host behavior for the host orchestration, configuration loading, and service lifecycle layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class EmulationServerHost : IAsyncDisposable
 {
-    /**
-      * Holds the private server name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the server name state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current server name backing value maintained by the owning type.
     private readonly string _serverName;
-    /**
-      * Holds the private database settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the database settings state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current database settings backing value maintained by the owning type.
     private readonly DatabaseSettings? _databaseSettings;
-    /**
-      * Holds the private internal network settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the internal network settings state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current internal network settings backing value maintained by the owning type.
     private readonly InternalNetworkSettings _internalNetworkSettings;
-    /**
-      * Holds the private database service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the database service state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current database service backing value maintained by the owning type.
     private readonly MySqlDatabaseService? _databaseService;
-    /**
-      * Holds the private internal socket listener state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the internal socket listener state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current internal socket listener backing value maintained by the owning type.
     private readonly InternalSocketListener _internalSocketListener;
-    /**
-      * Holds the private internal peer connector state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the internal peer connector state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current internal peer connector backing value maintained by the owning type.
     private readonly InternalPeerConnector _internalPeerConnector;
-    /**
-      * Holds the private shutdown cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    private readonly ConcurrentDictionary<string, byte> _authenticatedIncomingServers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte> _authenticatedOutgoingPeers = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly CancellationTokenSource _shutdownCancellation = new();
-    /**
-      * Holds the private startup completed state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly TaskCompletionSource<bool> _startupCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    /**
-      * Holds the private shutdown requested state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the shutdown requested state used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: current shutdown requested backing value maintained by the owning type.
     private int _shutdownRequested;
 
-    /**
-      * Initializes a new EmulationServerHost instance with the dependencies required by the shared startup, configuration, and host orchestration workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: serverName, internalNetworkSettings, callbacks.
-      */
+    // Constructor: EmulationServerHost
+    // Purpose: Initializes a new EmulationServerHost instance with dependencies and values required by the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // - internalNetworkSettings: Internal network settings value supplied by the caller for this operation.
+    // - callbacks: Callbacks value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
     public EmulationServerHost(
         string serverName,
         InternalNetworkSettings internalNetworkSettings,
@@ -100,11 +89,15 @@ public sealed class EmulationServerHost : IAsyncDisposable
     {
     }
 
-    /**
-      * Initializes a new EmulationServerHost instance with the dependencies required by the shared startup, configuration, and host orchestration workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: serverName, databaseSettings, internalNetworkSettings, callbacks.
-      */
+    // Constructor: EmulationServerHost
+    // Purpose: Initializes a new EmulationServerHost instance with dependencies and values required by the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // - databaseSettings: Database settings value supplied by the caller for this operation.
+    // - internalNetworkSettings: Internal network settings value supplied by the caller for this operation.
+    // - callbacks: Callbacks value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
     public EmulationServerHost(
         string serverName,
         DatabaseSettings? databaseSettings,
@@ -146,18 +139,17 @@ public sealed class EmulationServerHost : IAsyncDisposable
             hostCallbacks);
     }
 
-    /**
-      * Gets or stores the startup completed value used by EmulationServerHost.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the startup completed value used by the host orchestration, configuration loading, and service lifecycle layer.
+    // Value: startup completed value exposed by the owning type.
     public Task StartupCompleted => _startupCompleted.Task;
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         using CancellationTokenSource linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -190,23 +182,25 @@ public sealed class EmulationServerHost : IAsyncDisposable
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _internalPeerConnector.StopAsync(cancellationToken);
         await _internalSocketListener.StopAsync(cancellationToken);
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -218,21 +212,135 @@ public sealed class EmulationServerHost : IAsyncDisposable
         }
     }
 
-    /**
-      * Creates the host callbacks result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: callbacks.
-      */
+    // Method: IsInternalServerConnected
+    // Purpose: Validates or evaluates is internal server connected rules for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - serverName: Server name value supplied by the caller for this operation.
+    // Returns: Returns true when is internal server connected succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    public bool IsInternalServerConnected(string serverName)
+    {
+        if (string.IsNullOrWhiteSpace(serverName))
+        {
+            return false;
+        }
+
+        string normalizedServerName = serverName.Trim();
+        return _authenticatedIncomingServers.ContainsKey(normalizedServerName) || _authenticatedOutgoingPeers.ContainsKey(normalizedServerName);
+    }
+
+    // Method: WaitForInternalServersAsync
+    // Purpose: Handles wait for internal servers work for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - requiredServerNames: Required server names value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
+    public async Task WaitForInternalServersAsync(
+        IEnumerable<string> requiredServerNames,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(requiredServerNames);
+
+        string[] requiredServers = [.. requiredServerNames
+            .Where(serverName => !string.IsNullOrWhiteSpace(serverName))
+            .Select(serverName => serverName.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
+
+        if (requiredServers.Length == 0)
+        {
+            return;
+        }
+
+        string[] missingServers = GetMissingInternalServers(requiredServers);
+        if (missingServers.Length == 0)
+        {
+            return;
+        }
+
+        Logger.Write(
+            LogType.NETWORK,
+            $"{_serverName} waiting for required internal server(s): {string.Join(", ", missingServers)}. {reason}",
+            "EmulationServerHost");
+
+        DateTimeOffset nextStatusUtc = DateTimeOffset.UtcNow.AddSeconds(15);
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            missingServers = GetMissingInternalServers(requiredServers);
+            if (missingServers.Length == 0)
+            {
+                Logger.Write(
+                    LogType.SUCCESS,
+                    $"{_serverName} required internal server(s) are online: {string.Join(", ", requiredServers)}.",
+                    "EmulationServerHost");
+                return;
+            }
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now >= nextStatusUtc)
+            {
+                Logger.Write(
+                    LogType.NETWORK,
+                    $"{_serverName} is still waiting for required internal server(s): {string.Join(", ", missingServers)}.",
+                    "EmulationServerHost");
+                nextStatusUtc = now.AddSeconds(15);
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+    }
+
+    // Method: GetMissingInternalServers
+    // Purpose: Retrieves get missing internal servers data for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - requiredServerNames: Required server names value supplied by the caller for this operation.
+    // Returns: Returns the string[] value produced by this operation.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    private string[] GetMissingInternalServers(IReadOnlyCollection<string> requiredServerNames)
+    {
+        return [.. requiredServerNames.Where(serverName => !IsInternalServerConnected(serverName))];
+    }
+
+    // Method: CreateHostCallbacks
+    // Purpose: Applies create host callbacks changes for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - callbacks: Callbacks value supplied by the caller for this operation.
+    // Returns: Returns the internal network callbacks value produced by this operation.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
     private InternalNetworkCallbacks CreateHostCallbacks(InternalNetworkCallbacks callbacks)
     {
         return new InternalNetworkCallbacks
         {
-            ServerAuthenticatedAsync = callbacks.ServerAuthenticatedAsync,
+            ServerAuthenticatedAsync = async (session, remoteServerName, cancellationToken) =>
+            {
+                _authenticatedIncomingServers[remoteServerName] = 0;
+                await callbacks.NotifyServerAuthenticatedAsync(session, remoteServerName, cancellationToken);
+            },
+
             PacketReceivedAsync = callbacks.PacketReceivedAsync,
-            ServerDisconnectedAsync = callbacks.ServerDisconnectedAsync,
-            PeerAuthenticatedAsync = callbacks.PeerAuthenticatedAsync,
+            ServerDisconnectedAsync = async (session, remoteServerName, cancellationToken) =>
+            {
+                _authenticatedIncomingServers.TryRemove(remoteServerName, out _);
+                await callbacks.NotifyServerDisconnectedAsync(session, remoteServerName, cancellationToken);
+            },
+
+            PeerAuthenticatedAsync = async (connection, remoteServerName, cancellationToken) =>
+            {
+                _authenticatedOutgoingPeers[remoteServerName] = 0;
+                await callbacks.NotifyPeerAuthenticatedAsync(connection, remoteServerName, cancellationToken);
+            },
+
             PeerPacketReceivedAsync = callbacks.PeerPacketReceivedAsync,
-            PeerDisconnectedAsync = callbacks.PeerDisconnectedAsync,
+            PeerDisconnectedAsync = async (connection, remoteServerName, cancellationToken) =>
+            {
+                _authenticatedOutgoingPeers.TryRemove(remoteServerName, out _);
+                await callbacks.NotifyPeerDisconnectedAsync(connection, remoteServerName, cancellationToken);
+            },
+
             PeerReconnectTimedOutAsync = callbacks.PeerReconnectTimedOutAsync,
             LatencyMeasured = callbacks.LatencyMeasured,
             PingTimedOut = callbacks.PingTimedOut,
@@ -244,12 +352,14 @@ public sealed class EmulationServerHost : IAsyncDisposable
         };
     }
 
-    /**
-      * Performs the request shutdown operation for the shared startup, configuration, and host orchestration workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: sourceServerName, reason.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: RequestShutdownAsync
+    // Purpose: Executes the request shutdown operation for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - sourceServerName: Source server name value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RequestShutdownAsync(string sourceServerName, string reason)
     {
         if (Interlocked.Exchange(ref _shutdownRequested, 1) == 1)
@@ -261,12 +371,13 @@ public sealed class EmulationServerHost : IAsyncDisposable
         await _shutdownCancellation.CancelAsync();
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of EmulationServerHost and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ValidateStartupAsync
+    // Purpose: Validates or evaluates validate startup rules for the host orchestration, configuration loading, and service lifecycle layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to EmulationServerHost so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ValidateStartupAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.TRACE, $"Validating {_serverName} settings...", "EmulationServerHost");

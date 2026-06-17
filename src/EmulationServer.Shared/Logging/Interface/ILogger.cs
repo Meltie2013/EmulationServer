@@ -15,32 +15,21 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Logging/Interface/ILogger.cs
+// Purpose: Contains I logger code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Shared/Logging/Interface/ILogger.cs
-  * Documents the ILogger source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Shared.Logging.Interfaces;
 
-/**
-  * Defines the contract for logger behavior in the shared configuration, logging, and utility support layer.
-  * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
-  */
+// Type: ILogger
+// Purpose: Defines the I logger contract used by the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public interface ILogger
 {
-    /**
-      * Performs the write operation through the implementing contract.
-      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
-      */
+
     void Write(LogType type, string message, string? category = null);
 
-    /**
-      * Writes already-formatted lines directly to the output target.
-      * Banner and separator output use this path so visual startup blocks do not get a timestamp repeated on every art line.
-      */
     void WriteRaw(LogType type, IReadOnlyList<string> lines);
 }

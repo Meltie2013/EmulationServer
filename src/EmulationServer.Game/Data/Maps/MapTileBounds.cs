@@ -15,19 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapTileBounds.cs
+// Purpose: Contains map tile bounds code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Represents one axis-aligned bounding box from a runtime collision tile.
-  */
+// Type: MapTileBounds
+// Purpose: Represents map tile bounds data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Minimum: Minimum value supplied by the caller for this operation.
+// - Maximum: Maximum value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct MapTileBounds(MapTileVector3 Minimum, MapTileVector3 Maximum)
 {
     public static MapTileBounds Empty { get; } = new(MapTileVector3.Zero, MapTileVector3.Zero);
 
-    /**
-      * Returns true when the point is inside the bounds copied from the converted placement record.
-      */
+    // Method: Contains
+    // Purpose: Executes the contains operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - point: Point value supplied by the caller for this operation.
+    // Returns: Returns true when contains succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapTileBounds so callers do not duplicate validation, protocol, or persistence rules.
     public bool Contains(MapTileVector3 point)
     {
         return point.X >= Minimum.X && point.X <= Maximum.X &&

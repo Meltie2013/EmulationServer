@@ -15,131 +15,114 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Configuration/InternalNetworkSettings.cs
+// Purpose: Contains internal network settings code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Net;
 
 using EmulationServer.Network.Networking.Protocol;
 
-/**
-  * File overview: src/EmulationServer.Network/Configuration/InternalNetworkSettings.cs
-  * Documents the InternalNetworkSettings source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Configuration;
 
-/**
-  * Owns the internal network settings behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InternalNetworkSettings
+// Purpose: Provides internal network settings behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalNetworkSettings
 {
-    /**
-      * Gets or stores the server name value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the server name value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: server name value exposed by the owning type.
     public string ServerName { get; init; } = "Server";
 
-    /**
-      * Gets or stores the bind address value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the bind address value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: bind address value exposed by the owning type.
     public string BindAddress { get; init; } = "127.0.0.1";
 
-    /**
-      * Gets or stores the port value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the port value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: port value exposed by the owning type.
     public int Port { get; init; } = 0;
 
-    /**
-      * Gets or stores the registration key value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the registration key value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: registration key value exposed by the owning type.
     public string RegistrationKey { get; init; } = string.Empty;
 
-    /**
-      * Gets or stores the backlog value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the backlog value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: backlog value exposed by the owning type.
     public int Backlog { get; init; } = 128;
 
-    /**
-      * Gets or stores the receive buffer size used by InternalNetworkSettings.
-      * Larger buffers reduce socket read pressure during packet bursts between internal servers.
-      */
+    // Property: Gets or sets the receive buffer size value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: receive buffer size value exposed by the owning type.
     public int ReceiveBufferSize { get; init; } = 65536;
 
-    /**
-      * Gets or stores the send buffer size used by InternalNetworkSettings.
-      * Larger buffers reduce socket write pressure during packet bursts between internal servers.
-      */
+    // Property: Gets or sets the send buffer size value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: send buffer size value exposed by the owning type.
     public int SendBufferSize { get; init; } = 65536;
 
-    /**
-      * Gets or stores whether TCP keep-alive should be enabled for internal server sockets.
-      */
+    // Property: Gets or sets the keep alive value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: keep alive value exposed by the owning type.
     public bool KeepAlive { get; init; } = true;
 
-    /**
-      * Gets or stores how long a quiet internal TCP connection can sit before keep-alive probes start.
-      */
+    // Property: Gets or sets the keep alive time seconds value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: keep alive time seconds value exposed by the owning type.
     public int KeepAliveTimeSeconds { get; init; } = 30;
 
-    /**
-      * Gets or stores the interval between internal TCP keep-alive probes.
-      */
+    // Property: Gets or sets the keep alive interval seconds value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: keep alive interval seconds value exposed by the owning type.
     public int KeepAliveIntervalSeconds { get; init; } = 10;
 
-    /**
-      * Gets or stores how long an internal connection has to finish authentication.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span authentication timeout { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan AuthenticationTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
-    /**
-      * Gets or stores the allowed inbound internal server names.
-      * An empty list keeps compatibility and allows any server with a valid registration proof.
-      */
+    // Property: Gets or sets the allowed servers value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: allowed servers value exposed by the owning type.
     public IReadOnlyList<string> AllowedServers { get; init; } = [];
 
-    /**
-      * Gets or stores the shutdown grace period value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span shutdown grace period { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan ShutdownGracePeriod { get; init; } = TimeSpan.FromSeconds(15);
 
-    /**
-      * Gets or stores how often internal server health pings are sent.
-      * This protects peer health even when visible latency logging is disabled.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span latency report interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan LatencyReportInterval { get; init; } = TimeSpan.FromSeconds(15);
 
-    /**
-      * Gets or stores whether successful latency measurements are written to the normal runtime log.
-      */
+    // Property: Gets or sets the latency logging enabled value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: latency logging enabled value exposed by the owning type.
     public bool LatencyLoggingEnabled { get; init; } = true;
 
-    /**
-      * Gets or stores the minimum delay between visible latency log lines for each internal peer.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span latency log interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan LatencyLogInterval { get; init; } = TimeSpan.FromSeconds(60);
 
-    /**
-      * Gets or stores the ping timeout value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span ping timeout { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan PingTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
-    /**
-      * Gets or stores the peers value used by InternalNetworkSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the peers value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: peers value exposed by the owning type.
     public IReadOnlyList<InternalPeerSettings> Peers { get; init; } = [];
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of InternalNetworkSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: GetBindAddress
+    // Purpose: Retrieves get bind address data for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the IP address value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public IPAddress GetBindAddress()
     {
         if (!IPAddress.TryParse(BindAddress, out IPAddress? ipAddress))
@@ -150,10 +133,11 @@ public sealed class InternalNetworkSettings
         return ipAddress;
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of InternalNetworkSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalNetworkSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (!InternalProtocol.IsValidServerName(ServerName))

@@ -15,75 +15,71 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Networking/Packets/CharacterCreateResult.cs
-  * Documents the CharacterCreateResult source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Networking/Packets/CharacterCreateResult.cs
+// Purpose: Contains character create result code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Lists the supported character create result values used by the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: CharacterCreateResult
+// Purpose: Defines the allowed character create result values used by the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum CharacterCreateResult : byte
 {
-    /**
-      * Represents the success value for character create result handling.
-      */
+
+    // Enum Value: Defines the success enum value.
+    // Value: explicit expression 0x2E.
     Success = 0x2E,
-    /**
-      * Represents the error value for character create result handling.
-      */
+
+    // Enum Value: Defines the error enum value.
+    // Value: explicit expression 0x2F.
     Error = 0x2F,
-    /**
-      * Represents the failed value for character create result handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: explicit expression 0x30.
     Failed = 0x30,
-    /**
-      * Represents the name in use value for character create result handling.
-      */
+
+    // Enum Value: Defines the name in use enum value.
+    // Value: explicit expression 0x31.
     NameInUse = 0x31,
-    /**
-      * Represents the disabled value for character create result handling.
-      */
+
+    // Enum Value: Defines the disabled enum value.
+    // Value: explicit expression 0x32.
     Disabled = 0x32,
-    /**
-      * Represents the pv p teams violation value for character create result handling.
-      */
+
+    // Enum Value: Defines the pv P teams violation enum value.
+    // Value: explicit expression 0x33.
     PvPTeamsViolation = 0x33,
-    /**
-      * Represents the server limit value for character create result handling.
-      */
+
+    // Enum Value: Defines the server limit enum value.
+    // Value: explicit expression 0x34.
     ServerLimit = 0x34,
-    /**
-      * Represents the account limit value for character create result handling.
-      */
+
+    // Enum Value: Defines the account limit enum value.
+    // Value: explicit expression 0x35.
     AccountLimit = 0x35,
-    /**
-      * Represents the server queue value for character create result handling.
-      */
+
+    // Enum Value: Defines the server queue enum value.
+    // Value: explicit expression 0x36.
     ServerQueue = 0x36,
-    /**
-      * Represents the only existing value for character create result handling.
-      */
+
+    // Enum Value: Defines the only existing enum value.
+    // Value: explicit expression 0x37.
     OnlyExisting = 0x37,
-    /**
-      * Represents the expansion value for character create result handling.
-      */
+
+    // Enum Value: Defines the expansion enum value.
+    // Value: explicit expression 0x38.
     Expansion = 0x38,
-    /**
-      * Represents the name invalid value for character create result handling.
-      */
+
+    // Enum Value: Defines the name invalid enum value.
+    // Value: explicit expression 0x39.
     NameInvalid = 0x39,
-    /**
-      * Represents the name profane value for character create result handling.
-      */
+
+    // Enum Value: Defines the name profane enum value.
+    // Value: explicit expression 0x3A.
     NameProfane = 0x3A,
-    /**
-      * Represents the name reserved value for character create result handling.
-      */
+
+    // Enum Value: Defines the name reserved enum value.
+    // Value: explicit expression 0x3B.
     NameReserved = 0x3B,
 }

@@ -1,17 +1,39 @@
 //
 // Copyright (C) 2026 Emulation Server Project
 //
+// This program is free software. You can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation. either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY. Without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, write to the Free Software
+// Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+//
+// File: src/EmulationServer.Game/Data/Dbc/Creatures/CreatureDbcDataStore.cs
+// Purpose: Contains creature DBC data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
 namespace EmulationServer.Game.Data.Dbc.Creatures;
 
-/**
-  * Owns typed creature DBC data used for creature/NPC display, family, type, sound, spell, and model validation.
-  */
+// Type: CreatureDbcDataStore
+// Purpose: Provides creature DBC data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class CreatureDbcDataStore
 {
+    // Constructor: CreatureDbcDataStore
+    // Purpose: Initializes a new CreatureDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private CreatureDbcDataStore()
     {
         DisplayInfo = new Dictionary<int, CreatureDisplayInfoDbcRecord>();
@@ -23,6 +45,18 @@ public sealed class CreatureDbcDataStore
         Types = new Dictionary<int, CreatureTypeDbcRecord>();
     }
 
+    // Constructor: CreatureDbcDataStore
+    // Purpose: Initializes a new CreatureDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - displayInfo: Display info value supplied by the caller for this operation.
+    // - displayInfoExtra: Display info extra value supplied by the caller for this operation.
+    // - families: Families value supplied by the caller for this operation.
+    // - modelData: Model data value supplied by the caller for this operation.
+    // - soundData: Sound data value supplied by the caller for this operation.
+    // - spellData: Spell data value supplied by the caller for this operation.
+    // - types: Types value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private CreatureDbcDataStore(
         IReadOnlyDictionary<int, CreatureDisplayInfoDbcRecord> displayInfo,
         IReadOnlyDictionary<int, CreatureDisplayInfoExtraDbcRecord> displayInfoExtra,
@@ -43,20 +77,41 @@ public sealed class CreatureDbcDataStore
 
     public static CreatureDbcDataStore Empty { get; } = new();
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureDisplayInfoDbcRecord> DisplayInfo { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureDisplayInfoExtraDbcRecord> DisplayInfoExtra { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureFamilyDbcRecord> Families { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureModelDataDbcRecord> ModelData { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureSoundDataDbcRecord> SoundData { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureSpellDataDbcRecord> SpellData { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, CreatureTypeDbcRecord> Types { get; }
 
+    // Method: FromDbcStores
+    // Purpose: Executes the from DBC stores operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the creature DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static CreatureDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -121,12 +176,26 @@ public sealed class CreatureDbcDataStore
         CreatureDbcDataStore data = new(displayInfo, displayInfoExtra, families, modelData, soundData, spellData, types);
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName}: creature DBC loaded (displays={data.DisplayInfo.Count}, displayExtras={data.DisplayInfoExtra.Count}, families={data.Families.Count}, models={data.ModelData.Count}, sounds={data.SoundData.Count}, spells={data.SpellData.Count}, types={data.Types.Count}).",
+            string.Join(Environment.NewLine,
+                $"{ownerName}: creature DBC loaded:",
+                $"  CreatureDisplayInfo.dbc: {data.DisplayInfo.Count}",
+                $"  CreatureDisplayInfoExtra.dbc: {data.DisplayInfoExtra.Count}",
+                $"  CreatureFamily.dbc: {data.Families.Count}",
+                $"  CreatureModelData.dbc: {data.ModelData.Count}",
+                $"  CreatureSoundData.dbc: {data.SoundData.Count}",
+                $"  CreatureSpellData.dbc: {data.SpellData.Count}",
+                $"  CreatureType.dbc: {data.Types.Count}"),
             "CreatureDbcDataStore");
 
         return data;
     }
 
+    // Method: ReadCreatureDisplayInfoRecord
+    // Purpose: Retrieves read creature display info record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature display info DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureDisplayInfoDbcRecord ReadCreatureDisplayInfoRecord(DbcRecord record)
     {
         return new CreatureDisplayInfoDbcRecord(
@@ -144,6 +213,12 @@ public sealed class CreatureDbcDataStore
             record.GetInt32(11));
     }
 
+    // Method: ReadCreatureDisplayInfoExtraRecord
+    // Purpose: Retrieves read creature display info extra record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature display info extra DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureDisplayInfoExtraDbcRecord ReadCreatureDisplayInfoExtraRecord(DbcRecord record)
     {
         List<int> itemDisplays = [];
@@ -164,6 +239,12 @@ public sealed class CreatureDbcDataStore
             itemDisplays);
     }
 
+    // Method: ReadCreatureFamilyRecord
+    // Purpose: Retrieves read creature family record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature family DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureFamilyDbcRecord ReadCreatureFamilyRecord(DbcRecord record)
     {
         return new CreatureFamilyDbcRecord(
@@ -180,6 +261,12 @@ public sealed class CreatureDbcDataStore
             DbcRecordReader.ReadString(record, 17));
     }
 
+    // Method: ReadCreatureModelDataRecord
+    // Purpose: Retrieves read creature model data record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature model data DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureModelDataDbcRecord ReadCreatureModelDataRecord(DbcRecord record)
     {
         return new CreatureModelDataDbcRecord(
@@ -201,6 +288,12 @@ public sealed class CreatureDbcDataStore
             record.GetSingle(15));
     }
 
+    // Method: ReadCreatureSoundDataRecord
+    // Purpose: Retrieves read creature sound data record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature sound data DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureSoundDataDbcRecord ReadCreatureSoundDataRecord(DbcRecord record)
     {
         List<int> soundIds = [];
@@ -222,6 +315,12 @@ public sealed class CreatureDbcDataStore
             record.GetInt32(25));
     }
 
+    // Method: ReadCreatureSpellDataRecord
+    // Purpose: Retrieves read creature spell data record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature spell data DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureSpellDataDbcRecord ReadCreatureSpellDataRecord(DbcRecord record)
     {
         return new CreatureSpellDataDbcRecord(
@@ -230,6 +329,12 @@ public sealed class CreatureDbcDataStore
             [record.GetInt32(5), record.GetInt32(6), record.GetInt32(7), record.GetInt32(8)]);
     }
 
+    // Method: ReadCreatureTypeRecord
+    // Purpose: Retrieves read creature type record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the creature type DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static CreatureTypeDbcRecord ReadCreatureTypeRecord(DbcRecord record)
     {
         return new CreatureTypeDbcRecord(

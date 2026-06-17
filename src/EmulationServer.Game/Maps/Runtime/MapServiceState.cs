@@ -15,63 +15,59 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceState.cs
-  * Documents the MapServiceState source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceState.cs
+// Purpose: Contains map service state code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Lists the supported map service state values used by the runtime map-player state tracking layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: MapServiceState
+// Purpose: Defines the allowed map service state values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MapServiceState
 {
-    /**
-      * Represents the offline value for map service state handling.
-      */
+
+    // Enum Value: Defines the offline enum value.
+    // Value: explicit expression 0.
     Offline = 0,
-    /**
-      * Represents the starting value for map service state handling.
-      */
+
+    // Enum Value: Defines the starting enum value.
+    // Value: explicit expression 1.
     Starting = 1,
-    /**
-      * Represents the online value for map service state handling.
-      */
+
+    // Enum Value: Defines the online enum value.
+    // Value: explicit expression 2.
     Online = 2,
-    /**
-      * Represents the restart requested value for map service state handling.
-      */
+
+    // Enum Value: Defines the restart requested enum value.
+    // Value: explicit expression 3.
     RestartRequested = 3,
-    /**
-      * Represents the draining players value for map service state handling.
-      */
+
+    // Enum Value: Defines the draining players enum value.
+    // Value: explicit expression 4.
     DrainingPlayers = 4,
-    /**
-      * Represents the saving players value for map service state handling.
-      */
+
+    // Enum Value: Defines the saving players enum value.
+    // Value: explicit expression 5.
     SavingPlayers = 5,
-    /**
-      * Represents the unloading objects value for map service state handling.
-      */
+
+    // Enum Value: Defines the unloading objects enum value.
+    // Value: explicit expression 6.
     UnloadingObjects = 6,
-    /**
-      * Represents the reloading data value for map service state handling.
-      */
+
+    // Enum Value: Defines the reloading data enum value.
+    // Value: explicit expression 7.
     ReloadingData = 7,
-    /**
-      * Represents the respawning objects value for map service state handling.
-      */
+
+    // Enum Value: Defines the respawning objects enum value.
+    // Value: explicit expression 8.
     RespawningObjects = 8,
-    /**
-      * Represents the stopping value for map service state handling.
-      */
+
+    // Enum Value: Defines the stopping enum value.
+    // Value: explicit expression 9.
     Stopping = 9,
-    /**
-      * Represents the faulted value for map service state handling.
-      */
+
+    // Enum Value: Defines the faulted enum value.
+    // Value: explicit expression 10.
     Faulted = 10,
 }

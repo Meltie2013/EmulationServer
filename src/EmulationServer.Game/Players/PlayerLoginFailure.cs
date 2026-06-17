@@ -15,47 +15,43 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/PlayerLoginFailure.cs
-  * Documents the PlayerLoginFailure source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/PlayerLoginFailure.cs
+// Purpose: Contains player login failure code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Lists the supported player login failure values used by the logged-in player state, persistence models, and gameplay records layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: PlayerLoginFailure
+// Purpose: Defines the allowed player login failure values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum PlayerLoginFailure : byte
 {
-    /**
-      * Represents the no world value for player login failure handling.
-      */
+
+    // Enum Value: Defines the no world enum value.
+    // Value: explicit expression 0x3E.
     NoWorld = 0x3E,
-    /**
-      * Represents the duplicate login value for player login failure handling.
-      */
+
+    // Enum Value: Defines the duplicate login enum value.
+    // Value: explicit expression 0x3F.
     DuplicateLogin = 0x3F,
-    /**
-      * Represents the no instances value for player login failure handling.
-      */
+
+    // Enum Value: Defines the no instances enum value.
+    // Value: explicit expression 0x40.
     NoInstances = 0x40,
-    /**
-      * Represents the failed value for player login failure handling.
-      */
+
+    // Enum Value: Defines the failed enum value.
+    // Value: explicit expression 0x41.
     Failed = 0x41,
-    /**
-      * Represents the disabled value for player login failure handling.
-      */
+
+    // Enum Value: Defines the disabled enum value.
+    // Value: explicit expression 0x42.
     Disabled = 0x42,
-    /**
-      * Represents the not found value for player login failure handling.
-      */
+
+    // Enum Value: Defines the not found enum value.
+    // Value: explicit expression 0x43.
     NotFound = 0x43,
-    /**
-      * Represents the account mismatch value for player login failure handling.
-      */
+
+    // Enum Value: Defines the account mismatch enum value.
+    // Value: explicit expression 0x44.
     AccountMismatch = 0x44,
 }

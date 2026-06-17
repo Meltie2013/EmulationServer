@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Commands/RealmConsoleCommandService.cs
+// Purpose: Contains realm console command service code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
@@ -22,46 +25,39 @@ using EmulationServer.Database.Accounts;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/RealmServer/Commands/RealmConsoleCommandService.cs
-  * Documents the RealmConsoleCommandService source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Commands;
 
-/**
-  * Owns the realm console command service behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmConsoleCommandService
+// Purpose: Provides realm console command service behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmConsoleCommandService
 {
-    /**
-      * Holds the private account repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the account repository state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current account repository backing value maintained by the owning type.
     private readonly AccountRepository _accountRepository;
-    /**
-      * Holds the private command task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the command task state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current command task backing value maintained by the owning type.
     private Task? _commandTask;
 
-    /**
-      * Initializes a new RealmConsoleCommandService instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: accountRepository.
-      */
+    // Constructor: RealmConsoleCommandService
+    // Purpose: Initializes a new RealmConsoleCommandService instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - accountRepository: Account repository value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     public RealmConsoleCommandService(AccountRepository accountRepository)
     {
         _accountRepository = accountRepository ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      */
+    // Method: Start
+    // Purpose: Controls the start lifecycle step for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     public void Start(CancellationToken cancellationToken)
     {
         if (_commandTask is not null)
@@ -72,12 +68,13 @@ public sealed class RealmConsoleCommandService
         _commandTask = Task.Run(() => RunAsync(cancellationToken), CancellationToken.None);
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RunAsync
+    // Purpose: Controls the run lifecycle step for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.TRACE, "RealmServer console commands are available. Type 'account help' for account commands.", "RealmConsoleCommandService");
@@ -110,12 +107,14 @@ public sealed class RealmConsoleCommandService
         }
     }
 
-    /**
-      * Executes the requested command after parsing and validation are complete.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ExecuteAsync
+    // Purpose: Controls the execute lifecycle step for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - line: Line value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ExecuteAsync(string line, CancellationToken cancellationToken)
     {
         string[] parts = SplitCommandLine(line);
@@ -172,12 +171,14 @@ public sealed class RealmConsoleCommandService
         }
     }
 
-    /**
-      * Adds a new item to the managed collection while preserving internal invariants.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: AddAccountAsync
+    // Purpose: Applies add account changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AddAccountAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 4)
@@ -194,12 +195,14 @@ public sealed class RealmConsoleCommandService
         Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
-    /**
-      * Removes an item from the managed collection and cleans up related state.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RemoveAccountAsync
+    // Purpose: Applies remove account changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RemoveAccountAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 3)
@@ -212,10 +215,14 @@ public sealed class RealmConsoleCommandService
         Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
-    /**
-      * Adds a permanent or temporary ban to an account while preserving previous ban history.
-      * The duration argument accepts permanent, perm, forever, 0, plain seconds, or compound values like 30m, 2h, 7d, and 1d12h.
-      */
+    // Method: BanAccountAsync
+    // Purpose: Executes the ban account operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task BanAccountAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 5)
@@ -235,10 +242,14 @@ public sealed class RealmConsoleCommandService
         Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
-    /**
-      * Removes the active ban from an account by marking the current account_banned row inactive.
-      * Historic ban rows remain available through the baninfo command.
-      */
+    // Method: UnbanAccountAsync
+    // Purpose: Executes the unban account operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task UnbanAccountAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 3)
@@ -251,10 +262,14 @@ public sealed class RealmConsoleCommandService
         Logger.Write(result.Succeeded ? LogType.SYSTEM : LogType.FAILED, result.Message, "RealmConsoleCommandService");
     }
 
-    /**
-      * Writes the complete ban history for a single account to the realm console.
-      * The output includes inactive rows so administrators can audit prior bans without querying MySQL directly.
-      */
+    // Method: WriteBanInfoAsync
+    // Purpose: Builds or writes write ban info output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task WriteBanInfoAsync(string[] parts, CancellationToken cancellationToken)
     {
         if (parts.Length < 3)
@@ -285,10 +300,14 @@ public sealed class RealmConsoleCommandService
         }
     }
 
-    /**
-      * Writes active account bans to the realm console, optionally filtering by account name.
-      * Expired temporary bans are cleaned up by the repository before this command receives data.
-      */
+    // Method: WriteBanListAsync
+    // Purpose: Builds or writes write ban list output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task WriteBanListAsync(string[] parts, CancellationToken cancellationToken)
     {
         string usernameFilter = parts.Length >= 3 ? parts[2] : string.Empty;
@@ -308,10 +327,11 @@ public sealed class RealmConsoleCommandService
         }
     }
 
-    /**
-      * Writes write account help data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      */
+    // Method: WriteAccountHelp
+    // Purpose: Builds or writes write account help output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static void WriteAccountHelp()
     {
         Logger.Write(LogType.TRACE, "Account commands:", "RealmConsoleCommandService");
@@ -323,10 +343,13 @@ public sealed class RealmConsoleCommandService
         Logger.Write(LogType.TRACE, "  account banlist [username-filter]", "RealmConsoleCommandService");
     }
 
-    /**
-      * Parses permanent and timed ban durations from console-friendly text.
-      * Plain numbers are seconds; suffixes support seconds, minutes, hours, days, and weeks.
-      */
+    // Method: TryParseBanDuration
+    // Purpose: Attempts to retrieve or parse try parse ban duration data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - durationSeconds: Duration seconds value supplied by the caller for this operation.
+    // Returns: Returns true when try parse ban duration succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseBanDuration(string value, out ulong durationSeconds)
     {
         durationSeconds = 0;
@@ -407,9 +430,12 @@ public sealed class RealmConsoleCommandService
         return true;
     }
 
-    /**
-      * Formats an account ban row into a readable lifetime description for console output.
-      */
+    // Method: FormatBanWindow
+    // Purpose: Executes the format ban window operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - ban: Ban value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatBanWindow(AccountBanRecord ban)
     {
         string start = FormatUnixTime(ban.BanDate);
@@ -422,9 +448,12 @@ public sealed class RealmConsoleCommandService
         return $"temporary from {start} until {FormatUnixTime(ban.UnbanDate)} ({FormatDuration(durationSeconds)})";
     }
 
-    /**
-      * Returns an active, inactive, or expired label for a ban history row.
-      */
+    // Method: GetBanStateText
+    // Purpose: Retrieves get ban state text data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - ban: Ban value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetBanStateText(AccountBanRecord ban)
     {
         if (!ban.Active)
@@ -436,9 +465,12 @@ public sealed class RealmConsoleCommandService
         return !ban.IsPermanent && ban.UnbanDate <= now ? "expired" : "active";
     }
 
-    /**
-      * Formats a Unix timestamp in UTC so ban logs match the account_banned schema storage format.
-      */
+    // Method: FormatUnixTime
+    // Purpose: Executes the format unix time operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - timestamp: Timestamp value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatUnixTime(ulong timestamp)
     {
         const ulong maximumDateTimeOffsetUnixSeconds = 253402300799UL;
@@ -450,9 +482,12 @@ public sealed class RealmConsoleCommandService
         return DateTimeOffset.FromUnixTimeSeconds((long)timestamp).UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture);
     }
 
-    /**
-      * Formats a duration for administrator-facing console output.
-      */
+    // Method: FormatDuration
+    // Purpose: Executes the format duration operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - durationSeconds: Duration seconds value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatDuration(ulong durationSeconds)
     {
         if (durationSeconds > int.MaxValue)
@@ -486,10 +521,12 @@ public sealed class RealmConsoleCommandService
         return string.Join(' ', parts);
     }
 
-    /**
-      * Splits the supplied text into command parts while preserving quoted values.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      */
+    // Method: SplitCommandLine
+    // Purpose: Executes the split command line operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - commandLine: Command line value supplied by the caller for this operation.
+    // Returns: Returns the string[] value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static string[] SplitCommandLine(string commandLine)
     {
         List<string> parts = [];
@@ -517,10 +554,13 @@ public sealed class RealmConsoleCommandService
         return [.. parts];
     }
 
-    /**
-      * Adds a new item to the managed collection while preserving internal invariants.
-      * The method is part of RealmConsoleCommandService and keeps this workflow isolated from the caller.
-      */
+    // Method: AddPart
+    // Purpose: Applies add part changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - parts: Parts value supplied by the caller for this operation.
+    // - current: Current value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmConsoleCommandService so callers do not duplicate validation, protocol, or persistence rules.
     private static void AddPart(List<string> parts, List<char> current)
     {
         if (current.Count == 0)

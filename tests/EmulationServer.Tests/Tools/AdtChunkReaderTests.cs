@@ -15,29 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Tools/AdtChunkReaderTests.cs
+// Purpose: Contains adt chunk reader tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Text;
 using EmulationServer.Tools.Extraction.Formats.Adt;
 
-/**
-  * File overview: tests/EmulationServer.Tests/Tools/AdtChunkReaderTests.cs
-  * Documents the AdtChunkReaderTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Tests.Tools;
 
-/**
-  * Owns the adt chunk reader tests behavior for the automated test coverage for server behavior and data helpers layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: AdtChunkReaderTests
+// Purpose: Provides adt chunk reader tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class AdtChunkReaderTests
 {
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of AdtChunkReaderTests and keeps this workflow isolated from the caller.
-      */
+
     [Fact]
+    // Method: ReadAdtFourCC_NormalizesReversedAdtChunkMagic
+    // Purpose: Retrieves read adt four CC normalizes reversed adt chunk magic data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to AdtChunkReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void ReadAdtFourCC_NormalizesReversedAdtChunkMagic()
     {
         byte[] bytes = Encoding.ASCII.GetBytes("KNCM");
@@ -47,11 +45,12 @@ public sealed class AdtChunkReaderTests
         Assert.Equal("MCNK", fourCC);
     }
 
-    /**
-      * Reads structured input from the supplied source and converts it into the project model.
-      * The method is part of AdtChunkReaderTests and keeps this workflow isolated from the caller.
-      */
     [Fact]
+    // Method: ReadTopLevelChunks_ReturnsNormalizedFourCC
+    // Purpose: Retrieves read top level chunks returns normalized four CC data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to AdtChunkReaderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void ReadTopLevelChunks_ReturnsNormalizedFourCC()
     {
         byte[] data =

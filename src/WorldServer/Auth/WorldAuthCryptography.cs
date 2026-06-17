@@ -15,30 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Auth/WorldAuthCryptography.cs
+// Purpose: Contains world auth cryptography code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 
-/**
-  * File overview: src/WorldServer/Auth/WorldAuthCryptography.cs
-  * Documents the WorldAuthCryptography source file in the world authentication parsing and session key handling area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Auth;
 
-/**
-  * Owns the world auth cryptography behavior for the world authentication parsing and session key handling layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldAuthCryptography
+// Purpose: Provides world auth cryptography behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldAuthCryptography
 {
-    /**
-      * Parses parse session key input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: sessionKeyHex.
-      */
+
+    // Method: ParseSessionKey
+    // Purpose: Converts incoming data into parse session key form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sessionKeyHex: Session key hex value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldAuthCryptography so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] ParseSessionKey(string sessionKeyHex)
     {
         if (string.IsNullOrWhiteSpace(sessionKeyHex))
@@ -55,11 +53,15 @@ public static class WorldAuthCryptography
         return Convert.FromHexString(normalized);
     }
 
-    /**
-      * Performs the calculate vanilla world proof operation for the world authentication parsing and session key handling workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountName, clientSeed, serverSeed, sessionKey.
-      */
+    // Method: CalculateVanillaWorldProof
+    // Purpose: Calculates calculate vanilla world proof values for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountName: Account name value supplied by the caller for this operation.
+    // - clientSeed: Client seed value supplied by the caller for this operation.
+    // - serverSeed: Server seed value supplied by the caller for this operation.
+    // - sessionKey: Session key value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldAuthCryptography so callers do not duplicate validation, protocol, or persistence rules.
     public static byte[] CalculateVanillaWorldProof(
         string accountName,
         uint clientSeed,
@@ -87,11 +89,16 @@ public static class WorldAuthCryptography
         return SHA1.HashData(buffer);
     }
 
-    /**
-      * Performs the proof matches operation for the world authentication parsing and session key handling workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountName, clientSeed, serverSeed, sessionKey, clientProof.
-      */
+    // Method: ProofMatches
+    // Purpose: Executes the proof matches operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountName: Account name value supplied by the caller for this operation.
+    // - clientSeed: Client seed value supplied by the caller for this operation.
+    // - serverSeed: Server seed value supplied by the caller for this operation.
+    // - sessionKey: Session key value supplied by the caller for this operation.
+    // - clientProof: Client proof value supplied by the caller for this operation.
+    // Returns: Returns true when proof matches succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldAuthCryptography so callers do not duplicate validation, protocol, or persistence rules.
     public static bool ProofMatches(
         string accountName,
         uint clientSeed,

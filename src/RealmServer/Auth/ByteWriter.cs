@@ -15,51 +15,46 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Auth/ByteWriter.cs
+// Purpose: Contains byte writer code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Text;
 
-/**
-  * File overview: src/RealmServer/Auth/ByteWriter.cs
-  * Documents the ByteWriter source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Owns the byte writer behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ByteWriter
+// Purpose: Provides byte writer behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ByteWriter
 {
-    /**
-      * Holds the private buffer state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the buffer state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current buffer backing value maintained by the owning type.
     private readonly List<byte> _buffer = [];
 
-    /**
-      * Gets or stores the count value used by ByteWriter.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the count value used by the realm server authentication, realm-list, and account connection layer.
+    // Value: count value exposed by the owning type.
     public int Count => _buffer.Count;
 
-    /**
-      * Writes write u int 8 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt8
+    // Purpose: Builds or writes write U int8 output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt8(byte value)
     {
         _buffer.Add(value);
     }
 
-    /**
-      * Writes write u int 16 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt16
+    // Purpose: Builds or writes write U int16 output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt16(ushort value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -67,11 +62,12 @@ public sealed class ByteWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write u int 32 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt32
+    // Purpose: Builds or writes write U int32 output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt32(uint value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -79,11 +75,12 @@ public sealed class ByteWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write float data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteFloat
+    // Purpose: Builds or writes write float output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteFloat(float value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -91,31 +88,34 @@ public sealed class ByteWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write c string data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteCString
+    // Purpose: Builds or writes write C string output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteCString(string value)
     {
         _buffer.AddRange(Encoding.UTF8.GetBytes(value));
         _buffer.Add(0);
     }
 
-    /**
-      * Writes write bytes data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteBytes
+    // Purpose: Builds or writes write bytes output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteBytes(ReadOnlySpan<byte> value)
     {
         _buffer.AddRange(value.ToArray());
     }
 
-    /**
-      * Performs the to array operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: ToArray
+    // Purpose: Executes the to array operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to ByteWriter so callers do not duplicate validation, protocol, or persistence rules.
     public byte[] ToArray()
     {
         return [.. _buffer];

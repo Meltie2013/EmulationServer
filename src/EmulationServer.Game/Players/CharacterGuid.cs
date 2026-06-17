@@ -15,59 +15,68 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/CharacterGuid.cs
-  * Documents the CharacterGuid source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/CharacterGuid.cs
+// Purpose: Contains character GUID code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Owns the character guid behavior for the logged-in player state, persistence models, and gameplay records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: CharacterGuid
+// Purpose: Provides character GUID behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class CharacterGuid
 {
-    /**
-      * MaNGOS Zero uses a zero high GUID for players and a 0x4000 high GUID for item/container objects.
-      * Keeping these helpers centralized prevents low-guid collisions between character rows and item_instance rows.
-      */
+
+    // Constant: Defines the high GUID item constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed high GUID item value used anywhere this rule or protocol value is needed.
     private const ushort HighGuidItem = 0x4000;
+    // Constant: Defines the high GUID game object constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed high GUID game object value used anywhere this rule or protocol value is needed.
     private const ushort HighGuidGameObject = 0xF110;
+    // Constant: Defines the high GUID creature constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed high GUID creature value used anywhere this rule or protocol value is needed.
     private const ushort HighGuidCreature = 0xF130;
 
-    /**
-      * Performs the to client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: lowGuid.
-      */
+    // Method: ToClientGuid
+    // Purpose: Executes the to client GUID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - lowGuid: Low GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the ulong value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterGuid so callers do not duplicate validation, protocol, or persistence rules.
     public static ulong ToClientGuid(uint lowGuid)
     {
         return ToPlayerGuid(lowGuid);
     }
 
-    /**
-      * Builds a Vanilla player ObjectGuid from the character low guid.
-      */
+    // Method: ToPlayerGuid
+    // Purpose: Executes the to player GUID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - lowGuid: Low GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the ulong value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterGuid so callers do not duplicate validation, protocol, or persistence rules.
     public static ulong ToPlayerGuid(uint lowGuid)
     {
         return lowGuid;
     }
 
-    /**
-      * Builds a Vanilla item/container ObjectGuid from the item_instance low guid.
-      */
+    // Method: ToItemGuid
+    // Purpose: Executes the to item GUID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - lowGuid: Low GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the ulong value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterGuid so callers do not duplicate validation, protocol, or persistence rules.
     public static ulong ToItemGuid(uint lowGuid)
     {
         return lowGuid == 0 ? 0 : ((ulong)HighGuidItem << 48) | lowGuid;
     }
 
-    /**
-      * Builds a Vanilla gameobject ObjectGuid from a spawn low guid and template entry.
-      * The high-guid and entry bits keep gameobject spawns isolated from players and items.
-      */
+    // Method: ToGameObjectGuid
+    // Purpose: Executes the to game object GUID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - lowGuid: Low GUID identifier used to select the exact record, object, or runtime owner.
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the ulong value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterGuid so callers do not duplicate validation, protocol, or persistence rules.
     public static ulong ToGameObjectGuid(uint lowGuid, uint entry)
     {
         return lowGuid == 0 || entry == 0
@@ -75,10 +84,13 @@ public static class CharacterGuid
             : ((ulong)HighGuidGameObject << 48) | (((ulong)entry & 0xFFFFFFUL) << 24) | ((ulong)lowGuid & 0xFFFFFFUL);
     }
 
-    /**
-      * Builds a Vanilla creature ObjectGuid from a spawn low guid and creature template entry.
-      * The layout mirrors the gameobject high-guid/entry/low-guid split used by Vanilla object updates.
-      */
+    // Method: ToCreatureGuid
+    // Purpose: Executes the to creature GUID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - lowGuid: Low GUID identifier used to select the exact record, object, or runtime owner.
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the ulong value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterGuid so callers do not duplicate validation, protocol, or persistence rules.
     public static ulong ToCreatureGuid(uint lowGuid, uint entry)
     {
         return lowGuid == 0 || entry == 0
@@ -86,21 +98,20 @@ public static class CharacterGuid
             : ((ulong)HighGuidCreature << 48) | (((ulong)entry & 0xFFFFFFUL) << 24) | ((ulong)lowGuid & 0xFFFFFFUL);
     }
 
-    /**
-      * Exposes the Vanilla gameobject high GUID value written in non-living movement create blocks.
-      */
+    // Property: Gets or sets the game object high GUID value value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: game object high GUID value value exposed by the owning type.
     public static uint GameObjectHighGuidValue => HighGuidGameObject;
 
-    /**
-      * Exposes the Vanilla creature high GUID value for debugging/object packet review.
-      */
+    // Property: Gets or sets the creature high GUID value value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: creature high GUID value value exposed by the owning type.
     public static uint CreatureHighGuidValue => HighGuidCreature;
 
-    /**
-      * Performs the from client guid operation for the logged-in player state, persistence models, and gameplay records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: clientGuid.
-      */
+    // Method: FromClientGuid
+    // Purpose: Executes the from client GUID operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterGuid so callers do not duplicate validation, protocol, or persistence rules.
     public static uint FromClientGuid(ulong clientGuid)
     {
         return (uint)(clientGuid & uint.MaxValue);

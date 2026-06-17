@@ -15,20 +15,29 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapPlayerRuntimeState.cs
-  * Documents the MapPlayerRuntimeState source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapPlayerRuntimeState.cs
+// Purpose: Contains map player runtime state code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Carries immutable map player runtime state data for the runtime map-player state tracking layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: AccountId, Guid, Name, Map, Zone, PositionX, PositionY, PositionZ, Orientation, LastMovementOpcode, MovementFlags, ClientMovementTime, LastUpdatedUtc.
-  */
+// Type: MapPlayerRuntimeState
+// Purpose: Represents map player runtime state data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - AccountId: Account ID identifier used to select the exact record, object, or runtime owner.
+// - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - Map: Map value supplied by the caller for this operation.
+// - Zone: Zone value supplied by the caller for this operation.
+// - PositionX: Position X value supplied by the caller for this operation.
+// - PositionY: Position Y value supplied by the caller for this operation.
+// - PositionZ: Position Z value supplied by the caller for this operation.
+// - Orientation: Orientation value supplied by the caller for this operation.
+// - LastMovementOpcode: Last movement opcode value supplied by the caller for this operation.
+// - MovementFlags: Movement flags value supplied by the caller for this operation.
+// - ClientMovementTime: Client movement time value supplied by the caller for this operation.
+// - LastUpdatedUtc: Last updated utc value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapPlayerRuntimeState(
     uint AccountId,
     uint Guid,

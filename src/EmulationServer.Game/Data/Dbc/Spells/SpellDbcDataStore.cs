@@ -15,28 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcDataStore.cs
+// Purpose: Contains spell DBC data store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Spells/SpellDbcDataStore.cs
-  * Documents the SpellDbcDataStore source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Data.Dbc.Spells;
 
-/**
-  * Owns typed spell/skill DBC data and lookup indexes.
-  */
+// Type: SpellDbcDataStore
+// Purpose: Provides spell DBC data store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class SpellDbcDataStore
 {
-    /**
-      * Initializes a new SpellDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      */
+
+    // Constructor: SpellDbcDataStore
+    // Purpose: Initializes a new SpellDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private SpellDbcDataStore()
     {
         Skills = new Dictionary<int, SkillLineDbcRecord>();
@@ -49,11 +48,19 @@ public sealed class SpellDbcDataStore
         SpellCastTimes = new Dictionary<int, SpellCastTimeDbcRecord>();
     }
 
-    /**
-      * Initializes a new SpellDbcDataStore instance with the dependencies required by the DBC loading and strongly typed client data records workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: skills, skillAbilities, skillRaceClassInfo, spells, spellIcons, spellDurations....
-      */
+    // Constructor: SpellDbcDataStore
+    // Purpose: Initializes a new SpellDbcDataStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - skills: Skills value supplied by the caller for this operation.
+    // - skillAbilities: Skill abilities value supplied by the caller for this operation.
+    // - skillRaceClassInfo: Skill race class info value supplied by the caller for this operation.
+    // - spells: Spells value supplied by the caller for this operation.
+    // - spellIcons: Spell icons value supplied by the caller for this operation.
+    // - spellDurations: Spell durations value supplied by the caller for this operation.
+    // - spellRanges: Spell ranges value supplied by the caller for this operation.
+    // - spellCastTimes: Spell cast times value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private SpellDbcDataStore(
         IReadOnlyDictionary<int, SkillLineDbcRecord> skills,
         IReadOnlyDictionary<int, SkillLineAbilityDbcRecord> skillAbilities,
@@ -74,31 +81,47 @@ public sealed class SpellDbcDataStore
         SpellCastTimes = spellCastTimes;
     }
 
-    /**
-      * Exposes the empty value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
     public static SpellDbcDataStore Empty { get; } = new();
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SkillLineDbcRecord> Skills { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SkillLineAbilityDbcRecord> SkillAbilities { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SkillRaceClassInfoDbcRecord> SkillRaceClassInfo { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SpellDbcRecord> Spells { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SpellIconDbcRecord> SpellIcons { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SpellDurationDbcRecord> SpellDurations { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SpellRangeDbcRecord> SpellRanges { get; }
 
+    // Property: Gets or sets the int value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: int value exposed by the owning type.
     public IReadOnlyDictionary<int, SpellCastTimeDbcRecord> SpellCastTimes { get; }
 
-    /**
-      * Converts loaded raw DBC stores into typed spell and skill DBC indexes.
-      */
+    // Method: FromDbcStores
+    // Purpose: Executes the from DBC stores operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - dbcStores: Dbc stores value supplied by the caller for this operation.
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: Returns the spell DBC data store value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public static SpellDbcDataStore FromDbcStores(IReadOnlyDictionary<string, DbcDataStore> dbcStores, string ownerName)
     {
         ArgumentNullException.ThrowIfNull(dbcStores);
@@ -172,27 +195,39 @@ public sealed class SpellDbcDataStore
 
         Logger.Write(
             LogType.SUCCESS,
-            $"{ownerName}: spell DBC loaded (skillLines={data.Skills.Count}, skillAbilities={data.SkillAbilities.Count}, skillRaceClassInfo={data.SkillRaceClassInfo.Count}, spells={data.Spells.Count}, icons={data.SpellIcons.Count}, durations={data.SpellDurations.Count}, ranges={data.SpellRanges.Count}, castTimes={data.SpellCastTimes.Count}).",
+            string.Join(Environment.NewLine,
+                $"{ownerName}: spell DBC loaded:",
+                $"  SkillLine.dbc: {data.Skills.Count}",
+                $"  SkillLineAbility.dbc: {data.SkillAbilities.Count}",
+                $"  SkillRaceClassInfo.dbc: {data.SkillRaceClassInfo.Count}",
+                $"  Spell.dbc: {data.Spells.Count}",
+                $"  SpellIcon.dbc: {data.SpellIcons.Count}",
+                $"  SpellDuration.dbc: {data.SpellDurations.Count}",
+                $"  SpellRange.dbc: {data.SpellRanges.Count}",
+                $"  SpellCastTimes.dbc: {data.SpellCastTimes.Count}"),
             "SpellDbcDataStore");
 
         return data;
     }
 
-    /**
-      * Tries to resolve the get spell value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: spellId, spell.
-      */
+    // Method: TryGetSpell
+    // Purpose: Attempts to retrieve or parse try get spell data without treating normal misses as failures.
+    // Parameters:
+    // - spellId: Spell ID identifier used to select the exact record, object, or runtime owner.
+    // - spell: Spell value supplied by the caller for this operation.
+    // Returns: Returns true when try get spell succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetSpell(int spellId, out SpellDbcRecord spell)
     {
         return Spells.TryGetValue(spellId, out spell!);
     }
 
-    /**
-      * Parses read skill line record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSkillLineRecord
+    // Purpose: Retrieves read skill line record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the skill line DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SkillLineDbcRecord ReadSkillLineRecord(DbcRecord record)
     {
         return new SkillLineDbcRecord(
@@ -204,11 +239,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 21));
     }
 
-    /**
-      * Parses read skill line ability record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSkillLineAbilityRecord
+    // Purpose: Retrieves read skill line ability record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the skill line ability DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SkillLineAbilityDbcRecord ReadSkillLineAbilityRecord(DbcRecord record)
     {
         return new SkillLineAbilityDbcRecord(
@@ -226,11 +262,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 14));
     }
 
-    /**
-      * Parses read skill race class info record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSkillRaceClassInfoRecord
+    // Purpose: Retrieves read skill race class info record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the skill race class info DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SkillRaceClassInfoDbcRecord ReadSkillRaceClassInfoRecord(DbcRecord record)
     {
         return new SkillRaceClassInfoDbcRecord(
@@ -244,11 +281,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 7));
     }
 
-    /**
-      * Parses read spell record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSpellRecord
+    // Purpose: Retrieves read spell record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the spell DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SpellDbcRecord ReadSpellRecord(DbcRecord record)
     {
         return new SpellDbcRecord(
@@ -270,11 +308,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadString(record, 138));
     }
 
-    /**
-      * Parses read spell icon record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSpellIconRecord
+    // Purpose: Retrieves read spell icon record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the spell icon DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SpellIconDbcRecord ReadSpellIconRecord(DbcRecord record)
     {
         return new SpellIconDbcRecord(
@@ -282,11 +321,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadString(record, 1));
     }
 
-    /**
-      * Parses read spell duration record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSpellDurationRecord
+    // Purpose: Retrieves read spell duration record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the spell duration DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SpellDurationDbcRecord ReadSpellDurationRecord(DbcRecord record)
     {
         return new SpellDurationDbcRecord(
@@ -296,11 +336,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadInt32(record, 3));
     }
 
-    /**
-      * Parses read spell range record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSpellRangeRecord
+    // Purpose: Retrieves read spell range record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the spell range DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SpellRangeDbcRecord ReadSpellRangeRecord(DbcRecord record)
     {
         return new SpellRangeDbcRecord(
@@ -312,11 +353,12 @@ public sealed class SpellDbcDataStore
             DbcRecordReader.ReadString(record, 13));
     }
 
-    /**
-      * Parses read spell cast time record input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: record.
-      */
+    // Method: ReadSpellCastTimeRecord
+    // Purpose: Retrieves read spell cast time record data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - record: Record value supplied by the caller for this operation.
+    // Returns: Returns the spell cast time DBC record value produced by this operation.
+    // Notes: This keeps the operation scoped to SpellDbcDataStore so callers do not duplicate validation, protocol, or persistence rules.
     private static SpellCastTimeDbcRecord ReadSpellCastTimeRecord(DbcRecord record)
     {
         return new SpellCastTimeDbcRecord(

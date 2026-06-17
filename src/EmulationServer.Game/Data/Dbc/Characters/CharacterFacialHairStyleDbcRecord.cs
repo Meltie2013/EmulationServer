@@ -15,19 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharacterFacialHairStyleDbcRecord.cs
-  * Documents the CharacterFacialHairStyleDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Characters/CharacterFacialHairStyleDbcRecord.cs
+// Purpose: Contains character facial hair style DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
-/**
-  * Represents one CharacterFacialHairStyles.dbc row used for facial-hair customization validation.
-  * Positional fields carried by this record: RaceId, SexId, VariationId, Geosets.
-  */
+// Type: CharacterFacialHairStyleDbcRecord
+// Purpose: Represents character facial hair style DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+// - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+// - VariationId: Variation ID identifier used to select the exact record, object, or runtime owner.
+// - Geosets: Geosets value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record CharacterFacialHairStyleDbcRecord(
     int RaceId,
     int SexId,

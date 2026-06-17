@@ -15,19 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/CharSectionDbcRecord.cs
-  * Documents the CharSectionDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Characters/CharSectionDbcRecord.cs
+// Purpose: Contains char section DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
-/**
-  * Represents one CharSections.dbc row used for character customization validation.
-  * Positional fields carried by this record: Id, RaceId, SexId, SectionType, VariationIndex, ColorIndex, TextureName1, TextureName2, TextureName3, Flags.
-  */
+// Type: CharSectionDbcRecord
+// Purpose: Represents char section DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - RaceId: Race ID identifier used to select the exact record, object, or runtime owner.
+// - SexId: Sex ID identifier used to select the exact record, object, or runtime owner.
+// - SectionType: Section type value supplied by the caller for this operation.
+// - VariationIndex: Variation index value supplied by the caller for this operation.
+// - ColorIndex: Color index value supplied by the caller for this operation.
+// - TextureName1: Texture name1 value supplied by the caller for this operation.
+// - TextureName2: Texture name2 value supplied by the caller for this operation.
+// - TextureName3: Texture name3 value supplied by the caller for this operation.
+// - Flags: Flags value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record CharSectionDbcRecord(
     int Id,
     int RaceId,

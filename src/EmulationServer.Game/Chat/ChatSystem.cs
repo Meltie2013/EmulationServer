@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/ChatSystem.cs
+// Purpose: Contains chat system code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Dbc.Maps;
 using EmulationServer.Game.Data.Stores;
@@ -22,24 +25,18 @@ using EmulationServer.Game.Players;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Game/Chat/ChatSystem.cs
-  * Documents the ChatSystem source file in the chat channel normalization, language handling, and message routing area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Chat;
 
-/**
-  * Owns the chat system behavior for the chat channel normalization, language handling, and message routing layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: ChatSystem
+// Purpose: Provides chat system behavior for the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - gameDataAccessor: Game data accessor value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null)
 {
-    /**
-      * Exposes the default channels value to callers that need this runtime or configuration data.
-      * The property keeps the public surface strongly typed and documents which part of the server workflow owns the value.
-      */
+
+    // Property: Gets or sets the default channels value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: default channels value exposed by the owning type.
     public static IReadOnlyList<string> DefaultChannels { get; } =
     [
         "General",
@@ -47,17 +44,19 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         "LookingForGroup",
     ];
 
-    /**
-      * Holds the private game data accessor state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Method: gameDataAccessor
+    // Purpose: Executes the game data accessor operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the func game data accessor = value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<WorldGameDataStore> _gameDataAccessor = gameDataAccessor ?? (() => WorldGameDataStore.Empty);
 
-    /**
-      * Resolves the default channel names value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player.
-      */
+    // Method: GetDefaultChannelNames
+    // Purpose: Retrieves get default channel names data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<string> GetDefaultChannelNames(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -68,11 +67,13 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         return dbcChannels.Count == 0 ? DefaultChannels : dbcChannels;
     }
 
-    /**
-      * Resolves the channel name value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player, channelName.
-      */
+    // Method: ResolveChannelName
+    // Purpose: Retrieves resolve channel name data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public string ResolveChannelName(PlayerLoginRecord player, string channelName)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -82,11 +83,13 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         return NormalizeChannelName(gameData.ChatData.ResolveChannelName(channelName, zoneName));
     }
 
-    /**
-      * Normalizes the incoming message for the chat channel normalization, language handling, and message routing workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: player, message.
-      */
+    // Method: NormalizeIncomingMessage
+    // Purpose: Converts incoming data into normalize incoming message form for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns the chat incoming message value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public ChatIncomingMessage NormalizeIncomingMessage(PlayerLoginRecord player, ChatIncomingMessage message)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -114,11 +117,13 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         };
     }
 
-    /**
-      * Resolves the language for player value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player, requestedLanguage.
-      */
+    // Method: ResolveLanguageForPlayer
+    // Purpose: Retrieves resolve language for player data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - requestedLanguage: Requested language value supplied by the caller for this operation.
+    // Returns: Returns the chat language value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public ChatLanguage ResolveLanguageForPlayer(PlayerLoginRecord player, ChatLanguage requestedLanguage)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -152,11 +157,12 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         return GetDefaultLanguage(player);
     }
 
-    /**
-      * Resolves the default language value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player.
-      */
+    // Method: GetDefaultLanguage
+    // Purpose: Retrieves get default language data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the chat language value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static ChatLanguage GetDefaultLanguage(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -164,11 +170,13 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         return LanguageKnowledgeSystem.GetDefaultLanguage(player.Faction);
     }
 
-    /**
-      * Resolves the channel flags value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player, channelName.
-      */
+    // Method: ResolveChannelFlags
+    // Purpose: Retrieves resolve channel flags data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public uint ResolveChannelFlags(PlayerLoginRecord player, string channelName)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -179,25 +187,25 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         return unchecked((uint)flags);
     }
 
-    /**
-      * Resolves the channel player rank value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: player.
-      */
+    // Method: ResolveChannelPlayerRank
+    // Purpose: Retrieves resolve channel player rank data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static uint ResolveChannelPlayerRank(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        // Vanilla sends the player's channel rank before the sender GUID for CHAT_MSG_CHANNEL.
-        // Rank management is not implemented yet, so every joined player is a normal member.
         return 0;
     }
 
-    /**
-      * Determines whether allowed client chat type for the chat channel normalization, language handling, and message routing workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: messageType.
-      */
+    // Method: IsAllowedClientChatType
+    // Purpose: Validates or evaluates is allowed client chat type rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - messageType: Message type value supplied by the caller for this operation.
+    // Returns: Returns true when is allowed client chat type succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsAllowedClientChatType(ChatMessageType messageType)
     {
         return messageType is
@@ -212,11 +220,14 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
             ChatMessageType.Channel;
     }
 
-    /**
-      * Resolves the recipients value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: sender, message, availableSessions.
-      */
+    // Method: GetRecipients
+    // Purpose: Retrieves get recipients data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - sender: Sender value supplied by the caller for this operation.
+    // - message: Message value supplied by the caller for this operation.
+    // - availableSessions: Available sessions value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<IChatSession> GetRecipients(
         IChatSession sender,
         ChatIncomingMessage message,
@@ -246,31 +257,35 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         };
     }
 
-    /**
-      * Determines whether command message for the chat channel normalization, language handling, and message routing workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: message.
-      */
+    // Method: IsCommandMessage
+    // Purpose: Validates or evaluates is command message rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // Returns: Returns true when is command message succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsCommandMessage(ChatIncomingMessage message)
     {
         return !string.IsNullOrWhiteSpace(message.Text) && message.Text[0] == '.';
     }
 
-    /**
-      * Normalizes the channel name for the chat channel normalization, language handling, and message routing workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: channelName.
-      */
+    // Method: NormalizeChannelName
+    // Purpose: Converts incoming data into normalize channel name form for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static string NormalizeChannelName(string channelName)
     {
         return string.IsNullOrWhiteSpace(channelName) ? "General" : channelName.Trim();
     }
 
-    /**
-      * Applies the join channel state transition to the current runtime session.
-      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-      * Inputs used by this operation: session, channelName.
-      */
+    // Method: JoinChannel
+    // Purpose: Executes the join channel operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public void JoinChannel(IChatSession session, string channelName)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -281,11 +296,13 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' joined faction-scoped channel '{normalized}'.", "ChatSystem");
     }
 
-    /**
-      * Applies the leave channel state transition to the current runtime session.
-      * State changes are routed through one method so logging, validation, and side effects stay aligned with the server lifecycle.
-      * Inputs used by this operation: session, channelName.
-      */
+    // Method: LeaveChannel
+    // Purpose: Executes the leave channel operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - channelName: Channel name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     public void LeaveChannel(IChatSession session, string channelName)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -296,11 +313,13 @@ public sealed class ChatSystem(Func<WorldGameDataStore>? gameDataAccessor = null
         Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' left faction-scoped channel '{normalized}'.", "ChatSystem");
     }
 
-    /**
-      * Resolves the zone name value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: gameData, player.
-      */
+    // Method: ResolveZoneName
+    // Purpose: Retrieves resolve zone name data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - gameData: Game data value supplied by the caller for this operation.
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to ChatSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static string ResolveZoneName(WorldGameDataStore gameData, PlayerLoginRecord player)
     {
         if (gameData.MapData.Areas.TryGetValue(unchecked((int)player.Zone), out AreaTableDbcRecord? area))

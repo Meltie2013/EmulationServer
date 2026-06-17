@@ -15,18 +15,20 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Core/WorldServer.cs
+// Purpose: Contains world server code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using System.Globalization;
 using EmulationServer.Core.Servers;
 using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Services;
-using EmulationServer.Game.Characters;
 using EmulationServer.Game.Commands;
 using EmulationServer.Game.Creatures;
 using EmulationServer.Game.Data;
-using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Data.Dbc.Maps;
+using EmulationServer.Game.Data.Maps;
 using EmulationServer.Game.Data.Stores;
 using EmulationServer.Game.GameObjects;
 using EmulationServer.Game.Movement;
@@ -52,110 +54,93 @@ using GameInGameCommandService = EmulationServer.Game.Commands.InGameCommandServ
 using GameItemSystem = EmulationServer.Game.Items.ItemSystem;
 using WorldPlayerSessionRegistry = EmulationServer.WorldServer.Players.PlayerSessionRegistry;
 
-/**
-  * File overview: src/WorldServer/Core/WorldServer.cs
-  * Documents the WorldServer source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Core;
 
-/**
-  * Owns the world server behavior for the world server startup, client networking, gameplay routing, and persistence layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldServer
+// Purpose: Provides world server behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandExecutor, IInGameServerCommandExecutor, IAsyncDisposable
 {
+    // Field: Stores the default world game object snapshot map ids state used by the world server gameplay, session, and character runtime layer.
+    // Value: current default world game object snapshot map ids backing value maintained by the owning type.
     private static readonly int[] DefaultWorldGameObjectSnapshotMapIds = [0, 1];
+    // Field: Stores the default world creature snapshot map ids state used by the world server gameplay, session, and character runtime layer.
+    // Value: current default world creature snapshot map ids backing value maintained by the owning type.
     private static readonly int[] DefaultWorldCreatureSnapshotMapIds = [0, 1];
+    // Field: Stores the required public client internal servers state used by the world server gameplay, session, and character runtime layer.
+    // Value: current required public client internal servers backing value maintained by the owning type.
+    private static readonly string[] RequiredPublicClientInternalServers = ["ProxyServer"];
 
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the settings state used by the world server gameplay, session, and character runtime layer.
+    // Value: current settings backing value maintained by the owning type.
     private readonly WorldServerSettings _settings;
-    /**
-      * Holds the private host state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the host state used by the world server gameplay, session, and character runtime layer.
+    // Value: current host backing value maintained by the owning type.
     private readonly EmulationServerHost _host;
-    /**
-      * Holds the private realm status reporter state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the realm status reporter state used by the world server gameplay, session, and character runtime layer.
+    // Value: current realm status reporter backing value maintained by the owning type.
     private readonly WorldRealmStatusReporter _realmStatusReporter;
-    /**
-      * Holds the private WorldServer health status cancellation state used by the owning component.
-      */
+
+    // Field: Stores the world health status cancellation state used by the world server gameplay, session, and character runtime layer.
+    // Value: current world health status cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _worldHealthStatusCancellation;
-    /**
-      * Holds the private WorldServer health status task state used by the owning component.
-      */
+
+    // Field: Stores the world health status task state used by the world server gameplay, session, and character runtime layer.
+    // Value: current world health status task backing value maintained by the owning type.
     private Task? _worldHealthStatusTask;
-    /**
-      * Holds the private auth database state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the auth database state used by the world server gameplay, session, and character runtime layer.
+    // Value: current auth database backing value maintained by the owning type.
     private readonly MySqlDatabaseService _authDatabase;
-    /**
-      * Holds the private character database state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the character database state used by the world server gameplay, session, and character runtime layer.
+    // Value: current character database backing value maintained by the owning type.
     private readonly MySqlDatabaseService _characterDatabase;
-    /**
-      * Holds the private world database state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the world database state used by the world server gameplay, session, and character runtime layer.
+    // Value: current world database backing value maintained by the owning type.
     private readonly MySqlDatabaseService _worldDatabase;
-    /**
-      * Holds the private account repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the account repository state used by the world server gameplay, session, and character runtime layer.
+    // Value: current account repository backing value maintained by the owning type.
     private readonly WorldAccountRepository _accountRepository;
-    /**
-      * Holds the private character repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the character repository state used by the world server gameplay, session, and character runtime layer.
+    // Value: current character repository backing value maintained by the owning type.
     private readonly CharacterRepository _characterRepository;
-    /**
-      * Holds the private world template repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the world template repository state used by the world server gameplay, session, and character runtime layer.
+    // Value: current world template repository backing value maintained by the owning type.
     private readonly WorldTemplateRepository _worldTemplateRepository;
-    /**
-      * Holds the private character creation service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the character creation service state used by the world server gameplay, session, and character runtime layer.
+    // Value: current character creation service backing value maintained by the owning type.
     private readonly CharacterCreationService _characterCreationService;
-    /**
-      * Holds the private item system state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the item system state used by the world server gameplay, session, and character runtime layer.
+    // Value: current item system backing value maintained by the owning type.
     private readonly GameItemSystem _itemSystem;
-    /**
-      * Holds the private chat system state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the chat system state used by the world server gameplay, session, and character runtime layer.
+    // Value: current chat system backing value maintained by the owning type.
     private readonly GameChatSystem _chatSystem;
-    /**
-      * Holds the private in game command service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the in game command service state used by the world server gameplay, session, and character runtime layer.
+    // Value: current in game command service backing value maintained by the owning type.
     private readonly GameInGameCommandService _inGameCommandService;
-    /**
-      * Holds the private player session registry state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the player session registry state used by the world server gameplay, session, and character runtime layer.
+    // Value: current player session registry backing value maintained by the owning type.
     private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
-    /**
-      * Holds the private client listener state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the client listener state used by the world server gameplay, session, and character runtime layer.
+    // Value: current client listener backing value maintained by the owning type.
     private readonly WorldClientSocketListener _clientListener;
-    /**
-      * Holds the private world template data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the world template data state used by the world server gameplay, session, and character runtime layer.
+    // Value: current world template data backing value maintained by the owning type.
     private WorldTemplateDataStore _worldTemplateData = WorldTemplateDataStore.Empty;
     private readonly ConcurrentDictionary<string, InternalPeerConnection> _peerConnections = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, InternalServerSession> _serverSessions = new(StringComparer.OrdinalIgnoreCase);
@@ -163,21 +148,26 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     private readonly ConcurrentDictionary<string, byte> _sentGameObjectSnapshotKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, byte> _sentCreatureSnapshotKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _scheduledMapControlTimers = new(StringComparer.OrdinalIgnoreCase);
+    // Field: Stores the clock state used by the world server gameplay, session, and character runtime layer.
+    // Value: current clock backing value maintained by the owning type.
     private readonly SystemSteadyClock _clock = SystemSteadyClock.Instance;
+    // Field: Stores the server control timer cancellation state used by the world server gameplay, session, and character runtime layer.
+    // Value: current server control timer cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _serverControlTimerCancellation;
+    // Field: Stores the server control requested state used by the world server gameplay, session, and character runtime layer.
+    // Value: current server control requested backing value maintained by the owning type.
     private int _serverControlRequested;
 
-    /**
-      * Holds the private game data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the game data state used by the world server gameplay, session, and character runtime layer.
+    // Value: current game data backing value maintained by the owning type.
     private WorldGameDataStore _gameData = WorldGameDataStore.Empty;
 
-    /**
-      * Initializes a new WorldServer instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: WorldServer
+    // Purpose: Initializes a new WorldServer instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     public WorldServer(WorldServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -207,6 +197,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             RbacCommands = this,
             ServerCommands = this,
         });
+
         _realmStatusReporter = new WorldRealmStatusReporter(
             settings.RealmStatus,
             settings.InternalNetwork.RegistrationKey,
@@ -222,6 +213,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             settings.InternalNetwork.KeepAliveIntervalSeconds,
             settings.InternalNetwork.AuthenticationTimeout,
             _characterRepository.GetCharacterCountsByAccountAsync);
+
         _clientListener = new WorldClientSocketListener(
             settings.ClientNetwork,
             client => new WorldClientSession(
@@ -244,15 +236,17 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
                 settings.MessageOfTheDay,
                 settings.PlayerSaveInterval,
                 NotifyActivePlayerCountChanged,
-                _realmStatusReporter.SendCharacterCountSnapshotNowAsync));
+                _realmStatusReporter.SendCharacterCountSnapshotNowAsync),
+            ArePublicClientDependenciesReady);
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         LoadGameDataIfEnabled();
@@ -261,15 +255,24 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         await LoadWorldTemplateDataAsync(cancellationToken);
 
         Task hostTask = _host.StartAsync(cancellationToken);
-        Task clientTask = _clientListener.StartAsync(cancellationToken);
 
         try
         {
             await _host.StartupCompleted.WaitAsync(cancellationToken);
 
+            await _host.WaitForInternalServersAsync(
+                RequiredPublicClientInternalServers,
+                "WorldServer will keep the socket closed until ProxyServer is online.",
+                cancellationToken);
+
             await _realmStatusReporter.StartAsync(cancellationToken);
+            await _realmStatusReporter.WaitForConnectionAsync(
+                "WorldServer will keep socket closed until RealmServer can receive realm-status updates.",
+                cancellationToken);
+
             StartWorldHealthStatusLoop(cancellationToken);
 
+            Task clientTask = _clientListener.StartAsync(cancellationToken);
             await Task.WhenAll(hostTask, clientTask);
         }
         finally
@@ -280,12 +283,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         CancellationTokenSource? serverControlTimerCancellation = _serverControlTimerCancellation;
@@ -305,11 +309,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         await _host.StopAsync(cancellationToken);
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -321,10 +326,22 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         await _worldDatabase.DisposeAsync();
     }
 
-    /**
-      * Creates the callbacks result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: ArePublicClientDependenciesReady
+    // Purpose: Executes the are public client dependencies ready operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns true when are public client dependencies ready succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    private bool ArePublicClientDependenciesReady()
+    {
+        return RequiredPublicClientInternalServers.All(_host.IsInternalServerConnected) &&
+            (!_settings.RealmStatus.Enabled || _realmStatusReporter.IsConnected);
+    }
+
+    // Method: CreateCallbacks
+    // Purpose: Applies create callbacks changes for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the internal network callbacks value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private InternalNetworkCallbacks CreateCallbacks()
     {
         return new InternalNetworkCallbacks
@@ -338,12 +355,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         };
     }
 
-    /**
-      * Handles the on server authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerAuthenticatedAsync
+    // Purpose: Executes the on server authenticated operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnServerAuthenticatedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -365,12 +385,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Handles the on server disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnServerDisconnectedAsync
+    // Purpose: Executes the on server disconnected operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnServerDisconnectedAsync(
         InternalServerSession session,
         string remoteServerName,
@@ -393,12 +416,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Handles the on peer authenticated event for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerAuthenticatedAsync
+    // Purpose: Executes the on peer authenticated operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnPeerAuthenticatedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -419,12 +445,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Handles the on peer disconnected event for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: OnPeerDisconnectedAsync
+    // Purpose: Executes the on peer disconnected operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task OnPeerDisconnectedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
@@ -447,39 +476,50 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Handles the on peer packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: connection, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
-    private async Task OnPeerPacketReceivedAsync(
+    // Method: OnPeerPacketReceivedAsync
+    // Purpose: Executes the on peer packet received operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
+    private Task OnPeerPacketReceivedAsync(
         InternalPeerConnection connection,
         string remoteServerName,
         string packet,
         CancellationToken cancellationToken)
     {
-        await HandleMapServicePacketAsync(remoteServerName, packet, cancellationToken);
+        return HandleMapServicePacketAsync(remoteServerName, packet, cancellationToken);
     }
 
-    /**
-      * Handles the on session packet received event for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * The handler updates local state first, then performs any required packet/database work so the component remains consistent when errors occur.
-      * Inputs used by this operation: session, remoteServerName, packet, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
-    private async Task OnSessionPacketReceivedAsync(
+    // Method: OnSessionPacketReceivedAsync
+    // Purpose: Executes the on session packet received operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
+    private Task OnSessionPacketReceivedAsync(
         InternalServerSession session,
         string remoteServerName,
         string packet,
         CancellationToken cancellationToken)
     {
-        await HandleMapServicePacketAsync(remoteServerName, packet, cancellationToken);
+        return HandleMapServicePacketAsync(remoteServerName, packet, cancellationToken);
     }
 
-    /**
-      * Resolves whether the player's current map has an online MapServer or InstanceServer owner.
-      */
+    // Method: ResolveMapAvailabilityForLogin
+    // Purpose: Retrieves resolve map availability for login data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns the map availability result value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private MapAvailabilityResult ResolveMapAvailabilityForLogin(PlayerLoginRecord player)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -507,20 +547,30 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             return MapAvailabilityResult.Unavailable($"No online map service is currently reporting ownership for map {mapId}.", string.Equals(requiredKind, "Instance", StringComparison.OrdinalIgnoreCase));
         }
 
-        return MapAvailabilityResult.Unavailable($"Map {mapId} is online only on unsupported service kind(s): {string.Join(',', candidates.Select(candidate => candidate.Kind).Distinct(StringComparer.OrdinalIgnoreCase))}.", string.Equals(requiredKind, "Instance", StringComparison.OrdinalIgnoreCase));
+        return MapAvailabilityResult.Unavailable($"Map {mapId} is online only on unsupported service kind(s): {string.Join(',',
+            candidates.Select(candidate => candidate.Kind).Distinct(StringComparer.OrdinalIgnoreCase))}.", string.Equals(requiredKind, "Instance", StringComparison.OrdinalIgnoreCase));
     }
 
-    /**
-      * Returns whether the named internal map owner is still connected to WorldServer.
-      */
+    // Method: IsConnectedMapOwner
+    // Purpose: Validates or evaluates is connected map owner rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // Returns: Returns true when is connected map owner succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private bool IsConnectedMapOwner(string ownerServerName)
     {
         return _peerConnections.ContainsKey(ownerServerName) || _serverSessions.ContainsKey(ownerServerName);
     }
 
-    /**
-      * Notifies the selected map service that a player has entered the game world while the client socket remains on WorldServer.
-      */
+    // Method: NotifyMapServicePlayerEnteredWorldAsync
+    // Purpose: Executes the notify map service player entered world operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task NotifyMapServicePlayerEnteredWorldAsync(
         PlayerLoginRecord player,
         string ownerServerName,
@@ -547,9 +597,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         Logger.Write(LogType.SYSTEM, $"WorldServer notified {ownerServerName} that player '{player.Name}' entered map {player.Map}.", "WorldServer");
     }
 
-    /**
-      * Notifies the selected map service that a player has left the game world.
-      */
+    // Method: NotifyMapServicePlayerLeftWorldAsync
+    // Purpose: Executes the notify map service player left world operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task NotifyMapServicePlayerLeftWorldAsync(
         PlayerLoginRecord player,
         string ownerServerName,
@@ -576,9 +632,16 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         Logger.Write(LogType.SYSTEM, $"WorldServer notified {ownerServerName} that player '{player.Name}' left map {player.Map}.", "WorldServer");
     }
 
-    /**
-      * Notifies the selected map service about the latest authoritative player movement state.
-      */
+    // Method: NotifyMapServicePlayerMovementAsync
+    // Purpose: Executes the notify map service player movement operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - movement: Movement value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task NotifyMapServicePlayerMovementAsync(
         PlayerLoginRecord player,
         string ownerServerName,
@@ -606,9 +669,16 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
 
     }
 
-    /**
-      * Forwards unhandled in-world client packets to the selected map service while WorldServer keeps owning the socket.
-      */
+    // Method: NotifyMapServicePlayerClientPacketAsync
+    // Purpose: Executes the notify map service player client packet operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - worldPacket: World packet value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task NotifyMapServicePlayerClientPacketAsync(
         PlayerLoginRecord player,
         string ownerServerName,
@@ -643,9 +713,17 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
 
     }
 
-    /**
-      * Executes a map control command from the in-game RBAC command system and returns chat-safe feedback.
-      */
+    // Method: ExecuteMapCommandAsync
+    // Purpose: Controls the execute map command lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<string> ExecuteMapCommandAsync(string action, int mapId, TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
     {
         string normalizedAction = (action ?? string.Empty).Trim().ToLowerInvariant();
@@ -682,9 +760,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return string.IsNullOrWhiteSpace(info) ? dispatchMessage : $"{info}\n{dispatchMessage}";
     }
 
-    /**
-      * Sends the internal map service command packet to the best available MapServer or InstanceServer targets.
-      */
+    // Method: SendMapCommandToTargetsAsync
+    // Purpose: Handles send map command to targets work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<MapCommandDispatchResult> SendMapCommandToTargetsAsync(string action, int mapId, CancellationToken cancellationToken)
     {
         bool shouldRefreshGameObjectSnapshot = string.Equals(action, "start", StringComparison.OrdinalIgnoreCase) || string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase);
@@ -728,9 +812,16 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return new MapCommandDispatchResult(targets.Length, sentConnections);
     }
 
-    /**
-      * Schedules a delayed map restart or shutdown using the shared steady-clock countdown path.
-      */
+    // Method: ScheduleMapControlAsync
+    // Purpose: Executes the schedule map control operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private string ScheduleMapControlAsync(string action, int mapId, TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -750,9 +841,18 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return $"Map {mapId} {action} scheduled {when} by {safeRequestedBy}. Players on that map will receive countdown warnings.";
     }
 
-    /**
-      * Runs the delayed map-control workflow outside the chat packet handler.
-      */
+    // Method: ExecuteScheduledMapControlAsync
+    // Purpose: Controls the execute scheduled map control lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - key: Key value supplied by the caller for this operation.
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - timerCancellation: Timer cancellation value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ExecuteScheduledMapControlAsync(string key, string action, int mapId, TimeSpan delay, string requestedBy, CancellationTokenSource timerCancellation)
     {
         try
@@ -791,28 +891,45 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Broadcasts a countdown notice to active players currently on the affected map.
-      */
+    // Method: BroadcastMapControlWarningAsync
+    // Purpose: Executes the broadcast map control warning operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - remaining: Remaining value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task BroadcastMapControlWarningAsync(string action, int mapId, TimeSpan remaining, string requestedBy, CancellationToken cancellationToken)
     {
         string message = $"Map {mapId} will {action} in {CommandArgumentParser.FormatDuration(remaining)}. Requested by {requestedBy}.";
         return BroadcastSystemMessageAsync(message, session => session.CurrentPlayer?.Map == unchecked((uint)mapId), cancellationToken);
     }
 
-    /**
-      * Broadcasts the final map-control notice to active players currently on the affected map.
-      */
+    // Method: BroadcastMapControlNowAsync
+    // Purpose: Executes the broadcast map control now operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task BroadcastMapControlNowAsync(string action, int mapId, string requestedBy, CancellationToken cancellationToken)
     {
         string message = $"Map {mapId} is {FormatActionProgress(action)} now. Requested by {requestedBy}.";
         return BroadcastSystemMessageAsync(message, session => session.CurrentPlayer?.Map == unchecked((uint)mapId), cancellationToken);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+    // Method: GetMapCommandTargets
+    // Purpose: Retrieves get map command targets data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private string[] GetMapCommandTargets(int mapId)
     {
         string[] owners = [.. _mapServiceStatuses.Values
@@ -831,12 +948,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             .Distinct(StringComparer.OrdinalIgnoreCase)];
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendPacketToServerAsync
+    // Purpose: Handles send packet to server work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<int> SendPacketToServerAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         int sent = 0;
@@ -856,9 +976,14 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return sent;
     }
 
-    /**
-      * Sends startup game object snapshots to a newly connected map owner before players depend on that owner for runtime state.
-      */
+    // Method: SendInitialGameObjectSnapshotsToMapOwnerAsync
+    // Purpose: Handles send initial game object snapshots to map owner work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendInitialGameObjectSnapshotsToMapOwnerAsync(string ownerServerName, CancellationToken cancellationToken)
     {
         foreach (int mapId in GetInitialGameObjectSnapshotMapIds(ownerServerName))
@@ -867,9 +992,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Resolves the maps that should be pushed to a map owner when it authenticates.
-      */
+    // Method: GetInitialGameObjectSnapshotMapIds
+    // Purpose: Retrieves get initial game object snapshot map ids data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // Returns: Returns the int[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private int[] GetInitialGameObjectSnapshotMapIds(string ownerServerName)
     {
         IEnumerable<int> reportedMaps = _mapServiceStatuses.Values
@@ -884,12 +1012,18 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return [.. reportedMaps
             .Where(mapId => mapId >= 0 && mapId <= ushort.MaxValue)
             .Distinct()
-            .OrderBy(mapId => mapId)];
+            .Order()];
     }
 
-    /**
-      * Avoids resending the same startup snapshot repeatedly while still allowing explicit map start/restart commands to force a fresh snapshot.
-      */
+    // Method: SendGameObjectSnapshotIfNeededAsync
+    // Purpose: Handles send game object snapshot if needed work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendGameObjectSnapshotIfNeededAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
     {
         string key = GetGameObjectSnapshotKey(ownerServerName, mapId);
@@ -908,9 +1042,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         _sentGameObjectSnapshotKeys[key] = 1;
     }
 
-    /**
-      * Sends one full game object template/spawn snapshot to a MapServer or InstanceServer target.
-      */
+    // Method: SendGameObjectSnapshotToTargetAsync
+    // Purpose: Handles send game object snapshot to target work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<int> SendGameObjectSnapshotToTargetAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
     {
         if (mapId < 0 || mapId > ushort.MaxValue)
@@ -970,9 +1110,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return sentLines;
     }
 
-    /**
-      * Removes startup snapshot cache entries when a map owner disconnects so the next connection receives fresh data.
-      */
+    // Method: ClearGameObjectSnapshotKeysForOwner
+    // Purpose: Applies clear game object snapshot keys for owner changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void ClearGameObjectSnapshotKeysForOwner(string ownerServerName)
     {
         string prefix = string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|");
@@ -982,17 +1125,26 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Builds the startup snapshot cache key for one map owner/map pair.
-      */
+    // Method: GetGameObjectSnapshotKey
+    // Purpose: Retrieves get game object snapshot key data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetGameObjectSnapshotKey(string ownerServerName, int mapId)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|{mapId}");
     }
 
-    /**
-      * Sends startup creature snapshots to a newly connected map owner before players depend on that owner for runtime state.
-      */
+    // Method: SendInitialCreatureSnapshotsToMapOwnerAsync
+    // Purpose: Handles send initial creature snapshots to map owner work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendInitialCreatureSnapshotsToMapOwnerAsync(string ownerServerName, CancellationToken cancellationToken)
     {
         foreach (int mapId in GetInitialCreatureSnapshotMapIds(ownerServerName))
@@ -1001,9 +1153,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Resolves the maps that should be pushed to a map owner when it authenticates.
-      */
+    // Method: GetInitialCreatureSnapshotMapIds
+    // Purpose: Retrieves get initial creature snapshot map ids data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // Returns: Returns the int[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private int[] GetInitialCreatureSnapshotMapIds(string ownerServerName)
     {
         IEnumerable<int> reportedMaps = _mapServiceStatuses.Values
@@ -1018,12 +1173,18 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return [.. reportedMaps
             .Where(mapId => mapId >= 0 && mapId <= ushort.MaxValue)
             .Distinct()
-            .OrderBy(mapId => mapId)];
+            .Order()];
     }
 
-    /**
-      * Avoids resending the same startup snapshot repeatedly while still allowing explicit map start/restart commands to force a fresh snapshot.
-      */
+    // Method: SendCreatureSnapshotIfNeededAsync
+    // Purpose: Handles send creature snapshot if needed work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendCreatureSnapshotIfNeededAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
     {
         string key = GetCreatureSnapshotKey(ownerServerName, mapId);
@@ -1042,9 +1203,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         _sentCreatureSnapshotKeys[key] = 1;
     }
 
-    /**
-      * Sends one full creature template/spawn snapshot to a MapServer or InstanceServer target.
-      */
+    // Method: SendCreatureSnapshotToTargetAsync
+    // Purpose: Handles send creature snapshot to target work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<int> SendCreatureSnapshotToTargetAsync(string ownerServerName, int mapId, CancellationToken cancellationToken)
     {
         if (mapId < 0 || mapId > ushort.MaxValue)
@@ -1104,9 +1271,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return sentLines;
     }
 
-    /**
-      * Removes startup snapshot cache entries when a map owner disconnects so the next connection receives fresh data.
-      */
+    // Method: ClearCreatureSnapshotKeysForOwner
+    // Purpose: Applies clear creature snapshot keys for owner changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void ClearCreatureSnapshotKeysForOwner(string ownerServerName)
     {
         string prefix = string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|");
@@ -1116,20 +1286,27 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Builds the startup snapshot cache key for one map owner/map pair.
-      */
+    // Method: GetCreatureSnapshotKey
+    // Purpose: Retrieves get creature snapshot key data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetCreatureSnapshotKey(string ownerServerName, int mapId)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{ownerServerName}|{mapId}");
     }
 
-    /**
-      * Performs the announce world capacity operation for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: sendPacketAsync, remoteServerName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: AnnounceWorldCapacityAsync
+    // Purpose: Executes the announce world capacity operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sendPacketAsync: Send packet async value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AnnounceWorldCapacityAsync(
         Func<string, CancellationToken, Task> sendPacketAsync,
         string remoteServerName,
@@ -1141,9 +1318,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         Logger.Write(LogType.NETWORK, $"WorldServer announced max connections to {remoteServerName}: {_settings.MaxConnections}.", "WorldServer");
     }
 
-    /**
-      * Applies the active player count update locally and reports the new WorldServer health snapshot to ProxyServer.
-      */
+    // Method: NotifyActivePlayerCountChanged
+    // Purpose: Executes the notify active player count changed operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - activePlayerCount: Active player count value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void NotifyActivePlayerCountChanged(int activePlayerCount)
     {
         _realmStatusReporter.SetActiveConnections(activePlayerCount);
@@ -1151,9 +1331,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         _ = SendWorldHealthStatusSafelyAsync(CancellationToken.None);
     }
 
-    /**
-      * Starts the WorldServer health status loop used to feed ProxyServer with active player load data.
-      */
+    // Method: StartWorldHealthStatusLoop
+    // Purpose: Controls the start world health status loop lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void StartWorldHealthStatusLoop(CancellationToken cancellationToken)
     {
         if (_worldHealthStatusTask is not null)
@@ -1167,9 +1350,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         Logger.Write(LogType.THREAD, $"WorldServer health status report loop started with interval {_settings.InternalNetwork.LatencyReportInterval.TotalSeconds:0.##} second(s).", "WorldServer");
     }
 
-    /**
-      * Stops the WorldServer health status loop during normal server shutdown.
-      */
+    // Method: StopWorldHealthStatusLoopAsync
+    // Purpose: Controls the stop world health status loop lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task StopWorldHealthStatusLoopAsync(CancellationToken cancellationToken)
     {
         CancellationTokenSource? healthCancellation = _worldHealthStatusCancellation;
@@ -1194,16 +1381,20 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             }
             catch (OperationCanceledException)
             {
-                // Expected during shutdown.
+
             }
         }
 
         healthCancellation?.Dispose();
     }
 
-    /**
-      * Runs periodic WorldServer health status reporting until shutdown.
-      */
+    // Method: RunWorldHealthStatusLoopAsync
+    // Purpose: Controls the run world health status loop lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunWorldHealthStatusLoopAsync(CancellationToken cancellationToken)
     {
         try
@@ -1216,7 +1407,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown.
+
         }
         catch (Exception exception)
         {
@@ -1224,9 +1415,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Sends the latest WorldServer health status to ProxyServer if a connection is available.
-      */
+    // Method: SendWorldHealthStatusSafelyAsync
+    // Purpose: Handles send world health status safely work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendWorldHealthStatusSafelyAsync(CancellationToken cancellationToken)
     {
         try
@@ -1240,7 +1435,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown.
+
         }
         catch (Exception exception) when (exception is IOException or ObjectDisposedException or InvalidOperationException)
         {
@@ -1248,9 +1443,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Sends a WorldServer health status snapshot to a newly authenticated ProxyServer connection.
-      */
+    // Method: AnnounceWorldHealthStatusAsync
+    // Purpose: Executes the announce world health status operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sendPacketAsync: Send packet async value supplied by the caller for this operation.
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task AnnounceWorldHealthStatusAsync(
         Func<string, CancellationToken, Task> sendPacketAsync,
         string remoteServerName,
@@ -1262,9 +1463,11 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         Logger.Write(LogType.NETWORK, $"WorldServer announced health status to {remoteServerName}: players={_playerSessionRegistry.ActivePlayerCount}/{_settings.MaxConnections}.", "WorldServer");
     }
 
-    /**
-      * Creates the protocol packet carrying WorldServer health input values for ProxyServer.
-      */
+    // Method: CreateWorldHealthStatusPacket
+    // Purpose: Applies create world health status packet changes for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private string CreateWorldHealthStatusPacket()
     {
         InternalWorldHealthStatusPacket status = new(
@@ -1276,10 +1479,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return status.ToPacketLine();
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+    // Method: HandleMapServicePacketAsync
+    // Purpose: Handles handle map service packet work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleMapServicePacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (InternalMapServiceCommandResultPacket.TryParse(packet, out InternalMapServiceCommandResultPacket result))
@@ -1294,18 +1502,21 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
-    private void HandleMapServiceCommandResult(string remoteServerName, InternalMapServiceCommandResultPacket result)
+    // Method: HandleMapServiceCommandResult
+    // Purpose: Handles handle map service command result work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    private static void HandleMapServiceCommandResult(string remoteServerName, InternalMapServiceCommandResultPacket result)
     {
         string message = $"WorldServer received map command result from {remoteServerName}: {result.OwnerServerName} {result.Kind} map={result.MapId}, instance={result.InstanceId}, state={result.State}, result={result.ResultCode}. {result.Message}";
 
         switch (result.ResultCode.ToLowerInvariant())
         {
             case "success":
-                // Delivery of the in-game map command is already logged when WorldServer sends it to Map/Instance targets.
+
                 break;
 
             case "notfound":
@@ -1322,10 +1533,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Handles a single operation or packet and keeps the calling code focused on flow control.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+    // Method: HandleMapServiceStatusPacketAsync
+    // Purpose: Handles handle map service status packet work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task HandleMapServiceStatusPacketAsync(string remoteServerName, string packet, CancellationToken cancellationToken)
     {
         if (!InternalMapServiceStatusPacket.TryParse(packet, out InternalMapServiceStatusPacket status))
@@ -1350,9 +1566,6 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             await SendCreatureSnapshotIfNeededAsync(status.OwnerServerName, status.MapId, cancellationToken);
         }
 
-        // WorldServer receives map service snapshots from both the direct MapServer/InstanceServer
-        // connection and ProxyServer's cached forwarding path. Only log and perform forced logout on
-        // an actual Online -> non-Online transition so duplicate Offline snapshots do not double-post.
         if (becameUnavailable)
         {
             Logger.Write(LogType.WARNING, $"WorldServer cached offline map service state for {status.OwnerServerName}: kind={status.Kind}, map={status.MapId}, instance={status.InstanceId}, players={status.ActivePlayers}.", "WorldServer");
@@ -1366,12 +1579,17 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             return;
         }
 
-        // Routine, first-startup, and duplicate status packets are cached silently.
     }
 
-    /**
-      * Marks all cached services for a disconnected map owner as offline and removes players routed through it.
-      */
+    // Method: MarkMapOwnerUnavailableAsync
+    // Purpose: Executes the mark map owner unavailable operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task MarkMapOwnerUnavailableAsync(string ownerServerName, string reason, CancellationToken cancellationToken)
     {
         InternalMapServiceStatusPacket[] affectedStatuses = [.. _mapServiceStatuses.Values
@@ -1391,17 +1609,30 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         await DisconnectPlayersForMapOwnerAsync(ownerServerName, affectedStatuses, $"Map service owner {ownerServerName} is unavailable: {reason}.", cancellationToken);
     }
 
-    /**
-      * Disconnects active player sessions affected by an explicit non-online service status packet.
-      */
+    // Method: DisconnectPlayersForUnavailableMapServiceAsync
+    // Purpose: Executes the disconnect players for unavailable map service operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - status: Status value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task DisconnectPlayersForUnavailableMapServiceAsync(InternalMapServiceStatusPacket status, string reason, CancellationToken cancellationToken)
     {
         return DisconnectPlayersForMapOwnerAsync(status.OwnerServerName, [status], reason, cancellationToken);
     }
 
-    /**
-      * Finds in-world players currently routed through a map owner and forces a safe logout cleanup.
-      */
+    // Method: DisconnectPlayersForMapOwnerAsync
+    // Purpose: Executes the disconnect players for map owner operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - statuses: Statuses value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task DisconnectPlayersForMapOwnerAsync(
         string ownerServerName,
         IReadOnlyCollection<InternalMapServiceStatusPacket> statuses,
@@ -1436,9 +1667,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         NotifyActivePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
     }
 
-    /**
-      * Formats cached map service status for an in-game map info response.
-      */
+    // Method: FormatCachedMapInfo
+    // Purpose: Executes the format cached map info operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private string FormatCachedMapInfo(int mapId)
     {
         InternalMapServiceStatusPacket[] statuses = [.. _mapServiceStatuses.Values
@@ -1481,9 +1715,14 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return string.Join('\n', lines);
     }
 
-    /**
-      * Reloads the world cache gameobject rows for a map before a map start or restart command is dispatched.
-      */
+    // Method: ReloadGameObjectDataForMapAsync
+    // Purpose: Executes the reload game object data for map operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ReloadGameObjectDataForMapAsync(int mapId, CancellationToken cancellationToken)
     {
         if (mapId < 0 || mapId > ushort.MaxValue)
@@ -1510,9 +1749,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             "WorldServer");
     }
 
-    /**
-      * Appends cached game object spawn metadata as short chat-safe lines.
-      */
+    // Method: AppendGameObjectMetadataLines
+    // Purpose: Executes the append game object metadata lines operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - lines: Lines value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void AppendGameObjectMetadataLines(List<string> lines, int mapId)
     {
         if (mapId < 0 || mapId > ushort.MaxValue)
@@ -1536,9 +1779,14 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Reloads the world cache creature rows for a map before a map start or restart command is dispatched.
-      */
+    // Method: ReloadCreatureDataForMapAsync
+    // Purpose: Executes the reload creature data for map operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ReloadCreatureDataForMapAsync(int mapId, CancellationToken cancellationToken)
     {
         if (mapId < 0 || mapId > ushort.MaxValue)
@@ -1554,7 +1802,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
 
         _worldTemplateData = _worldTemplateData.WithCreatureDataForMap(safeMapId, templates, spawns);
 
-        HashSet<uint> templateEntries = templates.Select(template => template.Entry).ToHashSet();
+        HashSet<uint> templateEntries = [.. templates.Select(template => template.Entry)];
         int zones = spawns.Where(spawn => spawn.ZoneId != 0).Select(spawn => spawn.ZoneId).Distinct().Count();
         int areas = spawns.Where(spawn => spawn.AreaId != 0).Select(spawn => spawn.AreaId).Distinct().Count();
         int missingTemplates = spawns.Count(spawn => !templateEntries.Contains(spawn.Entry));
@@ -1565,9 +1813,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             "WorldServer");
     }
 
-    /**
-      * Appends cached creature spawn metadata as short chat-safe lines.
-      */
+    // Method: AppendCreatureMetadataLines
+    // Purpose: Executes the append creature metadata lines operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - lines: Lines value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void AppendCreatureMetadataLines(List<string> lines, int mapId)
     {
         if (mapId < 0 || mapId > ushort.MaxValue)
@@ -1591,9 +1843,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Appends map DBC metadata as short chat-safe lines.
-      */
+    // Method: AppendMapMetadataLines
+    // Purpose: Executes the append map metadata lines operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - lines: Lines value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void AppendMapMetadataLines(List<string> lines, int mapId)
     {
         if (!_gameData.MapData.TryGetMap(mapId, out MapDbcRecord map))
@@ -1609,9 +1865,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         lines.Add($"Continents: {_gameData.MapData.GetContinentsForMap(mapId).Count}");
     }
 
-    /**
-      * Formats the uptime for one cached map service status line.
-      */
+    // Method: FormatCachedMapUptime
+    // Purpose: Executes the format cached map uptime operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - status: Status value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatCachedMapUptime(InternalMapServiceStatusPacket status)
     {
         if (!IsMapServiceOnline(status.State))
@@ -1633,9 +1892,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return FormatDuration(uptime);
     }
 
-    /**
-      * Formats a compact day/hour/minute/second duration for in-game chat output.
-      */
+    // Method: FormatDuration
+    // Purpose: Executes the format duration operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatDuration(TimeSpan duration)
     {
         return duration.TotalDays >= 1
@@ -1643,9 +1905,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             : $"{duration.Hours:D2}h {duration.Minutes:D2}m {duration.Seconds:D2}s";
     }
 
-    /**
-      * Reloads RBAC data for every active in-world session so permission changes apply without forcing a relog.
-      */
+    // Method: ReloadRbacAsync
+    // Purpose: Executes the reload RBAC operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<string> ReloadRbacAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<WorldClientSession> sessions = _playerSessionRegistry.SnapshotSessions();
@@ -1671,26 +1937,44 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             : $"RBAC data was reloaded for {reloaded} active session(s); {failed} session(s) failed.";
     }
 
-    /**
-      * Schedules a shutdown request for the realm connection, connected internal services, and this WorldServer.
-      */
+    // Method: ScheduleShutdownAsync
+    // Purpose: Executes the schedule shutdown operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task<string> ScheduleShutdownAsync(TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
     {
         return ScheduleServerControlAsync("shutdown", delay, requestedBy, cancellationToken);
     }
 
-    /**
-      * Schedules a restart request for the realm connection, connected internal services, and this WorldServer.
-      * The internal protocol carries this as a shutdown request with a restart reason so an external supervisor can bring services back up.
-      */
+    // Method: ScheduleRestartAsync
+    // Purpose: Executes the schedule restart operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task<string> ScheduleRestartAsync(TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
     {
         return ScheduleServerControlAsync("restart", delay, requestedBy, cancellationToken);
     }
 
-    /**
-      * Creates one delayed server-control task and prevents overlapping shutdown/restart requests.
-      */
+    // Method: ScheduleServerControlAsync
+    // Purpose: Executes the schedule server control operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task<string> ScheduleServerControlAsync(string action, TimeSpan delay, string requestedBy, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -1713,9 +1997,16 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return Task.FromResult($"Server {action} scheduled {when} by {safeRequestedBy}.{restartNote}");
     }
 
-    /**
-      * Performs the delayed server-control operation outside the chat packet handler.
-      */
+    // Method: ExecuteScheduledServerControlAsync
+    // Purpose: Controls the execute scheduled server control lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - delay: Delay value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - timerCancellation: Timer cancellation value supplied by the caller for this operation.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ExecuteScheduledServerControlAsync(string action, TimeSpan delay, string requestedBy, CancellationTokenSource timerCancellation)
     {
         try
@@ -1764,27 +2055,46 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Broadcasts a countdown notice to every active in-world player.
-      */
+    // Method: BroadcastServerControlWarningAsync
+    // Purpose: Executes the broadcast server control warning operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - remaining: Remaining value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task BroadcastServerControlWarningAsync(string action, TimeSpan remaining, string requestedBy, CancellationToken cancellationToken)
     {
         string message = $"Server will {action} in {CommandArgumentParser.FormatDuration(remaining)}. Requested by {requestedBy}.";
         return BroadcastSystemMessageAsync(message, null, cancellationToken);
     }
 
-    /**
-      * Broadcasts the final server-control notice to every active in-world player.
-      */
+    // Method: BroadcastServerControlNowAsync
+    // Purpose: Executes the broadcast server control now operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - requestedBy: Requested by value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private Task BroadcastServerControlNowAsync(string action, string requestedBy, CancellationToken cancellationToken)
     {
         string message = $"Server is {FormatActionProgress(action)} now. Requested by {requestedBy}.";
         return BroadcastSystemMessageAsync(message, null, cancellationToken);
     }
 
-    /**
-      * Sends an in-game system message to all active sessions matching the optional predicate.
-      */
+    // Method: BroadcastSystemMessageAsync
+    // Purpose: Executes the broadcast system message operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - message: Message value supplied by the caller for this operation.
+    // - predicate: Predicate value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<int> BroadcastSystemMessageAsync(string message, Func<WorldClientSession, bool>? predicate, CancellationToken cancellationToken)
     {
         int sent = 0;
@@ -1810,19 +2120,25 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return sent;
     }
 
-    /**
-      * Converts a control action into a readable in-progress phrase for countdown announcements.
-      */
+    // Method: FormatActionProgress
+    // Purpose: Executes the format action progress operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatActionProgress(string action)
     {
-        return string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase)
-            ? "restarting"
-            : "shutting down";
+        return string.Equals(action, "restart", StringComparison.OrdinalIgnoreCase) ? "restarting" : "shutting down";
     }
 
-    /**
-      * Sends shutdown/restart intent to RealmServer through the realm status connection and to connected internal peers/sessions.
-      */
+    // Method: BroadcastServerControlRequestAsync
+    // Purpose: Executes the broadcast server control request operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task BroadcastServerControlRequestAsync(string reason, CancellationToken cancellationToken)
     {
         string packet = $"{InternalProtocol.ShutdownRequest} WorldServer {reason}";
@@ -1858,29 +2174,35 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Returns whether a map service status should be treated as available for player routing.
-      */
+    // Method: IsMapServiceOnline
+    // Purpose: Validates or evaluates is map service online rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // Returns: Returns true when is map service online succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsMapServiceOnline(string state)
     {
         return string.Equals(state, "Online", StringComparison.OrdinalIgnoreCase);
     }
 
-    /**
-      * Determines whether map control server for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: remoteServerName.
-      */
+    // Method: IsMapControlServer
+    // Purpose: Validates or evaluates is map control server rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // Returns: Returns true when is map control server succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsMapControlServer(string remoteServerName)
     {
         return string.Equals(remoteServerName, "MapServer", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(remoteServerName, "InstanceServer", StringComparison.OrdinalIgnoreCase);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+    // Method: GetStatusKey
+    // Purpose: Retrieves get status key data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - status: Status value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetStatusKey(InternalMapServiceStatusPacket status)
     {
         return string.Create(
@@ -1888,14 +2210,21 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             $"{status.OwnerServerName}|{status.Kind}|{status.MapId}|{status.InstanceId}");
     }
 
-    /**
-      * Summarizes internal map command packet delivery for command feedback.
-      */
+    // Type: MapCommandDispatchResult
+    // Purpose: Represents map command dispatch result data passed through the world server gameplay, session, and character runtime layer.
+    // Constructor values:
+    // - TargetCount: Target count value supplied by the caller for this operation.
+    // - SentConnections: Sent connections value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private readonly record struct MapCommandDispatchResult(int TargetCount, int SentConnections);
 
-    /**
-      * Validates the auth, character, and world database connections before the realm is advertised.
-      */
+    // Method: ValidateDatabaseConnectionsAsync
+    // Purpose: Validates or evaluates validate database connections rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ValidateDatabaseConnectionsAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.DATABASE, "WorldServer validating Auth, Character, and World database connections...", "WorldServer");
@@ -1910,9 +2239,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         Logger.Write(LogType.DATABASE, $"WorldServer World database is reachable: {_settings.Databases.World.Database}.", "WorldServer");
     }
 
-    /**
-      * Logs the character-side state tables that are loaded during character creation and world login.
-      */
+    // Method: LogCharacterPlayerStateTablesAsync
+    // Purpose: Executes the log character player state tables operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task LogCharacterPlayerStateTablesAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.DATABASE, "WorldServer checking character player-state tables used by world login and equipment loading...", "WorldServer");
@@ -1926,9 +2259,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Loads world database templates needed by character creation, item lookup, and world login into memory.
-      */
+    // Method: LoadWorldTemplateDataAsync
+    // Purpose: Retrieves load world template data data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task LoadWorldTemplateDataAsync(CancellationToken cancellationToken)
     {
         _worldTemplateData = await _worldTemplateRepository.LoadAsync(cancellationToken);
@@ -1958,15 +2295,16 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         LogOptionalWorldTemplateCount("creature_template", _worldTemplateData.CreatureTemplateCount, "creature/NPC templates are unavailable until Mangos Zero data is imported");
         LogOptionalWorldTemplateCount("creature", _worldTemplateData.CreatureSpawnCount, "no creature/NPC spawns will be tracked by map/zone/area until data is imported");
 
-        Logger.Write(
-            LogType.DATABASE,
-            $"World database templates ready (playercreateinfo={_worldTemplateData.PlayerCreateInfo.Count}, item_template={_worldTemplateData.ItemTemplates.Count}, player_levelstats={_worldTemplateData.PlayerLevelStatsCount}, player_classlevelstats={_worldTemplateData.PlayerClassLevelStatsCount}, player_xp_for_level={_worldTemplateData.PlayerLevelExperienceCount}, playercreateinfo_action={_worldTemplateData.PlayerCreateActionCount}, playercreateinfo_item={_worldTemplateData.PlayerCreateItemCount}, playercreateinfo_spell={_worldTemplateData.PlayerCreateSpellCount}, gameobject_template={_worldTemplateData.GameObjectTemplateCount}, gameobject={_worldTemplateData.GameObjectSpawnCount}, gameobject_maps={_worldTemplateData.GameObjectSpawnMapCount}, gameobject_zones={_worldTemplateData.GameObjectSpawnZoneCount}, gameobject_areas={_worldTemplateData.GameObjectSpawnAreaCount}, creature_template={_worldTemplateData.CreatureTemplateCount}, creature={_worldTemplateData.CreatureSpawnCount}, creature_maps={_worldTemplateData.CreatureSpawnMapCount}, creature_zones={_worldTemplateData.CreatureSpawnZoneCount}, creature_areas={_worldTemplateData.CreatureSpawnAreaCount}).",
-            "WorldServer");
+        Logger.Write(LogType.SUCCESS, "World database templates ready.", "WorldServer");
     }
 
-    /**
-      * Resolves and persists gameobject zoneId/areaId for the full startup cache.
-      */
+    // Method: EnrichAndPersistGameObjectAreaDataAsync
+    // Purpose: Executes the enrich and persist game object area data operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task EnrichAndPersistGameObjectAreaDataAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<GameObjectSpawnRecord> rawSpawns = await _worldTemplateRepository.LoadGameObjectSpawnsAsync(cancellationToken);
@@ -1983,9 +2321,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         _worldTemplateData = _worldTemplateData.WithGameObjectSpawns(enrichedSpawns);
     }
 
-    /**
-      * Resolves and persists gameobject zoneId/areaId for supplied spawns using exact mapstore terrain area flags when available.
-      */
+    // Method: ResolveAndPersistGameObjectAreaDataAsync
+    // Purpose: Retrieves resolve and persist game object area data data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - spawns: Spawns value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<IReadOnlyList<GameObjectSpawnRecord>> ResolveAndPersistGameObjectAreaDataAsync(
         IReadOnlyList<GameObjectSpawnRecord> spawns,
         string reason,
@@ -2016,9 +2360,13 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return result.Spawns;
     }
 
-    /**
-      * Resolves and persists creature zoneId/areaId for the full startup cache.
-      */
+    // Method: EnrichAndPersistCreatureAreaDataAsync
+    // Purpose: Executes the enrich and persist creature area data operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task EnrichAndPersistCreatureAreaDataAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<CreatureSpawnRecord> rawSpawns = await _worldTemplateRepository.LoadCreatureSpawnsAsync(cancellationToken);
@@ -2035,9 +2383,15 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         _worldTemplateData = _worldTemplateData.WithCreatureSpawns(enrichedSpawns);
     }
 
-    /**
-      * Resolves and persists creature zoneId/areaId for supplied spawns using exact mapstore terrain area flags when available.
-      */
+    // Method: ResolveAndPersistCreatureAreaDataAsync
+    // Purpose: Retrieves resolve and persist creature area data data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - spawns: Spawns value supplied by the caller for this operation.
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<IReadOnlyList<CreatureSpawnRecord>> ResolveAndPersistCreatureAreaDataAsync(
         IReadOnlyList<CreatureSpawnRecord> spawns,
         string reason,
@@ -2068,9 +2422,12 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return result.Spawns;
     }
 
-    /**
-      * Formats zone/area lookup source counts for startup diagnostics.
-      */
+    // Method: FormatAreaSourceSummary
+    // Purpose: Executes the format area source summary operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - sourceCounts: Source counts value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatAreaSourceSummary(IReadOnlyDictionary<string, int> sourceCounts)
     {
         if (sourceCounts.Count == 0)
@@ -2081,11 +2438,14 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         return string.Join(", ", sourceCounts.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase).Select(entry => $"{entry.Key}:{entry.Value}"));
     }
 
-    /**
-      * Performs the log optional world template count operation for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: tableName, count, fallbackMessage.
-      */
+    // Method: LogOptionalWorldTemplateCount
+    // Purpose: Executes the log optional world template count operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - count: Count value supplied by the caller for this operation.
+    // - fallbackMessage: Fallback message value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private static void LogOptionalWorldTemplateCount(string tableName, int count, string fallbackMessage)
     {
         if (count == 0)
@@ -2098,10 +2458,11 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
         }
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of WorldServer and keeps this workflow isolated from the caller.
-      */
+    // Method: LoadGameDataIfEnabled
+    // Purpose: Retrieves load game data if enabled data for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServer so callers do not duplicate validation, protocol, or persistence rules.
     private void LoadGameDataIfEnabled()
     {
         GameDataSettings gameDataSettings = _settings.GameData;
@@ -2120,7 +2481,18 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
 
         Logger.Write(
             LogType.SUCCESS,
-            $"Game data ready (dbcStores={_gameData.DbcStores.Count}, maps={_gameData.MapData.Maps.Count}, areas={_gameData.MapData.Areas.Count}, races={_gameData.CharacterData.Races.Count}, classes={_gameData.CharacterData.Classes.Count}, starterOutfits={_gameData.CharacterData.StartOutfits.Count}, itemDisplays={_gameData.ItemData.DisplayInfo.Count}, spells={_gameData.SpellData.Spells.Count}, factions={_gameData.FactionData.Factions.Count}, chatChannels={_gameData.ChatData.Records.Count}).",
+            string.Join(Environment.NewLine,
+                "Game data ready:",
+                $"  DBC stores: {_gameData.DbcStores.Count}",
+                $"  Maps: {_gameData.MapData.Maps.Count}",
+                $"  Areas: {_gameData.MapData.Areas.Count}",
+                $"  Races: {_gameData.CharacterData.Races.Count}",
+                $"  Classes: {_gameData.CharacterData.Classes.Count}",
+                $"  Starter outfits: {_gameData.CharacterData.StartOutfits.Count}",
+                $"  Item displays: {_gameData.ItemData.DisplayInfo.Count}",
+                $"  Spells: {_gameData.SpellData.Spells.Count}",
+                $"  Factions: {_gameData.FactionData.Factions.Count}",
+                $"  Chat channels: {_gameData.ChatData.Records.Count}"),
             "WorldServer");
     }
 }

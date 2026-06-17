@@ -15,13 +15,34 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/WorldData/CreatureSpawnRecord.cs
+// Purpose: Contains creature spawn record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries immutable creature spawn data from the world database.
-  * zoneId and areaId are EmulationServer extensions used to index and diagnose where each NPC is spawned.
-  */
+// Type: CreatureSpawnRecord
+// Purpose: Represents creature spawn record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+// - Entry: Entry value supplied by the caller for this operation.
+// - Map: Map value supplied by the caller for this operation.
+// - ZoneId: Zone ID identifier used to select the exact record, object, or runtime owner.
+// - AreaId: Area ID identifier used to select the exact record, object, or runtime owner.
+// - ModelId: Model ID identifier used to select the exact record, object, or runtime owner.
+// - EquipmentId: Equipment ID identifier used to select the exact record, object, or runtime owner.
+// - PositionX: Position X value supplied by the caller for this operation.
+// - PositionY: Position Y value supplied by the caller for this operation.
+// - PositionZ: Position Z value supplied by the caller for this operation.
+// - Orientation: Orientation value supplied by the caller for this operation.
+// - SpawnTimeSeconds: Spawn time seconds value supplied by the caller for this operation.
+// - SpawnDistance: Spawn distance value supplied by the caller for this operation.
+// - CurrentWaypoint: Current waypoint value supplied by the caller for this operation.
+// - CurrentHealth: Current health value supplied by the caller for this operation.
+// - CurrentMana: Current mana value supplied by the caller for this operation.
+// - DeathState: Death state value supplied by the caller for this operation.
+// - MovementType: Movement type value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record CreatureSpawnRecord(
     uint Guid,
     uint Entry,

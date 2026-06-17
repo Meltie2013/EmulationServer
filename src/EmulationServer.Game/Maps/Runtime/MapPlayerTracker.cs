@@ -15,43 +15,40 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Maps/Runtime/MapPlayerTracker.cs
+// Purpose: Contains map player tracker code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapPlayerTracker.cs
-  * Documents the MapPlayerTracker source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Owns the map player tracker behavior for the runtime map-player state tracking layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapPlayerTracker
+// Purpose: Provides map player tracker behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapPlayerTracker
 {
     private readonly ConcurrentDictionary<uint, MapPlayerRuntimeState> _players = new();
 
-    /**
-      * Stores the default active player count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the active player count value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: active player count value exposed by the owning type.
     public int ActivePlayerCount => _players.Count;
 
-    /**
-      * Performs the snapshot players operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: SnapshotPlayers
+    // Purpose: Executes the snapshot players operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only collection value produced by this operation.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyCollection<MapPlayerRuntimeState> SnapshotPlayers()
     {
-        return _players.Values.ToArray();
+        return [.. _players.Values];
     }
 
-    /**
-      * Returns the active player count grouped by map id so hosted map services can publish accurate status snapshots.
-      */
+    // Method: CountPlayersByMap
+    // Purpose: Calculates count players by map values for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only dictionary value produced by this operation.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyDictionary<uint, int> CountPlayersByMap()
     {
         return _players.Values
@@ -59,49 +56,69 @@ public sealed class MapPlayerTracker
             .ToDictionary(group => group.Key, group => group.Count());
     }
 
-    /**
-      * Performs the player entered operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: player.
-      */
+    // Method: PlayerEntered
+    // Purpose: Executes the player entered operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public void PlayerEntered(MapPlayerRuntimeState player)
     {
         ArgumentNullException.ThrowIfNull(player);
         _players[player.Guid] = player;
     }
 
-
-    /**
-      * Returns the latest tracked player state without mutating the active player list.
-      */
+    // Method: TryGetPlayer
+    // Purpose: Attempts to retrieve or parse try get player data without treating normal misses as failures.
+    // Parameters:
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns true when try get player succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetPlayer(uint guid, out MapPlayerRuntimeState? player)
     {
         return _players.TryGetValue(guid, out player);
     }
 
-    /**
-      * Performs the player left operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: guid.
-      */
+    // Method: PlayerLeft
+    // Purpose: Executes the player left operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when player left succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public bool PlayerLeft(uint guid)
     {
         return PlayerLeft(guid, out _);
     }
 
-    /**
-      * Removes a player and returns the last tracked map state when the caller needs to refresh per-map service counts.
-      */
+    // Method: PlayerLeft
+    // Purpose: Executes the player left operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - player: Player value supplied by the caller for this operation.
+    // Returns: Returns true when player left succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public bool PlayerLeft(uint guid, out MapPlayerRuntimeState? player)
     {
         return _players.TryRemove(guid, out player);
     }
 
-    /**
-      * Performs the player moved operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountId, guid, map, zone, positionX, positionY....
-      */
+    // Method: PlayerMoved
+    // Purpose: Executes the player moved operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - map: Map value supplied by the caller for this operation.
+    // - zone: Zone value supplied by the caller for this operation.
+    // - positionX: Position X value supplied by the caller for this operation.
+    // - positionY: Position Y value supplied by the caller for this operation.
+    // - positionZ: Position Z value supplied by the caller for this operation.
+    // - orientation: Orientation value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - movementFlags: Movement flags value supplied by the caller for this operation.
+    // - clientMovementTime: Client movement time value supplied by the caller for this operation.
+    // Returns: Returns the map player runtime state value produced by this operation.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public MapPlayerRuntimeState PlayerMoved(
         uint accountId,
         uint guid,
@@ -131,10 +148,24 @@ public sealed class MapPlayerTracker
             out _);
     }
 
-    /**
-      * Updates movement state and tells the caller whether hosted service player counts may have changed.
-      * Counts only change when a new player is first observed or an existing player changes maps, so movement can stay lightweight.
-      */
+    // Method: PlayerMoved
+    // Purpose: Executes the player moved operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - guid: Guid identifier used to select the exact record, object, or runtime owner.
+    // - map: Map value supplied by the caller for this operation.
+    // - zone: Zone value supplied by the caller for this operation.
+    // - positionX: Position X value supplied by the caller for this operation.
+    // - positionY: Position Y value supplied by the caller for this operation.
+    // - positionZ: Position Z value supplied by the caller for this operation.
+    // - orientation: Orientation value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - movementFlags: Movement flags value supplied by the caller for this operation.
+    // - clientMovementTime: Client movement time value supplied by the caller for this operation.
+    // - previousMap: Previous map value supplied by the caller for this operation.
+    // - serviceCountChanged: Service count changed value supplied by the caller for this operation.
+    // Returns: Returns the map player runtime state value produced by this operation.
+    // Notes: This keeps the operation scoped to MapPlayerTracker so callers do not duplicate validation, protocol, or persistence rules.
     public MapPlayerRuntimeState PlayerMoved(
         uint accountId,
         uint guid,

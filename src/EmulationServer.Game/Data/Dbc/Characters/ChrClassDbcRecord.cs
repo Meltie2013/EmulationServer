@@ -15,19 +15,24 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Characters/ChrClassDbcRecord.cs
-  * Documents the ChrClassDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Characters/ChrClassDbcRecord.cs
+// Purpose: Contains chr class DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Characters;
 
-/**
-  * Represents one ChrClasses.dbc row used for class validation and display setup.
-  * Positional fields carried by this record: Id, DisplayPower, PowerType, PetNameToken, ClassName, FileName, ClassMask, IsHybridClass.
-  */
+// Type: ChrClassDbcRecord
+// Purpose: Represents chr class DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - DisplayPower: Display power value supplied by the caller for this operation.
+// - PowerType: Power type value supplied by the caller for this operation.
+// - PetNameToken: Pet name token value supplied by the caller for this operation.
+// - ClassName: Class name value supplied by the caller for this operation.
+// - FileName: File name value supplied by the caller for this operation.
+// - ClassMask: Class mask value supplied by the caller for this operation.
+// - IsHybridClass: Is hybrid class value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record ChrClassDbcRecord(
     int Id,
     int DisplayPower,

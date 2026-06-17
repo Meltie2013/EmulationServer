@@ -15,39 +15,35 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/RealmServer/Auth/RealmAuthOpCode.cs
-  * Documents the RealmAuthOpCode source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/RealmServer/Auth/RealmAuthOpCode.cs
+// Purpose: Contains realm auth op code code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Lists the supported realm auth op code values used by the realm authentication, realm-list handling, and external client login services layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: RealmAuthOpCode
+// Purpose: Defines the allowed realm auth op code values used by the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum RealmAuthOpCode : byte
 {
-    /**
-      * Represents the auth logon challenge value for realm auth op code handling.
-      */
+
+    // Enum Value: Defines the auth logon challenge enum value.
+    // Value: explicit expression 0x00.
     AuthLogonChallenge = 0x00,
-    /**
-      * Represents the auth logon proof value for realm auth op code handling.
-      */
+
+    // Enum Value: Defines the auth logon proof enum value.
+    // Value: explicit expression 0x01.
     AuthLogonProof = 0x01,
-    /**
-      * Represents the auth reconnect challenge value for realm auth op code handling.
-      */
+
+    // Enum Value: Defines the auth reconnect challenge enum value.
+    // Value: explicit expression 0x02.
     AuthReconnectChallenge = 0x02,
-    /**
-      * Represents the auth reconnect proof value for realm auth op code handling.
-      */
+
+    // Enum Value: Defines the auth reconnect proof enum value.
+    // Value: explicit expression 0x03.
     AuthReconnectProof = 0x03,
-    /**
-      * Represents the realm list value for realm auth op code handling.
-      */
+
+    // Enum Value: Defines the realm list enum value.
+    // Value: explicit expression 0x10.
     RealmList = 0x10,
 }

@@ -641,7 +641,6 @@ renderer.domElement.addEventListener('click', updateCoordinateSelection);
 document.getElementById('copyXyz').addEventListener('click', () => copyText(latestXyzText));
 document.getElementById('copyGo').addEventListener('click', () => copyText(latestGoCommand));
 
-
 function updateCoordinateHover(event) {
   const hit = getTerrainHit(event);
   if (!hit) {

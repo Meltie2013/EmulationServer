@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/Database/MySqlConnectionTests.cs
+// Purpose: Contains my SQL connection tests code for the automated test and verification layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Configuration;
 using EmulationServer.Database.Services;
@@ -22,24 +25,19 @@ using EmulationServer.Database.Services;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
 
-/**
-  * File overview: tests/EmulationServer.Tests/Database/MySqlConnectionTests.cs
-  * Documents the MySqlConnectionTests source file in the automated test coverage for server behavior and data helpers area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Tests.Database;
 
-/**
-  * Owns the my sql connection tests behavior for the automated test coverage for server behavior and data helpers layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MySqlConnectionTests
+// Purpose: Provides my SQL connection tests behavior for the automated test and verification layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MySqlConnectionTests
 {
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
-      */
+
+    // Method: LoadSettings
+    // Purpose: Retrieves load settings data for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: Returns the database settings value produced by this operation.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
     private static DatabaseSettings LoadSettings()
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -69,12 +67,13 @@ public sealed class MySqlConnectionTests
         };
     }
 
-    /**
-      * Performs the database connection should succeed operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
     [DatabaseIntegrationFact]
+    // Method: DatabaseConnection_ShouldSucceed
+    // Purpose: Executes the database connection should succeed operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task DatabaseConnection_ShouldSucceed()
     {
         DatabaseSettings settings = LoadSettings();
@@ -86,12 +85,13 @@ public sealed class MySqlConnectionTests
         Assert.True(connected, "Failed to connect to the MySQL server.");
     }
 
-    /**
-      * Performs the database query should execute operation for the automated test coverage for server behavior and data helpers workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
     [DatabaseIntegrationFact]
+    // Method: DatabaseQuery_ShouldExecute
+    // Purpose: Executes the database query should execute operation for the automated test and verification layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task DatabaseQuery_ShouldExecute()
     {
         DatabaseSettings settings = LoadSettings();
@@ -112,10 +112,14 @@ public sealed class MySqlConnectionTests
         Assert.Equal(1, value);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
-      */
+    // Method: GetString
+    // Purpose: Retrieves get string data for the automated test and verification layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // - configurationKey: Configuration key value supplied by the caller for this operation.
+    // - environmentVariableName: Environment variable name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetString(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string? environmentValue = Environment.GetEnvironmentVariable(environmentVariableName);
@@ -128,31 +132,42 @@ public sealed class MySqlConnectionTests
             ?? throw new InvalidOperationException($"Missing required test setting '{configurationKey}'.");
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
-      */
+    // Method: GetInt
+    // Purpose: Retrieves get int data for the automated test and verification layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // - configurationKey: Configuration key value supplied by the caller for this operation.
+    // - environmentVariableName: Environment variable name value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
     private static int GetInt(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string value = GetString(configuration, configurationKey, environmentVariableName);
         return int.Parse(value);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
-      */
+    // Method: GetUInt
+    // Purpose: Retrieves get U int data for the automated test and verification layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // - configurationKey: Configuration key value supplied by the caller for this operation.
+    // - environmentVariableName: Environment variable name value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
     private static uint GetUInt(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string value = GetString(configuration, configurationKey, environmentVariableName);
         return uint.Parse(value);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of MySqlConnectionTests and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: GetBool
+    // Purpose: Retrieves get bool data for the automated test and verification layer.
+    // Parameters:
+    // - configuration: Configuration values that control how this operation should run.
+    // - configurationKey: Configuration key value supplied by the caller for this operation.
+    // - environmentVariableName: Environment variable name value supplied by the caller for this operation.
+    // Returns: Returns true when get bool succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to MySqlConnectionTests so callers do not duplicate validation, protocol, or persistence rules.
     private static bool GetBool(IConfiguration configuration, string configurationKey, string environmentVariableName)
     {
         string value = GetString(configuration, configurationKey, environmentVariableName);

@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/GameObjects/GameObjectSnapshotStore.cs
+// Purpose: Contains game object snapshot store code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 using EmulationServer.Game.WorldData;
@@ -23,23 +26,40 @@ using EmulationServer.Shared.Logging.Enums;
 
 namespace EmulationServer.Game.GameObjects;
 
-/**
-  * Stores game object snapshots received from WorldServer inside MapServer or InstanceServer.
-  * The store keeps MapServer and InstanceServer database-free while allowing maps and instances to rebuild runtime object state on startup and restart.
-  */
+// Type: GameObjectSnapshotStore
+// Purpose: Provides game object snapshot store behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class GameObjectSnapshotStore
 {
+    // Field: Stores the owner name state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current owner name backing value maintained by the owning type.
     private readonly string _ownerName;
     private readonly object _syncRoot = new();
     private readonly ConcurrentDictionary<string, PendingGameObjectSnapshot> _pendingSnapshots = new(StringComparer.OrdinalIgnoreCase);
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, GameObjectTemplateRecord> _templates = [];
+    // Field: Stores the int state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current int backing value maintained by the owning type.
     private readonly Dictionary<int, IReadOnlyList<GameObjectSpawnRecord>> _spawnsByMap = [];
 
+    // Constructor: GameObjectSnapshotStore
+    // Purpose: Initializes a new GameObjectSnapshotStore instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - ownerName: Owner name value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectSnapshotStore so callers do not duplicate validation, protocol, or persistence rules.
     public GameObjectSnapshotStore(string ownerName)
     {
         _ownerName = string.IsNullOrWhiteSpace(ownerName) ? "GameObjectSnapshotStore" : ownerName.Trim();
     }
 
+    // Method: GetSpawnsForMap
+    // Purpose: Retrieves get spawns for map data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectSnapshotStore so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<GameObjectSpawnRecord> GetSpawnsForMap(int mapId)
     {
         if (mapId < 0)
@@ -55,6 +75,12 @@ public sealed class GameObjectSnapshotStore
         }
     }
 
+    // Method: GetTemplateOrDefault
+    // Purpose: Retrieves get template or default data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // Returns: Returns the game object template record? value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectSnapshotStore so callers do not duplicate validation, protocol, or persistence rules.
     public GameObjectTemplateRecord? GetTemplateOrDefault(uint entry)
     {
         lock (_syncRoot)
@@ -65,6 +91,14 @@ public sealed class GameObjectSnapshotStore
         }
     }
 
+    // Method: TryHandleSnapshotPacket
+    // Purpose: Executes the try handle snapshot packet operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - remoteServerName: Remote server name value supplied by the caller for this operation.
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns true when try handle snapshot packet succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to GameObjectSnapshotStore so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryHandleSnapshotPacket(string remoteServerName, string packet, out GameObjectSnapshotApplyResult result)
     {
         result = default;
@@ -176,12 +210,28 @@ public sealed class GameObjectSnapshotStore
         return true;
     }
 
+    // Type: PendingGameObjectSnapshot
+    // Purpose: Provides pending game object snapshot behavior for the game-domain data, player state, DBC, and world-template layer.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed class PendingGameObjectSnapshot
     {
         private readonly object _syncRoot = new();
+        // Field: Stores the templates state used by the game-domain data, player state, DBC, and world-template layer.
+        // Value: current templates backing value maintained by the owning type.
         private readonly List<GameObjectTemplateRecord> _templates = [];
+        // Field: Stores the spawns state used by the game-domain data, player state, DBC, and world-template layer.
+        // Value: current spawns backing value maintained by the owning type.
         private readonly List<GameObjectSpawnRecord> _spawns = [];
 
+        // Constructor: PendingGameObjectSnapshot
+        // Purpose: Initializes a new PendingGameObjectSnapshot instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+        // Parameters:
+        // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+        // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+        // - expectedTemplateCount: Expected template count value supplied by the caller for this operation.
+        // - expectedSpawnCount: Expected spawn count value supplied by the caller for this operation.
+        // Returns: none.
+        // Notes: This keeps the operation scoped to PendingGameObjectSnapshot so callers do not duplicate validation, protocol, or persistence rules.
         public PendingGameObjectSnapshot(string snapshotId, int mapId, int expectedTemplateCount, int expectedSpawnCount)
         {
             SnapshotId = snapshotId;
@@ -190,14 +240,28 @@ public sealed class GameObjectSnapshotStore
             ExpectedSpawnCount = expectedSpawnCount;
         }
 
+        // Property: Gets or sets the snapshot ID value used by the game-domain data, player state, DBC, and world-template layer.
+        // Value: snapshot ID value exposed by the owning type.
         public string SnapshotId { get; }
 
+        // Property: Gets or sets the map ID value used by the game-domain data, player state, DBC, and world-template layer.
+        // Value: map ID value exposed by the owning type.
         public int MapId { get; }
 
+        // Property: Gets or sets the expected template count value used by the game-domain data, player state, DBC, and world-template layer.
+        // Value: expected template count value exposed by the owning type.
         public int ExpectedTemplateCount { get; }
 
+        // Property: Gets or sets the expected spawn count value used by the game-domain data, player state, DBC, and world-template layer.
+        // Value: expected spawn count value exposed by the owning type.
         public int ExpectedSpawnCount { get; }
 
+        // Method: AddTemplate
+        // Purpose: Applies add template changes for the game-domain data, player state, DBC, and world-template layer.
+        // Parameters:
+        // - template: Template value supplied by the caller for this operation.
+        // Returns: none.
+        // Notes: This keeps the operation scoped to PendingGameObjectSnapshot so callers do not duplicate validation, protocol, or persistence rules.
         public void AddTemplate(GameObjectTemplateRecord template)
         {
             lock (_syncRoot)
@@ -206,6 +270,12 @@ public sealed class GameObjectSnapshotStore
             }
         }
 
+        // Method: AddSpawn
+        // Purpose: Applies add spawn changes for the game-domain data, player state, DBC, and world-template layer.
+        // Parameters:
+        // - spawn: Spawn value supplied by the caller for this operation.
+        // Returns: none.
+        // Notes: This keeps the operation scoped to PendingGameObjectSnapshot so callers do not duplicate validation, protocol, or persistence rules.
         public void AddSpawn(GameObjectSpawnRecord spawn)
         {
             lock (_syncRoot)
@@ -214,6 +284,11 @@ public sealed class GameObjectSnapshotStore
             }
         }
 
+        // Method: GetTemplates
+        // Purpose: Retrieves get templates data for the game-domain data, player state, DBC, and world-template layer.
+        // Parameters: none.
+        // Returns: Returns the I read only list value produced by this operation.
+        // Notes: This keeps the operation scoped to PendingGameObjectSnapshot so callers do not duplicate validation, protocol, or persistence rules.
         public IReadOnlyList<GameObjectTemplateRecord> GetTemplates()
         {
             lock (_syncRoot)
@@ -226,6 +301,11 @@ public sealed class GameObjectSnapshotStore
             }
         }
 
+        // Method: GetSpawns
+        // Purpose: Retrieves get spawns data for the game-domain data, player state, DBC, and world-template layer.
+        // Parameters: none.
+        // Returns: Returns the I read only list value produced by this operation.
+        // Notes: This keeps the operation scoped to PendingGameObjectSnapshot so callers do not duplicate validation, protocol, or persistence rules.
         public IReadOnlyList<GameObjectSpawnRecord> GetSpawns()
         {
             lock (_syncRoot)

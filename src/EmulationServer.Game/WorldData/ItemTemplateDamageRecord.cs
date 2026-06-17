@@ -15,15 +15,17 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/WorldData/ItemTemplateDamageRecord.cs
-  * Documents one damage range from item_template for world template loading and item query packets.
-  */
+// File: src/EmulationServer.Game/WorldData/ItemTemplateDamageRecord.cs
+// Purpose: Contains item template damage record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.WorldData;
 
-/**
-  * Carries one item_template damage slot.
-  */
+// Type: ItemTemplateDamageRecord
+// Purpose: Represents item template damage record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Minimum: Minimum value supplied by the caller for this operation.
+// - Maximum: Maximum value supplied by the caller for this operation.
+// - Type: Type value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record ItemTemplateDamageRecord(float Minimum, float Maximum, byte Type);

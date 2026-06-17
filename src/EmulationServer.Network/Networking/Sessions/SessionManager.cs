@@ -15,39 +15,34 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Networking/Sessions/SessionManager.cs
+// Purpose: Contains session manager code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Collections.Concurrent;
 
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/SessionManager.cs
-  * Documents the SessionManager source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Networking.Sessions;
 
-/**
-  * Owns the session manager behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: SessionManager
+// Purpose: Provides session manager behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class SessionManager
 {
     private readonly ConcurrentDictionary<Guid, SessionEntry> _sessions = new();
 
-    /**
-      * Gets or stores the count value used by SessionManager.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the count value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: count value exposed by the owning type.
     public int Count => _sessions.Count;
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of SessionManager and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryAddSession
+    // Purpose: Executes the try add session operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // Returns: Returns true when try add session succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to SessionManager so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryAddSession(RealmSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -57,11 +52,12 @@ public sealed class SessionManager
         return _sessions.TryAdd(session.Id, entry);
     }
 
-    /**
-      * Performs the complete session operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: session.
-      */
+    // Method: CompleteSession
+    // Purpose: Executes the complete session operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - session: Session value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to SessionManager so callers do not duplicate validation, protocol, or persistence rules.
     public void CompleteSession(RealmSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -72,11 +68,12 @@ public sealed class SessionManager
         }
     }
 
-    /**
-      * Performs the disconnect all operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisconnectAllAsync
+    // Purpose: Executes the disconnect all operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to SessionManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task DisconnectAllAsync()
     {
         Task[] disconnectTasks = _sessions.Values
@@ -86,12 +83,14 @@ public sealed class SessionManager
         return Task.WhenAll(disconnectTasks);
     }
 
-    /**
-      * Performs the wait for all sessions operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: timeout, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: WaitForAllSessionsAsync
+    // Purpose: Handles wait for all sessions work for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters:
+    // - timeout: Timeout value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to SessionManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task WaitForAllSessionsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         Task[] completionTasks = _sessions.Values
@@ -124,44 +123,38 @@ public sealed class SessionManager
             "SessionManager");
     }
 
-    /**
-      * Owns the session entry behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-      * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-      */
+    // Type: SessionEntry
+    // Purpose: Provides session entry behavior for the packet serialization, socket transport, and protocol framing layer.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed class SessionEntry
     {
-        /**
-          * Holds the private completion state used by the owning component.
-          * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-          */
+
         private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        /**
-          * Performs the session entry operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-          * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-          * Inputs used by this operation: session.
-          */
+        // Constructor: SessionEntry
+        // Purpose: Initializes a new SessionEntry instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
+        // Parameters:
+        // - session: Session value supplied by the caller for this operation.
+        // Returns: none.
+        // Notes: This keeps the operation scoped to SessionEntry so callers do not duplicate validation, protocol, or persistence rules.
         public SessionEntry(RealmSession session)
         {
             Session = session;
         }
 
-        /**
-          * Gets or stores the session value used by SessionEntry.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the session value used by the packet serialization, socket transport, and protocol framing layer.
+        // Value: session value exposed by the owning type.
         public RealmSession Session { get; }
 
-        /**
-          * Gets or stores the completion value used by SessionEntry.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+        // Property: Gets or sets the completion value used by the packet serialization, socket transport, and protocol framing layer.
+        // Value: completion value exposed by the owning type.
         public Task Completion => _completion.Task;
 
-        /**
-          * Performs the mark completed operation for the internal server networking, packet framing, and peer/session lifecycle workflow.
-          * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-          */
+        // Method: MarkCompleted
+        // Purpose: Executes the mark completed operation for the packet serialization, socket transport, and protocol framing layer.
+        // Parameters: none.
+        // Returns: none.
+        // Notes: This keeps the operation scoped to SessionEntry so callers do not duplicate validation, protocol, or persistence rules.
         public void MarkCompleted()
         {
             _completion.TrySetResult();

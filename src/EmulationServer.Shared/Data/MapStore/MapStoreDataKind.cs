@@ -15,16 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreDataKind.cs
+// Purpose: Contains map store data kind code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Identifies one runtime mapstore payload type.
-  */
+// Type: MapStoreDataKind
+// Purpose: Defines the allowed map store data kind values used by the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum MapStoreDataKind : byte
 {
+    // Enum Value: Defines the terrain enum value.
+    // Value: explicit expression 1.
     Terrain = 1,
+    // Enum Value: Defines the liquid enum value.
+    // Value: explicit expression 2.
     Liquid = 2,
+    // Enum Value: Defines the collision enum value.
+    // Value: explicit expression 3.
     Collision = 3,
+    // Enum Value: Defines the navmesh enum value.
+    // Value: explicit expression 4.
     Navmesh = 4,
 }

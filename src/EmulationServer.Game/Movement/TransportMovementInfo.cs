@@ -15,20 +15,22 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Movement/TransportMovementInfo.cs
-  * Documents the TransportMovementInfo source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Movement/TransportMovementInfo.cs
+// Purpose: Contains transport movement info code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Movement;
 
-/**
-  * Carries immutable transport movement info data for the movement packet state and client coordinate tracking layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Guid, X, Y, Z, Orientation, Time.
-  */
+// Type: TransportMovementInfo
+// Purpose: Represents transport movement info data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+// - X: X value supplied by the caller for this operation.
+// - Y: Y value supplied by the caller for this operation.
+// - Z: Z value supplied by the caller for this operation.
+// - Orientation: Orientation value supplied by the caller for this operation.
+// - Time: Time value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record TransportMovementInfo(
     ulong Guid,
     float X,
@@ -37,10 +39,9 @@ public sealed record TransportMovementInfo(
     float Orientation,
     uint Time)
 {
-    /**
-      * Stores the default is finite value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
+    // Property: Gets or sets the is finite value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: is finite value exposed by the owning type.
     public bool IsFinite =>
         float.IsFinite(X) &&
         float.IsFinite(Y) &&

@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/RealmServer/Core/RealmServer.cs
+// Purpose: Contains realm server code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Accounts;
 using EmulationServer.Database.Interfaces;
@@ -29,66 +32,52 @@ using EmulationServer.RealmServer.Realms;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 
-/**
-  * File overview: src/RealmServer/Core/RealmServer.cs
-  * Documents the RealmServer source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.RealmServer.Core;
 
-/**
-  * Owns the realm server behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmServer
+// Purpose: Provides realm server behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmServer : IAsyncDisposable
 {
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current settings backing value maintained by the owning type.
     private readonly RealmServerSettings _settings;
-    /**
-      * Holds the private database service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the database service state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current database service backing value maintained by the owning type.
     private readonly IDatabaseService _databaseService;
-    /**
-      * Holds the private account repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the account repository state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current account repository backing value maintained by the owning type.
     private readonly AccountRepository _accountRepository;
-    /**
-      * Holds the private realm store state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the realm store state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current realm store backing value maintained by the owning type.
     private readonly ConfiguredRealmStore _realmStore;
-    /**
-      * Holds the private socket listener state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the socket listener state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current socket listener backing value maintained by the owning type.
     private readonly RealmSocketListener _socketListener;
-    /**
-      * Holds the private internal socket listener state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the internal socket listener state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current internal socket listener backing value maintained by the owning type.
     private readonly InternalSocketListener _internalSocketListener;
-    /**
-      * Holds the private internal peer connector state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the internal peer connector state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current internal peer connector backing value maintained by the owning type.
     private readonly InternalPeerConnector _internalPeerConnector;
-    /**
-      * Holds the private command service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the command service state used by the realm server authentication, realm-list, and account connection layer.
+    // Value: current command service backing value maintained by the owning type.
     private readonly RealmConsoleCommandService _commandService;
 
-    /**
-      * Initializes a new RealmServer instance with the dependencies required by the realm authentication, realm-list handling, and external client login services workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings.
-      */
+    // Constructor: RealmServer
+    // Purpose: Initializes a new RealmServer instance with dependencies and values required by the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmServer so callers do not duplicate validation, protocol, or persistence rules.
     public RealmServer(RealmServerSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -125,12 +114,13 @@ public sealed class RealmServer : IAsyncDisposable
         _commandService = new RealmConsoleCommandService(_accountRepository);
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.NOTICE, "Starting RealmServer...", "RealmServer");
@@ -152,12 +142,13 @@ public sealed class RealmServer : IAsyncDisposable
         Logger.Write(LogType.TRACE, "RealmServer stopped.", "RealmServer");
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _internalPeerConnector.StopAsync(cancellationToken);
@@ -165,11 +156,12 @@ public sealed class RealmServer : IAsyncDisposable
         await _socketListener.StopAsync(cancellationToken);
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
@@ -177,12 +169,13 @@ public sealed class RealmServer : IAsyncDisposable
         await _databaseService.DisposeAsync();
     }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of RealmServer and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ValidateStartupAsync
+    // Purpose: Validates or evaluates validate startup rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to RealmServer so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ValidateStartupAsync(CancellationToken cancellationToken)
     {
         Logger.Write(LogType.SYSTEM, "Validating RealmServer settings...", "RealmServer");

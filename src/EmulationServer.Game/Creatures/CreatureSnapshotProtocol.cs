@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Creatures/CreatureSnapshotProtocol.cs
+// Purpose: Contains creature snapshot protocol code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 using System.Text;
@@ -23,12 +26,16 @@ using EmulationServer.Network.Networking.Protocol;
 
 namespace EmulationServer.Game.Creatures;
 
-/**
-  * Serializes and parses the internal creature snapshot protocol used by WorldServer, MapServer, and InstanceServer.
-  */
+// Type: CreatureSnapshotProtocol
+// Purpose: Provides creature snapshot protocol behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class CreatureSnapshotProtocol
 {
+    // Constant: Defines the encoded empty string constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed encoded empty string value used anywhere this rule or protocol value is needed.
     private const string EncodedEmptyString = "AA==";
+    // Constant: Defines the template numeric field count constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed template numeric field count value used anywhere this rule or protocol value is needed.
     private const int TemplateNumericFieldCount = 70;
 
     private static readonly CreatureTemplateRecord EmptyTemplate = new(
@@ -109,6 +116,15 @@ public static class CreatureSnapshotProtocol
 
     private static readonly CreatureSpawnRecord EmptySpawn = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
+    // Method: CreateBeginPacket
+    // Purpose: Applies create begin packet changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - templateCount: Template count value supplied by the caller for this operation.
+    // - spawnCount: Spawn count value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static string CreateBeginPacket(string snapshotId, int mapId, int templateCount, int spawnCount)
     {
         return string.Create(
@@ -116,6 +132,13 @@ public static class CreatureSnapshotProtocol
             $"{InternalProtocol.CreatureSnapshotBegin} {snapshotId} {mapId} {templateCount} {spawnCount}");
     }
 
+    // Method: CreateTemplatePacket
+    // Purpose: Applies create template packet changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static string CreateTemplatePacket(string snapshotId, CreatureTemplateRecord template)
     {
         ArgumentNullException.ThrowIfNull(template);
@@ -126,6 +149,13 @@ public static class CreatureSnapshotProtocol
             $"{InternalProtocol.CreatureTemplateSnapshot} {snapshotId} {template.Entry} {Encode(numericFields)} {Encode(template.Name)} {Encode(template.SubName)} {Encode(template.AIName)}");
     }
 
+    // Method: CreateSpawnPacket
+    // Purpose: Applies create spawn packet changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static string CreateSpawnPacket(string snapshotId, CreatureSpawnRecord spawn)
     {
         ArgumentNullException.ThrowIfNull(spawn);
@@ -135,6 +165,13 @@ public static class CreatureSnapshotProtocol
             $"{InternalProtocol.CreatureSpawnSnapshot} {snapshotId} {spawn.Guid} {spawn.Entry} {spawn.Map} {spawn.ZoneId} {spawn.AreaId} {spawn.ModelId} {spawn.EquipmentId} {spawn.PositionX:0.######} {spawn.PositionY:0.######} {spawn.PositionZ:0.######} {spawn.Orientation:0.######} {spawn.SpawnTimeSeconds} {spawn.SpawnDistance:0.######} {spawn.CurrentWaypoint} {spawn.CurrentHealth} {spawn.CurrentMana} {spawn.DeathState} {spawn.MovementType}");
     }
 
+    // Method: CreateEndPacket
+    // Purpose: Applies create end packet changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static string CreateEndPacket(string snapshotId, int mapId)
     {
         return string.Create(
@@ -142,6 +179,16 @@ public static class CreatureSnapshotProtocol
             $"{InternalProtocol.CreatureSnapshotEnd} {snapshotId} {mapId}");
     }
 
+    // Method: TryParseBegin
+    // Purpose: Attempts to retrieve or parse try parse begin data without treating normal misses as failures.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - templateCount: Template count value supplied by the caller for this operation.
+    // - spawnCount: Spawn count value supplied by the caller for this operation.
+    // Returns: Returns true when try parse begin succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseBegin(string packet, out string snapshotId, out int mapId, out int templateCount, out int spawnCount)
     {
         snapshotId = string.Empty;
@@ -166,6 +213,14 @@ public static class CreatureSnapshotProtocol
         return !string.IsNullOrWhiteSpace(snapshotId);
     }
 
+    // Method: TryParseTemplate
+    // Purpose: Attempts to retrieve or parse try parse template data without treating normal misses as failures.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when try parse template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseTemplate(string packet, out string snapshotId, out CreatureTemplateRecord template)
     {
         snapshotId = string.Empty;
@@ -201,6 +256,14 @@ public static class CreatureSnapshotProtocol
         return !string.IsNullOrWhiteSpace(snapshotId);
     }
 
+    // Method: TryParseSpawn
+    // Purpose: Attempts to retrieve or parse try parse spawn data without treating normal misses as failures.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - spawn: Spawn value supplied by the caller for this operation.
+    // Returns: Returns true when try parse spawn succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseSpawn(string packet, out string snapshotId, out CreatureSpawnRecord spawn)
     {
         snapshotId = string.Empty;
@@ -258,6 +321,14 @@ public static class CreatureSnapshotProtocol
         return !string.IsNullOrWhiteSpace(snapshotId);
     }
 
+    // Method: TryParseEnd
+    // Purpose: Attempts to retrieve or parse try parse end data without treating normal misses as failures.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // - snapshotId: Snapshot ID identifier used to select the exact record, object, or runtime owner.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns true when try parse end succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryParseEnd(string packet, out string snapshotId, out int mapId)
     {
         snapshotId = string.Empty;
@@ -278,6 +349,12 @@ public static class CreatureSnapshotProtocol
         return !string.IsNullOrWhiteSpace(snapshotId);
     }
 
+    // Method: IsSnapshotPacket
+    // Purpose: Validates or evaluates is snapshot packet rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // Returns: Returns true when is snapshot packet succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsSnapshotPacket(string packet)
     {
         string[] parts = Split(packet);
@@ -288,6 +365,12 @@ public static class CreatureSnapshotProtocol
              IsOpcode(parts[0], InternalProtocol.CreatureSnapshotEnd));
     }
 
+    // Method: CreateTemplateNumericFields
+    // Purpose: Applies create template numeric fields changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns the string[] value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string[] CreateTemplateNumericFields(CreatureTemplateRecord template)
     {
         return
@@ -308,6 +391,17 @@ public static class CreatureSnapshotProtocol
         ];
     }
 
+    // Method: TryBuildTemplate
+    // Purpose: Executes the try build template operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - entry: Entry value supplied by the caller for this operation.
+    // - fields: Fields value supplied by the caller for this operation.
+    // - name: Name value supplied by the caller for this operation.
+    // - subName: Sub name value supplied by the caller for this operation.
+    // - aiName: Ai name value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns true when try build template succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryBuildTemplate(uint entry, IReadOnlyList<string> fields, string name, string subName, string aiName, out CreatureTemplateRecord template)
     {
         template = EmptyTemplate;
@@ -466,20 +560,110 @@ public static class CreatureSnapshotProtocol
         return true;
     }
 
+    // Method: TryReadByte
+    // Purpose: Attempts to retrieve or parse try read byte data without treating normal misses as failures.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try read byte succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadByte(IReadOnlyList<string> fields, ref int index, out byte value) => byte.TryParse(fields[index++], NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    // Method: TryReadSByte
+    // Purpose: Attempts to retrieve or parse try read S byte data without treating normal misses as failures.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try read S byte succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadSByte(IReadOnlyList<string> fields, ref int index, out sbyte value) => sbyte.TryParse(fields[index++], NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    // Method: TryReadInt16
+    // Purpose: Attempts to retrieve or parse try read int16 data without treating normal misses as failures.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try read int16 succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadInt16(IReadOnlyList<string> fields, ref int index, out short value) => short.TryParse(fields[index++], NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    // Method: TryReadUInt16
+    // Purpose: Attempts to retrieve or parse try read U int16 data without treating normal misses as failures.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try read U int16 succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadUInt16(IReadOnlyList<string> fields, ref int index, out ushort value) => ushort.TryParse(fields[index++], NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    // Method: TryReadUInt32
+    // Purpose: Attempts to retrieve or parse try read U int32 data without treating normal misses as failures.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try read U int32 succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadUInt32(IReadOnlyList<string> fields, ref int index, out uint value) => uint.TryParse(fields[index++], NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    // Method: TryReadSingle
+    // Purpose: Attempts to retrieve or parse try read single data without treating normal misses as failures.
+    // Parameters:
+    // - fields: Fields value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try read single succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryReadSingle(IReadOnlyList<string> fields, ref int index, out float value) => float.TryParse(fields[index++], NumberStyles.Float, CultureInfo.InvariantCulture, out value);
 
+    // Method: Format
+    // Purpose: Executes the format operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(byte value) => value.ToString(CultureInfo.InvariantCulture);
+    // Method: Format
+    // Purpose: Executes the format operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(sbyte value) => value.ToString(CultureInfo.InvariantCulture);
+    // Method: Format
+    // Purpose: Executes the format operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(short value) => value.ToString(CultureInfo.InvariantCulture);
+    // Method: Format
+    // Purpose: Executes the format operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(ushort value) => value.ToString(CultureInfo.InvariantCulture);
+    // Method: Format
+    // Purpose: Executes the format operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(uint value) => value.ToString(CultureInfo.InvariantCulture);
+    // Method: Format
+    // Purpose: Executes the format operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Format(float value) => value.ToString("0.######", CultureInfo.InvariantCulture);
 
+    // Method: Encode
+    // Purpose: Builds or writes encode output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string Encode(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -490,6 +674,13 @@ public static class CreatureSnapshotProtocol
         return Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
     }
 
+    // Method: TryDecode
+    // Purpose: Executes the try decode operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - decoded: Decoded value supplied by the caller for this operation.
+    // Returns: Returns true when try decode succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryDecode(string value, out string decoded)
     {
         decoded = string.Empty;
@@ -504,16 +695,36 @@ public static class CreatureSnapshotProtocol
         }
     }
 
+    // Method: Split
+    // Purpose: Executes the split operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - packet: Packet bytes or structured payload consumed by this operation.
+    // Returns: Returns the string[] value produced by this operation.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static string[] Split(string packet)
     {
         return packet.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
 
+    // Method: IsOpcode
+    // Purpose: Validates or evaluates is opcode rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - candidate: Candidate value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // Returns: Returns true when is opcode succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsOpcode(string candidate, string opcode)
     {
         return string.Equals(candidate, opcode, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Method: TryParseNonNegativeInt
+    // Purpose: Attempts to retrieve or parse try parse non negative int data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // Returns: Returns true when try parse non negative int succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CreatureSnapshotProtocol so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseNonNegativeInt(string value, out int result)
     {
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result) && result >= 0;

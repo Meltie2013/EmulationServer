@@ -15,88 +15,75 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/RealmServer/Auth/RealmBuilds.cs
-  * Documents the RealmBuilds source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/RealmServer/Auth/RealmBuilds.cs
+// Purpose: Contains realm builds code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Stores protocol version details that can be written into a realm-list packet when the SpecifyBuild flag is enabled.
-  */
+// Type: RealmBuildVersionInfo
+// Purpose: Represents realm build version info data passed through the realm server authentication, realm-list, and account connection layer.
+// Constructor values:
+// - MajorVersion: Major version value supplied by the caller for this operation.
+// - MinorVersion: Minor version value supplied by the caller for this operation.
+// - PatchVersion: Patch version value supplied by the caller for this operation.
+// - Build: Build value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct RealmBuildVersionInfo(byte MajorVersion, byte MinorVersion, byte PatchVersion, ushort Build);
 
-/**
-  * Lists the supported realm client expansion values used by the realm authentication, realm-list handling, and external client login services layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: RealmClientExpansion
+// Purpose: Defines the allowed realm client expansion values used by the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum RealmClientExpansion : byte
 {
-    /**
-      * Represents the classic value for realm client expansion handling.
-      */
+
+    // Enum Value: Defines the classic enum value.
+    // Value: explicit expression 0.
     Classic = 0,
-    /**
-      * Represents the the burning crusade value for realm client expansion handling.
-      */
+
+    // Enum Value: Defines the the burning crusade enum value.
+    // Value: explicit expression 1.
     TheBurningCrusade = 1,
-    /**
-      * Represents the wrath of the lich king value for realm client expansion handling.
-      */
+
+    // Enum Value: Defines the wrath of the lich king enum value.
+    // Value: explicit expression 2.
     WrathOfTheLichKing = 2,
-    /**
-      * Represents the cataclysm value for realm client expansion handling.
-      */
+
+    // Enum Value: Defines the cataclysm enum value.
+    // Value: explicit expression 3.
     Cataclysm = 3,
 }
 
-/**
-  * Owns the realm builds behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmBuilds
+// Purpose: Provides realm builds behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class RealmBuilds
 {
-    /**
-      * Defines the constant value for vanilla 1121.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the vanilla1121 constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed vanilla1121 value used anywhere this rule or protocol value is needed.
     public const ushort Vanilla1121 = 5875;
-    /**
-      * Defines the constant value for vanilla 1122.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the vanilla1122 constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed vanilla1122 value used anywhere this rule or protocol value is needed.
     public const ushort Vanilla1122 = 6005;
-    /**
-      * Defines the constant value for vanilla 1123.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the vanilla1123 constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed vanilla1123 value used anywhere this rule or protocol value is needed.
     public const ushort Vanilla1123 = 6141;
 
-    /**
-      * Defines the constant value for the burning crusade 243.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the the burning crusade243 constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed the burning crusade243 value used anywhere this rule or protocol value is needed.
     public const ushort TheBurningCrusade243 = 8606;
 
-    /**
-      * Defines the constant value for wrath 335 a.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the wrath335a constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed wrath335a value used anywhere this rule or protocol value is needed.
     public const ushort Wrath335a = 12340;
 
-    /**
-      * Defines the constant value for cataclysm 434.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the cataclysm434 constant used by the realm server authentication, realm-list, and account connection layer.
+    // Value: fixed cataclysm434 value used anywhere this rule or protocol value is needed.
     public const ushort Cataclysm434 = 15595;
 
-    /**
-      * Stores the default supported builds value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
     private static readonly HashSet<ushort> SupportedBuilds =
     [
         Vanilla1121,
@@ -107,80 +94,89 @@ public static class RealmBuilds
         Cataclysm434,
     ];
 
-    /**
-      * Determines whether supported for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: IsSupported
+    // Purpose: Validates or evaluates is supported rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when is supported succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsSupported(ushort build)
     {
         return SupportedBuilds.Contains(build);
     }
 
-    /**
-      * Determines whether vanilla for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: IsVanilla
+    // Purpose: Validates or evaluates is vanilla rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when is vanilla succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsVanilla(ushort build)
     {
         return build is Vanilla1121 or Vanilla1122 or Vanilla1123;
     }
 
-    /**
-      * Determines whether the burning crusade for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: IsTheBurningCrusade
+    // Purpose: Validates or evaluates is the burning crusade rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when is the burning crusade succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsTheBurningCrusade(ushort build)
     {
         return build is TheBurningCrusade243;
     }
 
-    /**
-      * Determines whether wrath for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: IsWrath
+    // Purpose: Validates or evaluates is wrath rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when is wrath succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsWrath(ushort build)
     {
         return build is Wrath335a;
     }
 
-    /**
-      * Determines whether cataclysm for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: IsCataclysm
+    // Purpose: Validates or evaluates is cataclysm rules for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when is cataclysm succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool IsCataclysm(ushort build)
     {
         return build is Cataclysm434;
     }
 
-    /**
-      * Performs the uses modern proof response operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: UsesModernProofResponse
+    // Purpose: Executes the uses modern proof response operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when uses modern proof response succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool UsesModernProofResponse(ushort build)
     {
         return !IsVanilla(build);
     }
 
-    /**
-      * Performs the uses modern realm list operation for the realm authentication, realm-list handling, and external client login services workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: build.
-      */
+    // Method: UsesModernRealmList
+    // Purpose: Executes the uses modern realm list operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns true when uses modern realm list succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool UsesModernRealmList(ushort build)
     {
         return !IsVanilla(build);
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of RealmBuilds and keeps this workflow isolated from the caller.
-      */
+    // Method: GetExpansion
+    // Purpose: Retrieves get expansion data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns the realm client expansion value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static RealmClientExpansion GetExpansion(ushort build)
     {
         return build switch
@@ -193,10 +189,13 @@ public static class RealmBuilds
         };
     }
 
-    /**
-      * Attempts to resolve the client build into packet version fields used by SpecifyBuild.
-      * The method is part of RealmBuilds and keeps this workflow isolated from the caller.
-      */
+    // Method: TryGetVersionInfo
+    // Purpose: Attempts to retrieve or parse try get version info data without treating normal misses as failures.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // - versionInfo: Version info value supplied by the caller for this operation.
+    // Returns: Returns true when try get version info succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static bool TryGetVersionInfo(ushort build, out RealmBuildVersionInfo versionInfo)
     {
         versionInfo = build switch
@@ -213,10 +212,12 @@ public static class RealmBuilds
         return versionInfo.Build != 0;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of RealmBuilds and keeps this workflow isolated from the caller.
-      */
+    // Method: GetDisplayName
+    // Purpose: Retrieves get display name data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - build: Build value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmBuilds so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetDisplayName(ushort build)
     {
         return build switch

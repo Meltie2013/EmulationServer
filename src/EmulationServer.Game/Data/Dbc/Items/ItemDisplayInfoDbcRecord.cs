@@ -15,19 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Items/ItemDisplayInfoDbcRecord.cs
-  * Documents the ItemDisplayInfoDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Items/ItemDisplayInfoDbcRecord.cs
+// Purpose: Contains item display info DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Items;
 
-/**
-  * Represents one ItemDisplayInfo.dbc row used for item appearance and character-list equipment display.
-  * Positional fields carried by this record: Id, ModelName1, ModelName2, ModelTexture1, ModelTexture2, InventoryIcon1, InventoryIcon2, GeosetGroup1, GeosetGroup2, GeosetGroup3, SpellVisualId, GroupSoundIndex, HelmetGeosetVis1, HelmetGeosetVis2, Textures, ItemVisual.
-  */
+// Type: ItemDisplayInfoDbcRecord
+// Purpose: Represents item display info DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - ModelName1: Model name1 value supplied by the caller for this operation.
+// - ModelName2: Model name2 value supplied by the caller for this operation.
+// - ModelTexture1: Model texture1 value supplied by the caller for this operation.
+// - ModelTexture2: Model texture2 value supplied by the caller for this operation.
+// - InventoryIcon1: Inventory icon1 value supplied by the caller for this operation.
+// - InventoryIcon2: Inventory icon2 value supplied by the caller for this operation.
+// - GeosetGroup1: Geoset group1 value supplied by the caller for this operation.
+// - GeosetGroup2: Geoset group2 value supplied by the caller for this operation.
+// - GeosetGroup3: Geoset group3 value supplied by the caller for this operation.
+// - SpellVisualId: Spell visual ID identifier used to select the exact record, object, or runtime owner.
+// - GroupSoundIndex: Group sound index value supplied by the caller for this operation.
+// - HelmetGeosetVis1: Helmet geoset vis1 value supplied by the caller for this operation.
+// - HelmetGeosetVis2: Helmet geoset vis2 value supplied by the caller for this operation.
+// - Textures: Textures value supplied by the caller for this operation.
+// - ItemVisual: Item visual value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record ItemDisplayInfoDbcRecord(
     int Id,
     string ModelName1,

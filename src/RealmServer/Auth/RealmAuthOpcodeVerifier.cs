@@ -15,25 +15,18 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/RealmServer/Auth/RealmAuthOpcodeVerifier.cs
-  * Documents the RealmAuthOpcodeVerifier source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/RealmServer/Auth/RealmAuthOpcodeVerifier.cs
+// Purpose: Contains realm auth opcode verifier code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Owns the realm auth opcode verifier behavior for the realm authentication, realm-list handling, and external client login services layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmAuthOpcodeVerifier
+// Purpose: Provides realm auth opcode verifier behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class RealmAuthOpcodeVerifier
 {
-    /**
-      * Stores the default critical op codes value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
     private static readonly IReadOnlyList<RealmAuthOpcodeDefinition> CriticalOpCodes =
     [
         new("AUTH_LOGON_CHALLENGE", RealmAuthOpCode.AuthLogonChallenge, 0x00),
@@ -43,10 +36,11 @@ public static class RealmAuthOpcodeVerifier
         new("REALM_LIST", RealmAuthOpCode.RealmList, 0x10),
     ];
 
-    /**
-      * Verifies that loaded data satisfies the expected format and consistency rules.
-      * The method is part of RealmAuthOpcodeVerifier and keeps this workflow isolated from the caller.
-      */
+    // Method: VerifyCriticalOpCodes
+    // Purpose: Executes the verify critical op codes operation for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmAuthOpcodeVerifier so callers do not duplicate validation, protocol, or persistence rules.
     public static void VerifyCriticalOpCodes()
     {
         List<string> errors = [];
@@ -73,26 +67,31 @@ public static class RealmAuthOpcodeVerifier
         }
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of RealmAuthOpcodeVerifier and keeps this workflow isolated from the caller.
-      */
+    // Method: GetVerificationSummary
+    // Purpose: Retrieves get verification summary data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmAuthOpcodeVerifier so callers do not duplicate validation, protocol, or persistence rules.
     public static string GetVerificationSummary()
     {
         return string.Join(", ", CriticalOpCodes.Select(definition => $"{definition.Name}=0x{definition.ExpectedValue:X2}"));
     }
 
-    /**
-      * Represents immutable struct data passed between parts of the server.
-      * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-      * Positional fields carried by this record: Name, OpCode, ExpectedValue.
-      */
+    // Type: RealmAuthOpcodeDefinition
+    // Purpose: Represents realm auth opcode definition data passed through the realm server authentication, realm-list, and account connection layer.
+    // Constructor values:
+    // - Name: Name value supplied by the caller for this operation.
+    // - OpCode: Op code value supplied by the caller for this operation.
+    // - ExpectedValue: Expected value value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private readonly record struct RealmAuthOpcodeDefinition(string Name, RealmAuthOpCode OpCode, byte ExpectedValue)
     {
-        /**
-          * Gets or stores the actual value value used by struct.
-          * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-          */
+
+        // Method: ActualValue
+        // Purpose: Executes the actual value operation for the realm server authentication, realm-list, and account connection layer.
+        // Parameters: none.
+        // Returns: Returns the byte value produced by this operation.
+        // Notes: This keeps the operation scoped to RealmAuthOpcodeDefinition so callers do not duplicate validation, protocol, or persistence rules.
         public byte ActualValue => (byte)OpCode;
     }
 }

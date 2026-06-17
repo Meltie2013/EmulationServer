@@ -15,86 +15,57 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Configuration/WorldServerSettings.cs
+// Purpose: Contains world server settings code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Configuration;
 using EmulationServer.Network.Configuration;
 
 using EmulationServer.Shared.Logging.Configuration;
 
-/**
-  * File overview: src/WorldServer/Configuration/WorldServerSettings.cs
-  * Documents the WorldServerSettings source file in the world server configuration and startup settings area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Configuration;
 
-/**
-  * Owns the world server settings behavior for the world server configuration and startup settings layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldServerSettings
+// Purpose: Provides world server settings behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldServerSettings
 {
-    /**
-      * Gets or stores the logging value used by WorldServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
     public LoggingSettings Logging { get; init; } = new();
 
-    /**
-      * Gets or stores the internal network value used by WorldServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public InternalNetworkSettings InternalNetwork { get; init; } = new();
 
-    /**
-      * Gets or stores the max connections value used by WorldServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the max connections value used by the world server gameplay, session, and character runtime layer.
+    // Value: max connections value exposed by the owning type.
     public int MaxConnections { get; init; } = 1000;
 
-    /**
-      * Gets the message sent to players after they enter the world.
-      */
+    // Property: Gets or sets the message of the day value used by the world server gameplay, session, and character runtime layer.
+    // Value: message of the day value exposed by the owning type.
     public string MessageOfTheDay { get; init; } = "Welcome to Emulation Server.";
 
-    /**
-      * Gets how often active in-world player state is persisted while the player remains connected.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span player save interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldServerSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan PlayerSaveInterval { get; init; } = TimeSpan.FromSeconds(60);
 
-    /**
-      * Gets shared database connection defaults used to inherit host/user/pool settings for the concrete WorldServer schemas.
-      * WorldServer does not open this database directly.
-      */
     public DatabaseSettings Database { get; init; } = new();
 
-    /**
-      * Gets grouped database settings for the account/auth, character, and world schemas.
-      */
     public WorldDatabaseSettings Databases { get; init; } = new();
 
-    /**
-      * Gets public WoW client listener settings for the realm connection port.
-      */
     public WorldClientSettings ClientNetwork { get; init; } = new();
 
-    /**
-      * Gets or stores the realm status value used by WorldServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public RealmStatusSettings RealmStatus { get; init; } = new();
 
-    /**
-      * Gets or stores the game data value used by WorldServerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
     public GameDataSettings GameData { get; init; } = new();
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of WorldServerSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldServerSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         Logging.Validate();

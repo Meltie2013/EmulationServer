@@ -15,61 +15,50 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceDefinition.cs
-  * Documents the MapServiceDefinition source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceDefinition.cs
+// Purpose: Contains map service definition code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Owns the map service definition behavior for the runtime map-player state tracking layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: MapServiceDefinition
+// Purpose: Provides map service definition behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapServiceDefinition
 {
-    /**
-      * Gets or stores the map id value used by MapServiceDefinition.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the map ID value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: map ID value exposed by the owning type.
     public int MapId { get; init; }
 
-    /**
-      * Gets or stores the instance id value used by MapServiceDefinition.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the instance ID value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: instance ID value exposed by the owning type.
     public long InstanceId { get; init; }
 
-    /**
-      * Gets or stores the name value used by MapServiceDefinition.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the name value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: name value exposed by the owning type.
     public string Name { get; init; } = string.Empty;
 
-    /**
-      * Gets or stores the kind value used by MapServiceDefinition.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the kind value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: kind value exposed by the owning type.
     public MapServiceKind Kind { get; init; }
 
-    /**
-      * Gets or stores the tick interval value used by MapServiceDefinition.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the time span tick interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceDefinition so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan TickInterval { get; init; } = TimeSpan.FromMilliseconds(100);
 
-    /**
-      * Gets or stores the log ticks value used by MapServiceDefinition.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the log ticks value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: log ticks value exposed by the owning type.
     public bool LogTicks { get; init; }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of MapServiceDefinition and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapServiceDefinition so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (MapId < 0)

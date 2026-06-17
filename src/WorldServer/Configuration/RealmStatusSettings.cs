@@ -15,61 +15,50 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/WorldServer/Configuration/RealmStatusSettings.cs
-  * Documents the RealmStatusSettings source file in the world server configuration and startup settings area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/WorldServer/Configuration/RealmStatusSettings.cs
+// Purpose: Contains realm status settings code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.WorldServer.Configuration;
 
-/**
-  * Owns the realm status settings behavior for the world server configuration and startup settings layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: RealmStatusSettings
+// Purpose: Provides realm status settings behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmStatusSettings
 {
-    /**
-      * Gets or stores the enabled value used by RealmStatusSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the enabled value used by the world server gameplay, session, and character runtime layer.
+    // Value: enabled value exposed by the owning type.
     public bool Enabled { get; init; } = true;
 
-    /**
-      * Gets or stores the realm id value used by RealmStatusSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the realm ID value used by the world server gameplay, session, and character runtime layer.
+    // Value: realm ID value exposed by the owning type.
     public uint RealmId { get; init; } = 1;
 
-    /**
-      * Gets or stores the realm server host value used by RealmStatusSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the realm server host value used by the world server gameplay, session, and character runtime layer.
+    // Value: realm server host value exposed by the owning type.
     public string RealmServerHost { get; init; } = "127.0.0.1";
 
-    /**
-      * Gets or stores the realm server port value used by RealmStatusSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the realm server port value used by the world server gameplay, session, and character runtime layer.
+    // Value: realm server port value exposed by the owning type.
     public ushort RealmServerPort { get; init; } = 5005;
 
-    /**
-      * Gets or stores the update interval value used by RealmStatusSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span update interval { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmStatusSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan UpdateInterval { get; init; } = TimeSpan.FromSeconds(15);
 
-    /**
-      * Gets or stores the population capacity limit value used by RealmStatusSettings.
-      * A value of 0 means the realm population calculator uses WorldServer MaxConnections as the capacity.
-      */
+    // Property: Gets or sets the population capacity limit value used by the world server gameplay, session, and character runtime layer.
+    // Value: population capacity limit value exposed by the owning type.
     public int PopulationCapacityLimit { get; init; }
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of RealmStatusSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmStatusSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (!Enabled)

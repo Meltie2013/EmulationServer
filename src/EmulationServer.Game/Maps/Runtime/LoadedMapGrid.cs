@@ -15,28 +15,26 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Maps/Runtime/LoadedMapGrid.cs
+// Purpose: Contains loaded map grid code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Data.Maps;
 
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/LoadedMapGrid.cs
-  * Documents the LoadedMapGrid source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Owns the loaded map grid behavior for the runtime map-player state tracking layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: LoadedMapGrid
+// Purpose: Provides loaded map grid behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class LoadedMapGrid
 {
-    /**
-      * Initializes a new LoadedMapGrid instance with the dependencies required by the runtime map-player state tracking workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: tile.
-      */
+
+    // Constructor: LoadedMapGrid
+    // Purpose: Initializes a new LoadedMapGrid instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - tile: Tile value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to LoadedMapGrid so callers do not duplicate validation, protocol, or persistence rules.
     public LoadedMapGrid(MapTileDataStore tile)
     {
         Tile = tile ?? throw new ArgumentNullException();
@@ -44,28 +42,23 @@ public sealed class LoadedMapGrid
         LastUsedUtc = LoadedUtc;
     }
 
-    /**
-      * Gets or stores the tile value used by LoadedMapGrid.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the tile value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: tile value exposed by the owning type.
     public MapTileDataStore Tile { get; }
 
-    /**
-      * Gets or stores the loaded utc value used by LoadedMapGrid.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the loaded utc value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: loaded utc value exposed by the owning type.
     public DateTimeOffset LoadedUtc { get; }
 
-    /**
-      * Gets or stores the last used utc value used by LoadedMapGrid.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the last used utc value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: last used utc value exposed by the owning type.
     public DateTimeOffset LastUsedUtc { get; private set; }
 
-    /**
-      * Performs the touch operation for the runtime map-player state tracking workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: Touch
+    // Purpose: Executes the touch operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to LoadedMapGrid so callers do not duplicate validation, protocol, or persistence rules.
     public void Touch()
     {
         LastUsedUtc = DateTimeOffset.UtcNow;

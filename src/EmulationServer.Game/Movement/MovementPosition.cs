@@ -15,26 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Movement/MovementPosition.cs
-  * Documents the MovementPosition source file in the movement packet state and client coordinate tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Movement/MovementPosition.cs
+// Purpose: Contains movement position code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Movement;
 
-/**
-  * Carries immutable movement position data for the movement packet state and client coordinate tracking layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: X, Y, Z, Orientation.
-  */
+// Type: MovementPosition
+// Purpose: Represents movement position data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - X: X value supplied by the caller for this operation.
+// - Y: Y value supplied by the caller for this operation.
+// - Z: Z value supplied by the caller for this operation.
+// - Orientation: Orientation value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MovementPosition(float X, float Y, float Z, float Orientation)
 {
-    /**
-      * Stores the default is finite value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
+    // Property: Gets or sets the is finite value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: is finite value exposed by the owning type.
     public bool IsFinite =>
         float.IsFinite(X) &&
         float.IsFinite(Y) &&

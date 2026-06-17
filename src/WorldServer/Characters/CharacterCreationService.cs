@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Characters/CharacterCreationService.cs
+// Purpose: Contains character creation service code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Text.RegularExpressions;
 
@@ -28,81 +31,84 @@ using EmulationServer.Game.Characters;
 using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.Game.WorldData;
 
-/**
-  * File overview: src/WorldServer/Characters/CharacterCreationService.cs
-  * Documents the CharacterCreationService source file in the world character creation validation and character database access area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Characters;
 
-/**
-  * Owns the character creation service behavior for the world character creation validation and character database access layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: CharacterCreationService
+// Purpose: Provides character creation service behavior for the world server gameplay, session, and character runtime layer.
+// Constructor values:
+// - characterRepository: Character repository value supplied by the caller for this operation.
+// - gameDataAccessor: Game data accessor value supplied by the caller for this operation.
+// - worldTemplateAccessor: World template accessor value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed partial class CharacterCreationService(
     CharacterRepository characterRepository,
     Func<WorldGameDataStore> gameDataAccessor,
     Func<WorldTemplateDataStore> worldTemplateAccessor)
 {
-    /**
-      * Defines the constant value for maximum characters per account.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the maximum characters per account constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed maximum characters per account value used anywhere this rule or protocol value is needed.
     private const int MaximumCharactersPerAccount = 10;
-    /**
-      * Defines the constant value for first backpack slot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the first backpack slot constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed first backpack slot value used anywhere this rule or protocol value is needed.
     private const int FirstBackpackSlot = 23;
-    /**
-      * Defines the constant value for last backpack slot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the last backpack slot constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed last backpack slot value used anywhere this rule or protocol value is needed.
     private const int LastBackpackSlot = 38;
-    /**
-      * Defines the constant value for first bag slot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the first bag slot constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed first bag slot value used anywhere this rule or protocol value is needed.
     private const int FirstBagSlot = 19;
-    /**
-      * Defines the constant value for last bag slot.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the last bag slot constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed last bag slot value used anywhere this rule or protocol value is needed.
     private const int LastBagSlot = 22;
-    /**
-      * Holds the private character repository state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the character repository character repository = character repository ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private readonly CharacterRepository _characterRepository = characterRepository ?? throw new ArgumentNullException();
-    /**
-      * Holds the private game data accessor state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the func game data accessor = game data accessor ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<WorldGameDataStore> _gameDataAccessor = gameDataAccessor ?? throw new ArgumentNullException();
-    /**
-      * Holds the private world template accessor state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the func world template accessor = world template accessor ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
 
-    /**
-      * Resolves the character list value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: accountId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetCharacterListAsync
+    // Purpose: Retrieves get character list data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task<IReadOnlyList<CharacterListEntry>> GetCharacterListAsync(uint accountId, CancellationToken cancellationToken)
     {
         return _characterRepository.GetCharactersForAccountAsync(accountId, cancellationToken);
     }
 
-    /**
-      * Creates the character result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: accountId, request, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CreateCharacterAsync
+    // Purpose: Applies create character changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - request: Request value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<CharacterCreateResult> CreateCharacterAsync(
         uint accountId,
         CharacterCreateRequest request,
@@ -179,12 +185,15 @@ public sealed partial class CharacterCreationService(
         return CharacterCreateResult.Success;
     }
 
-    /**
-      * Performs the delete character operation for the world character creation validation and character database access workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountId, clientGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DeleteCharacterAsync
+    // Purpose: Applies delete character changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<CharacterDeleteServiceResult> DeleteCharacterAsync(
         uint accountId,
         ulong clientGuid,
@@ -233,25 +242,24 @@ public sealed partial class CharacterCreationService(
         }
     }
 
-    /**
-      * Performs the extract character guid operation for the world character creation validation and character database access workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: clientGuid.
-      */
+    // Method: ExtractCharacterGuid
+    // Purpose: Executes the extract character GUID operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - clientGuid: Client GUID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ExtractCharacterGuid(ulong clientGuid)
     {
-        // Vanilla clients send the full ObjectGuid back to CMSG_CHAR_DELETE.
-        // The character table stores the low counter in characters.guid.
-        // This also supports the current milestone enum packet, which sends the
-        // low guid directly until the full object-guid builder is implemented.
+
         return (uint)(clientGuid & uint.MaxValue);
     }
 
-    /**
-      * Validates validate request state before it is used by another server component.
-      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-      * Inputs used by this operation: request.
-      */
+    // Method: ValidateRequest
+    // Purpose: Validates or evaluates validate request rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - request: Request value supplied by the caller for this operation.
+    // Returns: Returns the character create result value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static CharacterCreateResult ValidateRequest(CharacterCreateRequest request)
     {
         if (!IsValidCharacterName(request.Name))
@@ -267,19 +275,16 @@ public sealed partial class CharacterCreationService(
         return CharacterCreateResult.Success;
     }
 
-    /**
-      * Validates validate customization state before it is used by another server component.
-      * Validation failures are raised as close to the source as possible so configuration, packet, and data problems are easier to diagnose.
-      * Inputs used by this operation: characterData, request.
-      */
+    // Method: ValidateCustomization
+    // Purpose: Validates or evaluates validate customization rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - characterData: Character data value supplied by the caller for this operation.
+    // - request: Request value supplied by the caller for this operation.
+    // Returns: Returns the character customization validation result value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static CharacterCustomizationValidationResult ValidateCustomization(CharacterDbcDataStore characterData, CharacterCreateRequest request)
     {
-        // Vanilla CharSections.dbc stores character creation values as:
-        //   section 0: skin color    -> VariationIndex = 0,         ColorIndex = skin
-        //   section 1: face texture  -> VariationIndex = face,      ColorIndex = skin
-        //   section 3: hair texture  -> VariationIndex = hairStyle, ColorIndex = hairColor
-        // Hair style geometry is stored separately in CharHairGeosets.dbc.
-        // Facial hair, earrings, and piercings are stored in CharacterFacialHairStyles.dbc.
+
         bool skinValid = characterData.IsSectionCustomizationValid(request.Race, request.Gender, 0, 0, request.Skin);
         bool faceValid = characterData.IsSectionCustomizationValid(request.Race, request.Gender, 1, request.Face, request.Skin);
         bool hairColorValid = characterData.IsSectionCustomizationValid(request.Race, request.Gender, 3, request.HairStyle, request.HairColor);
@@ -294,11 +299,15 @@ public sealed partial class CharacterCreationService(
             facialHairValid);
     }
 
-    /**
-      * Carries immutable character customization validation result data for the world character creation validation and character database access layer.
-      * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-      * Positional fields carried by this record: SkinValid, FaceValid, HairColorValid, HairStyleValid, FacialHairValid.
-      */
+    // Type: CharacterCustomizationValidationResult
+    // Purpose: Represents character customization validation result data passed through the world server gameplay, session, and character runtime layer.
+    // Constructor values:
+    // - SkinValid: Skin valid value supplied by the caller for this operation.
+    // - FaceValid: Face valid value supplied by the caller for this operation.
+    // - HairColorValid: Hair color valid value supplied by the caller for this operation.
+    // - HairStyleValid: Hair style valid value supplied by the caller for this operation.
+    // - FacialHairValid: Facial hair valid value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record CharacterCustomizationValidationResult(
         bool SkinValid,
         bool FaceValid,
@@ -306,27 +315,31 @@ public sealed partial class CharacterCreationService(
         bool HairStyleValid,
         bool FacialHairValid)
     {
-        /**
-          * Stores the default is valid value used when the caller does not supply an override.
-          * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-          */
+
+        // Property: Gets or sets the is valid value used by the world server gameplay, session, and character runtime layer.
+        // Value: is valid value exposed by the owning type.
         public bool IsValid => SkinValid && FaceValid && HairColorValid && HairStyleValid && FacialHairValid;
 
-        /**
-          * Performs the to string operation for the world character creation validation and character database access workflow.
-          * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-          */
+        // Method: ToString
+        // Purpose: Executes the to string operation for the world server gameplay, session, and character runtime layer.
+        // Parameters: none.
+        // Returns: Returns the string value produced by this operation.
+        // Notes: This keeps the operation scoped to CharacterCustomizationValidationResult so callers do not duplicate validation, protocol, or persistence rules.
         public override string ToString()
         {
             return $"validation detail: skin={SkinValid}, face={FaceValid}, hairColor={HairColorValid}, hairStyle={HairStyleValid}, facialHair={FacialHairValid}.";
         }
     }
 
-    /**
-      * Resolves the starter items value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, characterClass, outfit, worldTemplates.
-      */
+    // Method: ResolveStarterItems
+    // Purpose: Retrieves resolve starter items data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - outfit: Outfit value supplied by the caller for this operation.
+    // - worldTemplates: World templates value supplied by the caller for this operation.
+    // Returns: Returns the list value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static List<StarterItemCreateData> ResolveStarterItems(
         byte race,
         byte characterClass,
@@ -369,10 +382,16 @@ public sealed partial class CharacterCreationService(
         return result;
     }
 
-    /**
-      * Adds world database starter items after the DBC outfit has been placed.
-      * The world table is treated as additive so an incomplete playercreateinfo_item table cannot suppress equipped starter gear.
-      */
+    // Method: AddPlayerCreateInfoStarterItems
+    // Purpose: Applies add player create info starter items changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - starterItems: Starter items value supplied by the caller for this operation.
+    // - worldTemplates: World templates value supplied by the caller for this operation.
+    // - result: Result value supplied by the caller for this operation.
+    // - nextBackpackSlot: Next backpack slot value supplied by the caller for this operation.
+    // - nextBagSlot: Next bag slot value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static void AddPlayerCreateInfoStarterItems(
         IReadOnlyList<PlayerCreateItemRecord> starterItems,
         WorldTemplateDataStore worldTemplates,
@@ -422,11 +441,16 @@ public sealed partial class CharacterCreationService(
         }
     }
 
-    /**
-      * Tries to resolve the add starter item value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: result, template, inventoryType, nextBackpackSlot, nextBagSlot.
-      */
+    // Method: TryAddStarterItem
+    // Purpose: Executes the try add starter item operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - result: Result value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // - inventoryType: Inventory type value supplied by the caller for this operation.
+    // - nextBackpackSlot: Next backpack slot value supplied by the caller for this operation.
+    // - nextBagSlot: Next bag slot value supplied by the caller for this operation.
+    // Returns: Returns true when try add starter item succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryAddStarterItem(
         List<StarterItemCreateData> result,
         ItemTemplateRecord template,
@@ -460,11 +484,13 @@ public sealed partial class CharacterCreationService(
         return true;
     }
 
-    /**
-      * Resolves the inventory type value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: item, template.
-      */
+    // Method: ResolveInventoryType
+    // Purpose: Retrieves resolve inventory type data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - item: Item value supplied by the caller for this operation.
+    // - template: Template value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static byte ResolveInventoryType(CharStartOutfitItemDbcRecord item, ItemTemplateRecord template)
     {
         return item.InventorySlotId is > 0 and <= byte.MaxValue
@@ -472,20 +498,22 @@ public sealed partial class CharacterCreationService(
             : template.InventoryType;
     }
 
-    /**
-      * Determines whether valid character name for the world character creation validation and character database access workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: name.
-      */
+    // Method: IsValidCharacterName
+    // Purpose: Validates or evaluates is valid character name rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - name: Name value supplied by the caller for this operation.
+    // Returns: Returns true when is valid character name succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static bool IsValidCharacterName(string name)
     {
         return name.Length is >= 2 and <= 12 && CharacterNameRegex().IsMatch(name);
     }
 
-    /**
-      * Performs the character name regex operation for the world character creation validation and character database access workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
     [GeneratedRegex("^[A-Za-z]+$", RegexOptions.CultureInvariant)]
+    // Method: CharacterNameRegex
+    // Purpose: Executes the character name regex operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the regex value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterCreationService so callers do not duplicate validation, protocol, or persistence rules.
     private static partial Regex CharacterNameRegex();
 }

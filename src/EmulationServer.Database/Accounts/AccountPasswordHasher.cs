@@ -15,28 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Database/Accounts/AccountPasswordHasher.cs
+// Purpose: Contains account password hasher code for the database persistence, repository, and MySQL connectivity layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Security.Cryptography;
 using System.Text;
 
-/**
-  * File overview: src/EmulationServer.Database/Accounts/AccountPasswordHasher.cs
-  * Documents the AccountPasswordHasher source file in the database access, account persistence, and MySQL connectivity area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Database.Accounts;
 
-/**
-  * Owns the account password hasher behavior for the database access, account persistence, and MySQL connectivity layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: AccountPasswordHasher
+// Purpose: Provides account password hasher behavior for the database persistence, repository, and MySQL connectivity layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class AccountPasswordHasher
 {
-    /**
-      * Computes a derived value used by validation or status reporting.
-      * The method is part of AccountPasswordHasher and keeps this workflow isolated from the caller.
-      */
+
+    // Method: ComputeShaPassHash
+    // Purpose: Calculates compute sha pass hash values for the database persistence, repository, and MySQL connectivity layer.
+    // Parameters:
+    // - username: Username value supplied by the caller for this operation.
+    // - password: Password value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to AccountPasswordHasher so callers do not duplicate validation, protocol, or persistence rules.
     public static string ComputeShaPassHash(string username, string password)
     {
         if (string.IsNullOrWhiteSpace(username))

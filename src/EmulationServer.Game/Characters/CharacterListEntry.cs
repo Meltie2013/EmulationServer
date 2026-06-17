@@ -15,20 +15,33 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Characters/CharacterListEntry.cs
-  * Documents the CharacterListEntry source file in the character creation, listing, and identity transfer models area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Characters/CharacterListEntry.cs
+// Purpose: Contains character list entry code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Characters;
 
-/**
-  * Carries immutable character list entry data for the character creation, listing, and identity transfer models layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: Guid, Name, Race, Class, Gender, Level, Zone, Map, PositionX, PositionY, PositionZ, GuildId, PlayerFlags, AtLogin, PlayerBytes, PlayerBytes2, Equipment.
-  */
+// Type: CharacterListEntry
+// Purpose: Represents character list entry data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - Race: Race value supplied by the caller for this operation.
+// - Class: Class value supplied by the caller for this operation.
+// - Gender: Gender value supplied by the caller for this operation.
+// - Level: Level value supplied by the caller for this operation.
+// - Zone: Zone value supplied by the caller for this operation.
+// - Map: Map value supplied by the caller for this operation.
+// - PositionX: Position X value supplied by the caller for this operation.
+// - PositionY: Position Y value supplied by the caller for this operation.
+// - PositionZ: Position Z value supplied by the caller for this operation.
+// - GuildId: Guild ID identifier used to select the exact record, object, or runtime owner.
+// - PlayerFlags: Player flags value supplied by the caller for this operation.
+// - AtLogin: At login value supplied by the caller for this operation.
+// - PlayerBytes: Player bytes value supplied by the caller for this operation.
+// - PlayerBytes2: Player bytes2 value supplied by the caller for this operation.
+// - Equipment: Equipment value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record CharacterListEntry(
     uint Guid,
     string Name,

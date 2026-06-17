@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Database/Characters/CharacterRepository.cs
+// Purpose: Contains character repository code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
@@ -30,70 +33,105 @@ using EmulationServer.Game.WorldData;
 
 using MySqlConnector;
 
-/**
-  * File overview: src/WorldServer/Database/Characters/CharacterRepository.cs
-  * Documents the CharacterRepository source file in the world database repositories and persisted player/account records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Database.Characters;
 
-/**
-  * Owns the character repository behavior for the world database repositories and persisted player/account records layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: CharacterRepository
+// Purpose: Provides character repository behavior for the world server gameplay, session, and character runtime layer.
+// Constructor values:
+// - databaseService: Database service value supplied by the caller for this operation.
+// - itemTemplateAccessor: Item template accessor value supplied by the caller for this operation.
+// - worldTemplateAccessor: World template accessor value supplied by the caller for this operation.
+// - worldGameDataAccessor: World game data accessor value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class CharacterRepository(
     IDatabaseService databaseService,
     Func<uint, ItemTemplateRecord?> itemTemplateAccessor,
     Func<WorldTemplateDataStore> worldTemplateAccessor,
     Func<WorldGameDataStore> worldGameDataAccessor)
 {
-    /**
-      * Defines the constant value for character equipment slot count.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+
+    // Constant: Defines the character equipment slot count constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed character equipment slot count value used anywhere this rule or protocol value is needed.
     private const int CharacterEquipmentSlotCount = 19;
 
-    /**
-      * Defines the constant value for at login first.
-      * Keeping this value named avoids duplicated magic strings or numbers in packet, configuration, and data-loading code.
-      */
+    // Constant: Defines the at login first constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed at login first value used anywhere this rule or protocol value is needed.
     private const uint AtLoginFirst = 0x20;
+    // Constant: Defines the item instance field count constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item instance field count value used anywhere this rule or protocol value is needed.
     private const int ItemInstanceFieldCount = 48;
+    // Constant: Defines the object field GUID constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed object field GUID value used anywhere this rule or protocol value is needed.
     private const int ObjectFieldGuid = 0x0000;
+    // Constant: Defines the object field type constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed object field type value used anywhere this rule or protocol value is needed.
     private const int ObjectFieldType = 0x0002;
+    // Constant: Defines the object field entry constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed object field entry value used anywhere this rule or protocol value is needed.
     private const int ObjectFieldEntry = 0x0003;
+    // Constant: Defines the object field scale X constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed object field scale X value used anywhere this rule or protocol value is needed.
     private const int ObjectFieldScaleX = 0x0004;
+    // Constant: Defines the item field owner constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field owner value used anywhere this rule or protocol value is needed.
     private const int ItemFieldOwner = 0x0006;
+    // Constant: Defines the item field contained constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field contained value used anywhere this rule or protocol value is needed.
     private const int ItemFieldContained = 0x0008;
+    // Constant: Defines the item field stack count constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field stack count value used anywhere this rule or protocol value is needed.
     private const int ItemFieldStackCount = 0x000E;
+    // Constant: Defines the item field duration constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field duration value used anywhere this rule or protocol value is needed.
     private const int ItemFieldDuration = 0x000F;
+    // Constant: Defines the item field flags constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field flags value used anywhere this rule or protocol value is needed.
     private const int ItemFieldFlags = 0x0015;
+    // Constant: Defines the item field random properties ID constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field random properties ID value used anywhere this rule or protocol value is needed.
     private const int ItemFieldRandomPropertiesId = 0x002C;
+    // Constant: Defines the item field durability constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field durability value used anywhere this rule or protocol value is needed.
     private const int ItemFieldDurability = 0x002E;
+    // Constant: Defines the item field max durability constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed item field max durability value used anywhere this rule or protocol value is needed.
     private const int ItemFieldMaxDurability = 0x002F;
-    /**
-      * Holds the private database service state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the I database service database service = database service ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private readonly IDatabaseService _databaseService = databaseService ?? throw new ArgumentNullException();
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the func item template accessor = item template accessor ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<uint, ItemTemplateRecord?> _itemTemplateAccessor = itemTemplateAccessor ?? throw new ArgumentNullException();
-    /**
-      * Holds the private world template accessor state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the func world template accessor = world template accessor ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<WorldTemplateDataStore> _worldTemplateAccessor = worldTemplateAccessor ?? throw new ArgumentNullException();
-    /**
-      * Holds the private world game data accessor state used by reputation and DBC-backed character systems.
-      */
+
+    // Method: ArgumentNullException
+    // Purpose: Executes the argument null exception operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the func world game data accessor = world game data accessor ?? throw new value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private readonly Func<WorldGameDataStore> _worldGameDataAccessor = worldGameDataAccessor ?? throw new ArgumentNullException();
 
-    /**
-      * Resolves the characters for account value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: accountId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetCharactersForAccountAsync
+    // Purpose: Retrieves get characters for account data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<CharacterListEntry>> GetCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -170,6 +208,13 @@ public sealed class CharacterRepository(
         return result;
     }
 
+    // Method: GetPlayerStateTableAvailabilityAsync
+    // Purpose: Retrieves get player state table availability data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyDictionary<string, bool>> GetPlayerStateTableAvailabilityAsync(CancellationToken cancellationToken = default)
     {
         string[] tableNames =
@@ -196,12 +241,14 @@ public sealed class CharacterRepository(
         return availability;
     }
 
-    /**
-      * Performs the character name exists operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: name, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CharacterNameExistsAsync
+    // Purpose: Executes the character name exists operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - name: Name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when character name exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<bool> CharacterNameExistsAsync(string name, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -219,6 +266,13 @@ public sealed class CharacterRepository(
         return result is not null;
     }
 
+    // Method: GetCharacterCountsByAccountAsync
+    // Purpose: Retrieves get character counts by account data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyDictionary<uint, byte>> GetCharacterCountsByAccountAsync(CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -242,12 +296,14 @@ public sealed class CharacterRepository(
         return characterCounts;
     }
 
-    /**
-      * Performs the count characters for account operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CountCharactersForAccountAsync
+    // Purpose: Calculates count characters for account values for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<int> CountCharactersForAccountAsync(uint accountId, CancellationToken cancellationToken = default)
     {
         await using MySqlConnection connection = await _databaseService.CreateConnectionAsync(cancellationToken);
@@ -260,12 +316,17 @@ public sealed class CharacterRepository(
         return Convert.ToInt32(result, CultureInfo.InvariantCulture);
     }
 
-    /**
-      * Creates the character result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: accountId, request, createInfo, starterItems, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: CreateCharacterAsync
+    // Purpose: Applies create character changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - request: Request value supplied by the caller for this operation.
+    // - createInfo: Create info value supplied by the caller for this operation.
+    // - starterItems: Starter items value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<uint> CreateCharacterAsync(
         uint accountId,
         CharacterCreateRequest request,
@@ -321,9 +382,15 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Updates one or more inventory placements for a character and returns the refreshed inventory state.
-      */
+    // Method: UpdateInventoryPlacementsAsync
+    // Purpose: Applies update inventory placements changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - placements: Placements value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerInventoryItem>> UpdateInventoryPlacementsAsync(
         uint characterGuid,
         IReadOnlyList<PlayerInventoryPlacementUpdate> placements,
@@ -371,9 +438,18 @@ public sealed class CharacterRepository(
         return await LoadPlayerInventoryAsync(connection, characterGuid, cancellationToken);
     }
 
-    /**
-      * Splits a stackable item into an empty destination slot, or merges the requested count into a compatible destination stack.
-      */
+    // Method: SplitInventoryStackAsync
+    // Purpose: Executes the split inventory stack operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - sourceItemGuid: Source item GUID identifier used to select the exact record, object, or runtime owner.
+    // - destinationBagGuid: Destination bag GUID identifier used to select the exact record, object, or runtime owner.
+    // - destinationSlot: Destination slot value supplied by the caller for this operation.
+    // - splitCount: Split count value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<PlayerInventoryItem>> SplitInventoryStackAsync(
         uint characterGuid,
         uint sourceItemGuid,
@@ -466,12 +542,15 @@ public sealed class CharacterRepository(
         return await LoadPlayerInventoryAsync(connection, characterGuid, cancellationToken);
     }
 
-    /**
-      * Performs the delete character operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: accountId, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DeleteCharacterAsync
+    // Purpose: Applies delete character changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<CharacterDeleteRepositoryResult> DeleteCharacterAsync(
         uint accountId,
         uint characterGuid,
@@ -523,12 +602,16 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Resolves the player for login value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: accountId, characterGuid, factionResolver, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetPlayerForLoginAsync
+    // Purpose: Retrieves get player for login data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - factionResolver: Faction resolver value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<PlayerLoginRecord?> GetPlayerForLoginAsync(
         uint accountId,
         uint characterGuid,
@@ -650,12 +733,14 @@ public sealed class CharacterRepository(
             faction);
     }
 
-    /**
-      * Resolves the character name query value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetCharacterNameQueryAsync
+    // Purpose: Retrieves get character name query data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<CharacterNameQueryResult?> GetCharacterNameQueryAsync(uint characterGuid, CancellationToken cancellationToken = default)
     {
         if (characterGuid == 0)
@@ -688,12 +773,15 @@ public sealed class CharacterRepository(
             Convert.ToByte(reader.GetValue(4), CultureInfo.InvariantCulture));
     }
 
-    /**
-      * Performs the set character online operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: characterGuid, online, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: SetCharacterOnlineAsync
+    // Purpose: Applies set character online changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - online: Online value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task SetCharacterOnlineAsync(uint characterGuid, bool online, CancellationToken cancellationToken = default)
     {
         if (characterGuid == 0)
@@ -717,10 +805,14 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Saves the lightweight movement/time fields used by routine autosaves.
-      * Full player data is still saved during logout and explicit forced saves.
-      */
+    // Method: SavePlayerPositionAsync
+    // Purpose: Applies save player position changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task SavePlayerPositionAsync(PlayerLoginRecord player, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -760,12 +852,14 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Updates save player state in memory or persistent storage.
-      * The method keeps mutation rules centralized so player/account data changes remain auditable and safe to call from packet handlers.
-      * Inputs used by this operation: player, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: SavePlayerAsync
+    // Purpose: Applies save player changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task SavePlayerAsync(PlayerLoginRecord player, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -841,12 +935,15 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Loads load player inventory information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadPlayerInventoryAsync
+    // Purpose: Retrieves load player inventory data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<IReadOnlyList<PlayerInventoryItem>> LoadPlayerInventoryAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -909,12 +1006,17 @@ public sealed class CharacterRepository(
         return items;
     }
 
-    /**
-      * Resolves the next id value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: connection, transaction, tableName, columnName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: GetNextIdAsync
+    // Purpose: Retrieves get next ID data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - columnName: Column name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<uint> GetNextIdAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -929,12 +1031,23 @@ public sealed class CharacterRepository(
         return Convert.ToUInt32(result, CultureInfo.InvariantCulture);
     }
 
-    /**
-      * Performs the insert character operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, accountId, request, createInfo....
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertCharacterAsync
+    // Purpose: Applies insert character changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - request: Request value supplied by the caller for this operation.
+    // - createInfo: Create info value supplied by the caller for this operation.
+    // - playerBytes: Player bytes value supplied by the caller for this operation.
+    // - playerBytes2: Player bytes2 value supplied by the caller for this operation.
+    // - equipmentCache: Equipment cache value supplied by the caller for this operation.
+    // - initialStats: Initial stats value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -991,12 +1104,17 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the insert homebind operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, createInfo, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertHomebindAsync
+    // Purpose: Applies insert homebind changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - createInfo: Create info value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertHomebindAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1022,12 +1140,17 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the insert character stats operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, stats, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertCharacterStatsAsync
+    // Purpose: Applies insert character stats changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - stats: Stats value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterStatsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1086,12 +1209,16 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the insert character tutorial operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, accountId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertCharacterTutorialAsync
+    // Purpose: Applies insert character tutorial changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterTutorialAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1117,12 +1244,19 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the insert character spells operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, starterSpells, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertCharacterSpellsAsync
+    // Purpose: Applies insert character spells changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - starterSpells: Starter spells value supplied by the caller for this operation.
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterSpellsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1170,12 +1304,17 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Performs the insert character actions operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, starterActions, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertCharacterActionsAsync
+    // Purpose: Applies insert character actions changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - starterActions: Starter actions value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterActionsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1214,9 +1353,19 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Inserts the DBC-backed starter reputation states for a newly created character.
-      */
+    // Method: InsertCharacterReputationsAsync
+    // Purpose: Applies insert character reputations changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // - factionData: Faction data value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterReputationsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1254,9 +1403,18 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Inserts the starter skill state needed by the Vanilla language menu and chat comprehension rules.
-      */
+    // Method: InsertCharacterSkillsAsync
+    // Purpose: Applies insert character skills changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterSkillsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1293,12 +1451,18 @@ public sealed class CharacterRepository(
         }
     }
 
-    /**
-      * Performs the insert item instance operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, itemGuid, ownerGuid, itemTemplate, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertItemInstanceAsync
+    // Purpose: Applies insert item instance changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - ownerGuid: Owner GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertItemInstanceAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1322,12 +1486,19 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the insert character inventory operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, itemGuid, itemTemplate, storageSlot....
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: InsertCharacterInventoryAsync
+    // Purpose: Applies insert character inventory changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // - storageSlot: Storage slot value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterInventoryAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1353,12 +1524,16 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Loads load character ownership for update information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, transaction, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterOwnershipForUpdateAsync
+    // Purpose: Retrieves load character ownership for update data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<CharacterOwnershipRecord?> LoadCharacterOwnershipForUpdateAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1388,12 +1563,16 @@ public sealed class CharacterRepository(
             Convert.ToByte(reader.GetValue(2), CultureInfo.InvariantCulture) != 0);
     }
 
-    /**
-      * Determines whether guild leader for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: IsGuildLeaderAsync
+    // Purpose: Validates or evaluates is guild leader rules for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when is guild leader async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> IsGuildLeaderAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1419,22 +1598,23 @@ public sealed class CharacterRepository(
         return result is not null;
     }
 
-    /**
-      * Performs the delete character rows operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DeleteCharacterRowsAsync
+    // Purpose: Applies delete character rows changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task DeleteCharacterRowsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
         uint characterGuid,
         CancellationToken cancellationToken)
     {
-        // Delete optional character-side tables first when the full
-        // character schema is installed. The four current milestone tables are
-        // always included below, but optional tables are guarded so the minimal
-        // schema can still be used while the project is being built out.
+
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_action", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_aura", "guid", characterGuid, cancellationToken);
         await DeleteWhereColumnEqualsAsync(connection, transaction, "character_battleground_data", "guid", characterGuid, cancellationToken);
@@ -1463,12 +1643,18 @@ public sealed class CharacterRepository(
         await DeleteWhereColumnEqualsAsync(connection, transaction, "characters", "guid", characterGuid, cancellationToken);
     }
 
-    /**
-      * Performs the delete where column equals operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, tableName, columnName, value, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DeleteWhereColumnEqualsAsync
+    // Purpose: Applies delete where column equals changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - columnName: Column name value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task DeleteWhereColumnEqualsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1489,12 +1675,17 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the table column exists operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, tableName, columnName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: TableColumnExistsAsync
+    // Purpose: Executes the table column exists operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - columnName: Column name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when table column exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> TableColumnExistsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1519,12 +1710,16 @@ public sealed class CharacterRepository(
         return result is not null;
     }
 
-    /**
-      * Performs the table exists operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, transaction, tableName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: TableExistsAsync
+    // Purpose: Executes the table exists operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when table exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> TableExistsAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -1546,12 +1741,15 @@ public sealed class CharacterRepository(
         return result is not null;
     }
 
-    /**
-      * Performs the table exists operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: connection, tableName, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: TableExistsAsync
+    // Purpose: Executes the table exists operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - tableName: Table name value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when table exists async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<bool> TableExistsAsync(
         MySqlConnection connection,
         string tableName,
@@ -1571,21 +1769,25 @@ public sealed class CharacterRepository(
         return result is not null;
     }
 
-    /**
-      * Creates the default tutorial flags result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: CreateDefaultTutorialFlags
+    // Purpose: Applies create default tutorial flags changes for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the uint[] value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint[] CreateDefaultTutorialFlags()
     {
         return [.. Enumerable.Repeat(uint.MaxValue, 8)];
     }
 
-    /**
-      * Loads load character stats information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterStatsAsync
+    // Purpose: Retrieves load character stats data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<PlayerStats?> LoadCharacterStatsAsync(MySqlConnection connection, uint characterGuid, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_stats", cancellationToken))
@@ -1624,12 +1826,17 @@ public sealed class CharacterRepository(
             Convert.ToUInt32(reader.GetValue(11), CultureInfo.InvariantCulture));
     }
 
-    /**
-      * Loads load character spells information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, race, characterClass, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterSpellsAsync
+    // Purpose: Retrieves load character spells data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<IReadOnlyList<PlayerSpell>> LoadCharacterSpellsAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -1670,12 +1877,17 @@ public sealed class CharacterRepository(
             .Select(spell => new PlayerSpell(spell.SpellId, true, false))];
     }
 
-    /**
-      * Loads load character actions information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, race, characterClass, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterActionsAsync
+    // Purpose: Retrieves load character actions data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // - characterClass: Character class value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<IReadOnlyList<PlayerActionButton>> LoadCharacterActionsAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -1716,12 +1928,15 @@ public sealed class CharacterRepository(
             .Select(action => new PlayerActionButton(action.Button, action.Action, action.Type))];
     }
 
-    /**
-      * Loads load character tutorial flags information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, accountId, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterTutorialFlagsAsync
+    // Purpose: Retrieves load character tutorial flags data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - accountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<uint[]> LoadCharacterTutorialFlagsAsync(MySqlConnection connection, uint accountId, CancellationToken cancellationToken)
     {
         if (!await TableExistsAsync(connection, "character_tutorial", cancellationToken))
@@ -1753,12 +1968,18 @@ public sealed class CharacterRepository(
         return flags;
     }
 
-    /**
-      * Loads load character reputation information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, race, playerClass, factionData, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterReputationAsync
+    // Purpose: Retrieves load character reputation data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // - factionData: Faction data value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<IReadOnlyList<PlayerReputation>> LoadCharacterReputationAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -1800,12 +2021,17 @@ public sealed class CharacterRepository(
         return ReputationSystem.BuildCharacterReputations(factionData, race, playerClass, savedReputations);
     }
 
-    /**
-      * Loads load character skills information from configuration, files, or persistent storage.
-      * The method normalizes external input before returning it so the rest of the server can work with validated, strongly typed data.
-      * Inputs used by this operation: connection, characterGuid, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: LoadCharacterSkillsAsync
+    // Purpose: Retrieves load character skills data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task<IReadOnlyList<PlayerSkill>> LoadCharacterSkillsAsync(
         MySqlConnection connection,
         uint characterGuid,
@@ -1840,6 +2066,12 @@ public sealed class CharacterRepository(
         return LanguageKnowledgeSystem.EnsureInitialLanguageSkills(race, faction, skills);
     }
 
+    // Method: ResolveFactionForRace
+    // Purpose: Retrieves resolve faction for race data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // Returns: Returns the player faction value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static PlayerFaction ResolveFactionForRace(byte race)
     {
         return race switch
@@ -1850,6 +2082,15 @@ public sealed class CharacterRepository(
         };
     }
 
+    // Method: LoadEquippedInventoryAsync
+    // Purpose: Retrieves load equipped inventory data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - characterGuids: Character guids value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<Dictionary<uint, IReadOnlyList<CharacterEquipmentDisplay>>> LoadEquippedInventoryAsync(
         MySqlConnection connection,
         IEnumerable<uint> characterGuids,
@@ -1921,11 +2162,13 @@ public sealed class CharacterRepository(
         return result;
     }
 
-    /**
-      * Performs the merge equipment operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: cachedEquipment, inventoryEquipment.
-      */
+    // Method: MergeEquipment
+    // Purpose: Executes the merge equipment operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cachedEquipment: Cached equipment value supplied by the caller for this operation.
+    // - inventoryEquipment: Inventory equipment value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<CharacterEquipmentDisplay> MergeEquipment(
         IReadOnlyList<CharacterEquipmentDisplay> cachedEquipment,
         IReadOnlyList<CharacterEquipmentDisplay> inventoryEquipment)
@@ -1950,10 +2193,11 @@ public sealed class CharacterRepository(
         return merged;
     }
 
-    /**
-      * Creates the empty equipment array result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      */
+    // Method: CreateEmptyEquipmentArray
+    // Purpose: Applies create empty equipment array changes for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the character equipment display[] value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static CharacterEquipmentDisplay[] CreateEmptyEquipmentArray()
     {
         return [.. Enumerable
@@ -1961,11 +2205,13 @@ public sealed class CharacterRepository(
             .Select(_ => new CharacterEquipmentDisplay(0, 0, 0))];
     }
 
-    /**
-      * Parses read item instance field input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: instanceData, fieldIndex.
-      */
+    // Method: ReadItemInstanceField
+    // Purpose: Retrieves read item instance field data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // - fieldIndex: Field index value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ReadItemInstanceField(string instanceData, int fieldIndex)
     {
         if (string.IsNullOrWhiteSpace(instanceData) || fieldIndex < 0)
@@ -1984,15 +2230,17 @@ public sealed class CharacterRepository(
             : 0;
     }
 
-    /**
-      * Builds the build item instance data result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: itemGuid, ownerGuid, itemTemplate.
-      */
+    // Method: BuildItemInstanceData
+    // Purpose: Builds or writes build item instance data output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - ownerGuid: Owner GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string BuildItemInstanceData(uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
     {
-        // Vanilla item update fields end at ITEM_END (0x30). Container slot fields are
-        // generated from character_inventory at packet-build time so bag contents stay authoritative.
+
         uint[] fields = new uint[ItemInstanceFieldCount];
         ulong itemClientGuid = CharacterGuid.ToItemGuid(itemGuid);
         fields[ObjectFieldGuid] = (uint)(itemClientGuid & uint.MaxValue);
@@ -2012,17 +2260,26 @@ public sealed class CharacterRepository(
         return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
     }
 
-    /**
-      * Resolves the largest legal count for one item stack. Vanilla templates use 0/1 for non-stackable items.
-      */
+    // Method: ResolveMaximumStackCount
+    // Purpose: Retrieves resolve maximum stack count data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ResolveMaximumStackCount(ItemTemplateRecord itemTemplate)
     {
         return itemTemplate.Stackable > 1 ? itemTemplate.Stackable : 1u;
     }
 
-    /**
-      * Builds a valid item instance data string when a legacy or empty row is missing stack/owner/object fields.
-      */
+    // Method: NormalizeItemInstanceData
+    // Purpose: Converts incoming data into normalize item instance data form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - ownerGuid: Owner GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string NormalizeItemInstanceData(string instanceData, uint itemGuid, uint ownerGuid, ItemTemplateRecord itemTemplate)
     {
         if (string.IsNullOrWhiteSpace(instanceData))
@@ -2048,9 +2305,15 @@ public sealed class CharacterRepository(
         return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
     }
 
-    /**
-      * Returns a new item instance data string with GUID, owner, contained, and stack count fields updated.
-      */
+    // Method: SetItemInstanceStackCount
+    // Purpose: Applies set item instance stack count changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - ownerGuid: Owner GUID identifier used to select the exact record, object, or runtime owner.
+    // - stackCount: Stack count value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string SetItemInstanceStackCount(string instanceData, uint itemGuid, uint ownerGuid, uint stackCount)
     {
         uint[] fields = ReadItemInstanceFields(instanceData);
@@ -2063,9 +2326,12 @@ public sealed class CharacterRepository(
         return string.Join(' ', fields.Select(value => value.ToString(CultureInfo.InvariantCulture)));
     }
 
-    /**
-      * Parses the space-separated item_instance.data update fields into a dense array.
-      */
+    // Method: ReadItemInstanceFields
+    // Purpose: Retrieves read item instance fields data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // Returns: Returns the uint[] value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint[] ReadItemInstanceFields(string instanceData)
     {
         uint[] fields = new uint[ItemInstanceFieldCount];
@@ -2091,9 +2357,17 @@ public sealed class CharacterRepository(
         return fields;
     }
 
-    /**
-      * Persists the mutable item instance data blob for one item.
-      */
+    // Method: UpdateItemInstanceDataAsync
+    // Purpose: Applies update item instance data changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task UpdateItemInstanceDataAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -2113,9 +2387,18 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Inserts a cloned item instance row for stack splitting.
-      */
+    // Method: InsertItemInstanceDataAsync
+    // Purpose: Applies insert item instance data changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - ownerGuid: Owner GUID identifier used to select the exact record, object, or runtime owner.
+    // - instanceData: Instance data value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertItemInstanceDataAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -2138,9 +2421,20 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Inserts a cloned item into an explicit bag/slot after stack splitting.
-      */
+    // Method: InsertCharacterInventoryAsync
+    // Purpose: Applies insert character inventory changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - connection: Database connection used to execute this operation without opening unnecessary additional state.
+    // - transaction: Database transaction used to execute this operation without opening unnecessary additional state.
+    // - characterGuid: Character GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+    // - itemTemplate: Item template value supplied by the caller for this operation.
+    // - bagGuid: Bag GUID identifier used to select the exact record, object, or runtime owner.
+    // - storageSlot: Storage slot value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task InsertCharacterInventoryAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
@@ -2167,31 +2461,37 @@ public sealed class CharacterRepository(
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    /**
-      * Performs the pack player bytes operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: skin, face, hairStyle, hairColor.
-      */
+    // Method: PackPlayerBytes
+    // Purpose: Builds or writes pack player bytes output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - skin: Skin value supplied by the caller for this operation.
+    // - face: Face value supplied by the caller for this operation.
+    // - hairStyle: Hair style value supplied by the caller for this operation.
+    // - hairColor: Hair color value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint PackPlayerBytes(byte skin, byte face, byte hairStyle, byte hairColor)
     {
         return (uint)(skin | (face << 8) | (hairStyle << 16) | (hairColor << 24));
     }
 
-    /**
-      * Performs the pack player bytes 2 operation for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: facialHair.
-      */
+    // Method: PackPlayerBytes2
+    // Purpose: Builds or writes pack player bytes2 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - facialHair: Facial hair value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint PackPlayerBytes2(byte facialHair)
     {
         return facialHair;
     }
 
-    /**
-      * Builds the build equipment cache result needed by the caller.
-      * Centralized construction keeps defaults, validation rules, and packet/data layout decisions in one documented location.
-      * Inputs used by this operation: starterItems.
-      */
+    // Method: BuildEquipmentCache
+    // Purpose: Builds or writes build equipment cache output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - starterItems: Starter items value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static string BuildEquipmentCache(IReadOnlyList<StarterItemCreateData> starterItems)
     {
         uint[] itemEntries = new uint[CharacterEquipmentSlotCount];
@@ -2208,9 +2508,6 @@ public sealed class CharacterRepository(
             enchantments[starterItem.EquipmentSlot] = 0;
         }
 
-        // The equipmentCache layout stores two uint values per equipment slot:
-        // item entry and permanent enchantment id. The character-list packet then
-        // resolves the item entry through item_template to send display/inventory type.
         return string.Join(' ', Enumerable.Range(0, CharacterEquipmentSlotCount).SelectMany(slot => new[]
         {
             itemEntries[slot].ToString(CultureInfo.InvariantCulture),
@@ -2218,18 +2515,19 @@ public sealed class CharacterRepository(
         }));
     }
 
-    /**
-      * Parses parse equipment cache input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: equipmentCache, itemTemplateAccessor.
-      */
+    // Method: ParseEquipmentCache
+    // Purpose: Converts incoming data into parse equipment cache form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - equipmentCache: Equipment cache value supplied by the caller for this operation.
+    // - itemTemplateAccessor: Item template accessor value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<CharacterEquipmentDisplay> ParseEquipmentCache(
         string equipmentCache,
         Func<uint, ItemTemplateRecord?> itemTemplateAccessor)
     {
         string[] parts = equipmentCache.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        // Legacy layout from the earlier prototype: display id + inventory type + enchantment per slot.
         if (parts.Length >= CharacterEquipmentSlotCount * 3)
         {
             List<CharacterEquipmentDisplay> equipment = [];
@@ -2245,7 +2543,6 @@ public sealed class CharacterRepository(
             return equipment;
         }
 
-        // Current equipment cache layout: item entry + enchantment per slot.
         if (parts.Length >= CharacterEquipmentSlotCount * 2)
         {
             List<CharacterEquipmentDisplay> equipment = [];
@@ -2267,11 +2564,13 @@ public sealed class CharacterRepository(
         return CreateEmptyEquipmentArray();
     }
 
-    /**
-      * Parses read u int input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: parts, index.
-      */
+    // Method: ReadUInt
+    // Purpose: Retrieves read U int data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - stringparts: Stringparts value supplied by the caller for this operation.
+    // - index: Index value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static uint ReadUInt(string[] parts, int index)
     {
         if (index < 0 || index >= parts.Length)
@@ -2284,11 +2583,15 @@ public sealed class CharacterRepository(
             : 0;
     }
 
-    /**
-      * Resolves the player stats value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: race, playerClass, level, storedStats.
-      */
+    // Method: ResolvePlayerStats
+    // Purpose: Retrieves resolve player stats data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - playerClass: Player class value supplied by the caller for this operation.
+    // - level: Level value supplied by the caller for this operation.
+    // - storedStats: Stored stats value supplied by the caller for this operation.
+    // Returns: Returns the player stats value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private PlayerStats ResolvePlayerStats(byte race, byte playerClass, byte level, PlayerStats storedStats)
     {
         PlayerStats defaults = _worldTemplateAccessor().BuildBasePlayerStats(race, playerClass, level);
@@ -2307,21 +2610,44 @@ public sealed class CharacterRepository(
             storedStats.Armor == 0 ? defaults.Armor : storedStats.Armor);
     }
 
-    /**
-      * Normalizes the level for the world database repositories and persisted player/account records workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      * Inputs used by this operation: level.
-      */
+    // Method: NormalizeLevel
+    // Purpose: Converts incoming data into normalize level form for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - level: Level value supplied by the caller for this operation.
+    // Returns: Returns the byte value produced by this operation.
+    // Notes: This keeps the operation scoped to CharacterRepository so callers do not duplicate validation, protocol, or persistence rules.
     private static byte NormalizeLevel(byte level)
     {
         return level == 0 ? (byte)1 : level;
     }
 
-    /**
-      * Carries immutable character login row data for the world database repositories and persisted player/account records layer.
-      * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-      * Positional fields carried by this record: Guid, AccountId, Name, Race, Class, Gender, Level, Xp, Zone, Map, PositionX, PositionY, PositionZ, Orientation, Money, PlayerBytes, PlayerBytes2, PlayerFlags, AtLogin, Cinematic, TotalTime, LevelTime, Stats.
-      */
+    // Type: CharacterLoginRow
+    // Purpose: Represents character login row data passed through the world server gameplay, session, and character runtime layer.
+    // Constructor values:
+    // - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+    // - AccountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - Name: Name value supplied by the caller for this operation.
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // - Gender: Gender value supplied by the caller for this operation.
+    // - Level: Level value supplied by the caller for this operation.
+    // - Xp: XP value supplied by the caller for this operation.
+    // - Zone: Zone value supplied by the caller for this operation.
+    // - Map: Map value supplied by the caller for this operation.
+    // - PositionX: Position X value supplied by the caller for this operation.
+    // - PositionY: Position Y value supplied by the caller for this operation.
+    // - PositionZ: Position Z value supplied by the caller for this operation.
+    // - Orientation: Orientation value supplied by the caller for this operation.
+    // - Money: Money value supplied by the caller for this operation.
+    // - PlayerBytes: Player bytes value supplied by the caller for this operation.
+    // - PlayerBytes2: Player bytes2 value supplied by the caller for this operation.
+    // - PlayerFlags: Player flags value supplied by the caller for this operation.
+    // - AtLogin: At login value supplied by the caller for this operation.
+    // - Cinematic: Cinematic value supplied by the caller for this operation.
+    // - TotalTime: Total time value supplied by the caller for this operation.
+    // - LevelTime: Level time value supplied by the caller for this operation.
+    // - Stats: Stats value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record CharacterLoginRow(
         uint Guid,
         uint AccountId,
@@ -2347,18 +2673,36 @@ public sealed class CharacterRepository(
         uint LevelTime,
         PlayerStats Stats);
 
-    /**
-      * Carries immutable character ownership record data for the world database repositories and persisted player/account records layer.
-      * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-      * Positional fields carried by this record: AccountId, Name, Online.
-      */
+    // Type: CharacterOwnershipRecord
+    // Purpose: Represents character ownership record data passed through the world server gameplay, session, and character runtime layer.
+    // Constructor values:
+    // - AccountId: Account ID identifier used to select the exact record, object, or runtime owner.
+    // - Name: Name value supplied by the caller for this operation.
+    // - Online: Online value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record CharacterOwnershipRecord(uint AccountId, string Name, bool Online);
 
-    /**
-      * Carries immutable character list row data for the world database repositories and persisted player/account records layer.
-      * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-      * Positional fields carried by this record: Guid, Name, Race, Class, Gender, Level, Xp, Zone, Map, PositionX, PositionY, PositionZ, PlayerFlags, AtLogin, PlayerBytes, PlayerBytes2, EquipmentCache.
-      */
+    // Type: CharacterListRow
+    // Purpose: Represents character list row data passed through the world server gameplay, session, and character runtime layer.
+    // Constructor values:
+    // - Guid: GUID identifier used to select the exact record, object, or runtime owner.
+    // - Name: Name value supplied by the caller for this operation.
+    // - Race: Race value supplied by the caller for this operation.
+    // - Class: Class value supplied by the caller for this operation.
+    // - Gender: Gender value supplied by the caller for this operation.
+    // - Level: Level value supplied by the caller for this operation.
+    // - Xp: XP value supplied by the caller for this operation.
+    // - Zone: Zone value supplied by the caller for this operation.
+    // - Map: Map value supplied by the caller for this operation.
+    // - PositionX: Position X value supplied by the caller for this operation.
+    // - PositionY: Position Y value supplied by the caller for this operation.
+    // - PositionZ: Position Z value supplied by the caller for this operation.
+    // - PlayerFlags: Player flags value supplied by the caller for this operation.
+    // - AtLogin: At login value supplied by the caller for this operation.
+    // - PlayerBytes: Player bytes value supplied by the caller for this operation.
+    // - PlayerBytes2: Player bytes2 value supplied by the caller for this operation.
+    // - EquipmentCache: Equipment cache value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record CharacterListRow(
         uint Guid,
         string Name,

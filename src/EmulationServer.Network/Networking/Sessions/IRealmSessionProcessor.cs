@@ -15,24 +15,17 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Network/Networking/Sessions/IRealmSessionProcessor.cs
-  * Documents the IRealmSessionProcessor source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Network/Networking/Sessions/IRealmSessionProcessor.cs
+// Purpose: Contains I realm session processor code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Network.Networking.Sessions;
 
-/**
-  * Defines the contract for realm session processor behavior in the internal server networking, packet framing, and peer/session lifecycle layer.
-  * Implementations are expected to keep caller-facing behavior stable because other servers depend on this shape across shared game and network workflows.
-  */
+// Type: IRealmSessionProcessor
+// Purpose: Defines the I realm session processor contract used by the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public interface IRealmSessionProcessor
 {
-    /**
-      * Performs the process async operation through the implementing contract.
-      * Callers use the contract method so gameplay, database, and network code can depend on behavior rather than a concrete implementation.
-      */
+
     Task ProcessAsync(RealmSessionContext context, CancellationToken cancellationToken);
 }

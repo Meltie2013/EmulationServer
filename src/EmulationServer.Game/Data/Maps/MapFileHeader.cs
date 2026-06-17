@@ -15,20 +15,27 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Maps/MapFileHeader.cs
-  * Documents the MapFileHeader source file in the extracted map data loading and map tile lookup area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Maps/MapFileHeader.cs
+// Purpose: Contains map file header code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Represents immutable map file header data passed between parts of the server.
-  * The type keeps related data and behavior together so the rest of the project can depend on a clear responsibility boundary.
-  * Positional fields carried by this record: MapMagic, VersionMagic, Build, AreaMapOffset, AreaMapSize, HeightMapOffset, HeightMapSize, LiquidMapOffset, LiquidMapSize, HolesOffset, HolesSize.
-  */
+// Type: MapFileHeader
+// Purpose: Represents map file header data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - MapMagic: Map magic value supplied by the caller for this operation.
+// - VersionMagic: Version magic value supplied by the caller for this operation.
+// - Build: Build value supplied by the caller for this operation.
+// - AreaMapOffset: Area map offset value supplied by the caller for this operation.
+// - AreaMapSize: Area map size value supplied by the caller for this operation.
+// - HeightMapOffset: Height map offset value supplied by the caller for this operation.
+// - HeightMapSize: Height map size value supplied by the caller for this operation.
+// - LiquidMapOffset: Liquid map offset value supplied by the caller for this operation.
+// - LiquidMapSize: Liquid map size value supplied by the caller for this operation.
+// - HolesOffset: Holes offset value supplied by the caller for this operation.
+// - HolesSize: Holes size value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record MapFileHeader(
     string MapMagic,
     string VersionMagic,

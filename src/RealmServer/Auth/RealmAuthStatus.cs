@@ -15,39 +15,35 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/RealmServer/Auth/RealmAuthStatus.cs
-  * Documents the RealmAuthStatus source file in the realm authentication, realm-list handling, and external client login services area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/RealmServer/Auth/RealmAuthStatus.cs
+// Purpose: Contains realm auth status code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.RealmServer.Auth;
 
-/**
-  * Lists the supported realm auth status values used by the realm authentication, realm-list handling, and external client login services layer.
-  * Numeric values are part of the project contract and should only be changed when the related client packet, DBC value, or database schema is updated as well.
-  */
+// Type: RealmAuthStatus
+// Purpose: Defines the allowed realm auth status values used by the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum RealmAuthStatus
 {
-    /**
-      * Represents the challenge value for realm auth status handling.
-      */
+
+    // Enum Value: Defines the challenge enum value.
+    // Value: next sequential value assigned by C#.
     Challenge,
-    /**
-      * Represents the logon proof value for realm auth status handling.
-      */
+
+    // Enum Value: Defines the logon proof enum value.
+    // Value: next sequential value assigned by C#.
     LogonProof,
-    /**
-      * Represents the reconnect proof value for realm auth status handling.
-      */
+
+    // Enum Value: Defines the reconnect proof enum value.
+    // Value: next sequential value assigned by C#.
     ReconnectProof,
-    /**
-      * Represents the authenticated value for realm auth status handling.
-      */
+
+    // Enum Value: Defines the authenticated enum value.
+    // Value: next sequential value assigned by C#.
     Authenticated,
-    /**
-      * Represents the closed value for realm auth status handling.
-      */
+
+    // Enum Value: Defines the closed enum value.
+    // Value: next sequential value assigned by C#.
     Closed,
 }

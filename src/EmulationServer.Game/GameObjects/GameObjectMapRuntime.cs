@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/GameObjects/GameObjectMapRuntime.cs
+// Purpose: Contains game object map runtime code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.WorldData;
 using EmulationServer.Shared.Logging;
@@ -22,18 +25,33 @@ using EmulationServer.Shared.Logging.Enums;
 
 namespace EmulationServer.Game.GameObjects;
 
-/**
-  * Owns the map-local game object spawn lifecycle.
-  * The class mirrors the creature map boundary: load records when the map starts, despawn them during shutdown/restart, and rebuild the active set after reload.
-  */
+// Type: GameObjectMapRuntime
+// Purpose: Provides game object map runtime behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class GameObjectMapRuntime
 {
+    // Field: Stores the map ID state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map ID backing value maintained by the owning type.
     private readonly int _mapId;
+    // Field: Stores the int state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current int backing value maintained by the owning type.
     private readonly Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>> _loadSpawnsAsync;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Func<uint, GameObjectTemplateRecord?> _templateResolver;
     private readonly object _syncRoot = new();
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Dictionary<uint, GameObjectRuntimeSpawn> _activeSpawns = [];
 
+    // Constructor: GameObjectMapRuntime
+    // Purpose: Initializes a new GameObjectMapRuntime instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - loadSpawnsAsync: Load spawns async value supplied by the caller for this operation.
+    // - templateResolver: Template resolver value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectMapRuntime so callers do not duplicate validation, protocol, or persistence rules.
     public GameObjectMapRuntime(
         int mapId,
         Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>> loadSpawnsAsync,
@@ -60,6 +78,11 @@ public sealed class GameObjectMapRuntime
         }
     }
 
+    // Method: Snapshot
+    // Purpose: Executes the snapshot operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to GameObjectMapRuntime so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<GameObjectRuntimeSpawn> Snapshot()
     {
         lock (_syncRoot)
@@ -68,6 +91,13 @@ public sealed class GameObjectMapRuntime
         }
     }
 
+    // Method: LoadAsync
+    // Purpose: Retrieves load data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to GameObjectMapRuntime so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task LoadAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<GameObjectSpawnRecord> spawns = await _loadSpawnsAsync(_mapId, cancellationToken);
@@ -114,6 +144,12 @@ public sealed class GameObjectMapRuntime
         Logger.Write(logType, $"GameObject runtime loaded {activeSpawns.Count} spawn(s) for MapId={_mapId}. MissingTemplates={missingTemplates}, InvalidSpawns={invalidSpawns}, InvalidTemplates={invalidTemplates}.", "GameObjectMapRuntime");
     }
 
+    // Method: DespawnAll
+    // Purpose: Executes the despawn all operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to GameObjectMapRuntime so callers do not duplicate validation, protocol, or persistence rules.
     public void DespawnAll(string reason)
     {
         int despawned;

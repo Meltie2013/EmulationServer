@@ -15,140 +15,135 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Internal/WorldRealmStatusReporter.cs
+// Purpose: Contains world realm status reporter code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 using System.Net.Sockets;
 using EmulationServer.Network.Networking.Health;
 using EmulationServer.Network.Networking.Protocol;
+using EmulationServer.Network.Networking.Socket;
 using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.WorldServer.Configuration;
 
-/**
-  * File overview: src/WorldServer/Internal/WorldRealmStatusReporter.cs
-  * Documents the WorldRealmStatusReporter source file in the world server startup, client networking, gameplay routing, and persistence area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Internal;
 
-/**
-  * Owns the world realm status reporter behavior for the world server startup, client networking, gameplay routing, and persistence layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldRealmStatusReporter
+// Purpose: Provides world realm status reporter behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldRealmStatusReporter : IAsyncDisposable
 {
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the world server gameplay, session, and character runtime layer.
+    // Value: current settings backing value maintained by the owning type.
     private readonly RealmStatusSettings _settings;
-    /**
-      * Holds the private registration key state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the registration key state used by the world server gameplay, session, and character runtime layer.
+    // Value: current registration key backing value maintained by the owning type.
     private readonly string _registrationKey;
-    /**
-      * Holds the private send lock state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
     private readonly SemaphoreSlim _sendLock = new(1, 1);
-    /**
-      * Holds the private max connections state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the max connections state used by the world server gameplay, session, and character runtime layer.
+    // Value: current max connections backing value maintained by the owning type.
     private readonly int _maxConnections;
-    /**
-      * Holds the private latency report interval state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the latency report interval state used by the world server gameplay, session, and character runtime layer.
+    // Value: current latency report interval backing value maintained by the owning type.
     private readonly TimeSpan _latencyReportInterval;
-    /**
-      * Holds whether successful RealmServer latency values should be logged during normal runtime.
-      */
+
+    // Field: Stores the latency logging enabled state used by the world server gameplay, session, and character runtime layer.
+    // Value: current latency logging enabled backing value maintained by the owning type.
     private readonly bool _latencyLoggingEnabled;
-    /**
-      * Holds the minimum delay between visible RealmServer latency log lines.
-      */
+
+    // Field: Stores the latency log interval state used by the world server gameplay, session, and character runtime layer.
+    // Value: current latency log interval backing value maintained by the owning type.
     private readonly TimeSpan _latencyLogInterval;
-    /**
-      * Holds the private ping timeout state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the ping timeout state used by the world server gameplay, session, and character runtime layer.
+    // Value: current ping timeout backing value maintained by the owning type.
     private readonly TimeSpan _pingTimeout;
-    /**
-      * Holds the private receive buffer size state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the receive buffer size state used by the world server gameplay, session, and character runtime layer.
+    // Value: current receive buffer size backing value maintained by the owning type.
     private readonly int _receiveBufferSize;
-    /**
-      * Holds the private send buffer size state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the send buffer size state used by the world server gameplay, session, and character runtime layer.
+    // Value: current send buffer size backing value maintained by the owning type.
     private readonly int _sendBufferSize;
-    /**
-      * Holds the private keep alive state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the keep alive state used by the world server gameplay, session, and character runtime layer.
+    // Value: current keep alive backing value maintained by the owning type.
     private readonly bool _keepAlive;
-    /**
-      * Holds the private keep alive time seconds state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the keep alive time seconds state used by the world server gameplay, session, and character runtime layer.
+    // Value: current keep alive time seconds backing value maintained by the owning type.
     private readonly int _keepAliveTimeSeconds;
-    /**
-      * Holds the private keep alive interval seconds state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the keep alive interval seconds state used by the world server gameplay, session, and character runtime layer.
+    // Value: current keep alive interval seconds backing value maintained by the owning type.
     private readonly int _keepAliveIntervalSeconds;
-    /**
-      * Holds the private authentication timeout state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the authentication timeout state used by the world server gameplay, session, and character runtime layer.
+    // Value: current authentication timeout backing value maintained by the owning type.
     private readonly TimeSpan _authenticationTimeout;
+    // Field: Stores the cancellation token state used by the world server gameplay, session, and character runtime layer.
+    // Value: current cancellation token backing value maintained by the owning type.
     private readonly Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> _characterCountSnapshotLoader;
 
-    /**
-      * Holds the private stop cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stop cancellation state used by the world server gameplay, session, and character runtime layer.
+    // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Holds the private report task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the report task state used by the world server gameplay, session, and character runtime layer.
+    // Value: current report task backing value maintained by the owning type.
     private Task? _reportTask;
-    /**
-      * Holds the private client state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the client state used by the world server gameplay, session, and character runtime layer.
+    // Value: current client backing value maintained by the owning type.
     private TcpClient? _client;
-    /**
-      * Holds the private stream state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stream state used by the world server gameplay, session, and character runtime layer.
+    // Value: current stream backing value maintained by the owning type.
     private NetworkStream? _stream;
-    /**
-      * Holds the private reader state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the reader state used by the world server gameplay, session, and character runtime layer.
+    // Value: current reader backing value maintained by the owning type.
     private InternalProtocolReader? _reader;
-    /**
-      * Holds the private started state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the started state used by the world server gameplay, session, and character runtime layer.
+    // Value: current started backing value maintained by the owning type.
     private int _started;
-    /**
-      * Holds the private active connections state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the authenticated state used by the world server gameplay, session, and character runtime layer.
+    // Value: current authenticated backing value maintained by the owning type.
+    private int _authenticated;
+
+    // Field: Stores the active connections state used by the world server gameplay, session, and character runtime layer.
+    // Value: current active connections backing value maintained by the owning type.
     private int _activeConnections;
 
-    /**
-      * Initializes a new WorldRealmStatusReporter instance with the dependencies required by the world server startup, client networking, gameplay routing, and persistence workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: settings, registrationKey, maxConnections, latencyReportInterval, pingTimeout, receiveBufferSize....
-      */
+    // Constructor: WorldRealmStatusReporter
+    // Purpose: Initializes a new WorldRealmStatusReporter instance with dependencies and values required by the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - settings: Settings values that control how this operation should run.
+    // - registrationKey: Registration key value supplied by the caller for this operation.
+    // - maxConnections: Max connections value supplied by the caller for this operation.
+    // - latencyReportInterval: Latency report interval value supplied by the caller for this operation.
+    // - latencyLoggingEnabled: Latency logging enabled value supplied by the caller for this operation.
+    // - latencyLogInterval: Latency log interval value supplied by the caller for this operation.
+    // - pingTimeout: Ping timeout value supplied by the caller for this operation.
+    // - receiveBufferSize: Receive buffer size value supplied by the caller for this operation.
+    // - sendBufferSize: Send buffer size value supplied by the caller for this operation.
+    // - keepAlive: Keep alive value supplied by the caller for this operation.
+    // - keepAliveTimeSeconds: Keep alive time seconds value supplied by the caller for this operation.
+    // - keepAliveIntervalSeconds: Keep alive interval seconds value supplied by the caller for this operation.
+    // - authenticationTimeout: Authentication timeout value supplied by the caller for this operation.
+    // - characterCountSnapshotLoader: Character count snapshot loader value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
     public WorldRealmStatusReporter(
         RealmStatusSettings settings,
         string registrationKey,
@@ -233,12 +228,13 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _characterCountSnapshotLoader = characterCountSnapshotLoader ?? throw new ArgumentNullException();
     }
 
-    /**
-      * Starts the start workflow and prepares the component to accept runtime work.
-      * Startup is ordered so validation and dependency setup finish before services are announced as available.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (!_settings.Enabled)
@@ -260,17 +256,74 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /**
-      * Updates the active player count used by the next realm-status packet.
-      */
+    // Method: Read
+    // Purpose: Retrieves read data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - _started: Started value supplied by the caller for this operation.
+    // Returns: Returns the bool is connected => volatile. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    public bool IsConnected => Volatile.Read(ref _started) == 1 && _stream is not null && Volatile.Read(ref _authenticated) == 1;
+
+    // Method: WaitForConnectionAsync
+    // Purpose: Handles wait for connection work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
+    public async Task WaitForConnectionAsync(string reason, CancellationToken cancellationToken)
+    {
+        if (!_settings.Enabled)
+        {
+            return;
+        }
+
+        if (IsConnected)
+        {
+            return;
+        }
+
+        Logger.Write(LogType.NETWORK, $"WorldServer waiting for RealmServer before opening public client connections. {reason}", "WorldRealmStatusReporter");
+        DateTimeOffset nextStatusUtc = DateTimeOffset.UtcNow.AddSeconds(15);
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            if (IsConnected)
+            {
+                Logger.Write(LogType.SUCCESS, "RealmServer is online; WorldServer may accept public client connections.", "WorldRealmStatusReporter");
+                return;
+            }
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now >= nextStatusUtc)
+            {
+                Logger.Write(LogType.NETWORK, "WorldServer is still waiting for RealmServer before opening public client connections.", "WorldRealmStatusReporter");
+                nextStatusUtc = now.AddSeconds(15);
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+    }
+
+    // Method: SetActiveConnections
+    // Purpose: Applies set active connections changes for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - activeConnections: Active connections value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
     public void SetActiveConnections(int activeConnections)
     {
         Interlocked.Exchange(ref _activeConnections, Math.Max(0, activeConnections));
     }
 
-    /**
-      * Sends the current realm-status snapshot immediately instead of waiting for the next periodic update.
-      */
+    // Method: SendRealmStatusNowAsync
+    // Purpose: Handles send realm status now work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task SendRealmStatusNowAsync(CancellationToken cancellationToken = default)
     {
         if (Volatile.Read(ref _started) == 0 || _stream is null)
@@ -288,9 +341,13 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a character-count snapshot immediately when character storage changes.
-      */
+    // Method: SendCharacterCountSnapshotNowAsync
+    // Purpose: Handles send character count snapshot now work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task SendCharacterCountSnapshotNowAsync(CancellationToken cancellationToken = default)
     {
         if (Volatile.Read(ref _started) == 0 || _stream is null)
@@ -308,12 +365,13 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _started, 0) == 0)
@@ -346,7 +404,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             }
             catch (OperationCanceledException)
             {
-                // Expected during shutdown.
+
             }
         }
 
@@ -359,23 +417,25 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.NETWORK, "WorldServer realm status reporter stopped.", "WorldRealmStatusReporter");
     }
 
-    /**
-      * Stops the dispose workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
         _sendLock.Dispose();
     }
 
-    /**
-      * Runs the main loop for this component until cancellation or shutdown is requested.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: RunAsync
+    // Purpose: Controls the run lifecycle step for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -424,9 +484,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends a shutdown request to RealmServer over the realm-status internal connection.
-      */
+    // Method: SendShutdownRequestAsync
+    // Purpose: Handles send shutdown request work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - reason: Reason value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous Boolean result that is true when send shutdown request async succeeds or the requested condition is met.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<bool> SendShutdownRequestAsync(string reason, CancellationToken cancellationToken = default)
     {
         if (_stream is null)
@@ -446,12 +511,13 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         return true;
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendRealmStatusLoopAsync
+    // Purpose: Handles send realm status loop work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendRealmStatusLoopAsync(CancellationToken cancellationToken)
     {
         await SendRealmStatusAsync(true, Volatile.Read(ref _activeConnections), cancellationToken);
@@ -464,12 +530,13 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends send character count snapshot data to the connected session or internal peer.
-      * The send path keeps packet construction and delivery together so opcode handling remains easy to trace during protocol debugging.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: SendCharacterCountSnapshotAsync
+    // Purpose: Handles send character count snapshot work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendCharacterCountSnapshotAsync(CancellationToken cancellationToken)
     {
         if (_stream is null)
@@ -522,9 +589,15 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"WorldServer sent realm {realmId} character-count snapshot: {characterCounts.Count} account(s).", "WorldRealmStatusReporter");
     }
 
-    /**
-      * Sends one character-count data chunk.
-      */
+    // Method: SendCharacterCountSnapshotDataAsync
+    // Purpose: Handles send character count snapshot data work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - realmId: Realm ID identifier used to select the exact record, object, or runtime owner.
+    // - pairs: Pairs value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendCharacterCountSnapshotDataAsync(uint realmId, List<string> pairs, CancellationToken cancellationToken)
     {
         if (_stream is null || pairs.Count == 0)
@@ -540,12 +613,14 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             cancellationToken);
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ProcessRealmServerPacketsAsync
+    // Purpose: Executes the process realm server packets operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - latencyMonitor: Latency monitor value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ProcessRealmServerPacketsAsync(InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -565,12 +640,15 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
     }
 
-    /**
-      * Processes incoming data and dispatches it to the correct subsystem handler.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ProcessRealmServerPacketAsync
+    // Purpose: Executes the process realm server packet operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - line: Line value supplied by the caller for this operation.
+    // - latencyMonitor: Latency monitor value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async Task ProcessRealmServerPacketAsync(string line, InternalLatencyMonitor latencyMonitor, CancellationToken cancellationToken)
     {
         string[] parts = line.Split(' ', 3, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -604,29 +682,25 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.DEBUG, $"WorldServer received RealmServer internal packet: {line}", "WorldRealmStatusReporter");
     }
 
-    /**
-      * Creates or restores an internal network connection to the target server.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: ConnectAndAuthenticateAsync
+    // Purpose: Handles connect and authenticate work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task ConnectAndAuthenticateAsync(CancellationToken cancellationToken)
     {
         CleanupConnection();
 
-        _client = new TcpClient
-        {
-            NoDelay = true,
-            ReceiveBufferSize = _receiveBufferSize,
-            SendBufferSize = _sendBufferSize,
-        };
-
-        if (_keepAlive)
-        {
-            _client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-            TrySetTcpKeepAliveOption(_client, SocketOptionName.TcpKeepAliveTime, _keepAliveTimeSeconds);
-            TrySetTcpKeepAliveOption(_client, SocketOptionName.TcpKeepAliveInterval, _keepAliveIntervalSeconds);
-        }
+        _client = new TcpClient();
+        TcpSocketOptions.ConfigureClient(
+            _client,
+            _receiveBufferSize,
+            _sendBufferSize,
+            _keepAlive,
+            _keepAliveTimeSeconds,
+            _keepAliveIntervalSeconds);
 
         Logger.Write(LogType.NETWORK, $"WorldServer connecting to RealmServer internal listener at {_settings.RealmServerHost}:{_settings.RealmServerPort}...", "WorldRealmStatusReporter");
 
@@ -682,15 +756,20 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
             throw new InvalidOperationException($"RealmServer accepted WorldServer authentication as unexpected server '{responseParts[1]}'.");
         }
 
+        Volatile.Write(ref _authenticated, 1);
+
         Logger.Write(LogType.NETWORK, "WorldServer authenticated with RealmServer internal listener.", "WorldRealmStatusReporter");
     }
 
-    /**
-      * Sends a protocol message or status update to a connected peer.
-      * The method is part of WorldRealmStatusReporter and keeps this workflow isolated from the caller.
-      * The asynchronous shape allows shutdown cancellation and network/file operations to avoid blocking the server loop.
-      * The cancellation token lets server shutdown stop the operation without leaving partial runtime work behind.
-      */
+    // Method: SendRealmStatusAsync
+    // Purpose: Handles send realm status work for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - online: Online value supplied by the caller for this operation.
+    // - activeConnections: Active connections value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task SendRealmStatusAsync(bool online, int activeConnections, CancellationToken cancellationToken)
     {
         if (_stream is null)
@@ -713,36 +792,11 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         Logger.Write(LogType.TRACE, $"WorldServer sent realm status: {packet}", "WorldRealmStatusReporter");
     }
 
-    /**
-      * Tries to resolve the set tcp keep alive option value requested by the caller.
-      * Lookup logic is kept in this method so fallback rules, case handling, and missing-data behavior stay consistent across call sites.
-      * Inputs used by this operation: client, optionName, valueSeconds.
-      */
-    private static void TrySetTcpKeepAliveOption(TcpClient client, SocketOptionName optionName, int valueSeconds)
-    {
-        if (valueSeconds <= 0)
-        {
-            return;
-        }
-
-        try
-        {
-            client.Client.SetSocketOption(SocketOptionLevel.Tcp, optionName, valueSeconds);
-        }
-        catch (SocketException)
-        {
-            // Some platforms do not expose per-socket TCP keep-alive tuning. KeepAlive itself is still enabled.
-        }
-        catch (ObjectDisposedException)
-        {
-            // The socket is already closed.
-        }
-    }
-
-    /**
-      * Performs the cleanup connection operation for the world server startup, client networking, gameplay routing, and persistence workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: CleanupConnection
+    // Purpose: Executes the cleanup connection operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
     private void CleanupConnection()
     {
         try
@@ -751,7 +805,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
         catch
         {
-            // Ignore cleanup exceptions.
+
         }
 
         try
@@ -760,7 +814,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
         catch
         {
-            // Ignore cleanup exceptions.
+
         }
 
         try
@@ -769,9 +823,10 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         }
         catch
         {
-            // Ignore cleanup exceptions.
+
         }
 
+        Volatile.Write(ref _authenticated, 0);
         _reader = null;
         _stream = null;
         _client = null;

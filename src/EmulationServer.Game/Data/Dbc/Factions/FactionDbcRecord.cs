@@ -15,19 +15,25 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcRecord.cs
-  * Documents the FactionDbcRecord source file in the DBC loading and strongly typed client data records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Data/Dbc/Factions/FactionDbcRecord.cs
+// Purpose: Contains faction DBC record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Data.Dbc.Factions;
 
-/**
-  * Represents one Faction.dbc row used for faction and reputation defaults.
-  * Positional fields carried by this record: Id, ReputationIndex, ReputationRaceMasks, ReputationClassMasks, ReputationBases, ReputationFlags, ParentFactionId, Name, Description.
-  */
+// Type: FactionDbcRecord
+// Purpose: Represents faction DBC record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Id: ID identifier used to select the exact record, object, or runtime owner.
+// - ReputationIndex: Reputation index value supplied by the caller for this operation.
+// - ReputationRaceMasks: Reputation race masks value supplied by the caller for this operation.
+// - ReputationClassMasks: Reputation class masks value supplied by the caller for this operation.
+// - ReputationBases: Reputation bases value supplied by the caller for this operation.
+// - ReputationFlags: Reputation flags value supplied by the caller for this operation.
+// - ParentFactionId: Parent faction ID identifier used to select the exact record, object, or runtime owner.
+// - Name: Name value supplied by the caller for this operation.
+// - Description: Description value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record FactionDbcRecord(
     int Id,
     int ReputationIndex,

@@ -15,20 +15,39 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Reputation/ReputationRank.cs
+// Purpose: Contains reputation rank code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Reputation;
 
-/**
-  * Defines the Vanilla reputation ranks in the same order used by the client.
-  */
+// Type: ReputationRank
+// Purpose: Defines the allowed reputation rank values used by the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public enum ReputationRank
 {
+    // Enum Value: Defines the hated enum value.
+    // Value: explicit expression 0.
     Hated = 0,
+    // Enum Value: Defines the hostile enum value.
+    // Value: explicit expression 1.
     Hostile = 1,
+    // Enum Value: Defines the unfriendly enum value.
+    // Value: explicit expression 2.
     Unfriendly = 2,
+    // Enum Value: Defines the neutral enum value.
+    // Value: explicit expression 3.
     Neutral = 3,
+    // Enum Value: Defines the friendly enum value.
+    // Value: explicit expression 4.
     Friendly = 4,
+    // Enum Value: Defines the honored enum value.
+    // Value: explicit expression 5.
     Honored = 5,
+    // Enum Value: Defines the revered enum value.
+    // Value: explicit expression 6.
     Revered = 6,
+    // Enum Value: Defines the exalted enum value.
+    // Value: explicit expression 7.
     Exalted = 7,
 }

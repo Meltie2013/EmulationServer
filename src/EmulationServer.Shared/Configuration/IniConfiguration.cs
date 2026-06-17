@@ -15,39 +15,40 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Configuration/IniConfiguration.cs
+// Purpose: Contains ini configuration code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Globalization;
 
-/**
-  * File overview: src/EmulationServer.Shared/Configuration/IniConfiguration.cs
-  * Documents the IniConfiguration source file in the shared configuration, logging, and utility support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Shared.Configuration;
 
-/**
-  * Owns the ini configuration behavior for the shared configuration, logging, and utility support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: IniConfiguration
+// Purpose: Provides ini configuration behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class IniConfiguration
 {
+    // Field: Stores the string state used by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Value: current string backing value maintained by the owning type.
     private readonly Dictionary<string, Dictionary<string, string>> _sections;
 
-    /**
-      * Initializes a new IniConfiguration instance with the dependencies required by the shared configuration, logging, and utility support workflow.
-      * Constructor validation is performed early so invalid settings fail during startup instead of surfacing later in the server loop.
-      * Inputs used by this operation: sections.
-      */
+    // Constructor: IniConfiguration
+    // Purpose: Initializes a new IniConfiguration instance with dependencies and values required by the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - sections: Sections value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     private IniConfiguration(Dictionary<string, Dictionary<string, string>> sections)
     {
         _sections = sections;
     }
 
-    /**
-      * Loads configuration or data from the configured source and validates the result before it is used.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: Load
+    // Purpose: Retrieves load data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - path: Path value supplied by the caller for this operation.
+    // Returns: Returns the ini configuration value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public static IniConfiguration Load(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -151,11 +152,14 @@ public sealed class IniConfiguration
         return new IniConfiguration(sections);
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryGetString
+    // Purpose: Attempts to retrieve or parse try get string data without treating normal misses as failures.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: Returns true when try get string succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public bool TryGetString(string section, string key, out string value)
     {
         if (_sections.TryGetValue(section, out Dictionary<string, string>? values) &&
@@ -169,10 +173,14 @@ public sealed class IniConfiguration
         return false;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: GetString
+    // Purpose: Retrieves get string data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public string GetString(string section, string key, string defaultValue)
     {
         return TryGetString(section, key, out string value)
@@ -180,10 +188,13 @@ public sealed class IniConfiguration
             : defaultValue;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: GetRequiredString
+    // Purpose: Retrieves get required string data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public string GetRequiredString(string section, string key)
     {
         if (!TryGetString(section, key, out string value))
@@ -199,10 +210,16 @@ public sealed class IniConfiguration
         return value;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: GetInt
+    // Purpose: Retrieves get int data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // - minimum: Minimum value supplied by the caller for this operation.
+    // - maximum: Maximum value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public int GetInt(
         string section,
         string key,
@@ -236,10 +253,16 @@ public sealed class IniConfiguration
         return parsed;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: GetUInt
+    // Purpose: Retrieves get U int data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // - minimum: Minimum value supplied by the caller for this operation.
+    // - maximum: Maximum value supplied by the caller for this operation.
+    // Returns: Returns the uint value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public uint GetUInt(
         string section,
         string key,
@@ -273,10 +296,16 @@ public sealed class IniConfiguration
         return parsed;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: GetDouble
+    // Purpose: Retrieves get double data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // - minimum: Minimum value supplied by the caller for this operation.
+    // - maximum: Maximum value supplied by the caller for this operation.
+    // Returns: Returns the double value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public double GetDouble(
         string section,
         string key,
@@ -310,11 +339,14 @@ public sealed class IniConfiguration
         return parsed;
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: GetBool
+    // Purpose: Retrieves get bool data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // Returns: Returns true when get bool succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public bool GetBool(string section, string key, bool defaultValue)
     {
         if (!TryGetString(section, key, out string value))
@@ -339,10 +371,14 @@ public sealed class IniConfiguration
         };
     }
 
-    /**
-      * Returns the current value or snapshot without exposing mutable internal state.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      */
+    // Method: GetTimeSpan
+    // Purpose: Retrieves get time span data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - section: Section value supplied by the caller for this operation.
+    // - key: Key value supplied by the caller for this operation.
+    // - defaultValue: Default value value supplied by the caller for this operation.
+    // Returns: Returns the time span value produced by this operation.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan GetTimeSpan(string section, string key, TimeSpan defaultValue)
     {
         if (!TryGetString(section, key, out string value))
@@ -364,11 +400,13 @@ public sealed class IniConfiguration
             $"Invalid time span value for [{section}] {key}: '{value}'. Examples: 15s, 5m, 1h, 00:00:15.");
     }
 
-    /**
-      * Attempts the operation without treating a normal failure as an exceptional condition.
-      * The method is part of IniConfiguration and keeps this workflow isolated from the caller.
-      * The boolean result lets callers branch without throwing for normal negative outcomes.
-      */
+    // Method: TryParseDuration
+    // Purpose: Attempts to retrieve or parse try parse duration data without treating normal misses as failures.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns true when try parse duration succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to IniConfiguration so callers do not duplicate validation, protocol, or persistence rules.
     private static bool TryParseDuration(string value, out TimeSpan duration)
     {
         duration = TimeSpan.Zero;

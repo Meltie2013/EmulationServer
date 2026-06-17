@@ -15,20 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-
-/**
-  * File overview: src/EmulationServer.Game/Players/PlayerInventoryItem.cs
-  * Documents the PlayerInventoryItem source file in the logged-in player state, persistence models, and gameplay records area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
+// File: src/EmulationServer.Game/Players/PlayerInventoryItem.cs
+// Purpose: Contains player inventory item code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 namespace EmulationServer.Game.Players;
 
-/**
-  * Carries immutable player inventory item data for the logged-in player state, persistence models, and gameplay records layer.
-  * Records in this project are used as explicit transfer models so packet parsing, database repositories, and runtime systems can pass strongly typed values without mutating shared state.
-  * Positional fields carried by this record: ItemGuid, OwnerGuid, TemplateEntry, BagGuid, Slot, InstanceData, InventoryType, DisplayId, EnchantmentId, ContainerSlots, MaxDurability, StackCount.
-  */
+// Type: PlayerInventoryItem
+// Purpose: Represents player inventory item data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - ItemGuid: Item GUID identifier used to select the exact record, object, or runtime owner.
+// - OwnerGuid: Owner GUID identifier used to select the exact record, object, or runtime owner.
+// - TemplateEntry: Template entry value supplied by the caller for this operation.
+// - BagGuid: Bag GUID identifier used to select the exact record, object, or runtime owner.
+// - Slot: Slot value supplied by the caller for this operation.
+// - InstanceData: Instance data value supplied by the caller for this operation.
+// - InventoryType: Inventory type value supplied by the caller for this operation.
+// - DisplayId: Display ID identifier used to select the exact record, object, or runtime owner.
+// - EnchantmentId: Enchantment ID identifier used to select the exact record, object, or runtime owner.
+// - ContainerSlots: Container slots value supplied by the caller for this operation.
+// - MaxDurability: Max durability value supplied by the caller for this operation.
+// - StackCount: Stack count value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed record PlayerInventoryItem(
     uint ItemGuid,
     uint OwnerGuid,
@@ -43,14 +51,12 @@ public sealed record PlayerInventoryItem(
     uint MaxDurability,
     uint StackCount)
 {
-    /**
-      * Stores the default is equipped value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+
+    // Property: Gets or sets the is equipped value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: is equipped value exposed by the owning type.
     public bool IsEquipped => BagGuid == 0 && Slot < 19;
 
-    /**
-      * True when the item has container slots and should be created with TYPEID_CONTAINER.
-      */
+    // Property: Gets or sets the is container value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: is container value exposed by the owning type.
     public bool IsContainer => ContainerSlots > 0;
 }

@@ -15,12 +15,18 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Data/Maps/MapStoreMapIndexRecord.cs
+// Purpose: Contains map store map index record code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Shared.Data.MapStore;
 
 namespace EmulationServer.Game.Data.Maps;
 
-/**
-  * Stores one record from map.index.bin after it has been validated.
-  */
+// Type: MapStoreMapIndexRecord
+// Purpose: Represents map store map index record data passed through the game-domain data, player state, DBC, and world-template layer.
+// Constructor values:
+// - Key: Key value supplied by the caller for this operation.
+// - DataFlags: Data flags value supplied by the caller for this operation.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public readonly record struct MapStoreMapIndexRecord(MapTileKey Key, MapStoreTileDataFlags DataFlags);

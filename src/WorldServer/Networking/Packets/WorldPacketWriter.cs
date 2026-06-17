@@ -15,51 +15,46 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Packets/WorldPacketWriter.cs
+// Purpose: Contains world packet writer code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Text;
 
-/**
-  * File overview: src/WorldServer/Networking/Packets/WorldPacketWriter.cs
-  * Documents the WorldPacketWriter source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Owns the world packet writer behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldPacketWriter
+// Purpose: Provides world packet writer behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class WorldPacketWriter
 {
-    /**
-      * Holds the private buffer state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the buffer state used by the world server gameplay, session, and character runtime layer.
+    // Value: current buffer backing value maintained by the owning type.
     private readonly List<byte> _buffer = [];
 
-    /**
-      * Stores the default count value used when the caller does not supply an override.
-      * Centralizing the default keeps configuration and packet behavior consistent across the server process.
-      */
+    // Property: Gets or sets the count value used by the world server gameplay, session, and character runtime layer.
+    // Value: count value exposed by the owning type.
     public int Count => _buffer.Count;
 
-    /**
-      * Writes write u int 8 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt8
+    // Purpose: Builds or writes write U int8 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt8(byte value)
     {
         _buffer.Add(value);
     }
 
-    /**
-      * Writes write u int 16 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt16
+    // Purpose: Builds or writes write U int16 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt16(ushort value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -67,11 +62,12 @@ public sealed class WorldPacketWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write u int 32 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt32
+    // Purpose: Builds or writes write U int32 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt32(uint value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -79,11 +75,12 @@ public sealed class WorldPacketWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write u int 64 data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteUInt64
+    // Purpose: Builds or writes write U int64 output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteUInt64(ulong value)
     {
         Span<byte> buffer = stackalloc byte[8];
@@ -91,11 +88,12 @@ public sealed class WorldPacketWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write float data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteFloat
+    // Purpose: Builds or writes write float output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteFloat(float value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -103,31 +101,34 @@ public sealed class WorldPacketWriter
         _buffer.AddRange(buffer.ToArray());
     }
 
-    /**
-      * Writes write c string data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteCString
+    // Purpose: Builds or writes write C string output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteCString(string value)
     {
         _buffer.AddRange(Encoding.UTF8.GetBytes(value));
         _buffer.Add(0);
     }
 
-    /**
-      * Writes write bytes data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: value.
-      */
+    // Method: WriteBytes
+    // Purpose: Builds or writes write bytes output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public void WriteBytes(ReadOnlySpan<byte> value)
     {
         _buffer.AddRange(value.ToArray());
     }
 
-    /**
-      * Performs the to array operation for the World of Warcraft packet opcode, reader, writer, and builder support workflow.
-      * Keeping this logic in a dedicated method makes the control flow easier to review, test, and adjust without spreading protocol or data rules across the codebase.
-      */
+    // Method: ToArray
+    // Purpose: Executes the to array operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketWriter so callers do not duplicate validation, protocol, or persistence rules.
     public byte[] ToArray()
     {
         return [.. _buffer];

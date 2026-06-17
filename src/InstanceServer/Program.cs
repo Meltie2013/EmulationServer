@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/InstanceServer/Program.cs
+// Purpose: Contains program code for the instance server runtime, dungeon-map ownership, and internal-service coordination.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.InstanceServer.Configuration;
 using EmulationServer.InstanceServer.Core;
@@ -23,16 +26,8 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Threading;
 
-/**
-  * File overview: src/InstanceServer/Program.cs
-  * Documents the Program source file for the instance server entry point.
-  * This top-level entry point handles startup argument selection, configuration loading, cancellation, logging, and controlled process exit behavior with normal comments instead of XML documentation.
-  */
-
-// Create a shared cancellation source so Ctrl+C and shutdown paths use the same token.
 using CancellationTokenSource cancellation = new();
 
-// Convert Ctrl+C into cooperative cancellation instead of allowing the process to terminate abruptly.
 Console.CancelKeyPress += (_, eventArgs) =>
 {
     eventArgs.Cancel = true;
@@ -43,7 +38,6 @@ Console.CancelKeyPress += (_, eventArgs) =>
     }
 };
 
-// Run startup inside a guarded block so configuration and runtime failures are logged before the process exits.
 try
 {
     string configurationPath = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "instanceserver.ini");
@@ -60,18 +54,18 @@ try
 
     await server.StartAsync(cancellation.Token);
 }
-// Treat cancellation from the shared shutdown token as a normal operator-requested stop.
+
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
 {
     Logger.Write(LogType.INFORMATION, "Shutdown requested. Stopping InstanceServer...", "Program");
 }
-// Configuration errors are reported as critical startup failures with a non-zero exit code.
+
 catch (ConfigurationException exception)
 {
     Logger.Write(LogType.CRITICAL, $"Configuration error: {exception.Message}");
     Environment.ExitCode = 1;
 }
-// Unexpected failures are logged with full details so startup and runtime crashes can be diagnosed.
+
 catch (Exception exception)
 {
     Logger.Write(LogType.CRITICAL, exception.ToString());

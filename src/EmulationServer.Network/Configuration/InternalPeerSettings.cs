@@ -15,63 +15,55 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Network/Configuration/InternalPeerSettings.cs
+// Purpose: Contains internal peer settings code for the packet serialization, socket transport, and protocol framing layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Network.Networking.Protocol;
 
-/**
-  * File overview: src/EmulationServer.Network/Configuration/InternalPeerSettings.cs
-  * Documents the InternalPeerSettings source file in the internal server networking, packet framing, and peer/session lifecycle area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Network.Configuration;
 
-/**
-  * Owns the internal peer settings behavior for the internal server networking, packet framing, and peer/session lifecycle layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: InternalPeerSettings
+// Purpose: Provides internal peer settings behavior for the packet serialization, socket transport, and protocol framing layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class InternalPeerSettings
 {
-    /**
-      * Gets or stores the name value used by InternalPeerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+
+    // Property: Gets or sets the name value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: name value exposed by the owning type.
     public string Name { get; init; } = string.Empty;
 
-    /**
-      * Gets or stores the host value used by InternalPeerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the host value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: host value exposed by the owning type.
     public string Host { get; init; } = "127.0.0.1";
 
-    /**
-      * Gets or stores the port value used by InternalPeerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the port value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: port value exposed by the owning type.
     public int Port { get; init; }
 
-    /**
-      * Gets or stores the enabled value used by InternalPeerSettings.
-      * Keeping the value exposed through a property makes configuration, snapshots, and protocol models easier to inspect without exposing unrelated implementation details.
-      */
+    // Property: Gets or sets the enabled value used by the packet serialization, socket transport, and protocol framing layer.
+    // Value: enabled value exposed by the owning type.
     public bool Enabled { get; init; } = true;
 
-    /**
-      * Gets or stores the reconnect delay value used by InternalPeerSettings.
-      * This delay controls how long the connector waits between reconnect attempts while the peer is unavailable.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span reconnect delay { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalPeerSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan ReconnectDelay { get; init; } = TimeSpan.FromSeconds(5);
 
-    /**
-      * Gets or stores the reconnect timeout value used by InternalPeerSettings.
-      * Once a peer has been seen at least once, the connector will only attempt to reconnect for this window before returning to passive wait mode.
-      */
+    // Method: FromSeconds
+    // Purpose: Executes the from seconds operation for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: Returns the time span reconnect timeout { get; init; } = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to InternalPeerSettings so callers do not duplicate validation, protocol, or persistence rules.
     public TimeSpan ReconnectTimeout { get; init; } = TimeSpan.FromSeconds(120);
 
-    /**
-      * Validates input and throws a clear exception before invalid state reaches runtime code.
-      * The method is part of InternalPeerSettings and keeps this workflow isolated from the caller.
-      */
+    // Method: Validate
+    // Purpose: Validates or evaluates validate rules for the packet serialization, socket transport, and protocol framing layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to InternalPeerSettings so callers do not duplicate validation, protocol, or persistence rules.
     public void Validate()
     {
         if (!InternalProtocol.IsValidServerName(Name))

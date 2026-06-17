@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
+// Purpose: Contains map service manager code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Creatures;
 using EmulationServer.Game.Data;
@@ -26,72 +29,80 @@ using EmulationServer.Shared.Logging;
 using EmulationServer.Shared.Logging.Enums;
 using EmulationServer.Shared.Timing;
 
-/**
-  * File overview: src/EmulationServer.Game/Maps/Runtime/MapServiceManager.cs
-  * Documents the MapServiceManager source file in the runtime map-player state tracking area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.Game.Maps.Runtime;
 
-/**
-  * Coordinates all map and instance services hosted by a server process and routes control commands to the correct service.
-  * It also owns typed map DBC metadata so registered services can be validated and described from Map.dbc and related area files.
-  */
+// Type: MapServiceManager
+// Purpose: Provides map service manager behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class MapServiceManager : IAsyncDisposable
 {
-    /**
-      * Holds the private owner server name state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the owner server name state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current owner server name backing value maintained by the owning type.
     private readonly string _ownerServerName;
-    /**
-      * Holds the private settings state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the settings state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current settings backing value maintained by the owning type.
     private readonly MapRuntimeSettings _settings;
+    // Field: Stores the map service snapshot state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map service snapshot backing value maintained by the owning type.
     private readonly Func<MapServiceSnapshot, CancellationToken, Task> _reportStatusAsync;
+    // Field: Stores the int state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current int backing value maintained by the owning type.
     private readonly Func<int, CancellationToken, Task<IReadOnlyList<GameObjectSpawnRecord>>>? _loadGameObjectSpawnsAsync;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Func<uint, GameObjectTemplateRecord?>? _resolveGameObjectTemplate;
+    // Field: Stores the int state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current int backing value maintained by the owning type.
     private readonly Func<int, CancellationToken, Task<IReadOnlyList<CreatureSpawnRecord>>>? _loadCreatureSpawnsAsync;
+    // Field: Stores the uint state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current uint backing value maintained by the owning type.
     private readonly Func<uint, CreatureTemplateRecord?>? _resolveCreatureTemplate;
+    // Field: Stores the clock state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current clock backing value maintained by the owning type.
     private readonly ISteadyClock _clock;
-    /**
-      * Holds the private services state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the services state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current services backing value maintained by the owning type.
     private readonly List<MapService> _services = [];
+    // Field: Stores the string state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current string backing value maintained by the owning type.
     private readonly Dictionary<string, DbcDataStore> _dbcStores;
-    /**
-      * Holds the private map data state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the map data state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current map data backing value maintained by the owning type.
     private readonly MapDbcDataStore _mapData;
 
-    /**
-      * Holds the private stop cancellation state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+    // Field: Stores the stop cancellation state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
-    /**
-      * Holds the private report task state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the report task state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current report task backing value maintained by the owning type.
     private Task? _reportTask;
-    /**
-      * Holds the private started state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the started state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current started backing value maintained by the owning type.
     private int _started;
-    /**
-      * Holds the private stopping state used by the owning component.
-      * The field is intentionally kept behind the type boundary so updates can follow the component lifecycle and synchronization rules.
-      */
+
+    // Field: Stores the stopping state used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: current stopping backing value maintained by the owning type.
     private int _stopping;
 
-    /**
-      * Creates the service manager, loads configured DBC data, creates typed map metadata, and registers configured map services.
-      */
+    // Constructor: MapServiceManager
+    // Purpose: Initializes a new MapServiceManager instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - ownerServerName: Owner server name value supplied by the caller for this operation.
+    // - settings: Settings values that control how this operation should run.
+    // - reportStatusAsync: Report status async value supplied by the caller for this operation.
+    // - loadGameObjectSpawnsAsync: Load game object spawns async value supplied by the caller for this operation.
+    // - resolveGameObjectTemplate: Resolve game object template value supplied by the caller for this operation.
+    // - loadCreatureSpawnsAsync: Load creature spawns async value supplied by the caller for this operation.
+    // - resolveCreatureTemplate: Resolve creature template value supplied by the caller for this operation.
+    // - clock: Clock value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     public MapServiceManager(
         string ownerServerName,
         MapRuntimeSettings settings,
@@ -154,24 +165,24 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Gets all map or instance services registered with this manager.
-      */
+    // Property: Gets or sets the services value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: services value exposed by the owning type.
     public IReadOnlyList<MapService> Services => _services;
 
-    /**
-      * Gets the raw DBC stores loaded by this server for systems that still need generic DBC access.
-      */
+    // Property: Gets or sets the string value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: string value exposed by the owning type.
     public IReadOnlyDictionary<string, DbcDataStore> DbcStores => _dbcStores;
 
-    /**
-      * Gets typed map, area, trigger, continent, and overlay DBC data for the hosted services.
-      */
+    // Property: Gets or sets the map data value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: map data value exposed by the owning type.
     public MapDbcDataStore MapData => _mapData;
 
-    /**
-      * Creates the optional game object runtime bridge used by start/restart/shutdown map lifecycle hooks.
-      */
+    // Method: CreateGameObjectRuntime
+    // Purpose: Applies create game object runtime changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - definition: Definition value supplied by the caller for this operation.
+    // Returns: Returns the game object map runtime? value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private GameObjectMapRuntime? CreateGameObjectRuntime(MapServiceDefinition definition)
     {
         if (_loadGameObjectSpawnsAsync is null || _resolveGameObjectTemplate is null)
@@ -185,9 +196,12 @@ public sealed class MapServiceManager : IAsyncDisposable
             _resolveGameObjectTemplate);
     }
 
-    /**
-      * Creates the optional creature runtime bridge used by start/restart/shutdown map lifecycle hooks.
-      */
+    // Method: CreateCreatureRuntime
+    // Purpose: Applies create creature runtime changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - definition: Definition value supplied by the caller for this operation.
+    // Returns: Returns the creature map runtime? value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private CreatureMapRuntime? CreateCreatureRuntime(MapServiceDefinition definition)
     {
         if (_loadCreatureSpawnsAsync is null || _resolveCreatureTemplate is null)
@@ -201,9 +215,11 @@ public sealed class MapServiceManager : IAsyncDisposable
             _resolveCreatureTemplate);
     }
 
-    /**
-      * Returns snapshots for every registered map service.
-      */
+    // Method: GetSnapshots
+    // Purpose: Retrieves get snapshots data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<MapServiceSnapshot> GetSnapshots()
     {
         return _services
@@ -211,9 +227,12 @@ public sealed class MapServiceManager : IAsyncDisposable
             .ToArray();
     }
 
-    /**
-      * Returns snapshots for every registered service matching the supplied map id.
-      */
+    // Method: GetSnapshots
+    // Purpose: Retrieves get snapshots data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     public IReadOnlyList<MapServiceSnapshot> GetSnapshots(int mapId)
     {
         return _services
@@ -222,9 +241,12 @@ public sealed class MapServiceManager : IAsyncDisposable
             .ToArray();
     }
 
-    /**
-      * Applies the active player counts collected by the owning map or instance server to every hosted service.
-      */
+    // Method: SetActivePlayerCounts
+    // Purpose: Applies set active player counts changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - activePlayersByMap: Active players by map value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     public void SetActivePlayerCounts(IReadOnlyDictionary<uint, int> activePlayersByMap)
     {
         ArgumentNullException.ThrowIfNull(activePlayersByMap);
@@ -237,9 +259,13 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Starts every registered service and begins the periodic status report loop.
-      */
+    // Method: StartAsync
+    // Purpose: Controls the start lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.Exchange(ref _started, 1) == 1)
@@ -266,12 +292,13 @@ public sealed class MapServiceManager : IAsyncDisposable
         Logger.Write(LogType.SYSTEM, $"{_ownerServerName} map service manager started with {_services.Count} service(s).", "MapServiceManager");
     }
 
-    /**
-      * Stops the stop workflow and releases owned runtime resources in a controlled order.
-      * Shutdown logic is centralized to avoid dangling connections, incomplete saves, or partially registered services.
-      * Inputs used by this operation: cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: StopAsync
+    // Purpose: Controls the stop lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopping, 1) == 1)
@@ -297,7 +324,7 @@ public sealed class MapServiceManager : IAsyncDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Expected during shutdown.
+
             }
         }
 
@@ -316,9 +343,15 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Executes a start, shutdown, restart, or info command for every service matching the requested map id.
-      */
+    // Method: ExecuteControlCommandAsync
+    // Purpose: Controls the execute control command lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - action: Action value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<IReadOnlyList<MapServiceControlResult>> ExecuteControlCommandAsync(
         MapServiceControlAction action,
         int mapId,
@@ -366,17 +399,24 @@ public sealed class MapServiceManager : IAsyncDisposable
         return results;
     }
 
-    /**
-      * Stops owned background work and releases the service manager.
-      */
+    // Method: DisposeAsync
+    // Purpose: Controls the dispose lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async ValueTask DisposeAsync()
     {
         await StopAsync(CancellationToken.None);
     }
 
-    /**
-      * Sends one status report for every registered service immediately.
-      */
+    // Method: ReportAllServicesAsync
+    // Purpose: Executes the report all services operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ReportAllServicesAsync(CancellationToken cancellationToken)
     {
         foreach (MapService service in _services)
@@ -385,9 +425,14 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Sends one status report for every registered service matching a map id immediately.
-      */
+    // Method: ReportServicesAsync
+    // Purpose: Executes the report services operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ReportServicesAsync(int mapId, CancellationToken cancellationToken)
     {
         foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
@@ -396,9 +441,14 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Reloads game object runtime state for every hosted service on one map from the latest received WorldServer snapshot.
-      */
+    // Method: ReloadGameObjectsAsync
+    // Purpose: Executes the reload game objects operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ReloadGameObjectsAsync(int mapId, CancellationToken cancellationToken)
     {
         foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
@@ -407,9 +457,14 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Reloads creature runtime state for every hosted service on one map from the latest received WorldServer snapshot.
-      */
+    // Method: ReloadCreaturesAsync
+    // Purpose: Executes the reload creatures operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task ReloadCreaturesAsync(int mapId, CancellationToken cancellationToken)
     {
         foreach (MapService service in _services.Where(service => service.Definition.MapId == mapId))
@@ -418,9 +473,15 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Executes a map control command against a single service and converts the result to a protocol-safe response.
-      */
+    // Method: ExecuteControlCommandAsync
+    // Purpose: Controls the execute control command lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - service: Service value supplied by the caller for this operation.
+    // - action: Action value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task<MapServiceControlResult> ExecuteControlCommandAsync(
         MapService service,
         MapServiceControlAction action,
@@ -477,9 +538,12 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Uses typed Map.dbc data to validate configured service ids, improve service names, and log area/trigger counts.
-      */
+    // Method: ApplyMapDbcMetadata
+    // Purpose: Applies apply map DBC metadata changes for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - definition: Definition value supplied by the caller for this operation.
+    // Returns: Returns the map service definition value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private MapServiceDefinition ApplyMapDbcMetadata(MapServiceDefinition definition)
     {
         definition.Validate();
@@ -517,17 +581,24 @@ public sealed class MapServiceManager : IAsyncDisposable
         };
     }
 
-    /**
-      * Returns the token that should control long-running service work created after manager startup.
-      */
+    // Method: GetServiceLifetimeToken
+    // Purpose: Retrieves get service lifetime token data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - fallbackToken: Fallback token value supplied by the caller for this operation.
+    // Returns: Returns the cancellation token value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private CancellationToken GetServiceLifetimeToken(CancellationToken fallbackToken)
     {
         return _stopCancellation?.Token ?? fallbackToken;
     }
 
-    /**
-      * Runs the periodic status report loop until the server shuts down.
-      */
+    // Method: RunStatusReportLoopAsync
+    // Purpose: Controls the run status report loop lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private async Task RunStatusReportLoopAsync(CancellationToken cancellationToken)
     {
         try
@@ -540,7 +611,7 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Expected during shutdown.
+
         }
         catch (Exception exception)
         {
@@ -548,9 +619,11 @@ public sealed class MapServiceManager : IAsyncDisposable
         }
     }
 
-    /**
-      * Returns the best default service kind for a command result when no actual service was found.
-      */
+    // Method: GetDefaultServiceKind
+    // Purpose: Retrieves get default service kind data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters: none.
+    // Returns: Returns the map service kind value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private MapServiceKind GetDefaultServiceKind()
     {
         MapService? service = _services.FirstOrDefault();
@@ -564,9 +637,12 @@ public sealed class MapServiceManager : IAsyncDisposable
             : MapServiceKind.World;
     }
 
-    /**
-      * Formats one map info response with both runtime status and DBC-backed map metadata.
-      */
+    // Method: FormatInfoMessage
+    // Purpose: Executes the format info message operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private string FormatInfoMessage(MapServiceSnapshot snapshot)
     {
         List<string> lines = [
@@ -590,9 +666,12 @@ public sealed class MapServiceManager : IAsyncDisposable
         return string.Join('\n', lines);
     }
 
-    /**
-      * Resolves the active game object count for the service represented by a snapshot.
-      */
+    // Method: GetActiveGameObjectsForSnapshot
+    // Purpose: Retrieves get active game objects for snapshot data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private int GetActiveGameObjectsForSnapshot(MapServiceSnapshot snapshot)
     {
         return _services.FirstOrDefault(service =>
@@ -602,9 +681,12 @@ public sealed class MapServiceManager : IAsyncDisposable
             ?.ActiveGameObjectCount ?? 0;
     }
 
-    /**
-      * Resolves the active creature count for the service represented by a snapshot.
-      */
+    // Method: GetActiveCreaturesForSnapshot
+    // Purpose: Retrieves get active creatures for snapshot data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - snapshot: Snapshot value supplied by the caller for this operation.
+    // Returns: Returns the int value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private int GetActiveCreaturesForSnapshot(MapServiceSnapshot snapshot)
     {
         return _services.FirstOrDefault(service =>
@@ -614,9 +696,13 @@ public sealed class MapServiceManager : IAsyncDisposable
             ?.ActiveCreatureCount ?? 0;
     }
 
-    /**
-      * Appends DBC-backed metadata as short chat-safe lines.
-      */
+    // Method: AppendMapMetadata
+    // Purpose: Executes the append map metadata operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - lines: Lines value supplied by the caller for this operation.
+    // - mapId: Map ID identifier used to select the exact record, object, or runtime owner.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private void AppendMapMetadata(List<string> lines, int mapId)
     {
         if (!_mapData.TryGetMap(mapId, out MapDbcRecord map))
@@ -632,9 +718,13 @@ public sealed class MapServiceManager : IAsyncDisposable
         lines.Add($"Continents: {_mapData.GetContinentsForMap(mapId).Count}");
     }
 
-    /**
-      * Formats an online uptime counter while keeping offline and unknown values explicit.
-      */
+    // Method: FormatUptime
+    // Purpose: Executes the format uptime operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - state: State value supplied by the caller for this operation.
+    // - startedUtc: Started utc value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private string FormatUptime(MapServiceState state, DateTimeOffset startedUtc)
     {
         if (state != MapServiceState.Online)
@@ -656,9 +746,12 @@ public sealed class MapServiceManager : IAsyncDisposable
         return FormatDuration(uptime);
     }
 
-    /**
-      * Formats a compact day/hour/minute/second duration for in-game chat output.
-      */
+    // Method: FormatDuration
+    // Purpose: Executes the format duration operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - duration: Duration value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapServiceManager so callers do not duplicate validation, protocol, or persistence rules.
     private static string FormatDuration(TimeSpan duration)
     {
         return duration.TotalDays >= 1

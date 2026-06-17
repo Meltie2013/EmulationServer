@@ -15,31 +15,32 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/WorldServer/Networking/Packets/WorldPacketIO.cs
+// Purpose: Contains world packet IO code for the world server gameplay, session, and character runtime layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Net.Sockets;
 
-/**
-  * File overview: src/WorldServer/Networking/Packets/WorldPacketIO.cs
-  * Documents the WorldPacketIO source file in the World of Warcraft packet opcode, reader, writer, and builder support area of the Emulation Server project.
-  * The notes below explain intent, ownership, validation rules, and protocol/data responsibilities using normal comments instead of XML documentation.
-  */
-
 namespace EmulationServer.WorldServer.Networking.Packets;
 
-/**
-  * Owns the world packet io behavior for the World of Warcraft packet opcode, reader, writer, and builder support layer.
-  * The class keeps related validation, state changes, and external calls in one place so startup, runtime handling, and shutdown remain predictable.
-  */
+// Type: WorldPacketIO
+// Purpose: Provides world packet IO behavior for the world server gameplay, session, and character runtime layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class WorldPacketIO
 {
-    /**
-      * Parses read client packet input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: stream, crypt, maximumPacketSize, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+
+    // Method: ReadClientPacketAsync
+    // Purpose: Retrieves read client packet data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - crypt: Crypt value supplied by the caller for this operation.
+    // - maximumPacketSize: Maximum packet size value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to WorldPacketIO so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async ValueTask<WorldPacket> ReadClientPacketAsync(
         NetworkStream stream,
         WorldHeaderCrypt? crypt,
@@ -86,12 +87,17 @@ public static class WorldPacketIO
         }
     }
 
-    /**
-      * Writes write server packet data to the target packet, stream, or persistent store.
-      * The method keeps binary layout and serialization rules centralized for easier packet review and compatibility fixes.
-      * Inputs used by this operation: stream, opcode, payload, crypt, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: WriteServerPacketAsync
+    // Purpose: Builds or writes write server packet output for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - payload: Payload bytes or structured payload consumed by this operation.
+    // - crypt: Crypt value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldPacketIO so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public static async ValueTask WriteServerPacketAsync(
         NetworkStream stream,
         WorldOpcode opcode,
@@ -116,10 +122,16 @@ public static class WorldPacketIO
         }
     }
 
-    /**
-      * Builds the encrypted server packet frame in a pooled buffer before the async socket write starts.
-      * Keeping Span work outside the async state machine avoids extra allocations and compiler restrictions.
-      */
+    // Method: RentServerFrame
+    // Purpose: Executes the rent server frame operation for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - opcode: Opcode value supplied by the caller for this operation.
+    // - payload: Payload bytes or structured payload consumed by this operation.
+    // - crypt: Crypt value supplied by the caller for this operation.
+    // - packetSize: Packet size value supplied by the caller for this operation.
+    // - frameLength: Frame length value supplied by the caller for this operation.
+    // Returns: Returns the byte[] value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldPacketIO so callers do not duplicate validation, protocol, or persistence rules.
     private static byte[] RentServerFrame(
         WorldOpcode opcode,
         ReadOnlyMemory<byte> payload,
@@ -147,20 +159,29 @@ public static class WorldPacketIO
         return frame;
     }
 
-    /**
-      * Parses read exactly input into the strongly typed server representation.
-      * Parsing code performs boundary checks close to the raw packet or file data so corrupted input cannot leak deeper into gameplay systems.
-      * Inputs used by this operation: stream, buffer, cancellationToken.
-      * The asynchronous form keeps network, file, and database work from blocking the main server loop and allows cancellation during shutdown.
-      */
+    // Method: ReadExactlyAsync
+    // Purpose: Retrieves read exactly data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - bytebuffer: Bytebuffer value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldPacketIO so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static ValueTask ReadExactlyAsync(NetworkStream stream, byte[] buffer, CancellationToken cancellationToken)
     {
         return ReadExactlyAsync(stream, buffer.AsMemory(), cancellationToken);
     }
 
-    /**
-      * Reads exactly into an existing memory buffer so small pooled buffers can be used on packet hot paths.
-      */
+    // Method: ReadExactlyAsync
+    // Purpose: Retrieves read exactly data for the world server gameplay, session, and character runtime layer.
+    // Parameters:
+    // - stream: Stream value supplied by the caller for this operation.
+    // - buffer: Buffer bytes or structured payload consumed by this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    // Notes: This keeps the operation scoped to WorldPacketIO so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     private static async ValueTask ReadExactlyAsync(NetworkStream stream, Memory<byte> buffer, CancellationToken cancellationToken)
     {
         int offset = 0;

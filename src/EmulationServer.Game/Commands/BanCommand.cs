@@ -15,26 +15,47 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Commands/BanCommand.cs
+// Purpose: Contains ban command code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Database.Accounts;
 
 namespace EmulationServer.Game.Commands;
 
-/**
-  * Handles administrator ban commands from in-game chat.
-  */
+// Type: BanCommand
+// Purpose: Provides ban command behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class BanCommand : IChatCommand
 {
+    // Property: Gets or sets the name value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: name value exposed by the owning type.
     public string Name => "ban";
 
+    // Property: Gets or sets the aliases value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: aliases value exposed by the owning type.
     public IReadOnlyList<string> Aliases { get; } = [];
 
+    // Property: Gets or sets the required permission value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: required permission value exposed by the owning type.
     public uint RequiredPermission => RbacPermissionIds.CommandBan;
 
+    // Property: Gets or sets the description value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: description value exposed by the owning type.
     public string Description => "Bans accounts.";
 
+    // Property: Gets or sets the syntax value used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: syntax value exposed by the owning type.
     public string Syntax => ".ban";
 
+    // Method: ExecuteAsync
+    // Purpose: Controls the execute lifecycle step for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that resolves to the requested result when the work completes.
+    // Notes: This keeps the operation scoped to BanCommand so callers do not duplicate validation, protocol, or persistence rules.
+    // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task<string> ExecuteAsync(ChatCommandContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -71,6 +92,13 @@ public sealed class BanCommand : IChatCommand
         return result.Message;
     }
 
+    // Method: GetHelp
+    // Purpose: Retrieves get help data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - context: Context value supplied by the caller for this operation.
+    // - prefix: Prefix value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to BanCommand so callers do not duplicate validation, protocol, or persistence rules.
     private static string GetHelp(ChatCommandContext context, string? prefix = null)
     {
         string command = context.Session.HasPermission(RbacPermissionIds.CommandBanAccount)

@@ -15,19 +15,28 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Shared/Data/MapStore/MapStoreBinaryPrimitives.cs
+// Purpose: Contains map store binary primitives code for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Text;
 
 namespace EmulationServer.Shared.Data.MapStore;
 
-/**
-  * Centralizes small binary read/write helpers used by mapstore writers, validators, and runtime readers.
-  */
+// Type: MapStoreBinaryPrimitives
+// Purpose: Provides map store binary primitives behavior for the shared infrastructure, logging, timing, and cross-service utility layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class MapStoreBinaryPrimitives
 {
-    /**
-      * Reads a fixed-size ASCII value.
-      */
+
+    // Method: ReadAscii
+    // Purpose: Retrieves read ascii data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - byteCount: Byte count value supplied by the caller for this operation.
+    // - valueName: Value name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinaryPrimitives so callers do not duplicate validation, protocol, or persistence rules.
     public static string ReadAscii(BinaryReader reader, int byteCount, string valueName)
     {
         ArgumentNullException.ThrowIfNull(reader);
@@ -47,17 +56,25 @@ public static class MapStoreBinaryPrimitives
         return Encoding.ASCII.GetString(bytes);
     }
 
-    /**
-      * Reads one four-character ASCII value.
-      */
+    // Method: ReadFourCC
+    // Purpose: Retrieves read four CC data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - valueName: Value name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinaryPrimitives so callers do not duplicate validation, protocol, or persistence rules.
     public static string ReadFourCC(BinaryReader reader, string valueName = "FourCC value")
     {
         return ReadAscii(reader, 4, valueName);
     }
 
-    /**
-      * Writes a fixed-size ASCII value.
-      */
+    // Method: WriteAscii
+    // Purpose: Builds or writes write ascii output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreBinaryPrimitives so callers do not duplicate validation, protocol, or persistence rules.
     public static void WriteAscii(BinaryWriter writer, string value)
     {
         ArgumentNullException.ThrowIfNull(writer);
@@ -66,9 +83,13 @@ public static class MapStoreBinaryPrimitives
         writer.Write(Encoding.ASCII.GetBytes(value));
     }
 
-    /**
-      * Writes one four-character ASCII value.
-      */
+    // Method: WriteFourCC
+    // Purpose: Builds or writes write four CC output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreBinaryPrimitives so callers do not duplicate validation, protocol, or persistence rules.
     public static void WriteFourCC(BinaryWriter writer, string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -82,9 +103,14 @@ public static class MapStoreBinaryPrimitives
         writer.Write(bytes);
     }
 
-    /**
-      * Reads a length-prefixed UTF-8 string.
-      */
+    // Method: ReadUtf8String
+    // Purpose: Retrieves read utf8 string data for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - reader: Database reader used to execute this operation without opening unnecessary additional state.
+    // - path: Path value supplied by the caller for this operation.
+    // - fieldName: Field name value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to MapStoreBinaryPrimitives so callers do not duplicate validation, protocol, or persistence rules.
     public static string ReadUtf8String(BinaryReader reader, string path, string fieldName)
     {
         ArgumentNullException.ThrowIfNull(reader);
@@ -102,9 +128,13 @@ public static class MapStoreBinaryPrimitives
         return Encoding.UTF8.GetString(bytes);
     }
 
-    /**
-      * Writes a length-prefixed UTF-8 string.
-      */
+    // Method: WriteUtf8String
+    // Purpose: Builds or writes write utf8 string output for the shared infrastructure, logging, timing, and cross-service utility layer.
+    // Parameters:
+    // - writer: Writer value supplied by the caller for this operation.
+    // - value: Value value supplied by the caller for this operation.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to MapStoreBinaryPrimitives so callers do not duplicate validation, protocol, or persistence rules.
     public static void WriteUtf8String(BinaryWriter writer, string value)
     {
         ArgumentNullException.ThrowIfNull(writer);

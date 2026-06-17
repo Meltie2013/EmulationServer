@@ -15,17 +15,21 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: src/EmulationServer.Game/Chat/LanguageKnowledgeSystem.cs
+// Purpose: Contains language knowledge system code for the game-domain data, player state, DBC, and world-template layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using EmulationServer.Game.Players;
 
 namespace EmulationServer.Game.Chat;
 
-/**
-  * Centralizes the Vanilla language spell, skill, and race mapping used by the
-  * chat system, character creation, and login object update packets.
-  */
+// Type: LanguageKnowledgeSystem
+// Purpose: Provides language knowledge system behavior for the game-domain data, player state, DBC, and world-template layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public static class LanguageKnowledgeSystem
 {
+    // Constant: Defines the language skill value constant used by the game-domain data, player state, DBC, and world-template layer.
+    // Value: fixed language skill value value used anywhere this rule or protocol value is needed.
     private const uint LanguageSkillValue = 300;
 
     private static readonly IReadOnlyDictionary<ChatLanguage, LanguageDefinition> Definitions = new Dictionary<ChatLanguage, LanguageDefinition>
@@ -40,11 +44,24 @@ public static class LanguageKnowledgeSystem
         [ChatLanguage.Gutterspeak] = new(ChatLanguage.Gutterspeak, 673, 17737),
     };
 
+    // Method: GetDefaultLanguage
+    // Purpose: Retrieves get default language data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the chat language value produced by this operation.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static ChatLanguage GetDefaultLanguage(PlayerFaction faction)
     {
         return faction == PlayerFaction.Horde ? ChatLanguage.Orcish : ChatLanguage.Common;
     }
 
+    // Method: BuildInitialLanguageSkills
+    // Purpose: Builds or writes build initial language skills output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<PlayerSkill> BuildInitialLanguageSkills(byte race, PlayerFaction faction)
     {
         SortedDictionary<uint, PlayerSkill> skills = [];
@@ -56,6 +73,13 @@ public static class LanguageKnowledgeSystem
         return skills.Values.ToArray();
     }
 
+    // Method: BuildInitialLanguageSpellIds
+    // Purpose: Builds or writes build initial language spell ids output for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<uint> BuildInitialLanguageSpellIds(byte race, PlayerFaction faction)
     {
         SortedSet<uint> spellIds = [];
@@ -70,6 +94,14 @@ public static class LanguageKnowledgeSystem
         return spellIds.ToArray();
     }
 
+    // Method: EnsureInitialLanguageSkills
+    // Purpose: Validates or evaluates ensure initial language skills rules for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // - savedSkills: Saved skills value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static IReadOnlyList<PlayerSkill> EnsureInitialLanguageSkills(
         byte race,
         PlayerFaction faction,
@@ -106,6 +138,13 @@ public static class LanguageKnowledgeSystem
         return skills.Values.ToArray();
     }
 
+    // Method: PlayerKnowsLanguage
+    // Purpose: Executes the player knows language operation for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - player: Player value supplied by the caller for this operation.
+    // - language: Language value supplied by the caller for this operation.
+    // Returns: Returns true when player knows language succeeds or the requested condition is met; otherwise returns false.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystem so callers do not duplicate validation, protocol, or persistence rules.
     public static bool PlayerKnowsLanguage(PlayerLoginRecord player, ChatLanguage language)
     {
         ArgumentNullException.ThrowIfNull(player);
@@ -129,6 +168,13 @@ public static class LanguageKnowledgeSystem
             .Any(knownLanguage => knownLanguage.Language == language);
     }
 
+    // Method: ResolveKnownLanguageDefinitions
+    // Purpose: Retrieves resolve known language definitions data for the game-domain data, player state, DBC, and world-template layer.
+    // Parameters:
+    // - race: Race value supplied by the caller for this operation.
+    // - faction: Faction value supplied by the caller for this operation.
+    // Returns: Returns the I enumerable value produced by this operation.
+    // Notes: This keeps the operation scoped to LanguageKnowledgeSystem so callers do not duplicate validation, protocol, or persistence rules.
     private static IEnumerable<LanguageDefinition> ResolveKnownLanguageDefinitions(byte race, PlayerFaction faction)
     {
         SortedSet<ChatLanguage> languages = [GetDefaultLanguage(faction)];
@@ -164,5 +210,12 @@ public static class LanguageKnowledgeSystem
         }
     }
 
+    // Type: LanguageDefinition
+    // Purpose: Represents language definition data passed through the game-domain data, player state, DBC, and world-template layer.
+    // Constructor values:
+    // - Language: Language value supplied by the caller for this operation.
+    // - SkillId: Skill ID identifier used to select the exact record, object, or runtime owner.
+    // - SpellId: Spell ID identifier used to select the exact record, object, or runtime owner.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private sealed record LanguageDefinition(ChatLanguage Language, uint SkillId, uint SpellId);
 }

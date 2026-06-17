@@ -15,6 +15,9 @@
 // along with this program. If not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
+// File: tests/EmulationServer.Tests/RealmServer/RealmListPacketBuilderTests.cs
+// Purpose: Contains realm list packet builder tests code for the realm server authentication, realm-list, and account connection layer.
+// Documentation: Uses normal line comments so the source stays readable without C# XML documentation tags.
 
 using System.Buffers.Binary;
 using System.Text;
@@ -23,22 +26,20 @@ using EmulationServer.RealmServer.Auth;
 using EmulationServer.RealmServer.Configuration;
 using EmulationServer.RealmServer.Realms;
 
-/**
-  * File overview: tests/EmulationServer.Tests/RealmServer/RealmListPacketBuilderTests.cs
-  * Documents client-facing realm-list packet layout for vanilla/MaNGOS Zero compatible clients.
-  */
-
 namespace EmulationServer.Tests.RealmServer;
 
-/**
-  * Owns tests that verify RealmServer writes population into the exact realm-list row field consumed by the WoW client.
-  */
+// Type: RealmListPacketBuilderTests
+// Purpose: Provides realm list packet builder tests behavior for the realm server authentication, realm-list, and account connection layer.
+// Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class RealmListPacketBuilderTests
 {
-    /**
-      * Verifies vanilla clients receive the MaNGOS Zero compatible row layout, including population after address.
-      */
+
     [Fact]
+    // Method: BuildRealmList_ShouldWriteVanillaPopulationIntoClientRealmRow
+    // Purpose: Builds or writes build realm list should write vanilla population into client realm row output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldWriteVanillaPopulationIntoClientRealmRow()
     {
         ConfiguredRealmStore store = CreateStore();
@@ -81,10 +82,12 @@ public sealed class RealmListPacketBuilderTests
         Assert.Equal(packet.Length, offset);
     }
 
-    /**
-      * Verifies the client-facing population value is attached to the matching realm row by realm id.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldAttachPopulationToMatchingClientRealmRow
+    // Purpose: Builds or writes build realm list should attach population to matching client realm row output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldAttachPopulationToMatchingClientRealmRow()
     {
         ConfiguredRealmStore store = new(
@@ -126,10 +129,12 @@ public sealed class RealmListPacketBuilderTests
         Assert.Equal(1.0f, rows[1].Population);
     }
 
-    /**
-      * Verifies newer realm-list rows use the MaNGOS realmd unknown byte for compatibility.
-      */
     [Fact]
+    // Method: BuildRealmList_ShouldWriteModernRealmListUnknownValue
+    // Purpose: Builds or writes build realm list should write modern realm list unknown value output for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: none.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilderTests so callers do not duplicate validation, protocol, or persistence rules.
     public void BuildRealmList_ShouldWriteModernRealmListUnknownValue()
     {
         ConfiguredRealmStore store = new(
@@ -164,6 +169,11 @@ public sealed class RealmListPacketBuilderTests
         Assert.Equal(0x2C, packet[offset]);
     }
 
+    // Method: CreateStore
+    // Purpose: Applies create store changes for the realm server authentication, realm-list, and account connection layer.
+    // Parameters: none.
+    // Returns: Returns the configured realm store value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static ConfiguredRealmStore CreateStore()
     {
         return new ConfiguredRealmStore(
@@ -185,6 +195,12 @@ public sealed class RealmListPacketBuilderTests
             });
     }
 
+    // Method: ReadVanillaRows
+    // Purpose: Retrieves read vanilla rows data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - bytepacket: Bytepacket value supplied by the caller for this operation.
+    // Returns: Returns the I read only list value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static IReadOnlyList<RealmListRow> ReadVanillaRows(byte[] packet)
     {
         int count = packet[7];
@@ -209,6 +225,13 @@ public sealed class RealmListPacketBuilderTests
         return rows;
     }
 
+    // Method: ReadCString
+    // Purpose: Retrieves read C string data for the realm server authentication, realm-list, and account connection layer.
+    // Parameters:
+    // - bytepacket: Bytepacket value supplied by the caller for this operation.
+    // - offset: Offset value supplied by the caller for this operation.
+    // Returns: Returns the string value produced by this operation.
+    // Notes: This keeps the operation scoped to RealmListPacketBuilderTests so callers do not duplicate validation, protocol, or persistence rules.
     private static string ReadCString(byte[] packet, ref int offset)
     {
         int start = offset;
@@ -223,5 +246,11 @@ public sealed class RealmListPacketBuilderTests
         return value;
     }
 
+    // Type: RealmListRow
+    // Purpose: Represents realm list row data passed through the realm server authentication, realm-list, and account connection layer.
+    // Constructor values:
+    // - Name: Name value supplied by the caller for this operation.
+    // - Population: Population value supplied by the caller for this operation.
+    // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
     private readonly record struct RealmListRow(string Name, float Population);
 }
