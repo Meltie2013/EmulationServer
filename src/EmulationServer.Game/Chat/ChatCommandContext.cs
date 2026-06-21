@@ -24,56 +24,36 @@ namespace EmulationServer.Game.Commands;
 // Type: ChatCommandContext
 // Purpose: Provides chat command context behavior for the game-domain data, player state, DBC, and world-template layer.
 // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
-public sealed class ChatCommandContext
+public sealed class ChatCommandContext(
+    IInGameCommandSession session,
+    string rawText,
+    string commandName,
+    string arguments,
+    InGameCommandRegistry registry,
+    InGameCommandDependencies dependencies)
 {
-    // Constructor: ChatCommandContext
-    // Purpose: Initializes a new ChatCommandContext instance with dependencies and values required by the game-domain data, player state, DBC, and world-template layer.
-    // Parameters:
-    // - session: Session value supplied by the caller for this operation.
-    // - rawText: Raw text value supplied by the caller for this operation.
-    // - commandName: Command name value supplied by the caller for this operation.
-    // - arguments: Arguments value supplied by the caller for this operation.
-    // - registry: Registry value supplied by the caller for this operation.
-    // - dependencies: Dependencies value supplied by the caller for this operation.
-    // Returns: none.
-    // Notes: This keeps the operation scoped to ChatCommandContext so callers do not duplicate validation, protocol, or persistence rules.
-    public ChatCommandContext(
-        IInGameCommandSession session,
-        string rawText,
-        string commandName,
-        string arguments,
-        InGameCommandRegistry registry,
-        InGameCommandDependencies dependencies)
-    {
-        Session = session ?? throw new ArgumentNullException(nameof(session));
-        RawText = rawText ?? string.Empty;
-        CommandName = commandName ?? string.Empty;
-        Arguments = arguments ?? string.Empty;
-        Registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        Dependencies = dependencies ?? InGameCommandDependencies.Empty;
-    }
 
     // Property: Gets or sets the session value used by the game-domain data, player state, DBC, and world-template layer.
     // Value: session value exposed by the owning type.
-    public IInGameCommandSession Session { get; }
+    public IInGameCommandSession Session { get; } = session ?? throw new ArgumentNullException(nameof(session));
 
     // Property: Gets or sets the raw text value used by the game-domain data, player state, DBC, and world-template layer.
     // Value: raw text value exposed by the owning type.
-    public string RawText { get; }
+    public string RawText { get; } = rawText ?? string.Empty;
 
     // Property: Gets or sets the command name value used by the game-domain data, player state, DBC, and world-template layer.
     // Value: command name value exposed by the owning type.
-    public string CommandName { get; }
+    public string CommandName { get; } = commandName ?? string.Empty;
 
     // Property: Gets or sets the arguments value used by the game-domain data, player state, DBC, and world-template layer.
     // Value: arguments value exposed by the owning type.
-    public string Arguments { get; }
+    public string Arguments { get; } = arguments ?? string.Empty;
 
     // Property: Gets or sets the registry value used by the game-domain data, player state, DBC, and world-template layer.
     // Value: registry value exposed by the owning type.
-    public InGameCommandRegistry Registry { get; }
+    public InGameCommandRegistry Registry { get; } = registry ?? throw new ArgumentNullException(nameof(registry));
 
     // Property: Gets or sets the dependencies value used by the game-domain data, player state, DBC, and world-template layer.
     // Value: dependencies value exposed by the owning type.
-    public InGameCommandDependencies Dependencies { get; }
+    public InGameCommandDependencies Dependencies { get; } = dependencies ?? InGameCommandDependencies.Empty;
 }

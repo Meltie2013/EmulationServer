@@ -32,7 +32,7 @@ public static class LanguageKnowledgeSystem
     // Value: fixed language skill value value used anywhere this rule or protocol value is needed.
     private const uint LanguageSkillValue = 300;
 
-    private static readonly IReadOnlyDictionary<ChatLanguage, LanguageDefinition> Definitions = new Dictionary<ChatLanguage, LanguageDefinition>
+    private static readonly Dictionary<ChatLanguage, LanguageDefinition> Definitions = new()
     {
         [ChatLanguage.Common] = new(ChatLanguage.Common, 98, 668),
         [ChatLanguage.Orcish] = new(ChatLanguage.Orcish, 109, 669),
@@ -70,7 +70,7 @@ public static class LanguageKnowledgeSystem
             skills[language.SkillId] = new PlayerSkill(language.SkillId, LanguageSkillValue, LanguageSkillValue);
         }
 
-        return skills.Values.ToArray();
+        return [.. skills.Values];
     }
 
     // Method: BuildInitialLanguageSpellIds
@@ -91,7 +91,7 @@ public static class LanguageKnowledgeSystem
             }
         }
 
-        return spellIds.ToArray();
+        return [.. spellIds];
     }
 
     // Method: EnsureInitialLanguageSkills
@@ -135,7 +135,7 @@ public static class LanguageKnowledgeSystem
             }
         }
 
-        return skills.Values.ToArray();
+        return [.. skills.Values];
     }
 
     // Method: PlayerKnowsLanguage

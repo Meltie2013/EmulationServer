@@ -32,7 +32,7 @@ namespace EmulationServer.Shared.Logging;
 public static class Logger
 {
 
-    private static readonly object SyncRoot = new();
+    private static readonly Lock SyncRoot = new();
 
     // Method: ConsoleLogger
     // Purpose: Executes the console logger operation for the shared infrastructure, logging, timing, and cross-service utility layer.
@@ -112,9 +112,7 @@ public static class Logger
     {
         ArgumentNullException.ThrowIfNull(lines);
 
-        string[] outputLines = lines
-            .Select(line => line ?? string.Empty)
-            .ToArray();
+        string[] outputLines = [.. lines.Select(line => line ?? string.Empty)];
 
         lock (SyncRoot)
         {

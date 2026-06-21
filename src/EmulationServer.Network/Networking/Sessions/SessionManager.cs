@@ -76,9 +76,7 @@ public sealed class SessionManager
     // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public Task DisconnectAllAsync()
     {
-        Task[] disconnectTasks = _sessions.Values
-            .Select(entry => entry.Session.DisconnectAsync())
-            .ToArray();
+        Task[] disconnectTasks = [.. _sessions.Values.Select(entry => entry.Session.DisconnectAsync())];
 
         return Task.WhenAll(disconnectTasks);
     }
@@ -93,9 +91,7 @@ public sealed class SessionManager
     // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
     public async Task WaitForAllSessionsAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
     {
-        Task[] completionTasks = _sessions.Values
-            .Select(entry => entry.Completion)
-            .ToArray();
+        Task[] completionTasks = [.. _sessions.Values.Select(entry => entry.Completion)];
 
         if (completionTasks.Length == 0)
         {
@@ -126,25 +122,13 @@ public sealed class SessionManager
     // Type: SessionEntry
     // Purpose: Provides session entry behavior for the packet serialization, socket transport, and protocol framing layer.
     // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
-    private sealed class SessionEntry
+    private sealed class SessionEntry(RealmSession session)
     {
-
         private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        // Constructor: SessionEntry
-        // Purpose: Initializes a new SessionEntry instance with dependencies and values required by the packet serialization, socket transport, and protocol framing layer.
-        // Parameters:
-        // - session: Session value supplied by the caller for this operation.
-        // Returns: none.
-        // Notes: This keeps the operation scoped to SessionEntry so callers do not duplicate validation, protocol, or persistence rules.
-        public SessionEntry(RealmSession session)
-        {
-            Session = session;
-        }
 
         // Property: Gets or sets the session value used by the packet serialization, socket transport, and protocol framing layer.
         // Value: session value exposed by the owning type.
-        public RealmSession Session { get; }
+        public RealmSession Session { get; } = session;
 
         // Property: Gets or sets the completion value used by the packet serialization, socket transport, and protocol framing layer.
         // Value: completion value exposed by the owning type.

@@ -26,6 +26,5 @@ namespace EmulationServer.Network.Networking.Sessions;
 // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public interface IRealmSessionProcessor
 {
-
     Task ProcessAsync(RealmSessionContext context, CancellationToken cancellationToken);
 }

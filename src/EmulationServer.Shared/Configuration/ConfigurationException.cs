@@ -26,6 +26,12 @@ namespace EmulationServer.Shared.Configuration;
 // Notes: Keep protocol, database, and lifecycle changes inside this boundary unless a shared abstraction is intentionally introduced.
 public sealed class ConfigurationException : Exception
 {
+    // Constructor: ConfigurationException (parameterless)
+    // Purpose: Initializes a new ConfigurationException instance with default behavior.
+    public ConfigurationException() : base()
+    {
+
+    }
 
     // Constructor: ConfigurationException
     // Purpose: Initializes a new ConfigurationException instance with dependencies and values required by the shared infrastructure, logging, timing, and cross-service utility layer.

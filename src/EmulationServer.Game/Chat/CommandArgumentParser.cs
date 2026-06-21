@@ -256,7 +256,7 @@ public static class CommandArgumentParser
             return;
         }
 
-        parts.Add(new string(current.ToArray()));
+        parts.Add(new string([.. current]));
         current.Clear();
     }
 }
