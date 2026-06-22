@@ -468,13 +468,7 @@ public static class WorldPacketBuilders
     {
         ArgumentNullException.ThrowIfNull(player);
 
-        PlayerInventoryItem[] inventoryItems = player.Inventory
-            .Where(item => item.ItemGuid != 0 && item.TemplateEntry != 0)
-            .OrderBy(item => item.BagGuid == 0 ? 0 : 1)
-            .ThenBy(item => item.BagGuid)
-            .ThenBy(item => item.Slot)
-            .ThenBy(item => item.ItemGuid)
-            .ToArray();
+        PlayerInventoryItem[] inventoryItems = GetOrderedPlayerInventoryItems(player);
 
         WorldPacketWriter writer = new();
         writer.WriteUInt32((uint)(inventoryItems.Length + 1));
@@ -485,13 +479,67 @@ public static class WorldPacketBuilders
             WriteItemCreateUpdateBlock(writer, player, item, inventoryItems);
         }
 
+        WritePlayerCreateUpdateBlock(writer, player, inventoryItems, isSelf: true, includeInventorySlotGuids: true, includePrivatePlayerFields: true);
+
+        return writer.ToArray();
+    }
+
+    // Method: BuildVisiblePlayerCreateUpdate
+    // Purpose: Builds the create update used when this player becomes visible to a different client.
+    // Parameters:
+    // - player: Player being created on the receiving client.
+    // Returns: Returns the SMSG_UPDATE_OBJECT payload for one visible player object.
+    // Notes: This intentionally omits inventory item object creates and the self movement flag because the receiver does not own this player.
+    public static byte[] BuildVisiblePlayerCreateUpdate(PlayerLoginRecord player)
+    {
+        ArgumentNullException.ThrowIfNull(player);
+
+        PlayerInventoryItem[] inventoryItems = GetOrderedPlayerInventoryItems(player);
+        WorldPacketWriter writer = new();
+        writer.WriteUInt32(1);
+        writer.WriteUInt8(0);
+        WritePlayerCreateUpdateBlock(writer, player, inventoryItems, isSelf: false, includeInventorySlotGuids: false, includePrivatePlayerFields: false);
+        return writer.ToArray();
+    }
+
+    // Method: GetOrderedPlayerInventoryItems
+    // Purpose: Produces a stable player inventory order for object update blocks and visible equipment fields.
+    // Parameters:
+    // - player: Player that owns the inventory collection.
+    // Returns: Returns valid inventory entries ordered by bag, slot, and item GUID.
+    private static PlayerInventoryItem[] GetOrderedPlayerInventoryItems(PlayerLoginRecord player)
+    {
+        return player.Inventory
+            .Where(item => item.ItemGuid != 0 && item.TemplateEntry != 0)
+            .OrderBy(item => item.BagGuid == 0 ? 0 : 1)
+            .ThenBy(item => item.BagGuid)
+            .ThenBy(item => item.Slot)
+            .ThenBy(item => item.ItemGuid)
+            .ToArray();
+    }
+
+    // Method: WritePlayerCreateUpdateBlock
+    // Purpose: Writes one player create object block with the correct self/non-self movement flags.
+    // Parameters:
+    // - writer: Destination packet writer.
+    // - player: Player represented by this create block.
+    // - inventoryItems: Ordered inventory entries used for equipment display and self inventory fields.
+    // - isSelf: True when writing the object for the owning client.
+    // - includeInventorySlotGuids: True when private inventory slot GUID fields should be sent.
+    // Returns: none.
+    private static void WritePlayerCreateUpdateBlock(
+        WorldPacketWriter writer,
+        PlayerLoginRecord player,
+        IReadOnlyList<PlayerInventoryItem> inventoryItems,
+        bool isSelf,
+        bool includeInventorySlotGuids,
+        bool includePrivatePlayerFields)
+    {
         writer.WriteUInt8(3);
         WritePackedGuid(writer, player.ClientGuid);
         writer.WriteUInt8(4);
-        WritePlayerMovementBlock(writer, player);
-        WritePlayerCreateUpdateMask(writer, player, inventoryItems);
-
-        return writer.ToArray();
+        WritePlayerMovementBlock(writer, player, isSelf);
+        WritePlayerCreateUpdateMask(writer, player, inventoryItems, includeInventorySlotGuids, includePrivatePlayerFields);
     }
 
     // Method: BuildGameObjectCreateUpdate
@@ -886,9 +934,13 @@ public static class WorldPacketBuilders
     // - player: Player value supplied by the caller for this operation.
     // Returns: none.
     // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
-    private static void WritePlayerMovementBlock(WorldPacketWriter writer, PlayerLoginRecord player)
+    private static void WritePlayerMovementBlock(WorldPacketWriter writer, PlayerLoginRecord player, bool isSelf)
     {
-        const VanillaUpdateFlags updateFlags = VanillaUpdateFlags.Self | VanillaUpdateFlags.All | VanillaUpdateFlags.Living;
+        VanillaUpdateFlags updateFlags = VanillaUpdateFlags.All | VanillaUpdateFlags.Living;
+        if (isSelf)
+        {
+            updateFlags |= VanillaUpdateFlags.Self;
+        }
 
         writer.WriteUInt8((byte)updateFlags);
         WritePlayerLivingMovementInfo(writer, player);
@@ -939,7 +991,12 @@ public static class WorldPacketBuilders
     // - inventory: Inventory value supplied by the caller for this operation.
     // Returns: none.
     // Notes: This keeps the operation scoped to WorldPacketBuilders so callers do not duplicate validation, protocol, or persistence rules.
-    private static void WritePlayerCreateUpdateMask(WorldPacketWriter writer, PlayerLoginRecord player, IReadOnlyList<PlayerInventoryItem> inventory)
+    private static void WritePlayerCreateUpdateMask(
+        WorldPacketWriter writer,
+        PlayerLoginRecord player,
+        IReadOnlyList<PlayerInventoryItem> inventory,
+        bool includeInventorySlotGuids,
+        bool includePrivatePlayerFields)
     {
         const int ObjectFieldGuid = 0x0000;
         const int ObjectFieldType = 0x0002;
@@ -1080,7 +1137,7 @@ public static class WorldPacketBuilders
                 continue;
             }
 
-            if (TryResolvePlayerInventoryGuidField(
+            if (includeInventorySlotGuids && TryResolvePlayerInventoryGuidField(
                 item.Slot,
                 PlayerFieldInvSlotHead,
                 PlayerFieldPackSlot1,
@@ -1105,20 +1162,23 @@ public static class WorldPacketBuilders
             }
         }
 
-        fields[PlayerXp] = player.Experience;
-        fields[PlayerNextLevelXp] = player.NextLevelExperience == 0 ? BuildNextLevelExperience(player.Level) : player.NextLevelExperience;
-        WritePlayerSkillFields(fields, PlayerSkillInfo1_1, player);
-        fields[PlayerRestStateExperience] = 0;
-        fields[PlayerFieldCoinage] = player.Money;
-        for (int index = 0; index < 5; index++)
+        if (includePrivatePlayerFields)
         {
-            fields[PlayerFieldPosStat0 + index] = 0;
-            fields[PlayerFieldNegStat0 + index] = 0;
-        }
+            fields[PlayerXp] = player.Experience;
+            fields[PlayerNextLevelXp] = player.NextLevelExperience == 0 ? BuildNextLevelExperience(player.Level) : player.NextLevelExperience;
+            WritePlayerSkillFields(fields, PlayerSkillInfo1_1, player);
+            fields[PlayerRestStateExperience] = 0;
+            fields[PlayerFieldCoinage] = player.Money;
+            for (int index = 0; index < 5; index++)
+            {
+                fields[PlayerFieldPosStat0 + index] = 0;
+                fields[PlayerFieldNegStat0 + index] = 0;
+            }
 
-        fields[PlayerFieldBytes] = player.PlayerBytes;
-        fields[PlayerFieldBytes2] = player.PlayerBytes2;
-        fields[PlayerFieldWatchedFactionIndex] = uint.MaxValue;
+            fields[PlayerFieldBytes] = player.PlayerBytes;
+            fields[PlayerFieldBytes2] = player.PlayerBytes2;
+            fields[PlayerFieldWatchedFactionIndex] = uint.MaxValue;
+        }
 
         WriteUpdateMask(writer, fields);
     }

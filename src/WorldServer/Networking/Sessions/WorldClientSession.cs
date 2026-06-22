@@ -54,6 +54,21 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Constant: Defines the maximum movement broadcast distance squared constant used by the world server gameplay, session, and character runtime layer.
     // Value: fixed maximum movement broadcast distance squared value used anywhere this rule or protocol value is needed.
     private const float MaximumMovementBroadcastDistanceSquared = 200.0f * 200.0f;
+    // Constant: Defines the player visibility distance constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player visibility distance value used anywhere this rule or protocol value is needed.
+    private const float PlayerVisibilityDistance = 120.0f;
+    // Constant: Defines the player visibility distance squared constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player visibility distance squared value used anywhere this rule or protocol value is needed.
+    private const float PlayerVisibilityDistanceSquared = PlayerVisibilityDistance * PlayerVisibilityDistance;
+    // Constant: Defines the player visibility unload distance constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player visibility unload distance value used anywhere this rule or protocol value is needed.
+    private const float PlayerVisibilityUnloadDistance = 150.0f;
+    // Constant: Defines the player visibility unload distance squared constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed player visibility unload distance squared value used anywhere this rule or protocol value is needed.
+    private const float PlayerVisibilityUnloadDistanceSquared = PlayerVisibilityUnloadDistance * PlayerVisibilityUnloadDistance;
+    // Constant: Defines the maximum player create updates per refresh constant used by the world server gameplay, session, and character runtime layer.
+    // Value: fixed maximum player create updates per refresh value used anywhere this rule or protocol value is needed.
+    private const int MaximumPlayerCreateUpdatesPerRefresh = 32;
     // Constant: Defines the game object visibility distance constant used by the world server gameplay, session, and character runtime layer.
     // Value: fixed game object visibility distance value used anywhere this rule or protocol value is needed.
     private const float GameObjectVisibilityDistance = 90.0f;
@@ -139,6 +154,13 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Returns: Returns the time span player record movement update interval = time span. value produced by this operation.
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan PlayerRecordMovementUpdateInterval = TimeSpan.FromMilliseconds(250);
+
+    // Method: FromMilliseconds
+    // Purpose: Executes the from milliseconds operation for the world server gameplay, session, and character runtime layer.
+    // Parameters: none.
+    // Returns: Returns the time span player visibility refresh interval = time span. value produced by this operation.
+    // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
+    private static readonly TimeSpan PlayerVisibilityRefreshInterval = TimeSpan.FromMilliseconds(500);
 
     // Constant: Defines the movement broadcast queue capacity constant used by the world server gameplay, session, and character runtime layer.
     // Value: fixed movement broadcast queue capacity value used anywhere this rule or protocol value is needed.
@@ -326,14 +348,16 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Field: Stores the ulong state used by the world server gameplay, session, and character runtime layer.
     // Value: current ulong backing value maintained by the owning type.
     private readonly Dictionary<ulong, uint> _visibleCreatureClientGuids = [];
+    // Field: Stores player GUIDs that this client has already received as visible player objects.
+    // Value: current visible player backing value maintained by the owning type.
+    private readonly HashSet<uint> _visiblePlayerGuids = [];
+    // Field: Serializes player visibility creates and destroys sent from this session and neighboring sessions.
+    // Value: current visibility lock backing value maintained by the owning type.
+    private readonly SemaphoreSlim _visibilityLock = new(1, 1);
 
     // Field: Stores the server seed state used by the world server gameplay, session, and character runtime layer.
     // Value: current server seed backing value maintained by the owning type.
     private readonly uint _serverSeed;
-
-    // Field: Stores the message of the day state used by the world server gameplay, session, and character runtime layer.
-    // Value: current message of the day backing value maintained by the owning type.
-    private readonly string _messageOfTheDay;
 
     // Field: Stores the stream state used by the world server gameplay, session, and character runtime layer.
     // Value: current stream backing value maintained by the owning type.
@@ -417,6 +441,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Field: Stores the last creature visibility refresh utc state used by the world server gameplay, session, and character runtime layer.
     // Value: current last creature visibility refresh utc backing value maintained by the owning type.
     private DateTimeOffset _lastCreatureVisibilityRefreshUtc = DateTimeOffset.MinValue;
+    // Field: Stores the last player visibility refresh utc state used by the world server gameplay, session, and character runtime layer.
+    // Value: current last player visibility refresh utc backing value maintained by the owning type.
+    private DateTimeOffset _lastPlayerVisibilityRefreshUtc = DateTimeOffset.MinValue;
 
     // Field: Stores the delay character enum until utc state used by the world server gameplay, session, and character runtime layer.
     // Value: current delay character enum until utc backing value maintained by the owning type.
@@ -493,7 +520,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         _playerMovementAsync = playerMovementAsync ?? throw new ArgumentNullException();
         _playerClientPacketAsync = playerClientPacketAsync ?? throw new ArgumentNullException();
         _worldTemplateDataResolver = worldTemplateDataResolver ?? throw new ArgumentNullException();
-        _messageOfTheDay = string.IsNullOrWhiteSpace(messageOfTheDay) ? "Welcome to Emulation Server." : messageOfTheDay;
+        MessageOfTheDay = string.IsNullOrWhiteSpace(messageOfTheDay) ? "Welcome to Emulation Server." : messageOfTheDay;
         _playerSaveInterval = playerSaveInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(60) : playerSaveInterval;
         _activePlayerCountChanged = activePlayerCountChanged ?? (_ => { });
         _characterCountChangedAsync = characterCountChangedAsync ?? (_ => Task.CompletedTask);
@@ -537,7 +564,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
     public bool HasPermission(uint permissionId)
     {
-        return _account?.Permissions.HasPermission(permissionId) == true;
+        return _account?.Permissions.HasPermission(permissionId) is true;
     }
 
     // Method: ReloadPermissionsAsync
@@ -561,7 +588,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
     // Property: Gets or sets the message of the day value used by the world server gameplay, session, and character runtime layer.
     // Value: message of the day value exposed by the owning type.
-    public string MessageOfTheDay => _messageOfTheDay;
+    public string MessageOfTheDay { get; }
 
     // Method: ToString
     // Purpose: Executes the to string operation for the world server gameplay, session, and character runtime layer.
@@ -1438,6 +1465,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             StartPlayerSaveTimer();
             await _playerEnteredWorldAsync(player, _currentMapOwnerServerName, cancellationToken);
             await SendWorldEntryPacketsAsync(player, cancellationToken);
+            PlayerLoginRecord enteredPlayer = RequireCurrentPlayer();
+            await RefreshVisiblePlayersAsync(enteredPlayer, force: true, cancellationToken);
+            await RefreshOtherPlayerVisibilityForCurrentPlayerAsync(enteredPlayer, force: true, cancellationToken);
 
             _activePlayerCountChanged(_playerSessionRegistry.ActivePlayerCount);
             Logger.Write(LogType.SYSTEM, $"Player '{player.Name}' ({player.Guid}) entered world map={player.Map}, zone={player.Zone} through {mapAvailability.OwnerServerName}.", "WorldClientSession");
@@ -1603,7 +1633,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await RefreshVisibleGameObjectsAsync(player, force: true, cancellationToken);
         await RefreshVisibleCreaturesAsync(player, force: true, cancellationToken);
         await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(new CharacterNameQueryResult(player.Guid, player.Name, player.Race, player.Gender, player.Class)), _crypt, cancellationToken);
-        await SendAsync(WorldOpcode.SMSG_MOTD, WorldPacketBuilders.BuildMessageOfTheDay(_messageOfTheDay), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_MOTD, WorldPacketBuilders.BuildMessageOfTheDay(MessageOfTheDay), _crypt, cancellationToken);
         await JoinDefaultChatChannelsAsync(cancellationToken);
     }
 
@@ -1670,6 +1700,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         ApplyMovementState(movement);
         PlayerLoginRecord updatedPlayer = RequireCurrentPlayer();
 
+        await RefreshVisiblePlayersAsync(updatedPlayer, force: false, cancellationToken);
+        await RefreshOtherPlayerVisibilityForCurrentPlayerAsync(updatedPlayer, force: false, cancellationToken);
         QueueMovementBroadcastToNearbyPlayers(packet, movement);
         await RefreshVisibleGameObjectsAsync(updatedPlayer, force: false, cancellationToken);
         await RefreshVisibleCreaturesAsync(updatedPlayer, force: false, cancellationToken);
@@ -2005,8 +2037,11 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             }
         }
 
-        await RefreshVisibleGameObjectsAsync(RequireCurrentPlayer(), force: true, cancellationToken);
-        await RefreshVisibleCreaturesAsync(RequireCurrentPlayer(), force: true, cancellationToken);
+        PlayerLoginRecord updatedPlayer = RequireCurrentPlayer();
+        await RefreshVisiblePlayersAsync(updatedPlayer, force: true, cancellationToken);
+        await RefreshOtherPlayerVisibilityForCurrentPlayerAsync(updatedPlayer, force: true, cancellationToken);
+        await RefreshVisibleGameObjectsAsync(updatedPlayer, force: true, cancellationToken);
+        await RefreshVisibleCreaturesAsync(updatedPlayer, force: true, cancellationToken);
         await ForwardPacketToMapServiceAsync(packet, cancellationToken);
     }
 
@@ -2019,8 +2054,241 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     {
         _visibleGameObjectClientGuids.Clear();
         _visibleCreatureClientGuids.Clear();
+        _visiblePlayerGuids.Clear();
         _lastGameObjectVisibilityRefreshUtc = DateTimeOffset.MinValue;
         _lastCreatureVisibilityRefreshUtc = DateTimeOffset.MinValue;
+        _lastPlayerVisibilityRefreshUtc = DateTimeOffset.MinValue;
+    }
+
+    // Method: RefreshVisiblePlayersAsync
+    // Purpose: Refreshes player object visibility for this client.
+    // Parameters:
+    // - player: Current player used as the visibility source.
+    // - force: True when throttling should be bypassed.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    private async Task RefreshVisiblePlayersAsync(PlayerLoginRecord player, bool force, CancellationToken cancellationToken)
+    {
+        if (_crypt is null || CurrentPlayer is null)
+        {
+            return;
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (!force && now - _lastPlayerVisibilityRefreshUtc < PlayerVisibilityRefreshInterval)
+        {
+            return;
+        }
+
+        _lastPlayerVisibilityRefreshUtc = now;
+        await _visibilityLock.WaitAsync(cancellationToken);
+        try
+        {
+            PlayerLoginRecord sourcePlayer = CurrentPlayer ?? player;
+            (uint sourceMap, float sourceX, float sourceY, float sourceZ) = ResolveCurrentVisibilityPosition(sourcePlayer);
+            if (!IsFiniteWorldPosition(sourceX, sourceY, sourceZ))
+            {
+                return;
+            }
+
+            Dictionary<uint, PlayerLoginRecord> retainedCandidates = [];
+            Dictionary<uint, PlayerLoginRecord> createCandidates = [];
+            Dictionary<uint, float> visibleDistances = [];
+
+            foreach (WorldClientSession session in _playerSessionRegistry.SnapshotSessions())
+            {
+                if (ReferenceEquals(session, this))
+                {
+                    continue;
+                }
+
+                PlayerLoginRecord? targetPlayer = session.CurrentPlayer;
+                if (targetPlayer is null || targetPlayer.Guid == sourcePlayer.Guid)
+                {
+                    continue;
+                }
+
+                PlayerLoginRecord targetSnapshot = session.CreateCurrentPlayerSnapshot(targetPlayer);
+                if (!CanSeePlayer(sourceMap, sourceX, sourceY, session, targetSnapshot, PlayerVisibilityUnloadDistanceSquared, out float distanceSquared))
+                {
+                    continue;
+                }
+
+                retainedCandidates[targetSnapshot.Guid] = targetSnapshot;
+                visibleDistances[targetSnapshot.Guid] = distanceSquared;
+                if (distanceSquared <= PlayerVisibilityDistanceSquared)
+                {
+                    createCandidates[targetSnapshot.Guid] = targetSnapshot;
+                }
+            }
+
+            uint[] removeGuids = _visiblePlayerGuids
+                .Where(guid => !retainedCandidates.ContainsKey(guid))
+                .ToArray();
+
+            foreach (uint removeGuid in removeGuids)
+            {
+                _visiblePlayerGuids.Remove(removeGuid);
+                await SendAsync(WorldOpcode.SMSG_DESTROY_OBJECT, WorldPacketBuilders.BuildDestroyObject(CharacterGuid.ToClientGuid(removeGuid)), _crypt, cancellationToken);
+            }
+
+            PlayerLoginRecord[] createPlayers = [.. createCandidates.Values
+                .Where(candidate => !_visiblePlayerGuids.Contains(candidate.Guid))
+                .OrderBy(candidate => visibleDistances.TryGetValue(candidate.Guid, out float distanceSquared) ? distanceSquared : float.MaxValue)
+                .Take(MaximumPlayerCreateUpdatesPerRefresh)];
+
+            foreach (PlayerLoginRecord visiblePlayer in createPlayers)
+            {
+                await SendVisiblePlayerCreateAsync(visiblePlayer, cancellationToken);
+                _visiblePlayerGuids.Add(visiblePlayer.Guid);
+            }
+
+            if (createPlayers.Length != 0 || removeGuids.Length != 0)
+            {
+                Logger.Write(
+                    LogType.TRACE,
+                    $"Refreshed player visibility for '{sourcePlayer.Name}' ({sourcePlayer.Guid}): created={createPlayers.Length}, removed={removeGuids.Length}, visible={_visiblePlayerGuids.Count}.",
+                    "WorldClientSession");
+            }
+        }
+        finally
+        {
+            _visibilityLock.Release();
+        }
+    }
+
+    // Method: RefreshOtherPlayerVisibilityForCurrentPlayerAsync
+    // Purpose: Gives nearby sessions a chance to create or destroy this player after login, movement, or zone changes.
+    // Parameters:
+    // - player: Player whose visibility changed.
+    // - force: True when neighboring sessions should bypass visibility throttling.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    private async Task RefreshOtherPlayerVisibilityForCurrentPlayerAsync(PlayerLoginRecord player, bool force, CancellationToken cancellationToken)
+    {
+        foreach (WorldClientSession session in _playerSessionRegistry.SnapshotSessions())
+        {
+            if (ReferenceEquals(session, this))
+            {
+                continue;
+            }
+
+            PlayerLoginRecord? targetPlayer = session.CurrentPlayer;
+            if (targetPlayer is null || targetPlayer.Guid == player.Guid)
+            {
+                continue;
+            }
+
+            await session.RefreshVisiblePlayersAsync(targetPlayer, force, cancellationToken);
+        }
+    }
+
+    // Method: RemovePlayerFromVisibleSessionsAsync
+    // Purpose: Sends destroy updates to clients that previously had this player visible.
+    // Parameters:
+    // - player: Player leaving the world.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    private async Task RemovePlayerFromVisibleSessionsAsync(PlayerLoginRecord player, CancellationToken cancellationToken)
+    {
+        foreach (WorldClientSession session in _playerSessionRegistry.SnapshotSessions())
+        {
+            if (ReferenceEquals(session, this))
+            {
+                continue;
+            }
+
+            await session.RemoveVisiblePlayerAsync(player.Guid, cancellationToken);
+        }
+    }
+
+    // Method: RemoveVisiblePlayerAsync
+    // Purpose: Removes one visible player from this client if it had been created before.
+    // Parameters:
+    // - playerGuid: Low player GUID to remove.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    private async Task RemoveVisiblePlayerAsync(uint playerGuid, CancellationToken cancellationToken)
+    {
+        if (_crypt is null || playerGuid == 0)
+        {
+            return;
+        }
+
+        await _visibilityLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_visiblePlayerGuids.Remove(playerGuid))
+            {
+                return;
+            }
+
+            await SendAsync(WorldOpcode.SMSG_DESTROY_OBJECT, WorldPacketBuilders.BuildDestroyObject(CharacterGuid.ToClientGuid(playerGuid)), _crypt, cancellationToken);
+        }
+        finally
+        {
+            _visibilityLock.Release();
+        }
+    }
+
+    // Method: SendVisiblePlayerCreateAsync
+    // Purpose: Sends one visible player name cache update and object create update to this client.
+    // Parameters:
+    // - visiblePlayer: Player that should become visible.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: Returns an asynchronous operation that completes when the requested work has finished.
+    private async Task SendVisiblePlayerCreateAsync(PlayerLoginRecord visiblePlayer, CancellationToken cancellationToken)
+    {
+        CharacterNameQueryResult nameQuery = new(visiblePlayer.Guid, visiblePlayer.Name, visiblePlayer.Race, visiblePlayer.Gender, visiblePlayer.Class);
+        await SendAsync(WorldOpcode.SMSG_NAME_QUERY_RESPONSE, WorldPacketBuilders.BuildNameQueryResponse(nameQuery), _crypt, cancellationToken);
+        await SendAsync(WorldOpcode.SMSG_UPDATE_OBJECT, WorldPacketBuilders.BuildVisiblePlayerCreateUpdate(visiblePlayer), _crypt, cancellationToken);
+    }
+
+    // Method: CreateCurrentPlayerSnapshot
+    // Purpose: Builds a player record snapshot that includes the latest parsed movement state.
+    // Parameters:
+    // - player: Player record to snapshot.
+    // Returns: Returns a player record using the latest movement position when one is available.
+    private PlayerLoginRecord CreateCurrentPlayerSnapshot(PlayerLoginRecord player)
+    {
+        PlayerMovementState? movement = CurrentMovement;
+        return movement is null ? player : ApplyMovementToPlayerRecord(player, movement);
+    }
+
+    // Method: CanSeePlayer
+    // Purpose: Checks map ownership and distance before one session creates another player object.
+    // Parameters:
+    // - sourceMap: Current map for the receiving client.
+    // - sourceX: Current X position for the receiving client.
+    // - sourceY: Current Y position for the receiving client.
+    // - targetSession: Session containing the candidate visible player.
+    // - targetPlayer: Candidate visible player.
+    // - maximumDistanceSquared: Maximum allowed two-dimensional distance squared.
+    // - distanceSquared: Receives the calculated distance squared when map and position checks pass.
+    // Returns: Returns true when the target player should be visible to the source player.
+    private bool CanSeePlayer(
+        uint sourceMap,
+        float sourceX,
+        float sourceY,
+        WorldClientSession targetSession,
+        PlayerLoginRecord targetPlayer,
+        float maximumDistanceSquared,
+        out float distanceSquared)
+    {
+        distanceSquared = float.MaxValue;
+        (uint targetMap, float targetX, float targetY, float targetZ) = targetSession.ResolveCurrentVisibilityPosition(targetPlayer);
+        if (sourceMap != targetMap || !IsFiniteWorldPosition(targetX, targetY, targetZ))
+        {
+            return false;
+        }
+
+        if (!string.Equals(_currentMapOwnerServerName, targetSession.CurrentMapOwnerServerName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        distanceSquared = CalculateDistanceSquared2D(sourceX, sourceY, targetX, targetY);
+        return distanceSquared <= maximumDistanceSquared;
     }
 
     // Method: RefreshVisibleCreaturesAsync
@@ -2113,10 +2381,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return;
         }
 
-        CreatureClientCreateRecord[] selectedCreates = nearbyCreates
+        CreatureClientCreateRecord[] selectedCreates = [.. nearbyCreates
             .OrderBy(record => CalculateDistanceSquared2D(x, y, record.Spawn.PositionX, record.Spawn.PositionY))
-            .Take(MaximumCreatureCreateUpdatesPerRefresh)
-            .ToArray();
+            .Take(MaximumCreatureCreateUpdatesPerRefresh)];
 
         byte[] payload = WorldPacketBuilders.BuildCreatureCreateUpdate(selectedCreates);
         if (payload.Length == 0)
@@ -2232,10 +2499,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return;
         }
 
-        GameObjectClientCreateRecord[] selectedCreates = nearbyCreates
+        GameObjectClientCreateRecord[] selectedCreates = [.. nearbyCreates
             .OrderBy(record => CalculateDistanceSquared2D(x, y, record.Spawn.PositionX, record.Spawn.PositionY))
-            .Take(MaximumGameObjectCreateUpdatesPerRefresh)
-            .ToArray();
+            .Take(MaximumGameObjectCreateUpdatesPerRefresh)];
 
         byte[] payload = WorldPacketBuilders.BuildGameObjectCreateUpdate(selectedCreates);
         if (payload.Length == 0)
@@ -2735,14 +3001,9 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return;
         }
 
-        InventoryStorageLocation destinationLocation;
-        if (!TryResolveClientInventoryLocation(new InventoryClientPosition(destinationBag, destinationSlot), inventory, out destinationLocation))
+        if (!TryResolveClientInventoryLocation(new InventoryClientPosition(destinationBag, destinationSlot), inventory, out InventoryStorageLocation destinationLocation))
         {
-            if (destinationBag == ClientBackpackBag && destinationSlot == ClientBackpackBag && TryFindFirstFreeBackpackLocation(inventory, out destinationLocation))
-            {
-
-            }
-            else
+            if (destinationBag != ClientBackpackBag || destinationSlot != ClientBackpackBag || !TryFindFirstFreeBackpackLocation(inventory, out destinationLocation))
             {
                 await SendInventoryFailureAsync(InventoryChangeFailureItemDoesntGoToSlot, CharacterGuid.ToItemGuid(sourceItem.ItemGuid), 0, cancellationToken);
                 return;
@@ -3047,12 +3308,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             return item.IsContainer;
         }
 
-        if (slot is >= 81 and < 113)
-        {
-            return true;
-        }
-
-        return false;
+        return slot is >= 81 and < 113;
     }
 
     // Method: TryResolveAutoEquipLocation
@@ -3341,11 +3597,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private async Task HandleWhoAsync(CancellationToken cancellationToken)
     {
         PlayerLoginRecord player = RequireCurrentPlayer();
-        IReadOnlyList<PlayerLoginRecord> players = _playerSessionRegistry.SnapshotSessions()
+        IReadOnlyList<PlayerLoginRecord> players = [.. _playerSessionRegistry.SnapshotSessions()
             .Select(session => session.CurrentPlayer)
             .Where(other => other is not null && other.Faction == player.Faction)
-            .Cast<PlayerLoginRecord>()
-            .ToArray();
+            .Cast<PlayerLoginRecord>()];
 
         await SendAsync(WorldOpcode.SMSG_WHO, WorldPacketBuilders.BuildWhoResponse(players), _crypt, cancellationToken);
     }
@@ -3435,7 +3690,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             0,
             channelRank);
 
-        WorldClientSession[] worldRecipients = recipients.OfType<WorldClientSession>().ToArray();
+        WorldClientSession[] worldRecipients = [.. recipients.OfType<WorldClientSession>()];
         foreach (WorldClientSession recipient in worldRecipients)
         {
             await recipient.SendAsync(WorldOpcode.SMSG_MESSAGECHAT, payload, recipient._crypt, cancellationToken);
@@ -3773,6 +4028,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await SaveCurrentPlayerAsync(force: true, cancellationToken);
 
         player = CurrentPlayer ?? player;
+        await RemovePlayerFromVisibleSessionsAsync(player, cancellationToken);
         string ownerServerName = _currentMapOwnerServerName;
         CurrentPlayer = null;
         CurrentMovement = null;
@@ -3961,6 +4217,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         await StopPlayerSaveTimerAsync();
         _playerSaveLock.Dispose();
         _sendLock.Dispose();
+        _visibilityLock.Dispose();
         _disconnect.Dispose();
         _client.Dispose();
     }
