@@ -126,7 +126,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Parameters: none.
     // Returns: Returns the time span map service movement route interval = time span. value produced by this operation.
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
-    private static readonly TimeSpan MapServiceMovementRouteInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan MapServiceMovementRouteInterval = TimeSpan.FromMilliseconds(100);
 
     // Method: FromMilliseconds
     // Purpose: Executes the from milliseconds operation for the world server gameplay, session, and character runtime layer.
@@ -160,7 +160,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Parameters: none.
     // Returns: Returns the time span player visibility refresh interval = time span. value produced by this operation.
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
-    private static readonly TimeSpan PlayerVisibilityRefreshInterval = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan PlayerVisibilityRefreshInterval = TimeSpan.FromMilliseconds(100);
 
     // Constant: Defines the movement broadcast queue capacity constant used by the world server gameplay, session, and character runtime layer.
     // Value: fixed movement broadcast queue capacity value used anywhere this rule or protocol value is needed.
@@ -386,6 +386,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Field: Stores the movement broadcast loop state used by the world server gameplay, session, and character runtime layer.
     // Value: current movement broadcast loop backing value maintained by the owning type.
     private Task? _movementBroadcastLoop;
+
+    // Field: Guards deferred visibility refresh work that is triggered by movement packets.
+    // Value: 1 when a movement visibility refresh task is already scheduled or running.
+    private int _movementVisibilityRefreshQueued;
 
     // Field: Stores the map service movement route loop state used by the world server gameplay, session, and character runtime layer.
     // Value: current map service movement route loop backing value maintained by the owning type.
@@ -1675,13 +1679,13 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Returns: Returns an asynchronous operation that completes when the requested work has finished.
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
     // Notes: The asynchronous form avoids blocking server loops and supports cooperative shutdown when a cancellation token is supplied.
-    private async Task HandleMovementPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
+    private Task HandleMovementPacketAsync(WorldPacket packet, CancellationToken cancellationToken)
     {
         PlayerLoginRecord? player = CurrentPlayer;
         string ownerServerName = _currentMapOwnerServerName;
         if (player is null || string.IsNullOrWhiteSpace(ownerServerName))
         {
-            return;
+            return Task.CompletedTask;
         }
 
         if (!WorldMovementPacketParser.TryReadMovementState(player, packet.Opcode, packet.Payload, out PlayerMovementState? movement))
@@ -1691,7 +1695,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
                 Logger.Write(LogType.TRACE, $"Accepted movement opcode {packet.Opcode} from {RemoteEndPoint}, but no position state could be parsed from payload={packet.Payload.Length} byte(s). Future packets with this opcode will be accepted silently.", "WorldClientSession");
             }
 
-            return;
+            return Task.CompletedTask;
         }
 
         PlayerMovementState? previousMovement = CurrentMovement;
@@ -1700,18 +1704,82 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         ApplyMovementState(movement);
         PlayerLoginRecord updatedPlayer = RequireCurrentPlayer();
 
-        await RefreshVisiblePlayersAsync(updatedPlayer, force: false, cancellationToken);
-        await RefreshOtherPlayerVisibilityForCurrentPlayerAsync(updatedPlayer, force: false, cancellationToken);
         QueueMovementBroadcastToNearbyPlayers(packet, movement);
-        await RefreshVisibleGameObjectsAsync(updatedPlayer, force: false, cancellationToken);
-        await RefreshVisibleCreaturesAsync(updatedPlayer, force: false, cancellationToken);
 
-        if (!ShouldRouteMovementToMapService(movement))
+        if (ShouldRouteMovementToMapService(movement))
+        {
+            QueueMapServiceMovement(updatedPlayer, ownerServerName, movement);
+        }
+
+        QueueMovementVisibilityRefresh(updatedPlayer, cancellationToken);
+        return Task.CompletedTask;
+    }
+
+    // Method: ShouldQueueMovementVisibilityRefresh
+    // Purpose: Checks whether deferred visibility work is due before scheduling a background task.
+    // Parameters: none.
+    // Returns: Returns true when at least one movement-driven visibility refresh interval has elapsed.
+    // Notes: This prevents every movement packet from creating a background task while still keeping player visibility responsive.
+    private bool ShouldQueueMovementVisibilityRefresh()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        return now - _lastPlayerVisibilityRefreshUtc >= PlayerVisibilityRefreshInterval ||
+            now - _lastGameObjectVisibilityRefreshUtc >= GameObjectVisibilityRefreshInterval ||
+            now - _lastCreatureVisibilityRefreshUtc >= CreatureVisibilityRefreshInterval;
+    }
+
+    // Method: QueueMovementVisibilityRefresh
+    // Purpose: Schedules player, creature, and game object visibility work away from the movement hot path.
+    // Parameters:
+    // - player: Player snapshot that caused the refresh request.
+    // - cancellationToken: Token used to cancel the operation during shutdown or caller-requested aborts.
+    // Returns: none.
+    // Notes: Movement packets are latency-sensitive. They are broadcast before this slower visibility work runs.
+    private void QueueMovementVisibilityRefresh(PlayerLoginRecord player, CancellationToken cancellationToken)
+    {
+        if (_disconnect.IsCancellationRequested || cancellationToken.IsCancellationRequested || !ShouldQueueMovementVisibilityRefresh())
         {
             return;
         }
 
-        QueueMapServiceMovement(updatedPlayer, ownerServerName, movement);
+        if (Interlocked.Exchange(ref _movementVisibilityRefreshQueued, 1) == 1)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RefreshVisiblePlayersAsync(player, force: false, cancellationToken);
+
+                PlayerLoginRecord? currentPlayer = CurrentPlayer;
+                if (currentPlayer is null)
+                {
+                    return;
+                }
+
+                await RefreshOtherPlayerVisibilityForCurrentPlayerAsync(currentPlayer, force: false, cancellationToken);
+                await RefreshVisibleGameObjectsAsync(currentPlayer, force: false, cancellationToken);
+                await RefreshVisibleCreaturesAsync(currentPlayer, force: false, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || _disconnect.IsCancellationRequested)
+            {
+
+            }
+            catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+            {
+                Logger.Write(LogType.TRACE, $"Movement visibility refresh stopped for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+            }
+            catch (Exception exception)
+            {
+                Logger.Write(LogType.WARNING, $"Movement visibility refresh failed for {RemoteEndPoint}: {exception.Message}", "WorldClientSession");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _movementVisibilityRefreshQueued, 0);
+            }
+        }, CancellationToken.None);
     }
 
     // Method: QueueMapServiceMovement
