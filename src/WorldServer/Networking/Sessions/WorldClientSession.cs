@@ -121,13 +121,6 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan MapServiceFailureNotificationCooldown = TimeSpan.FromSeconds(5);
 
-    // Method: FromSeconds
-    // Purpose: Executes the from seconds operation for the world server gameplay, session, and character runtime layer.
-    // Parameters: none.
-    // Returns: Returns the time span map service movement route interval = time span. value produced by this operation.
-    // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
-    private static readonly TimeSpan MapServiceMovementRouteInterval = TimeSpan.FromMilliseconds(100);
-
     // Method: FromMilliseconds
     // Purpose: Executes the from milliseconds operation for the world server gameplay, session, and character runtime layer.
     // Parameters: none.
@@ -154,13 +147,6 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // Returns: Returns the time span player record movement update interval = time span. value produced by this operation.
     // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
     private static readonly TimeSpan PlayerRecordMovementUpdateInterval = TimeSpan.FromMilliseconds(250);
-
-    // Method: FromMilliseconds
-    // Purpose: Executes the from milliseconds operation for the world server gameplay, session, and character runtime layer.
-    // Parameters: none.
-    // Returns: Returns the time span player visibility refresh interval = time span. value produced by this operation.
-    // Notes: This keeps the operation scoped to WorldClientSession so callers do not duplicate validation, protocol, or persistence rules.
-    private static readonly TimeSpan PlayerVisibilityRefreshInterval = TimeSpan.FromMilliseconds(100);
 
     // Constant: Defines the movement broadcast queue capacity constant used by the world server gameplay, session, and character runtime layer.
     // Value: fixed movement broadcast queue capacity value used anywhere this rule or protocol value is needed.
@@ -285,6 +271,10 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private readonly SemaphoreSlim _playerSaveLock = new(1, 1);
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+
+    // Field: Tracks live movement conditions and calculates movement-related background intervals automatically.
+    // Value: per-session adaptive timing controller for backend route and visibility refresh work.
+    private readonly WorldMovementTimingController _movementTiming;
 
     // Method: QueuedMovementPacket
     // Purpose: Executes the queued movement packet operation for the world server gameplay, session, and character runtime layer.
@@ -479,6 +469,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     // - playerLeftWorldAsync: Player left world async value supplied by the caller for this operation.
     // - playerMovementAsync: Player movement async value supplied by the caller for this operation.
     // - playerClientPacketAsync: Player client packet async value supplied by the caller for this operation.
+    // - movementTimingTelemetry: Shared movement timing telemetry supplied by the world server.
     // - worldTemplateDataResolver: World template data resolver value supplied by the caller for this operation.
     // - messageOfTheDay: Message of the day value supplied by the caller for this operation.
     // - playerSaveInterval: Player save interval value supplied by the caller for this operation.
@@ -502,6 +493,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         Func<PlayerLoginRecord, string, CancellationToken, Task> playerLeftWorldAsync,
         Func<PlayerLoginRecord, string, PlayerMovementState, CancellationToken, Task> playerMovementAsync,
         Func<PlayerLoginRecord, string, WorldPacket, CancellationToken, Task> playerClientPacketAsync,
+        WorldMovementTimingTelemetry movementTimingTelemetry,
         Func<WorldTemplateDataStore> worldTemplateDataResolver,
         string messageOfTheDay,
         TimeSpan playerSaveInterval,
@@ -523,6 +515,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         _playerLeftWorldAsync = playerLeftWorldAsync ?? throw new ArgumentNullException();
         _playerMovementAsync = playerMovementAsync ?? throw new ArgumentNullException();
         _playerClientPacketAsync = playerClientPacketAsync ?? throw new ArgumentNullException();
+        _movementTiming = new WorldMovementTimingController((movementTimingTelemetry ?? throw new ArgumentNullException()).GetInternalServerLatency);
         _worldTemplateDataResolver = worldTemplateDataResolver ?? throw new ArgumentNullException();
         MessageOfTheDay = string.IsNullOrWhiteSpace(messageOfTheDay) ? "Welcome to Emulation Server." : messageOfTheDay;
         _playerSaveInterval = playerSaveInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(60) : playerSaveInterval;
@@ -1354,7 +1347,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     {
         WorldPacketReader reader = new(packet.Payload);
         uint sequence = reader.ReadUInt32();
-        _ = packet.Payload.Length >= 8 ? reader.ReadUInt32() : 0;
+        uint clientLatencyMilliseconds = packet.Payload.Length >= 8 ? reader.ReadUInt32() : 0;
+        _movementTiming.RecordClientLatency(clientLatencyMilliseconds);
 
         await SendAsync(WorldOpcode.SMSG_PONG, WorldPacketBuilders.BuildPong(sequence), _crypt, cancellationToken);
     }
@@ -1699,6 +1693,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         PlayerMovementState? previousMovement = CurrentMovement;
+        _movementTiming.RecordIncomingMovement(movement.LastUpdatedUtc);
         WorldMovementDiagnostics.LogIncomingMovement(packet.Opcode, packet.Payload.Length, player, movement, previousMovement, RemoteEndPoint);
 
         ApplyMovementState(movement);
@@ -1723,7 +1718,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
     private bool ShouldQueueMovementVisibilityRefresh()
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        return now - _lastPlayerVisibilityRefreshUtc >= PlayerVisibilityRefreshInterval ||
+        TimeSpan playerVisibilityRefreshInterval = _movementTiming.GetPlayerVisibilityRefreshInterval();
+        return now - _lastPlayerVisibilityRefreshUtc >= playerVisibilityRefreshInterval ||
             now - _lastGameObjectVisibilityRefreshUtc >= GameObjectVisibilityRefreshInterval ||
             now - _lastCreatureVisibilityRefreshUtc >= CreatureVisibilityRefreshInterval;
     }
@@ -1840,12 +1836,14 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
 
                 DateTimeOffset routeStartedUtc = DateTimeOffset.UtcNow;
                 await _playerMovementAsync(latest.Player, latest.OwnerServerName, latest.Movement, cancellationToken);
+                TimeSpan routeDuration = DateTimeOffset.UtcNow - routeStartedUtc;
+                _movementTiming.RecordMapServiceRouteDuration(routeDuration);
                 WorldMovementDiagnostics.LogMapServiceMovementRoute(
                     latest.Player,
                     latest.OwnerServerName,
                     latest.Movement,
                     routeStartedUtc,
-                    DateTimeOffset.UtcNow - routeStartedUtc,
+                    routeDuration,
                     RemoteEndPoint);
             }
         }
@@ -1885,7 +1883,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             _lastMapServiceMovementRouteMap != movement.Map ||
             _lastMapServiceMovementRouteZone != movement.Zone;
 
-        if (!mapOrZoneChanged && now - _lastMapServiceMovementRouteUtc < MapServiceMovementRouteInterval)
+        TimeSpan routeInterval = _movementTiming.GetMapServiceRouteInterval();
+        if (!mapOrZoneChanged && now - _lastMapServiceMovementRouteUtc < routeInterval)
         {
             return false;
         }
@@ -1983,6 +1982,7 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         byte[]? payload = null;
+        int recipientCount = 0;
         foreach (WorldClientSession recipient in _playerSessionRegistry.EnumerateSessions())
         {
             PlayerLoginRecord? recipientPlayer = recipient.CurrentPlayer;
@@ -2003,8 +2003,13 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
             }
 
             payload ??= WorldPacketBuilders.BuildMovementBroadcast(movement.ClientGuid, packet.Payload);
-            recipient.TryQueueMovementPacket(packet.Opcode, payload);
+            if (recipient.TryQueueMovementPacket(packet.Opcode, payload))
+            {
+                recipientCount++;
+            }
         }
+
+        _movementTiming.RecordVisibleRecipientCount(recipientCount);
     }
 
     // Method: TryQueueMovementPacket
@@ -2143,7 +2148,8 @@ public sealed class WorldClientSession : IChatSession, IInGameCommandSession, IA
         }
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        if (!force && now - _lastPlayerVisibilityRefreshUtc < PlayerVisibilityRefreshInterval)
+        TimeSpan playerVisibilityRefreshInterval = _movementTiming.GetPlayerVisibilityRefreshInterval();
+        if (!force && now - _lastPlayerVisibilityRefreshUtc < playerVisibilityRefreshInterval)
         {
             return;
         }

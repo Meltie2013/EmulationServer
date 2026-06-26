@@ -93,6 +93,10 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     // Value: current cancellation token backing value maintained by the owning type.
     private readonly Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> _characterCountSnapshotLoader;
 
+    // Field: Stores the internal latency callback used by movement timing telemetry.
+    // Value: optional callback invoked when RealmServer latency is measured.
+    private readonly Action<string, TimeSpan>? _latencyMeasured;
+
     // Field: Stores the stop cancellation state used by the world server gameplay, session, and character runtime layer.
     // Value: current stop cancellation backing value maintained by the owning type.
     private CancellationTokenSource? _stopCancellation;
@@ -142,6 +146,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
     // - keepAliveIntervalSeconds: Keep alive interval seconds value supplied by the caller for this operation.
     // - authenticationTimeout: Authentication timeout value supplied by the caller for this operation.
     // - characterCountSnapshotLoader: Character count snapshot loader value supplied by the caller for this operation.
+    // - latencyMeasured: Optional callback invoked when latency to RealmServer is measured.
     // Returns: none.
     // Notes: This keeps the operation scoped to WorldRealmStatusReporter so callers do not duplicate validation, protocol, or persistence rules.
     public WorldRealmStatusReporter(
@@ -158,7 +163,8 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         int keepAliveTimeSeconds,
         int keepAliveIntervalSeconds,
         TimeSpan authenticationTimeout,
-        Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> characterCountSnapshotLoader)
+        Func<CancellationToken, Task<IReadOnlyDictionary<uint, byte>>> characterCountSnapshotLoader,
+        Action<string, TimeSpan>? latencyMeasured = null)
     {
         _settings = settings ?? throw new ArgumentNullException();
 
@@ -226,6 +232,7 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
         _keepAliveIntervalSeconds = keepAliveIntervalSeconds;
         _authenticationTimeout = authenticationTimeout;
         _characterCountSnapshotLoader = characterCountSnapshotLoader ?? throw new ArgumentNullException();
+        _latencyMeasured = latencyMeasured;
     }
 
     // Method: StartAsync
@@ -453,7 +460,8 @@ public sealed class WorldRealmStatusReporter : IAsyncDisposable
                     _latencyReportInterval,
                     _latencyLoggingEnabled,
                     _latencyLogInterval,
-                    _pingTimeout);
+                    _pingTimeout,
+                    _latencyMeasured);
 
                 latencyMonitor.Start(cancellationToken);
 

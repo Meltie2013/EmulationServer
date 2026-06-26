@@ -46,6 +46,7 @@ using EmulationServer.WorldServer.Configuration;
 using EmulationServer.WorldServer.Database.Accounts;
 using EmulationServer.WorldServer.Database.Characters;
 using EmulationServer.WorldServer.Internal;
+using EmulationServer.WorldServer.Networking.Movement;
 using EmulationServer.WorldServer.Networking.Packets;
 using EmulationServer.WorldServer.Networking.Sessions;
 using EmulationServer.WorldServer.Networking.Socket;
@@ -135,6 +136,10 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
     // Value: current player session registry backing value maintained by the owning type.
     private readonly WorldPlayerSessionRegistry _playerSessionRegistry;
 
+    // Field: Stores shared movement timing telemetry used to self-adjust movement background work.
+    // Value: smoothed internal latency measurements available to client sessions.
+    private readonly WorldMovementTimingTelemetry _movementTimingTelemetry = new();
+
     // Field: Stores the client listener state used by the world server gameplay, session, and character runtime layer.
     // Value: current client listener backing value maintained by the owning type.
     private readonly WorldClientSocketListener _clientListener;
@@ -212,7 +217,8 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
             settings.InternalNetwork.KeepAliveTimeSeconds,
             settings.InternalNetwork.KeepAliveIntervalSeconds,
             settings.InternalNetwork.AuthenticationTimeout,
-            _characterRepository.GetCharacterCountsByAccountAsync);
+            _characterRepository.GetCharacterCountsByAccountAsync,
+            _movementTimingTelemetry.RecordInternalServerLatency);
 
         _clientListener = new WorldClientSocketListener(
             settings.ClientNetwork,
@@ -232,6 +238,7 @@ public sealed class WorldServer : IInGameMapCommandExecutor, IInGameRbacCommandE
                 NotifyMapServicePlayerLeftWorldAsync,
                 NotifyMapServicePlayerMovementAsync,
                 NotifyMapServicePlayerClientPacketAsync,
+                _movementTimingTelemetry,
                 () => _worldTemplateData,
                 settings.MessageOfTheDay,
                 settings.PlayerSaveInterval,
